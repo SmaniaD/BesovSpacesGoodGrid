@@ -23,7 +23,7 @@ rev = "v0.1.0"
 [[require]]
 name = "UnbalancedHaarWavelet"
 git = "https://github.com/SmaniaD/UnbalancedHaarWavelet.git"
-rev = "v0.1.1"
+rev = "v0.1.2"
 
 
 [[lean_lib]]
