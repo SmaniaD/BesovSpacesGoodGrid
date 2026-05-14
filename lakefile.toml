@@ -10,9 +10,20 @@ weak.linter.mathlibStandardSet = true
 maxSynthPendingDepth = 3
 
 [[require]]
-name = "mathlib"
-scope = "leanprover-community"
-rev = "v4.30.0-rc2"
+name = "LaminarFamiliesMaximalBinaryTrees"
+git = "https://github.com/SmaniaD/LaminarFamiliesMaximalBinaryTrees.git"
+rev = "v0.1.0"
+
+[[require]]
+name = "UnconditionalSchauderBasis"
+git = "https://github.com/SmaniaD/UnconditionalSchauderBasis.git"
+rev = "v0.1.0"
+
+[[require]]
+name = "UnconditionalSchauderBasis"
+git = "https://github.com/SmaniaD/UnbalancedHaarWavelet.git"
+rev = "v0.1.0"
+
 
 [[lean_lib]]
 name = "BesovSpacesGoodGrid"
