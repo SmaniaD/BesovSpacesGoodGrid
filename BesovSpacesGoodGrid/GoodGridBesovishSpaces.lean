@@ -392,29 +392,14 @@ The parameter `q` is present because the space is indexed by `(s,p,q)`.  The
 field `abs_summable` formalizes the paper's "absolutely convergent series in
 `L^p`" condition for the level blocks.
 -/
-structure BesovishRepresentation
-    (A : AtomFamily G s p u) (q : ℝ≥0∞) (g : Lp ℂ p G.measure) where
+structure LpGridRepresentation
+    (A : AtomFamily G s p u) (g : Lp ℂ p G.measure) where
   block : (k : ℕ) → LevelBlock A k
-  abs_summable : Summable fun k => ‖(block k).toLp A‖
   hasSum : HasSum (fun k => (block k).toLp A) g
-  /--
-  The paper's `(p,q)` coefficient-cost condition (equation `(rep2)`), recorded
-  at the representation level.
 
-  This field stores the target predicate for finite coefficient cost. It is
-  intentionally a proposition field (with default value) so existing
-  constructions remain valid while allowing downstream developments to require
-  or prove this condition explicitly.
-  -/
-  pq_finite_cost : Prop :=
-    if q = ∞ then
-      BddAbove (Set.range fun k =>
-        ((∑ Q : LevelCell G k, ‖(block k).coeff Q‖ ^ p.toReal) ^ (1 / p.toReal)))
-    else
-      Summable fun k =>
-        ((∑ Q : LevelCell G k, ‖(block k).coeff Q‖ ^ p.toReal) ^ (q.toReal / p.toReal))
 
-namespace BesovishRepresentation
+
+namespace LpGridRepresentation
 
 /--
 Level-`k` coefficient `ℓ^p` power sum: `∑_{Q ∈ P^k} |s_Q|^p`.
@@ -423,41 +408,477 @@ This is the inner quantity from the paper's coefficient-cost formula.
 -/
 def levelCoeffPower
     {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
-    (R : BesovishRepresentation A q g) (k : ℕ) : ℝ :=
+    (R : LpGridRepresentation A g) (k : ℕ) : ℝ :=
   ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ ^ p.toReal
 
-/--
-Finite coefficient cost corresponding to equation `(rep2)` in the paper.
 
 
-This is a readable alias for the structure field `pq_finite_cost`.
--/
-def finiteCoeffCost
-    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
-    (R : BesovishRepresentation A q g) : Prop :=
-  R.pq_finite_cost
-
-end BesovishRepresentation
+end LpGridRepresentation
 
 /-- The `L^p` absolute-convergence cost of a representation. -/
-def BesovishRepresentation.lpCost
+def LpGridRepresentation.lpCost
     {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
-    (R : BesovishRepresentation A q g) : ℝ :=
+    (R : LpGridRepresentation A g) : ℝ :=
   ∑' k, ‖(R.block k).toLp A‖
 
-/--
-def BesovishRepresentation.pqCost
+namespace LpGridRepresentation
+
+/-- Representation-level addition induced by level-block linearity. -/
+noncomputable def add
+    {A : AtomFamily G s p u} {g h : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g)
+    (S : LpGridRepresentation A h) :
+    LpGridRepresentation A (g + h) := by
+  exact
+    { block := fun k => LevelBlock.add A (R.block k) (S.block k)
+      hasSum := by
+        simpa [LevelBlock.add_toLp] using R.hasSum.add S.hasSum }
+
+@[simp]
+theorem add_block_toLp
+    {A : AtomFamily G s p u} {g h : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g)
+    (S : LpGridRepresentation A h) (k : ℕ) :
+    ((add R S).block k).toLp A = (R.block k).toLp A + (S.block k).toLp A := by
+  simp [add]
+
+/-- Representation-level scalar multiplication induced by block linearity. -/
+noncomputable def smul
     {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
-    (R : BesovishRepresentation A q g) : ℝ :=
+    (c : ℂ) (R : LpGridRepresentation A g) :
+    LpGridRepresentation A (c • g) := by
+  exact
+    { block := fun k => LevelBlock.smul A c (R.block k)
+      hasSum := by
+        simpa [LevelBlock.smul_toLp] using R.hasSum.const_smul c }
+
+@[simp]
+theorem smul_block_toLp
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (c : ℂ) (R : LpGridRepresentation A g) (k : ℕ) :
+    ((smul c R).block k).toLp A = c • (R.block k).toLp A := by
+  simp [smul]
+
+theorem lpCost_nonneg
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) :
+    0 ≤ LpGridRepresentation.lpCost R := by
+  simpa [LpGridRepresentation.lpCost] using
+    (tsum_nonneg fun k => norm_nonneg ((R.block k).toLp A))
+
+theorem lpCost_triangle
+    {A : AtomFamily G s p u} {g h : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g)
+    (S : LpGridRepresentation A h)
+    (hR : Summable fun k => ‖(R.block k).toLp A‖)
+    (hS : Summable fun k => ‖(S.block k).toLp A‖) :
+    LpGridRepresentation.lpCost (add R S) ≤
+      LpGridRepresentation.lpCost R + LpGridRepresentation.lpCost S := by
+  have hsumRS : Summable fun k => ‖(R.block k).toLp A‖ + ‖(S.block k).toLp A‖ :=
+    hR.add hS
+  have hle :
+      (fun k => ‖((add R S).block k).toLp A‖)
+        ≤ fun k => ‖(R.block k).toLp A‖ + ‖(S.block k).toLp A‖ := by
+    intro k
+    simpa [add_block_toLp (R := R) (S := S) (k := k)] using
+      (norm_add_le ((R.block k).toLp A) ((S.block k).toLp A))
+  have hsumAdd : Summable fun k => ‖((add R S).block k).toLp A‖ :=
+    Summable.of_nonneg_of_le
+      (fun k => norm_nonneg (((add R S).block k).toLp A))
+      hle hsumRS
+  have htsum_add :
+      (∑' k, (‖(R.block k).toLp A‖ + ‖(S.block k).toLp A‖))
+        = (∑' k, ‖(R.block k).toLp A‖) + (∑' k, ‖(S.block k).toLp A‖) := by
+    exact (hR.hasSum.add hS.hasSum).tsum_eq
+  calc
+    LpGridRepresentation.lpCost (add R S)
+        = ∑' k, ‖((add R S).block k).toLp A‖ := rfl
+    _ ≤ ∑' k, (‖(R.block k).toLp A‖ + ‖(S.block k).toLp A‖) :=
+      hsumAdd.tsum_le_tsum hle hsumRS
+    _ = (∑' k, ‖(R.block k).toLp A‖) + (∑' k, ‖(S.block k).toLp A‖) :=
+      htsum_add
+    _ = LpGridRepresentation.lpCost R + LpGridRepresentation.lpCost S := rfl
+
+theorem lpCost_smul
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (c : ℂ) (R : LpGridRepresentation A g)
+    (hR : Summable fun k => ‖(R.block k).toLp A‖) :
+    LpGridRepresentation.lpCost (smul c R) =
+      ‖c‖ * LpGridRepresentation.lpCost R := by
+  have hmul_tsum :
+      (∑' k, ‖c‖ * ‖(R.block k).toLp A‖) =
+        ‖c‖ * (∑' k, ‖(R.block k).toLp A‖) := by
+    exact (hR.hasSum.mul_left ‖c‖).tsum_eq
+  calc
+    LpGridRepresentation.lpCost (smul c R)
+        = ∑' k, ‖((smul c R).block k).toLp A‖ := rfl
+    _ = ∑' k, ‖c • (R.block k).toLp A‖ := by
+      congr with k
+      rw [smul_block_toLp]
+    _ = ∑' k, ‖c‖ * ‖(R.block k).toLp A‖ := by
+      congr with k
+      rw [norm_smul]
+    _ = ‖c‖ * ∑' k, ‖(R.block k).toLp A‖ := hmul_tsum
+    _ = ‖c‖ * LpGridRepresentation.lpCost R := rfl
+
+end LpGridRepresentation
+
+
+def LpGridRepresentation.pqCost
+    {A : AtomFamily G s p u} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) : ℝ :=
   if q = ∞ then
-      BddAbove (Set.range fun k =>
-        ((∑ Q : LevelCell G k, ‖(block k).coeff Q‖ ^ p.toReal) ^ (1 / p.toReal)))
+      sSup (Set.range fun k =>
+        (R.levelCoeffPower k) ^ (1 / p.toReal))
     else
-      (Summable fun k =>
-        ((∑ Q : LevelCell G k, ‖(block k).coeff Q‖ ^ p.toReal) ^ (q.toReal / p.toReal)))^(1 / q.toReal)
--/
+      (∑' k, (R.levelCoeffPower k) ^ (q.toReal / p.toReal)) ^ (1 / q.toReal)
 
+namespace LpGridRepresentation
 
+/-- Finiteness condition for the `(p,q)` coefficient-cost data of a representation. -/
+def FinitePQCost
+    {A : AtomFamily G s p u} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) : Prop :=
+  if q = ∞ then
+    BddAbove (Set.range fun k => (R.levelCoeffPower k) ^ (1 / p.toReal))
+  else
+    Summable (fun k => (R.levelCoeffPower k) ^ (q.toReal / p.toReal))
+
+theorem pqCost_nonneg
+  {A : AtomFamily G s p u} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) :
+  0 ≤ LpGridRepresentation.pqCost (q := q) R := by
+  unfold LpGridRepresentation.pqCost
+  split_ifs with hq
+  · -- q = ∞ case: supremum of nonnegative terms
+    refine Real.sSup_nonneg ?_
+    intro x hx
+    rcases hx with ⟨k, rfl⟩
+    exact Real.rpow_nonneg (Finset.sum_nonneg fun Q _ => by positivity) _
+  · -- q < ∞ case: rpow of tsum of nonnegative terms
+    apply Real.rpow_nonneg
+    apply tsum_nonneg
+    intro k
+    exact Real.rpow_nonneg (Finset.sum_nonneg fun Q _ => by positivity) _
+
+theorem pqCost_triangle
+    {A : AtomFamily G s p u} {q : ℝ≥0∞} {g h : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g)
+    (S : LpGridRepresentation A h)
+    (hp_top : p ≠ ∞)
+  (hq_one : 1 ≤ q)
+    (hRfin : FinitePQCost (q := q) R)
+    (hSfin : FinitePQCost (q := q) S) :
+    LpGridRepresentation.pqCost (q := q) (add R S) ≤
+      LpGridRepresentation.pqCost (q := q) R + LpGridRepresentation.pqCost (q := q) S := by
+  have hp : 1 ≤ p.toReal := (ENNReal.dichotomy p).resolve_left hp_top
+  have hp_pos : 0 < p.toReal := (ENNReal.toReal_pos_iff_ne_top p).2 hp_top
+  unfold LpGridRepresentation.pqCost
+  split_ifs with hq
+  · have hRbdd : BddAbove (Set.range fun k => (R.levelCoeffPower k) ^ (1 / p.toReal)) := by
+      simpa [FinitePQCost, hq] using hRfin
+    have hSbdd : BddAbove (Set.range fun k => (S.levelCoeffPower k) ^ (1 / p.toReal)) := by
+      simpa [FinitePQCost, hq] using hSfin
+    apply csSup_le (Set.range_nonempty fun k => ((add R S).levelCoeffPower k) ^ (1 / p.toReal))
+    intro x hx
+    rcases hx with ⟨k, rfl⟩
+    have hsum_add :
+        ∑ Q : LevelCell G k, ‖((add R S).block k).coeff Q‖ ^ p.toReal
+          = ∑ Q : LevelCell G k, (‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖) ^ p.toReal := by
+      refine Finset.sum_congr rfl ?_
+      intro Q hQ
+      have hnn : 0 ≤ ‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖ :=
+        add_nonneg (norm_nonneg _) (norm_nonneg _)
+      change ‖((‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖ : ℝ) : ℂ)‖ ^ p.toReal =
+          (‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖) ^ p.toReal
+      rw [Complex.norm_real, Real.norm_of_nonneg hnn]
+    have hk :
+        ((add R S).levelCoeffPower k) ^ (1 / p.toReal)
+          ≤ (R.levelCoeffPower k) ^ (1 / p.toReal) + (S.levelCoeffPower k) ^ (1 / p.toReal) := by
+      rw [LpGridRepresentation.levelCoeffPower, hsum_add]
+      simpa [LpGridRepresentation.levelCoeffPower] using
+        (Real.Lp_add_le_of_nonneg
+          (s := (Finset.univ : Finset (LevelCell G k)))
+          (p := p.toReal)
+          (f := fun Q => ‖(R.block k).coeff Q‖)
+          (g := fun Q => ‖(S.block k).coeff Q‖)
+          hp
+          (by intro Q hQ; exact norm_nonneg _)
+          (by intro Q hQ; exact norm_nonneg _))
+    exact le_trans hk <|
+      add_le_add
+        (le_csSup hRbdd ⟨k, rfl⟩)
+        (le_csSup hSbdd ⟨k, rfl⟩)
+  · haveI : Fact (1 ≤ q) := ⟨hq_one⟩
+    have hq1 : 1 ≤ q.toReal := (ENNReal.dichotomy q).resolve_left hq
+    have hq_pos : 0 < q.toReal := (ENNReal.toReal_pos_iff_ne_top q).2 hq
+    let a : ℕ → ℝ := fun k => (R.levelCoeffPower k) ^ (1 / p.toReal)
+    let b : ℕ → ℝ := fun k => (S.levelCoeffPower k) ^ (1 / p.toReal)
+    let d : ℕ → ℝ := fun k => ((add R S).levelCoeffPower k) ^ (1 / p.toReal)
+    have ha_nonneg : ∀ k, 0 ≤ a k := by
+      intro k
+      dsimp [a]
+      have hnonneg : 0 ≤ R.levelCoeffPower k := by
+        unfold LpGridRepresentation.levelCoeffPower
+        exact Finset.sum_nonneg fun Q hQ => by positivity
+      exact Real.rpow_nonneg hnonneg _
+    have hb_nonneg : ∀ k, 0 ≤ b k := by
+      intro k
+      dsimp [b]
+      have hnonneg : 0 ≤ S.levelCoeffPower k := by
+        unfold LpGridRepresentation.levelCoeffPower
+        exact Finset.sum_nonneg fun Q hQ => by positivity
+      exact Real.rpow_nonneg hnonneg _
+    have hd_nonneg : ∀ k, 0 ≤ d k := by
+      intro k
+      dsimp [d]
+      have hnonneg : 0 ≤ (add R S).levelCoeffPower k := by
+        unfold LpGridRepresentation.levelCoeffPower
+        exact Finset.sum_nonneg fun Q hQ => by positivity
+      exact Real.rpow_nonneg hnonneg _
+    have hdk : ∀ k, d k ≤ a k + b k := by
+      intro k
+      have hsum_add :
+          ∑ Q : LevelCell G k, ‖((add R S).block k).coeff Q‖ ^ p.toReal
+            = ∑ Q : LevelCell G k, (‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖) ^ p.toReal := by
+        refine Finset.sum_congr rfl ?_
+        intro Q hQ
+        have hnn : 0 ≤ ‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖ :=
+          add_nonneg (norm_nonneg _) (norm_nonneg _)
+        change ‖((‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖ : ℝ) : ℂ)‖ ^ p.toReal =
+            (‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖) ^ p.toReal
+        rw [Complex.norm_real, Real.norm_of_nonneg hnn]
+      dsimp [d, a, b]
+      rw [LpGridRepresentation.levelCoeffPower, hsum_add]
+      simpa [LpGridRepresentation.levelCoeffPower] using
+        (Real.Lp_add_le_of_nonneg
+          (s := (Finset.univ : Finset (LevelCell G k)))
+          (p := p.toReal)
+          (f := fun Q => ‖(R.block k).coeff Q‖)
+          (g := fun Q => ‖(S.block k).coeff Q‖)
+          hp
+          (by intro Q hQ; exact norm_nonneg _)
+          (by intro Q hQ; exact norm_nonneg _))
+    have hRq : Summable (fun k => (a k) ^ q.toReal) := by
+      have hRsum0 : Summable (fun k => (R.levelCoeffPower k) ^ (q.toReal / p.toReal)) := by
+        simpa [FinitePQCost, hq] using hRfin
+      refine hRsum0.congr ?_
+      intro k
+      have hmul : q.toReal / p.toReal = (1 / p.toReal) * q.toReal := by
+        field_simp [hp_pos.ne']
+      have hnonneg : 0 ≤ R.levelCoeffPower k := by
+        unfold LpGridRepresentation.levelCoeffPower
+        exact Finset.sum_nonneg fun Q hQ => by positivity
+      rw [hmul, Real.rpow_mul hnonneg]
+    have hSq : Summable (fun k => (b k) ^ q.toReal) := by
+      have hSsum0 : Summable (fun k => (S.levelCoeffPower k) ^ (q.toReal / p.toReal)) := by
+        simpa [FinitePQCost, hq] using hSfin
+      refine hSsum0.congr ?_
+      intro k
+      have hmul : q.toReal / p.toReal = (1 / p.toReal) * q.toReal := by
+        field_simp [hp_pos.ne']
+      have hnonneg : 0 ≤ S.levelCoeffPower k := by
+        unfold LpGridRepresentation.levelCoeffPower
+        exact Finset.sum_nonneg fun Q hQ => by positivity
+      rw [hmul, Real.rpow_mul hnonneg]
+    have hsum_ab : Summable (fun k => (a k + b k) ^ q.toReal) :=
+      Real.summable_Lp_add_of_nonneg hq1
+        ha_nonneg
+        hb_nonneg
+        hRq hSq
+    have hdq_le :
+        (fun k => (d k) ^ q.toReal) ≤ fun k => (a k + b k) ^ q.toReal := by
+      intro k
+      exact Real.rpow_le_rpow
+        (hd_nonneg k)
+        (hdk k)
+        (le_of_lt hq_pos)
+    have hsum_dq : Summable (fun k => (d k) ^ q.toReal) :=
+      Summable.of_nonneg_of_le
+        (by intro k; exact Real.rpow_nonneg (hd_nonneg k) _)
+        hdq_le hsum_ab
+    have htsum_le :
+        (∑' k, (d k) ^ q.toReal) ≤ ∑' k, (a k + b k) ^ q.toReal :=
+      hsum_dq.tsum_le_tsum hdq_le hsum_ab
+    have hleft :
+        (∑' k, (d k) ^ q.toReal) ^ (1 / q.toReal)
+          ≤ (∑' k, (a k + b k) ^ q.toReal) ^ (1 / q.toReal) :=
+      Real.rpow_le_rpow
+        (tsum_nonneg (fun k => by
+          exact Real.rpow_nonneg (hd_nonneg k) _))
+        htsum_le
+        (by exact one_div_nonneg.mpr (le_of_lt hq_pos))
+    have hmid :
+        (∑' k, (a k + b k) ^ q.toReal) ^ (1 / q.toReal)
+          ≤ (∑' k, (a k) ^ q.toReal) ^ (1 / q.toReal)
+            + (∑' k, (b k) ^ q.toReal) ^ (1 / q.toReal) :=
+      Real.Lp_add_le_tsum_of_nonneg' hq1
+        ha_nonneg
+        hb_nonneg
+        hRq hSq
+    have hsum_d :
+        (∑' k, ((add R S).levelCoeffPower k) ^ (q.toReal / p.toReal))
+          = ∑' k, (d k) ^ q.toReal := by
+      apply tsum_congr
+      intro k
+      have hmul : q.toReal / p.toReal = (1 / p.toReal) * q.toReal := by
+        field_simp [hp_pos.ne']
+      have hnonneg : 0 ≤ (add R S).levelCoeffPower k := by
+        unfold LpGridRepresentation.levelCoeffPower
+        exact Finset.sum_nonneg fun Q hQ => by positivity
+      rw [hmul, Real.rpow_mul hnonneg]
+    have hsum_R :
+        (∑' k, (R.levelCoeffPower k) ^ (q.toReal / p.toReal))
+          = ∑' k, (a k) ^ q.toReal := by
+      apply tsum_congr
+      intro k
+      have hmul : q.toReal / p.toReal = (1 / p.toReal) * q.toReal := by
+        field_simp [hp_pos.ne']
+      have hnonneg : 0 ≤ R.levelCoeffPower k := by
+        unfold LpGridRepresentation.levelCoeffPower
+        exact Finset.sum_nonneg fun Q hQ => by positivity
+      rw [hmul, Real.rpow_mul hnonneg]
+    have hsum_S :
+        (∑' k, (S.levelCoeffPower k) ^ (q.toReal / p.toReal))
+          = ∑' k, (b k) ^ q.toReal := by
+      apply tsum_congr
+      intro k
+      have hmul : q.toReal / p.toReal = (1 / p.toReal) * q.toReal := by
+        field_simp [hp_pos.ne']
+      have hnonneg : 0 ≤ S.levelCoeffPower k := by
+        unfold LpGridRepresentation.levelCoeffPower
+        exact Finset.sum_nonneg fun Q hQ => by positivity
+      rw [hmul, Real.rpow_mul hnonneg]
+    calc
+      (∑' k, ((add R S).levelCoeffPower k) ^ (q.toReal / p.toReal)) ^ (1 / q.toReal)
+          = (∑' k, (d k) ^ q.toReal) ^ (1 / q.toReal) := by rw [hsum_d]
+      _ ≤ (∑' k, (a k + b k) ^ q.toReal) ^ (1 / q.toReal) := hleft
+      _ ≤ (∑' k, (a k) ^ q.toReal) ^ (1 / q.toReal)
+            + (∑' k, (b k) ^ q.toReal) ^ (1 / q.toReal) := hmid
+      _ = (∑' k, (R.levelCoeffPower k) ^ (q.toReal / p.toReal)) ^ (1 / q.toReal)
+            + (∑' k, (S.levelCoeffPower k) ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by
+          rw [hsum_R, hsum_S]
+
+theorem pqCost_smul
+    {A : AtomFamily G s p u} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
+    (c : ℂ) (R : LpGridRepresentation A g)
+    (hp_top : p ≠ ∞)
+  (hq_one : 1 ≤ q)
+    (hRfin : FinitePQCost (q := q) R) :
+    LpGridRepresentation.pqCost (q := q) (smul c R) =
+      ‖c‖ * LpGridRepresentation.pqCost (q := q) R := by
+  have hp_pos : 0 < p.toReal := (ENNReal.toReal_pos_iff_ne_top p).2 hp_top
+  unfold LpGridRepresentation.pqCost
+  split_ifs with hq
+  · let f : ℕ → ℝ := fun k => (R.levelCoeffPower k) ^ (1 / p.toReal)
+    have hpoint :
+        ∀ k, ((smul c R).levelCoeffPower k) ^ (1 / p.toReal) = ‖c‖ * f k := by
+      intro k
+      have hRnonneg : 0 ≤ R.levelCoeffPower k := by
+        unfold LpGridRepresentation.levelCoeffPower
+        exact Finset.sum_nonneg fun Q hQ => by positivity
+      have hsum :
+          (smul c R).levelCoeffPower k = ‖c‖ ^ p.toReal * R.levelCoeffPower k := by
+        unfold LpGridRepresentation.levelCoeffPower LpGridRepresentation.smul LevelBlock.smul
+        calc
+          (∑ Q : LevelCell G k, ‖c * (R.block k).coeff Q‖ ^ p.toReal)
+              = ∑ Q : LevelCell G k, (‖c‖ * ‖(R.block k).coeff Q‖) ^ p.toReal := by
+                  refine Finset.sum_congr rfl ?_
+                  intro Q hQ
+                  rw [norm_mul]
+          _ = ∑ Q : LevelCell G k, (‖c‖ ^ p.toReal) * (‖(R.block k).coeff Q‖ ^ p.toReal) := by
+                refine Finset.sum_congr rfl ?_
+                intro Q hQ
+                rw [Real.mul_rpow (norm_nonneg c) (norm_nonneg _)]
+          _ = ‖c‖ ^ p.toReal * ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ ^ p.toReal := by
+                rw [Finset.mul_sum]
+      calc
+        ((smul c R).levelCoeffPower k) ^ (1 / p.toReal)
+            = (‖c‖ ^ p.toReal * R.levelCoeffPower k) ^ (1 / p.toReal) := by rw [hsum]
+        _ = (‖c‖ ^ p.toReal) ^ (1 / p.toReal) * (R.levelCoeffPower k) ^ (1 / p.toReal) := by
+              rw [Real.mul_rpow (by positivity) hRnonneg]
+        _ = ‖c‖ * (R.levelCoeffPower k) ^ (1 / p.toReal) := by
+              have hcp : (‖c‖ ^ p.toReal) ^ (1 / p.toReal) = ‖c‖ := by
+                simpa [one_div] using (Real.rpow_rpow_inv (norm_nonneg c) hp_pos.ne')
+              rw [hcp]
+    have hrange :
+        Set.range (fun k => ((smul c R).levelCoeffPower k) ^ (1 / p.toReal))
+          = Set.range (fun k => ‖c‖ * f k) := by
+      ext x
+      constructor
+      · intro hx
+        rcases hx with ⟨k, rfl⟩
+        exact ⟨k, (hpoint k).symm⟩
+      · intro hx
+        rcases hx with ⟨k, rfl⟩
+        exact ⟨k, hpoint k⟩
+    calc
+      sSup (Set.range fun k => ((smul c R).levelCoeffPower k) ^ (1 / p.toReal))
+          = sSup (Set.range fun k => ‖c‖ * f k) := by rw [hrange]
+      _ = iSup (fun k => ‖c‖ * f k) := by simp [sSup_range]
+      _ = ‖c‖ * iSup f := (Real.mul_iSup_of_nonneg (norm_nonneg c) f).symm
+      _ = ‖c‖ * sSup (Set.range fun k => (R.levelCoeffPower k) ^ (1 / p.toReal)) := by
+            simp [f, sSup_range]
+  · haveI : Fact (1 ≤ q) := ⟨hq_one⟩
+    have hq_pos : 0 < q.toReal := (ENNReal.toReal_pos_iff_ne_top q).2 hq
+    have hRsum : Summable (fun k => (R.levelCoeffPower k) ^ (q.toReal / p.toReal)) := by
+      simpa [FinitePQCost, hq] using hRfin
+    have hterm :
+        ∀ k,
+          ((smul c R).levelCoeffPower k) ^ (q.toReal / p.toReal)
+            = ‖c‖ ^ q.toReal * (R.levelCoeffPower k) ^ (q.toReal / p.toReal) := by
+      intro k
+      have hRnonneg : 0 ≤ R.levelCoeffPower k := by
+        unfold LpGridRepresentation.levelCoeffPower
+        exact Finset.sum_nonneg fun Q hQ => by positivity
+      have hsum :
+          (smul c R).levelCoeffPower k = ‖c‖ ^ p.toReal * R.levelCoeffPower k := by
+        unfold LpGridRepresentation.levelCoeffPower LpGridRepresentation.smul LevelBlock.smul
+        calc
+          (∑ Q : LevelCell G k, ‖c * (R.block k).coeff Q‖ ^ p.toReal)
+              = ∑ Q : LevelCell G k, (‖c‖ * ‖(R.block k).coeff Q‖) ^ p.toReal := by
+                  refine Finset.sum_congr rfl ?_
+                  intro Q hQ
+                  rw [norm_mul]
+          _ = ∑ Q : LevelCell G k, (‖c‖ ^ p.toReal) * (‖(R.block k).coeff Q‖ ^ p.toReal) := by
+                refine Finset.sum_congr rfl ?_
+                intro Q hQ
+                rw [Real.mul_rpow (norm_nonneg c) (norm_nonneg _)]
+          _ = ‖c‖ ^ p.toReal * ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ ^ p.toReal := by
+                rw [Finset.mul_sum]
+      calc
+        ((smul c R).levelCoeffPower k) ^ (q.toReal / p.toReal)
+            = (‖c‖ ^ p.toReal * R.levelCoeffPower k) ^ (q.toReal / p.toReal) := by rw [hsum]
+        _ = (‖c‖ ^ p.toReal) ^ (q.toReal / p.toReal) * (R.levelCoeffPower k) ^ (q.toReal / p.toReal) := by
+              rw [Real.mul_rpow (by positivity) hRnonneg]
+        _ = ‖c‖ ^ q.toReal * (R.levelCoeffPower k) ^ (q.toReal / p.toReal) := by
+              have hmul : q.toReal / p.toReal = (1 / p.toReal) * q.toReal := by
+                field_simp [hp_pos.ne']
+              rw [hmul, Real.rpow_mul (by positivity)]
+              have hcp : (‖c‖ ^ p.toReal) ^ (1 / p.toReal) = ‖c‖ := by
+                simpa [one_div] using (Real.rpow_rpow_inv (norm_nonneg c) hp_pos.ne')
+              rw [hcp]
+    calc
+      (∑' k, ((smul c R).levelCoeffPower k) ^ (q.toReal / p.toReal)) ^ (1 / q.toReal)
+          = (∑' k, ‖c‖ ^ q.toReal * (R.levelCoeffPower k) ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by
+              congr 1
+              exact tsum_congr hterm
+      _ = (‖c‖ ^ q.toReal * (∑' k, (R.levelCoeffPower k) ^ (q.toReal / p.toReal))) ^ (1 / q.toReal) := by
+            rw [tsum_mul_left]
+      _ = (‖c‖ ^ q.toReal) ^ (1 / q.toReal) *
+            (∑' k, (R.levelCoeffPower k) ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by
+        have htsum_nonneg : 0 ≤ ∑' k, (R.levelCoeffPower k) ^ (q.toReal / p.toReal) := by
+              exact tsum_nonneg fun k =>
+                Real.rpow_nonneg (by
+                  unfold LpGridRepresentation.levelCoeffPower
+                  exact Finset.sum_nonneg fun Q hQ => by positivity) _
+        rw [Real.mul_rpow (by positivity) htsum_nonneg]
+      _ = ‖c‖ * (∑' k, (R.levelCoeffPower k) ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by
+        have hcp : (‖c‖ ^ q.toReal) ^ (1 / q.toReal) = ‖c‖ := by
+          simpa [one_div] using (Real.rpow_rpow_inv (norm_nonneg c) hq_pos.ne')
+        rw [hcp]
+
+end LpGridRepresentation
 
 
 /--
@@ -465,7 +886,8 @@ The Besov-ish predicate on `L^p`: `g` has an atomic Besov-ish representation.
 -/
 def MemBesovish (A : AtomFamily G s p u) (q : ℝ≥0∞)
     (g : Lp ℂ p G.measure) : Prop :=
-  Nonempty (BesovishRepresentation A q g)
+  let _ : ℝ≥0∞ := q
+  Nonempty (LpGridRepresentation A g)
 
 /--
 Stronger Besov-ish predicate: representation exists and has finite
@@ -473,7 +895,11 @@ coefficient cost in the sense of equation `(rep2)` from the paper.
 -/
 def MemBesovishCoeffCost (A : AtomFamily G s p u) (q : ℝ≥0∞)
     (g : Lp ℂ p G.measure) : Prop :=
-  ∃ R : BesovishRepresentation A q g, R.finiteCoeffCost
+  ∃ R : LpGridRepresentation A g,
+    (if q = ∞ then
+      BddAbove (Set.range fun k => (R.levelCoeffPower k) ^ (1 / p.toReal))
+    else
+      Summable (fun k => (R.levelCoeffPower k) ^ (q.toReal / p.toReal)))
 
 theorem memBesovish_zero (A : AtomFamily G s p u) :
     MemBesovish A q (0 : Lp ℂ p G.measure) := by
@@ -491,9 +917,7 @@ theorem memBesovish_zero (A : AtomFamily G s p u) :
   refine ⟨?_⟩
   refine
     { block := B
-      abs_summable := ?_
       hasSum := ?_ }
-  · simp [B, hB_toLp]
   · simp [B, hB_toLp]
 
 theorem memBesovish_add {A : AtomFamily G s p u}
@@ -522,15 +946,7 @@ theorem memBesovish_add {A : AtomFamily G s p u}
   refine ⟨?_⟩
   refine
     { block := B
-      abs_summable := ?_
       hasSum := ?_ }
-  · refine Summable.of_nonneg_of_le
-      (fun k => norm_nonneg ((B k).toLp A)) ?_
-      (repG.abs_summable.add repH.abs_summable)
-    intro k
-    -- Pointwise norm control by the triangle inequality.
-    rw [hB_toLp k]
-    exact norm_add_le ((repG.block k).toLp A) ((repH.block k).toLp A)
   · simpa [B, hB_toLp] using repG.hasSum.add repH.hasSum
 
 theorem memBesovish_smul {A : AtomFamily G s p u}
@@ -553,12 +969,7 @@ theorem memBesovish_smul {A : AtomFamily G s p u}
   refine ⟨?_⟩
   refine
     { block := B
-      abs_summable := ?_
       hasSum := ?_ }
-  · refine (Summable.mul_left ‖c‖ repG.abs_summable).congr ?_
-    intro k
-    -- `‖c • x‖ = ‖c‖ * ‖x‖` gives the expected absolute-summability bound.
-    rw [hB_toLp k, norm_smul]
   · simpa [B, hB_toLp] using repG.hasSum.const_smul c
 
 /--
@@ -583,6 +994,150 @@ theorem besovishSpace_is_linear_subspace
     (A : AtomFamily G s p u) (q : ℝ≥0∞) :
     ∃ E : Submodule ℂ (Lp ℂ p G.measure), E = BesovishSpace A q :=
   ⟨BesovishSpace A q, rfl⟩
+
+namespace BesovishSpace
+
+/-- Candidate upper bounds for the `pqCost` gauge of `x`. -/
+def pqCostUpperSet
+    (A : AtomFamily G s p u) (q : ℝ≥0∞) (x : BesovishSpace A q) : Set ℝ :=
+  { c | ∃ R : LpGridRepresentation A (x : Lp ℂ p G.measure),
+      LpGridRepresentation.pqCost (q := q) R ≤ c }
+
+/-- Infimum gauge induced by `pqCost` on admissible representations of `x`. -/
+noncomputable def pqPseudoNorm
+    (A : AtomFamily G s p u) (q : ℝ≥0∞) (x : BesovishSpace A q) : ℝ :=
+  sInf (pqCostUpperSet A q x)
+
+variable {A : AtomFamily G s p u} {q : ℝ≥0∞}
+
+/-- Global hypothesis: every Besov-ish vector admits a representation with finite `(p,q)` cost. -/
+def HasAdmissibleCostRepresentations (A : AtomFamily G s p u) (q : ℝ≥0∞) : Prop :=
+  ∀ x : BesovishSpace A q,
+    Nonempty (LpGridRepresentation A (x : Lp ℂ p G.measure))
+
+theorem pqCostUpperSet_nonempty
+    (hA : HasAdmissibleCostRepresentations (A := A) q)
+    (x : BesovishSpace A q) :
+    (pqCostUpperSet A q x).Nonempty := by
+  rcases hA x with ⟨R⟩
+  exact ⟨LpGridRepresentation.pqCost (q := q) R, ⟨R, le_rfl⟩⟩
+
+theorem pqCostUpperSet_bddBelow
+    (x : BesovishSpace A q) :
+    BddBelow (pqCostUpperSet A q x) := by
+  refine ⟨0, ?_⟩
+  intro c hc
+  rcases hc with ⟨R, hRc⟩
+  exact le_trans (LpGridRepresentation.pqCost_nonneg R) hRc
+
+theorem pqPseudoNorm_nonneg
+    (hA : HasAdmissibleCostRepresentations (A := A) q)
+    (x : BesovishSpace A q) :
+    0 ≤ pqPseudoNorm A q x := by
+  unfold pqPseudoNorm
+  refine le_csInf (pqCostUpperSet_nonempty (A := A) (q := q) hA x) ?_
+  intro c hc
+  rcases hc with ⟨R, hRc⟩
+  exact le_trans (LpGridRepresentation.pqCost_nonneg R) hRc
+
+theorem pqPseudoNorm_le_cost
+    (x : BesovishSpace A q)
+    (R : LpGridRepresentation A (x : Lp ℂ p G.measure)) :
+  pqPseudoNorm A q x ≤ LpGridRepresentation.pqCost (q := q) R := by
+  unfold pqPseudoNorm
+  exact csInf_le (pqCostUpperSet_bddBelow (A := A) (q := q) x) ⟨R, le_rfl⟩
+
+theorem exists_cost_lt_pqPseudoNorm_add
+    (hA : HasAdmissibleCostRepresentations (A := A) q)
+    (x : BesovishSpace A q) {ε : ℝ} (hε : 0 < ε) :
+    ∃ R : LpGridRepresentation A (x : Lp ℂ p G.measure),
+      LpGridRepresentation.pqCost (q := q) R < pqPseudoNorm A q x + ε := by
+  have hlt : sInf (pqCostUpperSet A q x) < sInf (pqCostUpperSet A q x) + ε :=
+    lt_add_of_pos_right _ hε
+  rcases exists_lt_of_csInf_lt
+      (pqCostUpperSet_nonempty (A := A) (q := q) hA x) hlt with
+      ⟨c, hc, hclt⟩
+  rcases hc with ⟨R, hRc⟩
+  refine ⟨R, ?_⟩
+  exact lt_of_le_of_lt hRc (by simpa [pqPseudoNorm] using hclt)
+
+theorem pqPseudoNorm_add_le
+    (hp_top : p ≠ ∞)
+  (hq_one : 1 ≤ q)
+    (hfin : ∀ z : BesovishSpace A q, ∀ ε : ℝ, 0 < ε →
+      ∃ R : LpGridRepresentation A (z : Lp ℂ p G.measure),
+        LpGridRepresentation.FinitePQCost (q := q) R ∧
+          LpGridRepresentation.pqCost (q := q) R < pqPseudoNorm A q z + ε)
+    (x y : BesovishSpace A q) :
+    pqPseudoNorm A q (x + y) ≤ pqPseudoNorm A q x + pqPseudoNorm A q y := by
+  refine le_iff_forall_pos_le_add.mpr ?_
+  intro ε hε
+  have hε2 : 0 < ε / 2 := by linarith
+  rcases hfin x (ε / 2) hε2 with ⟨Rx, hRxfin, hRxlt⟩
+  rcases hfin y (ε / 2) hε2 with ⟨Ry, hRyfin, hRylt⟩
+  let Rsum := LpGridRepresentation.add (A := A) Rx Ry
+  have h0 :
+      pqPseudoNorm A q (x + y) ≤ LpGridRepresentation.pqCost (q := q) Rsum :=
+    pqPseudoNorm_le_cost (A := A) (q := q) (x := x + y) Rsum
+  have h1 :
+      LpGridRepresentation.pqCost (q := q) Rsum
+        ≤ LpGridRepresentation.pqCost (q := q) Rx + LpGridRepresentation.pqCost (q := q) Ry :=
+    LpGridRepresentation.pqCost_triangle (A := A) (q := q) Rx Ry hp_top hq_one hRxfin hRyfin
+  have h2 :
+      LpGridRepresentation.pqCost (q := q) Rx + LpGridRepresentation.pqCost (q := q) Ry
+        ≤ (pqPseudoNorm A q x + ε / 2) + (pqPseudoNorm A q y + ε / 2) :=
+    add_le_add (le_of_lt hRxlt) (le_of_lt hRylt)
+  calc
+    pqPseudoNorm A q (x + y)
+      ≤ LpGridRepresentation.pqCost (q := q) Rsum := h0
+    _ ≤ LpGridRepresentation.pqCost (q := q) Rx + LpGridRepresentation.pqCost (q := q) Ry := h1
+    _ ≤ (pqPseudoNorm A q x + ε / 2) + (pqPseudoNorm A q y + ε / 2) := h2
+    _ = pqPseudoNorm A q x + pqPseudoNorm A q y + ε := by ring
+
+theorem pqPseudoNorm_smul_le
+    (hp_top : p ≠ ∞)
+  (hq_one : 1 ≤ q)
+    (hfin : ∀ z : BesovishSpace A q, ∀ ε : ℝ, 0 < ε →
+      ∃ R : LpGridRepresentation A (z : Lp ℂ p G.measure),
+        LpGridRepresentation.FinitePQCost (q := q) R ∧
+          LpGridRepresentation.pqCost (q := q) R < pqPseudoNorm A q z + ε)
+    (c : ℂ) (x : BesovishSpace A q) :
+    pqPseudoNorm A q (c • x) ≤ ‖c‖ * pqPseudoNorm A q x := by
+  refine le_iff_forall_pos_le_add.mpr ?_
+  intro ε hε
+  have hden : 0 < ‖c‖ + 1 := by linarith [norm_nonneg c]
+  have hδ : 0 < ε / (‖c‖ + 1) := by positivity
+  rcases hfin x (ε / (‖c‖ + 1)) hδ with ⟨Rx, hRxfin, hRxlt⟩
+  let Rc := LpGridRepresentation.smul (A := A) c Rx
+  have h0 : pqPseudoNorm A q (c • x) ≤ LpGridRepresentation.pqCost (q := q) Rc :=
+    pqPseudoNorm_le_cost (A := A) (q := q) (x := c • x) Rc
+  have h1 : LpGridRepresentation.pqCost (q := q) Rc = ‖c‖ * LpGridRepresentation.pqCost (q := q) Rx :=
+    LpGridRepresentation.pqCost_smul (A := A) (q := q) c Rx hp_top hq_one hRxfin
+  have h2 : LpGridRepresentation.pqCost (q := q) Rx ≤ pqPseudoNorm A q x + ε / (‖c‖ + 1) :=
+    le_of_lt hRxlt
+  have h3 :
+      ‖c‖ * LpGridRepresentation.pqCost (q := q) Rx
+        ≤ ‖c‖ * (pqPseudoNorm A q x + ε / (‖c‖ + 1)) :=
+    mul_le_mul_of_nonneg_left h2 (norm_nonneg c)
+  have h4 : ‖c‖ * (ε / (‖c‖ + 1)) ≤ ε := by
+    have hfrac : ‖c‖ / (‖c‖ + 1) ≤ (1 : ℝ) :=
+      (div_le_one hden).2 (by linarith)
+    have hεnn : 0 ≤ ε := le_of_lt hε
+    have hmul : (‖c‖ / (‖c‖ + 1)) * ε ≤ (1 : ℝ) * ε :=
+      mul_le_mul_of_nonneg_right hfrac hεnn
+    calc
+      ‖c‖ * (ε / (‖c‖ + 1)) = (‖c‖ / (‖c‖ + 1)) * ε := by ring
+      _ ≤ (1 : ℝ) * ε := hmul
+      _ = ε := by ring
+  calc
+    pqPseudoNorm A q (c • x)
+        ≤ LpGridRepresentation.pqCost (q := q) Rc := h0
+    _ = ‖c‖ * LpGridRepresentation.pqCost (q := q) Rx := h1
+    _ ≤ ‖c‖ * (pqPseudoNorm A q x + ε / (‖c‖ + 1)) := h3
+    _ = ‖c‖ * pqPseudoNorm A q x + ‖c‖ * (ε / (‖c‖ + 1)) := by ring
+    _ ≤ ‖c‖ * pqPseudoNorm A q x + ε := by linarith [h4]
+
+end BesovishSpace
 
 
 
