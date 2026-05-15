@@ -1,11 +1,10 @@
-import BesovSpacesGoodGrid.GoodGridAtomsDefinition
+import BesovSpacesGoodGrid.WeakGridAtomsDefinition
 import Mathlib.MeasureTheory.Function.LpSpace.Basic
 import Mathlib.Analysis.Normed.Group.InfiniteSum
 import Mathlib.Analysis.Convex.Combination
-import BesovSpacesGoodGrid.GoodGridDefinition
 
 /-!
-Besov-ish spaces associated to a good grid and a family of atoms.
+Besov-ish spaces associated to a weak grid and a family of atoms.
 
 The paper defines a Besov-ish element by an atomic expansion whose level
 blocks converge absolutely in `L^p`.  A level block is explicitly indexed by
@@ -14,7 +13,7 @@ and one atom.  This matches the paper's finite inner sum
 `∑_{Q ∈ P^k} s_Q a_Q`.
 -/
 
-namespace GoodGridSpace
+namespace WeakGridSpace
 
 open scoped ENNReal Topology
 open MeasureTheory
@@ -28,20 +27,20 @@ noncomputable section
 
 
 
-variable {G : GoodGridSpace (α := α)} {s : ℝ} {p u q : ℝ≥0∞}
+variable {G : WeakGridSpace (α := α)} {s : ℝ} {p u q : ℝ≥0∞}
 variable [Fact (1 ≤ p)]
 
 /--
 O tipo dos cells no nível k, usando o grid de G.
 -/
-abbrev LevelCell (G : GoodGridSpace (α := α)) (k : ℕ) :=
-  { Q : Set α // Q ∈ G.grid.grid.partitions k }
+abbrev LevelCell (G : WeakGridSpace (α := α)) (k : ℕ) :=
+  { Q : Set α // Q ∈ G.grid.partitions k }
 
 /--
-Converte um LevelCell para um GoodGridCell, usando o grid de G.
+Converte um LevelCell para um WeakGridCell, usando o grid de G.
 -/
-def levelCellToGoodGridCell (G : GoodGridSpace (α := α)) (k : ℕ)
-    (Q : LevelCell G k) : GoodGridCell G :=
+def levelCellToWeakGridCell (G : WeakGridSpace (α := α)) (k : ℕ)
+    (Q : LevelCell G k) : WeakGridCell G :=
   ⟨k, Q.1, Q.2⟩
 
 /--
@@ -53,9 +52,9 @@ over the partition cells.
 -/
 structure LevelBlock (A : AtomFamily G s p u) (k : ℕ) where
   coeff : LevelCell G k → ℂ
-  atom : ∀ Q : LevelCell G k, (A.localSpace (levelCellToGoodGridCell G k Q)).carrier
+  atom : ∀ Q : LevelCell G k, (A.localSpace (levelCellToWeakGridCell G k Q)).carrier
   atom_mem : ∀ Q : LevelCell G k,
-    A.IsAtom (levelCellToGoodGridCell G k Q) (atom Q)
+    A.IsAtom (levelCellToWeakGridCell G k Q) (atom Q)
 
 namespace LevelBlock
 
@@ -63,16 +62,16 @@ namespace LevelBlock
 def zero (A : AtomFamily G s p u) (k : ℕ) : LevelBlock A k where
   coeff := fun _ => 0
   atom := fun Q =>
-    Classical.choose (A.atoms_nonempty_on (levelCellToGoodGridCell G k Q))
+    Classical.choose (A.atoms_nonempty_on (levelCellToWeakGridCell G k Q))
   atom_mem := fun Q =>
-    Classical.choose_spec (A.atoms_nonempty_on (levelCellToGoodGridCell G k Q))
+    Classical.choose_spec (A.atoms_nonempty_on (levelCellToWeakGridCell G k Q))
 
 /-- The `L^p` term attached to one cell in a level block. -/
 def term (A : AtomFamily G s p u) {k : ℕ}
     (B : LevelBlock A k) (Q : LevelCell G k) : Lp ℂ p G.measure :=
   B.coeff Q • MemLp.toLp
-    (A.toFunction (levelCellToGoodGridCell G k Q) (B.atom Q))
-    (A.local_memLp_p (levelCellToGoodGridCell G k Q) (B.atom Q))
+    (A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q))
+    (A.local_memLp_p (levelCellToWeakGridCell G k Q) (B.atom Q))
 
 /--
 The value of a level block in `L^p`, namely the finite sum over the level-`k`
@@ -80,7 +79,7 @@ partition.
 -/
 def toLp (A : AtomFamily G s p u) {k : ℕ}
     (B : LevelBlock A k) : Lp ℂ p G.measure :=
-  (G.grid.grid.partitions k).attach.sum fun Q => B.term A Q
+  (G.grid.partitions k).attach.sum fun Q => B.term A Q
 
 @[simp]
 theorem zero_toLp (A : AtomFamily G s p u) (k : ℕ) :
@@ -121,7 +120,7 @@ theorem smul_mem_LevelBlockSet (A : AtomFamily G s p u) (k : ℕ)
   exact ⟨LevelBlock.smul A c B, by simp⟩
 
 omit [Fact (1 ≤ p)] in
-theorem atom_zero_mem (A : AtomFamily G s p u) (Q : GoodGridCell G) :
+theorem atom_zero_mem (A : AtomFamily G s p u) (Q : WeakGridCell G) :
     (0 : (A.localSpace Q).carrier) ∈ A.atoms Q := by
   classical
   rcases A.atoms_nonempty Q with ⟨φ, hφ⟩
@@ -135,7 +134,7 @@ theorem atom_zero_mem (A : AtomFamily G s p u) (Q : GoodGridCell G) :
   simp
 
 omit [Fact (1 ≤ p)] in
-theorem atom_smul_mem_of_norm_le_one (A : AtomFamily G s p u) (Q : GoodGridCell G)
+theorem atom_smul_mem_of_norm_le_one (A : AtomFamily G s p u) (Q : WeakGridCell G)
     {c : ℂ} (hc : ‖c‖ ≤ (1 : ℝ))
     {φ : (A.localSpace Q).carrier} (hφ : φ ∈ A.atoms Q) :
     c • φ ∈ A.atoms Q := by
@@ -162,12 +161,12 @@ theorem atom_smul_mem_of_norm_le_one (A : AtomFamily G s p u) (Q : GoodGridCell 
   simp [σ, hnorm_pos]
 
 omit [Fact (1 ≤ p)] in
-noncomputable def phaseAtom (A : AtomFamily G s p u) (Q : GoodGridCell G)
+noncomputable def phaseAtom (A : AtomFamily G s p u) (Q : WeakGridCell G)
     (c : ℂ) (φ : (A.localSpace Q).carrier) : (A.localSpace Q).carrier :=
   if c = 0 then 0 else ((‖c‖ : ℂ)⁻¹ * c) • φ
 
 omit [Fact (1 ≤ p)] in
-theorem phaseAtom_mem (A : AtomFamily G s p u) (Q : GoodGridCell G)
+theorem phaseAtom_mem (A : AtomFamily G s p u) (Q : WeakGridCell G)
     (c : ℂ) {φ : (A.localSpace Q).carrier} (hφ : φ ∈ A.atoms Q) :
     phaseAtom A Q c φ ∈ A.atoms Q := by
   classical
@@ -179,7 +178,7 @@ theorem phaseAtom_mem (A : AtomFamily G s p u) (Q : GoodGridCell G)
     simp [norm_inv, hnorm_pos]
 
 omit [Fact (1 ≤ p)] in
-theorem norm_smul_phaseAtom (A : AtomFamily G s p u) (Q : GoodGridCell G)
+theorem norm_smul_phaseAtom (A : AtomFamily G s p u) (Q : WeakGridCell G)
     (c : ℂ) (φ : (A.localSpace Q).carrier) :
     (‖c‖ : ℝ) • phaseAtom A Q c φ = c • φ := by
   classical
@@ -193,7 +192,7 @@ theorem norm_smul_phaseAtom (A : AtomFamily G s p u) (Q : GoodGridCell G)
 
 omit [Fact (1 ≤ p)] in
 theorem atom_add_combo_mem_of_norm_add_le_one
-    (A : AtomFamily G s p u) (Q : GoodGridCell G)
+    (A : AtomFamily G s p u) (Q : WeakGridCell G)
     {c d : ℂ} (hcd : ‖c‖ + ‖d‖ ≤ (1 : ℝ))
     {φ ψ : (A.localSpace Q).carrier}
     (hφ : φ ∈ A.atoms Q) (hψ : ψ ∈ A.atoms Q) :
@@ -226,7 +225,7 @@ theorem atom_add_combo_mem_of_norm_add_le_one
     norm_smul_phaseAtom A Q d ψ]
 
 omit [Fact (1 ≤ p)] in
-theorem atom_add_repackage (A : AtomFamily G s p u) (Q : GoodGridCell G)
+theorem atom_add_repackage (A : AtomFamily G s p u) (Q : WeakGridCell G)
     (c d : ℂ) {φ ψ : (A.localSpace Q).carrier}
     (hφ : φ ∈ A.atoms Q) (hψ : ψ ∈ A.atoms Q) :
     ∃ θ : (A.localSpace Q).carrier,
@@ -278,11 +277,11 @@ noncomputable def add (A : AtomFamily G s p u) {k : ℕ}
   coeff := fun Q => ((‖B.coeff Q‖ + ‖C.coeff Q‖ : ℝ) : ℂ)
   atom := fun Q =>
     Classical.choose
-      (atom_add_repackage A (levelCellToGoodGridCell G k Q)
+      (atom_add_repackage A (levelCellToWeakGridCell G k Q)
         (B.coeff Q) (C.coeff Q) (B.atom_mem Q) (C.atom_mem Q))
   atom_mem := fun Q =>
     (Classical.choose_spec
-      (atom_add_repackage A (levelCellToGoodGridCell G k Q)
+      (atom_add_repackage A (levelCellToWeakGridCell G k Q)
         (B.coeff Q) (C.coeff Q) (B.atom_mem Q) (C.atom_mem Q))).1
 
 omit [Fact (1 ≤ p)] in
@@ -291,14 +290,14 @@ theorem add_atom_spec (A : AtomFamily G s p u) {k : ℕ}
     ((‖B.coeff Q‖ + ‖C.coeff Q‖ : ℝ) : ℂ) • (add A B C).atom Q =
       B.coeff Q • B.atom Q + C.coeff Q • C.atom Q :=
   (Classical.choose_spec
-    (atom_add_repackage A (levelCellToGoodGridCell G k Q)
+    (atom_add_repackage A (levelCellToWeakGridCell G k Q)
       (B.coeff Q) (C.coeff Q) (B.atom_mem Q) (C.atom_mem Q))).2
 
 omit [Fact (1 ≤ p)] in
 theorem add_term (A : AtomFamily G s p u) {k : ℕ}
     (B C : LevelBlock A k) (Q : LevelCell G k) :
     (add A B C).term A Q = B.term A Q + C.term A Q := by
-  let Qg : GoodGridCell G := levelCellToGoodGridCell G k Q
+  let Qg : WeakGridCell G := levelCellToWeakGridCell G k Q
   let θ := (add A B C).atom Q
   let a := B.atom Q
   let b := C.atom Q
@@ -420,7 +419,7 @@ uses the largest cell measure at level `k`.  This is the Lean analogue of the
 paper's uniform level size `|\mathcal P^k|`.
 -/
 noncomputable def levelMeasureWeight
-    (G : GoodGridSpace (α := α)) (s : ℝ) (p t : ℝ≥0∞) (k : ℕ) : ℝ :=
+    (G : WeakGridSpace (α := α)) (s : ℝ) (p t : ℝ≥0∞) (k : ℕ) : ℝ :=
   (sSup (Set.range fun Q : LevelCell G k => (G.measure Q.1).toReal)) ^
     (s - 1 / p.toReal + 1 / t.toReal)
 
@@ -562,7 +561,7 @@ noncomputable def LevelBlock.termLt
     (A : AtomFamily G s p u) {t : ℝ≥0∞} [Fact (1 ≤ t)] {k : ℕ}
     (B : LevelBlock A k) (Q : LevelCell G k) : Lp ℂ t G.measure :=
   B.coeff Q • MemLp.toLp
-    (A.toFunction (levelCellToGoodGridCell G k Q) (B.atom Q))
+    (A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q))
     (by
       -- Since atoms are in `L^(p*u)` and `p ≤ t ≤ p*u`, they are in `L^t`
       -- on the finite ambient measure space.
@@ -577,7 +576,7 @@ target exponent `t`.
 noncomputable def LevelBlock.toLt
     (A : AtomFamily G s p u) {t : ℝ≥0∞} [Fact (1 ≤ t)] {k : ℕ}
     (B : LevelBlock A k) : Lp ℂ t G.measure :=
-  (G.grid.grid.partitions k).attach.sum fun Q => LevelBlock.termLt A B Q
+  (G.grid.partitions k).attach.sum fun Q => LevelBlock.termLt A B Q
 
 namespace LpGridRepresentation
 
@@ -1246,4 +1245,4 @@ end BesovishSpace
 
 end
 
-end GoodGridSpace
+end WeakGridSpace

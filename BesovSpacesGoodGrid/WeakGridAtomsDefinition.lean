@@ -1,4 +1,4 @@
-import BesovSpacesGoodGrid.GoodGridDefinition
+import BesovSpacesGoodGrid.WeakGridDefinition
 import Mathlib.MeasureTheory.Measure.MeasureSpace
 import Mathlib.MeasureTheory.Function.LpSeminorm.Basic
 import Mathlib.MeasureTheory.Function.LpSeminorm.CompareExp
@@ -8,20 +8,11 @@ import Mathlib.Analysis.Convex.Basic
 import Mathlib.LinearAlgebra.FiniteDimensional.Basic
 import Mathlib.Topology.Sequences
 
-/-!
-Atoms associated to a good grid.
-
-This file formalizes the data from the paper's definition of a family of
-atoms of type `(s,p,u)`. A cell is a member of one of the grid partitions.
-For each cell `Q`, an atom family gives a local Banach space `localSpace Q`
-with its own norm and a linear inclusion into complex-valued functions on `α`,
-together with a convex, phase-invariant set `atoms Q` satisfying support and
-`L^{p u}` size conditions.
--/
 
 
 
-namespace GoodGridSpace
+
+namespace WeakGridSpace
 
 open scoped ENNReal Topology
 
@@ -33,19 +24,19 @@ variable {α : Type u} [MeasurableSpace α]
 noncomputable section
 
 /--
-Uma célula de um good grid, agora usando GoodGridSpace como contexto.
+Uma célula de um Weak grid, agora usando WeakGridSpace como contexto.
 -/
-structure GoodGridCell (G : GoodGridSpace (α := α)) where
+structure WeakGridCell (G : WeakGridSpace (α := α)) where
   level : ℕ
   cell : Set α
-  mem : cell ∈ G.grid.grid.partitions level
+  mem : cell ∈ G.grid.partitions level
 
 /-- Grid cells are measurable. -/
 
 
-theorem measurable (G : GoodGridSpace (α := α)) (Q : GoodGridCell G) :
+theorem measurable (G : WeakGridSpace (α := α)) (Q : WeakGridCell G) :
     MeasurableSet Q.cell :=
-  G.grid.grid.measurable Q.level Q.cell Q.mem
+  G.grid.measurable Q.level Q.cell Q.mem
 
 /--
 The exponent appearing in the atom size estimate
@@ -61,8 +52,8 @@ The measure scale in the atom bound.
 -/
 
 
-noncomputable def atomMeasureScale (G : GoodGridSpace (α := α)) (s : ℝ)
-    (p uConj : ℝ≥0∞) (Q : GoodGridCell G) : ℝ≥0∞ :=
+noncomputable def atomMeasureScale (G : WeakGridSpace (α := α)) (s : ℝ)
+    (p uConj : ℝ≥0∞) (Q : WeakGridCell G) : ℝ≥0∞ :=
   (G.measure Q.cell) ^ atomMeasureExponent s p uConj
 
 /--
@@ -94,7 +85,7 @@ def asFun (φ : B.carrier) : α → ℂ :=
 
 
 /--
-A family of atoms of type `(s,p,u)` on a good grid.
+A family of atoms of type `(s,p,u)` on a Weak grid.
 
 The paper writes this as an indexed family
 `(B(Q), A(Q))_{Q ∈ ⋃ₖ Pᵏ}`. Here `localSpace Q` is `B(Q)` and
@@ -102,7 +93,7 @@ The paper writes this as an indexed family
 exponent `uConj` is the Hölder conjugate of `u`.
 -/
 structure AtomFamily
-  (G : GoodGridSpace (α := α)) (s : ℝ) (p u : ℝ≥0∞) where
+  (G : WeakGridSpace (α := α)) (s : ℝ) (p u : ℝ≥0∞) where
   /-- The Hölder conjugate exponent `u'`. -/
   uConj : ℝ≥0∞
   /-- The smoothness parameter is positive. -/
@@ -116,7 +107,7 @@ structure AtomFamily
   /-- `uConj` is the Hölder conjugate of `u`. -/
   holder_conjugate : ENNReal.HolderConjugate u uConj
   /-- The local Banach space `B(Q)`. -/
-  localSpace : GoodGridCell G → LocalBanachSpace.{u, v} α
+  localSpace : WeakGridCell G → LocalBanachSpace.{u, v} α
   /-- The chosen atoms `A(Q)`, as elements of `B(Q)`. -/
   atoms : ∀ Q, Set ((localSpace Q).carrier)
   /-- Every cell has at least one atom. -/
@@ -137,36 +128,36 @@ structure AtomFamily
         atomMeasureScale G s p uConj Q
 
 
-variable {G : GoodGridSpace (α := α)} {s : ℝ} {p u : ℝ≥0∞}
+variable {G : WeakGridSpace (α := α)} {s : ℝ} {p u : ℝ≥0∞}
 
 namespace AtomFamily
 
 /-- The actual function represented by a local element. -/
-def toFunction (A : AtomFamily G s p u) (Q : GoodGridCell G)
+def toFunction (A : AtomFamily G s p u) (Q : WeakGridCell G)
     (φ : (A.localSpace Q).carrier) : α → ℂ :=
   (A.localSpace Q).toFun φ
 
 /-- Predicate saying that `φ` is an atom of the family supported on `Q`. -/
-def IsAtom (A : AtomFamily G s p u) (Q : GoodGridCell G)
+def IsAtom (A : AtomFamily G s p u) (Q : WeakGridCell G)
     (φ : (A.localSpace Q).carrier) : Prop :=
   φ ∈ A.atoms Q
 
 /-- For every cell there exists at least one atom. -/
-theorem atoms_nonempty_on (A : AtomFamily G s p u) (Q : GoodGridCell G) :
+theorem atoms_nonempty_on (A : AtomFamily G s p u) (Q : WeakGridCell G) :
     ∃ φ : (A.localSpace Q).carrier, A.IsAtom Q φ :=
   A.atoms_nonempty Q
 
 /-- The type of atoms supported on a fixed grid cell. -/
-def AtomsOn (A : AtomFamily G s p u) (Q : GoodGridCell G) : Type _ :=
+def AtomsOn (A : AtomFamily G s p u) (Q : WeakGridCell G) : Type _ :=
   { φ : (A.localSpace Q).carrier // A.IsAtom Q φ }
 
 /-- The set of all atoms in the family, viewed as functions on `α`. -/
 def allAtoms (A : AtomFamily G s p u) : Set (α → ℂ) :=
-  { f | ∃ (Q : GoodGridCell G) (φ : (A.localSpace Q).carrier),
+  { f | ∃ (Q : WeakGridCell G) (φ : (A.localSpace Q).carrier),
       A.IsAtom Q φ ∧ A.toFunction Q φ = f }
 
 theorem atom_memLp (A : AtomFamily G s p u)
-    (Q : GoodGridCell G) (φ : (A.localSpace Q).carrier) :
+    (Q : WeakGridCell G) (φ : (A.localSpace Q).carrier) :
     MeasureTheory.MemLp (A.toFunction Q φ) (p * u) G.measure :=
   A.local_memLp Q φ
 
@@ -177,10 +168,10 @@ This uses that the measure of a grid is finite and that `u ≥ 1`, hence
 `p ≤ p * u`.
 -/
 theorem local_memLp_p (A : AtomFamily G s p u)
-    (Q : GoodGridCell G) (φ : (A.localSpace Q).carrier) :
+    (Q : WeakGridCell G) (φ : (A.localSpace Q).carrier) :
     MeasureTheory.MemLp (A.toFunction Q φ) p G.measure := by
   have hfinite : MeasureTheory.IsFiniteMeasure G.measure := by
-    dsimp [GoodGridSpace.measure]
+    dsimp [WeakGridSpace.measure]
     exact G.grid.isFinite
   letI := hfinite
   refine (A.local_memLp Q φ).mono_exponent ?_
@@ -189,12 +180,12 @@ theorem local_memLp_p (A : AtomFamily G s p u)
     _ ≤ p * u := by exact mul_le_mul_right A.one_le_u p
 
 theorem atom_support (A : AtomFamily G s p u)
-    (Q : GoodGridCell G) (φ : (A.localSpace Q).carrier) :
+    (Q : WeakGridCell G) (φ : (A.localSpace Q).carrier) :
     ∀ x, x ∉ Q.cell → A.toFunction Q φ x = 0 :=
   A.local_support Q φ
 
 theorem atom_norm_bound (A : AtomFamily G s p u)
-    {Q : GoodGridCell G} {φ : (A.localSpace Q).carrier} (hφ : A.IsAtom Q φ) :
+    {Q : WeakGridCell G} {φ : (A.localSpace Q).carrier} (hφ : A.IsAtom Q φ) :
     MeasureTheory.eLpNorm (A.toFunction Q φ) (p * u) G.measure ≤
       atomMeasureScale G s p A.uConj Q :=
   A.atom_bound Q φ hφ
@@ -228,4 +219,4 @@ end AtomFamily
 
 end
 
-end GoodGridSpace
+end WeakGridSpace

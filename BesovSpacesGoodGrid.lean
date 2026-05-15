@@ -1,4 +1,2 @@
 import BesovSpacesGoodGrid.GoodGridDefinition
-import BesovSpacesGoodGrid.GoodGridDistributionDefinition
-import BesovSpacesGoodGrid.GoodGridAtomsDefinition
-import BesovSpacesGoodGrid.GoodGridBesovishSpaces
+import BesovSpacesGoodGrid.WeakGridAtomsDefinition
