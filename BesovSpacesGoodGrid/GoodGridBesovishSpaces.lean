@@ -108,12 +108,12 @@ def LevelBlockSet (A : AtomFamily S s p u) (k : ℕ) :
   { f | ∃ B : LevelBlock A k, B.toLp A = f }
 
 theorem zero_mem_LevelBlockSet (A : AtomFamily S s p u) (k : ℕ) :
-    (0 : Lp ℂ p S.μ) ∈ A.LevelBlockSet k :=
+    (0 : Lp ℂ p S.μ) ∈ LevelBlockSet A k :=
   ⟨LevelBlock.zero A k, by simp⟩
 
 theorem smul_mem_LevelBlockSet (A : AtomFamily S s p u) (k : ℕ)
-    (c : ℂ) {x : Lp ℂ p S.μ} (hx : x ∈ A.LevelBlockSet k) :
-    c • x ∈ A.LevelBlockSet k := by
+    (c : ℂ) {x : Lp ℂ p S.μ} (hx : x ∈ LevelBlockSet A k) :
+    c • x ∈ LevelBlockSet A k := by
   -- Unpack a witness block for `x`, then scale its coefficients.
   rcases hx with ⟨B, rfl⟩
   exact ⟨LevelBlock.smul A c B, by simp⟩
@@ -127,11 +127,11 @@ convexity and phase-invariance of `A(Q)`.  This predicate isolates that local
 repackaging step.
 -/
 def LevelBlocksLinear (A : AtomFamily S s p u) : Prop :=
-  (∀ k, (0 : Lp ℂ p S.μ) ∈ A.LevelBlockSet k) ∧
-  (∀ k x y, x ∈ A.LevelBlockSet k → y ∈ A.LevelBlockSet k →
-    x + y ∈ A.LevelBlockSet k) ∧
-  (∀ k (c : ℂ) x, x ∈ A.LevelBlockSet k →
-    c • x ∈ A.LevelBlockSet k)
+  (∀ k, (0 : Lp ℂ p S.μ) ∈ LevelBlockSet A k) ∧
+  (∀ k x y, x ∈ LevelBlockSet A k → y ∈ LevelBlockSet A k →
+    x + y ∈ LevelBlockSet A k) ∧
+  (∀ k (c : ℂ) x, x ∈ LevelBlockSet A k →
+    c • x ∈ LevelBlockSet A k)
 
 /--
 Package the `LevelBlocksLinear` hypothesis once additive closure is available.
@@ -142,8 +142,8 @@ In the paper, the additive-closure input is obtained cellwise from convexity of
 theorem levelBlocksLinear_of_add_closure
     (A : AtomFamily S s p u)
     (hadd :
-      ∀ k x y, x ∈ A.LevelBlockSet k → y ∈ A.LevelBlockSet k →
-        x + y ∈ A.LevelBlockSet k) :
+      ∀ k x y, x ∈ LevelBlockSet A k → y ∈ LevelBlockSet A k →
+        x + y ∈ LevelBlockSet A k) :
     LevelBlocksLinear A := by
   -- Zero and scalar closure are already available globally; only additive
   -- closure is supplied as input (the local convexity/phase argument).
@@ -156,13 +156,13 @@ theorem levelBlocksLinear_of_add_closure
 
 /-- Choose a concrete atomic block representing a member of `LevelBlockSet`. -/
 def chooseLevelBlock {A : AtomFamily S s p u} {k : ℕ}
-    {f : Lp ℂ p S.μ} (hf : f ∈ A.LevelBlockSet k) :
+  {f : Lp ℂ p S.μ} (hf : f ∈ LevelBlockSet A k) :
     LevelBlock A k :=
   Classical.choose hf
 
 omit [Fact (1 ≤ p)] in
 theorem chooseLevelBlock_toLp {A : AtomFamily S s p u} {k : ℕ}
-    {f : Lp ℂ p S.μ} (hf : f ∈ A.LevelBlockSet k) :
+  {f : Lp ℂ p S.μ} (hf : f ∈ LevelBlockSet A k) :
     (chooseLevelBlock hf).toLp A = f :=
   Classical.choose_spec hf
 
@@ -246,7 +246,7 @@ theorem memBesovish_zero (A : AtomFamily S s p u)
     (hlin : LevelBlocksLinear A) :
     MemBesovish A q (0 : Lp ℂ p S.μ) := by
   -- Levelwise membership of `0` in the block set.
-  have hzero_mem : ∀ k, (0 : Lp ℂ p S.μ) ∈ A.LevelBlockSet k := hlin.1
+  have hzero_mem : ∀ k, (0 : Lp ℂ p S.μ) ∈ LevelBlockSet A k := hlin.1
   -- Choose one concrete witness block for each level.
   let B : (k : ℕ) → LevelBlock A k :=
     fun k => chooseLevelBlock (hzero_mem k)
@@ -273,7 +273,7 @@ theorem memBesovish_add {A : AtomFamily S s p u}
   have hsum_mem :
       ∀ k,
         (repG.block k).toLp A + (repH.block k).toLp A ∈
-          A.LevelBlockSet k := by
+          LevelBlockSet A k := by
     intro k
     exact hlin.2.1 k ((repG.block k).toLp A) ((repH.block k).toLp A)
       ⟨repG.block k, rfl⟩ ⟨repH.block k, rfl⟩
@@ -306,7 +306,7 @@ theorem memBesovish_smul {A : AtomFamily S s p u}
   rcases hg with ⟨repG⟩
   -- Levelwise: scalar multiples remain in the block set by linearity.
   have hsmul_mem :
-      ∀ k, c • (repG.block k).toLp A ∈ A.LevelBlockSet k := by
+      ∀ k, c • (repG.block k).toLp A ∈ LevelBlockSet A k := by
     intro k
     exact hlin.2.2 k c ((repG.block k).toLp A) ⟨repG.block k, rfl⟩
   -- Choose witness blocks for those levelwise scalar multiples.
