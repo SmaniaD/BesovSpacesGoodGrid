@@ -14,7 +14,11 @@ measures shrink from parent to child. These bounds are later used when
 estimating Haar coefficients.
 -/
 
+
+variable {α : Type*} [MeasurableSpace α]
+
 namespace GoodGridSpace
+
 
 variable {α : Type*} [MeasurableSpace α]
 
@@ -23,22 +27,32 @@ A grid with uniform lower and upper measure-ratio bounds between a parent cell
 and any child cell at the next level.
 -/
 structure GoodGrid extends UnbalancedHaarWavelet.Grid (α := α) where
-  lambda1 : ℝ
-  /-- Upper ratio bound (strictly less than 1) -/
-  lambda2 : ℝ
-  /-- λ₁ is strictly positive -/
-  hlambda1_pos : 0 < lambda1
-  /-- λ₂ is strictly less than 1 -/
-  hlambda2_lt_one : lambda2 < 1
-  /-- λ₁ ≤ λ₂ -/
-  hlambda1_le_lambda2 : lambda1 ≤ lambda2
-  /-- Each child cell's measure is at least λ₁ times its parent's measure -/
-  ratio_lower : ∀ (n : ℕ) (s t : Set α),
-      s ∈ grid.partitions (n + 1) → t ∈ grid.partitions n → s ⊆ t →
-      ENNReal.ofReal lambda1 * μ t ≤ μ s
-  /-- Each child cell's measure is at most λ₂ times its parent's measure -/
-  ratio_upper : ∀ (n : ℕ) (s t : Set α),
-      s ∈ grid.partitions (n + 1) → t ∈ grid.partitions n → s ⊆ t →
-      μ s ≤ ENNReal.ofReal lambda2 * μ t
+        lambda1 : ℝ
+        /-- Upper ratio bound (strictly less than 1). -/
+        lambda2 : ℝ
+        /-- `λ₁` is strictly positive. -/
+        hlambda1_pos : 0 < lambda1
+        /-- `λ₂` is strictly less than `1`. -/
+        hlambda2_lt_one : lambda2 < 1
+        /-- `λ₁ ≤ λ₂`. -/
+        hlambda1_le_lambda2 : lambda1 ≤ lambda2
+        /-- Each child cell's measure is at least `λ₁` times its parent's measure. -/
+        ratio_lower : ∀ (n : ℕ) (s t : Set α),
+                        s ∈ grid.partitions (n + 1) → t ∈ grid.partitions n → s ⊆ t →
+                        ENNReal.ofReal lambda1 * μ t ≤ μ s
+        /-- Each child cell's measure is at most `λ₂` times its parent's measure. -/
+        ratio_upper : ∀ (n : ℕ) (s t : Set α),
+                        s ∈ grid.partitions (n + 1) → t ∈ grid.partitions n → s ⊆ t →
+                        μ s ≤ ENNReal.ofReal lambda2 * μ t
+
+/--
+Ambient object used in the project: a measurable space with a fixed good grid.
+-/
+structure GoodGridSpace where
+        grid : GoodGrid (α := α)
+
+/-- The measure attached to a `GoodGridSpace`. -/
+def GoodGridSpace.measure (G : GoodGridSpace (α := α)) : MeasureTheory.Measure α :=
+        G.grid.μ
 
 end GoodGridSpace
