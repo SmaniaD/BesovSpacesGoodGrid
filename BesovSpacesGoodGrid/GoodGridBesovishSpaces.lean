@@ -446,6 +446,21 @@ def BesovishRepresentation.lpCost
   ∑' k, ‖(R.block k).toLp A‖
 
 /--
+def BesovishRepresentation.pqCost
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (R : BesovishRepresentation A q g) : ℝ :=
+  if q = ∞ then
+      BddAbove (Set.range fun k =>
+        ((∑ Q : LevelCell G k, ‖(block k).coeff Q‖ ^ p.toReal) ^ (1 / p.toReal)))
+    else
+      (Summable fun k =>
+        ((∑ Q : LevelCell G k, ‖(block k).coeff Q‖ ^ p.toReal) ^ (q.toReal / p.toReal)))^(1 / q.toReal)
+-/
+
+
+
+
+/--
 The Besov-ish predicate on `L^p`: `g` has an atomic Besov-ish representation.
 -/
 def MemBesovish (A : AtomFamily G s p u) (q : ℝ≥0∞)
