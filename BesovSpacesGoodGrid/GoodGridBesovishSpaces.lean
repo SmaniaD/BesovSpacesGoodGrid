@@ -53,8 +53,6 @@ structure LevelAtomicBlock (A : GoodGridAtomFamily S s p u) (k : ℕ) where
   atom : ∀ Q : LevelCell S k, (A.localSpace (levelCellToGoodGridCell S k Q)).carrier
   atom_mem : ∀ Q : LevelCell S k,
     A.IsAtom (levelCellToGoodGridCell S k Q) (atom Q)
-  atom_memLp : ∀ Q : LevelCell S k,
-    MemLp (A.toFunction (levelCellToGoodGridCell S k Q) (atom Q)) p S.μ
 
 namespace LevelAtomicBlock
 
@@ -65,16 +63,13 @@ def zero (A : GoodGridAtomFamily S s p u) (k : ℕ) : LevelAtomicBlock A k where
     Classical.choose (A.atoms_nonempty_on (levelCellToGoodGridCell S k Q))
   atom_mem := fun Q =>
     Classical.choose_spec (A.atoms_nonempty_on (levelCellToGoodGridCell S k Q))
-  atom_memLp := fun Q =>
-    A.local_memLp_p (levelCellToGoodGridCell S k Q)
-      (Classical.choose (A.atoms_nonempty_on (levelCellToGoodGridCell S k Q)))
 
 /-- The `L^p` term attached to one cell in a level block. -/
 def term (A : GoodGridAtomFamily S s p u) {k : ℕ}
     (B : LevelAtomicBlock A k) (Q : LevelCell S k) : Lp ℂ p S.μ :=
   B.coeff Q • MemLp.toLp
     (A.toFunction (levelCellToGoodGridCell S k Q) (B.atom Q))
-    (B.atom_memLp Q)
+    (A.local_memLp_p (levelCellToGoodGridCell S k Q) (B.atom Q))
 
 /--
 The value of a level block in `L^p`, namely the finite sum over the level-`k`
@@ -95,7 +90,6 @@ def smul (A : GoodGridAtomFamily S s p u) {k : ℕ} (c : ℂ)
   coeff := fun Q => c * B.coeff Q
   atom := B.atom
   atom_mem := B.atom_mem
-  atom_memLp := B.atom_memLp
 
 @[simp]
 theorem smul_toLp (A : GoodGridAtomFamily S s p u) {k : ℕ} (c : ℂ)
@@ -119,6 +113,7 @@ theorem zero_mem_levelAtomicBlockSet (A : GoodGridAtomFamily S s p u) (k : ℕ) 
 theorem smul_mem_levelAtomicBlockSet (A : GoodGridAtomFamily S s p u) (k : ℕ)
     (c : ℂ) {x : Lp ℂ p S.μ} (hx : x ∈ A.levelAtomicBlockSet k) :
     c • x ∈ A.levelAtomicBlockSet k := by
+  -- Unpack a witness block for `x`, then scale its coefficients.
   rcases hx with ⟨B, rfl⟩
   exact ⟨LevelAtomicBlock.smul A c B, by simp⟩
 
@@ -136,6 +131,27 @@ def LevelBlocksLinear (A : GoodGridAtomFamily S s p u) : Prop :=
     x + y ∈ A.levelAtomicBlockSet k) ∧
   (∀ k (c : ℂ) x, x ∈ A.levelAtomicBlockSet k →
     c • x ∈ A.levelAtomicBlockSet k)
+
+/--
+Package the `LevelBlocksLinear` hypothesis once additive closure is available.
+
+In the paper, the additive-closure input is obtained cellwise from convexity of
+`A(Q)` and invariance under multiplication by unimodular complex scalars.
+-/
+theorem levelBlocksLinear_of_add_closure
+    (A : GoodGridAtomFamily S s p u)
+    (hadd :
+      ∀ k x y, x ∈ A.levelAtomicBlockSet k → y ∈ A.levelAtomicBlockSet k →
+        x + y ∈ A.levelAtomicBlockSet k) :
+    LevelBlocksLinear A := by
+  -- Zero and scalar closure are already available globally; only additive
+  -- closure is supplied as input (the local convexity/phase argument).
+  refine ⟨?_, ?_, ?_⟩
+  · intro k
+    exact zero_mem_levelAtomicBlockSet A k
+  · exact hadd
+  · intro k c x hx
+    exact smul_mem_levelAtomicBlockSet A k c hx
 
 /-- Choose a concrete atomic block representing a member of `levelAtomicBlockSet`. -/
 def chooseLevelAtomicBlock {A : GoodGridAtomFamily S s p u} {k : ℕ}
@@ -163,6 +179,36 @@ structure BesovishRepresentation
   abs_summable : Summable fun k => ‖(block k).toLp A‖
   hasSum : HasSum (fun k => (block k).toLp A) g
 
+namespace BesovishRepresentation
+
+/--
+Level-`k` coefficient `ℓ^p` power sum: `∑_{Q ∈ P^k} |s_Q|^p`.
+
+This is the inner quantity from the paper's coefficient-cost formula.
+-/
+def levelCoeffPower
+    {A : GoodGridAtomFamily S s p u} {g : Lp ℂ p S.μ}
+    (R : BesovishRepresentation A q g) (k : ℕ) : ℝ :=
+  ∑ Q : LevelCell S k, ‖(R.block k).coeff Q‖ ^ p.toReal
+
+/--
+Finite coefficient cost corresponding to equation `(rep2)` in the paper.
+
+- If `q < ∞`, we require summability of
+  `((∑_{Q ∈ P^k} |s_Q|^p)^(q/p))_k`, which is equivalent to finiteness of
+  the usual outer `ℓ^q` expression.
+- If `q = ∞`, we require boundedness of the levelwise `ℓ^p` norms.
+-/
+def finiteCoeffCost
+    {A : GoodGridAtomFamily S s p u} {g : Lp ℂ p S.μ}
+    (R : BesovishRepresentation A q g) : Prop :=
+  if q = ∞ then
+    BddAbove (Set.range fun k => (R.levelCoeffPower k) ^ (1 / p.toReal))
+  else
+    Summable fun k => (R.levelCoeffPower k) ^ (q.toReal / p.toReal)
+
+end BesovishRepresentation
+
 /-- The `L^p` absolute-convergence cost of a representation. -/
 def BesovishRepresentation.lpCost
     {A : GoodGridAtomFamily S s p u} {g : Lp ℂ p S.μ}
@@ -176,70 +222,98 @@ def MemBesovish (A : GoodGridAtomFamily S s p u) (q : ℝ≥0∞)
     (g : Lp ℂ p S.μ) : Prop :=
   Nonempty (BesovishRepresentation A q g)
 
+/--
+Stronger Besov-ish predicate: representation exists and has finite
+coefficient cost in the sense of equation `(rep2)` from the paper.
+-/
+def MemBesovishCoeffCost (A : GoodGridAtomFamily S s p u) (q : ℝ≥0∞)
+    (g : Lp ℂ p S.μ) : Prop :=
+  ∃ R : BesovishRepresentation A q g, R.finiteCoeffCost
+
 theorem memBesovish_zero (A : GoodGridAtomFamily S s p u)
     (hlin : LevelBlocksLinear A) :
     MemBesovish A q (0 : Lp ℂ p S.μ) := by
+  -- Levelwise membership of `0` in the block set.
+  have hzero_mem : ∀ k, (0 : Lp ℂ p S.μ) ∈ A.levelAtomicBlockSet k := hlin.1
+  -- Choose one concrete witness block for each level.
   let B : (k : ℕ) → LevelAtomicBlock A k :=
-    fun k => chooseLevelAtomicBlock (hlin.1 k)
-  have hB : ∀ k, (B k).toLp A = 0 := by
+    fun k => chooseLevelAtomicBlock (hzero_mem k)
+  -- Each chosen block evaluates to `0` in `L^p`.
+  have hB_toLp : ∀ k, (B k).toLp A = 0 := by
     intro k
-    exact chooseLevelAtomicBlock_toLp (hlin.1 k)
+    exact chooseLevelAtomicBlock_toLp (hzero_mem k)
   refine ⟨?_⟩
   refine
     { block := B
       abs_summable := ?_
       hasSum := ?_ }
-  · simp [B, hB]
-  · simp [B, hB]
+  · simp [B, hB_toLp]
+  · simp [B, hB_toLp]
 
 theorem memBesovish_add {A : GoodGridAtomFamily S s p u}
     (hlin : LevelBlocksLinear A) {g h : Lp ℂ p S.μ}
     (hg : MemBesovish A q g) (hh : MemBesovish A q h) :
     MemBesovish A q (g + h) := by
-  rcases hg with ⟨Rg⟩
-  rcases hh with ⟨Rh⟩
-  let B : (k : ℕ) → LevelAtomicBlock A k := fun k =>
-    chooseLevelAtomicBlock
-      (hlin.2.1 k ((Rg.block k).toLp A) ((Rh.block k).toLp A)
-        ⟨Rg.block k, rfl⟩ ⟨Rh.block k, rfl⟩)
-  have hB : ∀ k, (B k).toLp A = (Rg.block k).toLp A + (Rh.block k).toLp A := by
+  -- Start from concrete representations of `g` and `h`.
+  rcases hg with ⟨repG⟩
+  rcases hh with ⟨repH⟩
+  -- Levelwise: the sum block belongs to the block set by linearity.
+  have hsum_mem :
+      ∀ k,
+        (repG.block k).toLp A + (repH.block k).toLp A ∈
+          A.levelAtomicBlockSet k := by
     intro k
-    exact chooseLevelAtomicBlock_toLp
-      (hlin.2.1 k ((Rg.block k).toLp A) ((Rh.block k).toLp A)
-        ⟨Rg.block k, rfl⟩ ⟨Rh.block k, rfl⟩)
+    exact hlin.2.1 k ((repG.block k).toLp A) ((repH.block k).toLp A)
+      ⟨repG.block k, rfl⟩ ⟨repH.block k, rfl⟩
+  -- Choose one witness block for each levelwise sum.
+  let B : (k : ℕ) → LevelAtomicBlock A k := fun k =>
+    chooseLevelAtomicBlock (hsum_mem k)
+  -- This chosen block realizes the desired levelwise sum in `L^p`.
+  have hB_toLp :
+      ∀ k, (B k).toLp A = (repG.block k).toLp A + (repH.block k).toLp A := by
+    intro k
+    exact chooseLevelAtomicBlock_toLp (hsum_mem k)
   refine ⟨?_⟩
   refine
     { block := B
       abs_summable := ?_
       hasSum := ?_ }
   · refine Summable.of_nonneg_of_le
-      (fun k => norm_nonneg ((B k).toLp A)) ?_ (Rg.abs_summable.add Rh.abs_summable)
+      (fun k => norm_nonneg ((B k).toLp A)) ?_
+      (repG.abs_summable.add repH.abs_summable)
     intro k
-    rw [hB k]
-    exact norm_add_le ((Rg.block k).toLp A) ((Rh.block k).toLp A)
-  · simpa [B, hB] using Rg.hasSum.add Rh.hasSum
+    -- Pointwise norm control by the triangle inequality.
+    rw [hB_toLp k]
+    exact norm_add_le ((repG.block k).toLp A) ((repH.block k).toLp A)
+  · simpa [B, hB_toLp] using repG.hasSum.add repH.hasSum
 
 theorem memBesovish_smul {A : GoodGridAtomFamily S s p u}
     (hlin : LevelBlocksLinear A) (c : ℂ) {g : Lp ℂ p S.μ}
     (hg : MemBesovish A q g) :
     MemBesovish A q (c • g) := by
-  rcases hg with ⟨Rg⟩
-  let B : (k : ℕ) → LevelAtomicBlock A k := fun k =>
-    chooseLevelAtomicBlock
-      (hlin.2.2 k c ((Rg.block k).toLp A) ⟨Rg.block k, rfl⟩)
-  have hB : ∀ k, (B k).toLp A = c • (Rg.block k).toLp A := by
+  rcases hg with ⟨repG⟩
+  -- Levelwise: scalar multiples remain in the block set by linearity.
+  have hsmul_mem :
+      ∀ k, c • (repG.block k).toLp A ∈ A.levelAtomicBlockSet k := by
     intro k
-    exact chooseLevelAtomicBlock_toLp
-      (hlin.2.2 k c ((Rg.block k).toLp A) ⟨Rg.block k, rfl⟩)
+    exact hlin.2.2 k c ((repG.block k).toLp A) ⟨repG.block k, rfl⟩
+  -- Choose witness blocks for those levelwise scalar multiples.
+  let B : (k : ℕ) → LevelAtomicBlock A k := fun k =>
+    chooseLevelAtomicBlock (hsmul_mem k)
+  -- Each chosen block realizes the expected levelwise scalar multiple.
+  have hB_toLp : ∀ k, (B k).toLp A = c • (repG.block k).toLp A := by
+    intro k
+    exact chooseLevelAtomicBlock_toLp (hsmul_mem k)
   refine ⟨?_⟩
   refine
     { block := B
       abs_summable := ?_
       hasSum := ?_ }
-  · refine (Summable.mul_left ‖c‖ Rg.abs_summable).congr ?_
+  · refine (Summable.mul_left ‖c‖ repG.abs_summable).congr ?_
     intro k
-    rw [hB k, norm_smul]
-  · simpa [B, hB] using Rg.hasSum.const_smul c
+    -- `‖c • x‖ = ‖c‖ * ‖x‖` gives the expected absolute-summability bound.
+    rw [hB_toLp k, norm_smul]
+  · simpa [B, hB_toLp] using repG.hasSum.const_smul c
 
 /--
 The Besov-ish space as a complex linear subspace of `L^p`.
@@ -247,6 +321,7 @@ The Besov-ish space as a complex linear subspace of `L^p`.
 def BesovishSpace (A : GoodGridAtomFamily S s p u) (q : ℝ≥0∞)
     (hlin : LevelBlocksLinear A) :
     Submodule ℂ (Lp ℂ p S.μ) where
+  -- Carrier: all `L^p` elements admitting a Besov-ish atomic representation.
   carrier := { g | MemBesovish A q g }
   zero_mem' := memBesovish_zero (A := A) (q := q) hlin
   add_mem' := by
