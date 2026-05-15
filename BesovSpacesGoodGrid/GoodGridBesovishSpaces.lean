@@ -411,7 +411,18 @@ def levelCoeffPower
     (R : LpGridRepresentation A g) (k : ℕ) : ℝ :=
   ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ ^ p.toReal
 
+/--
+The level weight which appears in the `L^t` embedding estimate from the paper:
+`|P^k|^{s - 1 / p + 1 / t}`.
 
+In the current formalization a level is a finite `Finset` of cells, so this
+uses the largest cell measure at level `k`.  This is the Lean analogue of the
+paper's uniform level size `|\mathcal P^k|`.
+-/
+noncomputable def levelMeasureWeight
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p t : ℝ≥0∞) (k : ℕ) : ℝ :=
+  (sSup (Set.range fun Q : LevelCell G k => (G.measure Q.1).toReal)) ^
+    (s - 1 / p.toReal + 1 / t.toReal)
 
 end LpGridRepresentation
 
@@ -543,6 +554,98 @@ def FinitePQCost
     BddAbove (Set.range fun k => (R.levelCoeffPower k) ^ (1 / p.toReal))
   else
     Summable (fun k => (R.levelCoeffPower k) ^ (q.toReal / p.toReal))
+
+end LpGridRepresentation
+
+/-- The `L^t` term attached to one cell in a level block. -/
+noncomputable def LevelBlock.termLt
+    (A : AtomFamily G s p u) {t : ℝ≥0∞} [Fact (1 ≤ t)] {k : ℕ}
+    (B : LevelBlock A k) (Q : LevelCell G k) : Lp ℂ t G.measure :=
+  B.coeff Q • MemLp.toLp
+    (A.toFunction (levelCellToGoodGridCell G k Q) (B.atom Q))
+    (by
+      -- Since atoms are in `L^(p*u)` and `p ≤ t ≤ p*u`, they are in `L^t`
+      -- on the finite ambient measure space.
+      sorry)
+
+/--
+The canonical realization of a level block as an element of `L^t`.
+
+This is the same finite atomic sum as `LevelBlock.toLp`, but viewed in the
+target exponent `t`.
+-/
+noncomputable def LevelBlock.toLt
+    (A : AtomFamily G s p u) {t : ℝ≥0∞} [Fact (1 ≤ t)] {k : ℕ}
+    (B : LevelBlock A k) : Lp ℂ t G.measure :=
+  (G.grid.grid.partitions k).attach.sum fun Q => LevelBlock.termLt A B Q
+
+namespace LpGridRepresentation
+
+/--
+Levelwise `L^t` estimate for one atomic block.
+
+This is the Lean version of
+`‖∑_{Q ∈ P^k} s_Q a_Q‖_t ≤ C_mult |P^k|^{s - 1/p + 1/t}
+  (∑_{Q ∈ P^k} |s_Q|^p)^{1/p}`.
+-/
+theorem lt_norm_levelBlock_le
+    {A : AtomFamily G s p u} {t : ℝ≥0∞}
+    [Fact (1 ≤ t)]
+    (hp_ne_top : p ≠ ∞) (ht_ne_top : t ≠ ∞)
+    (hp_le_t : p ≤ t) (ht_le_pu : t ≤ p * u)
+    (hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / t.toReal)
+    : ∃ Cmult : ℝ, 0 ≤ Cmult ∧
+      ∀ {g : Lp ℂ p G.measure} (R : LpGridRepresentation A g) (k : ℕ),
+        ‖(R.block k).toLt (t := t) A‖ ≤
+          Cmult * levelMeasureWeight G s p t k *
+            (R.levelCoeffPower k) ^ (1 / p.toReal) := by
+  sorry
+
+/--
+Coefficient summation estimate used in the `L^t` embedding.
+
+This packages the paper's `C_co(t,q, ·)`/Holder-like step in the vocabulary of
+the current file, where `LpGridRepresentation.pqCost` is the Besov coefficient
+cost of a representation.
+-/
+theorem weighted_levelCoeff_sum_le_pqCost
+    {A : AtomFamily G s p u} {t : ℝ≥0∞}
+    (Ckt : ℝ)
+    {g : Lp ℂ p G.measure} (R : LpGridRepresentation A g)
+    (hRfin : LpGridRepresentation.FinitePQCost (q := q) R) :
+    (∑' k, levelMeasureWeight G s p t k *
+      (R.levelCoeffPower k) ^ (1 / p.toReal)) ≤
+        Ckt * LpGridRepresentation.pqCost (q := q) R := by
+  sorry
+
+/--
+Adapted statement of the paper's `L^t` embedding proposition.
+
+The present file builds atomic representations as series in `L^p`. For a
+target exponent `t`, `LevelBlock.toLt` realizes each finite level block as an
+element of `L^t`. The lemma `lt_norm_levelBlock_le` is exactly the level estimate
+`‖∑_{Q ∈ P^k} s_Q a_Q‖_t ≤ C_mult * |P^k|^{s - 1/p + 1/t}
+  * (∑_{Q ∈ P^k} |s_Q|^p)^{1/p}`.
+
+The coefficient-space condition on `Ckt` is isolated in
+`weighted_levelCoeff_sum_le_pqCost`.
+This avoids adding a separate formalization of the paper's `C_co(t,q, ·)`:
+in this file, the available coefficient norm of a representation is
+`LpGridRepresentation.pqCost`.
+-/
+theorem lp_embedding_adapted_statement
+    {A : AtomFamily G s p u} {t : ℝ≥0∞}
+    [Fact (1 ≤ t)]
+    (hp_ne_top : p ≠ ∞) (ht_ne_top : t ≠ ∞)
+    (hp_le_t : p ≤ t) (ht_le_pu : t ≤ p * u)
+    (hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / t.toReal)
+    (Cmult Ckt : ℝ) (hCmult_nonneg : 0 ≤ Cmult)
+    {g : Lp ℂ p G.measure} (R : LpGridRepresentation A g)
+    (hRfin : LpGridRepresentation.FinitePQCost (q := q) R) :
+    Summable (fun k => (R.block k).toLt (t := t) A) ∧
+      (∑' k, ‖(R.block k).toLt (t := t) A‖) ≤
+        Cmult * Ckt * LpGridRepresentation.pqCost (q := q) R := by
+  sorry
 
 theorem pqCost_nonneg
   {A : AtomFamily G s p u} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
