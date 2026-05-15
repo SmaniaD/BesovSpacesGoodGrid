@@ -14,7 +14,7 @@ measures shrink from parent to child. These bounds are later used when
 estimating Haar coefficients.
 -/
 
-namespace UnbalancedHaarWavelet
+namespace GoodGridSpace
 
 variable {α : Type*} [MeasurableSpace α]
 
@@ -22,7 +22,7 @@ variable {α : Type*} [MeasurableSpace α]
 A grid with uniform lower and upper measure-ratio bounds between a parent cell
 and any child cell at the next level.
 -/
-structure GoodGrid extends Grid (α := α) where
+structure GoodGrid extends UnbalancedHaarWavelet.Grid (α := α) where
   lambda1 : ℝ
   /-- Upper ratio bound (strictly less than 1) -/
   lambda2 : ℝ
@@ -41,4 +41,4 @@ structure GoodGrid extends Grid (α := α) where
       s ∈ grid.partitions (n + 1) → t ∈ grid.partitions n → s ⊆ t →
       μ s ≤ ENNReal.ofReal lambda2 * μ t
 
-end UnbalancedHaarWavelet
+end GoodGridSpace

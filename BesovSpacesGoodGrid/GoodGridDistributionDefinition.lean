@@ -5,7 +5,7 @@ import Mathlib.MeasureTheory.Function.SimpleFunc
 Test functions and distributions associated to a good grid.
 -/
 
-namespace UnbalancedHaarWavelet
+namespace GoodGridSpace
 
 variable {α : Type*} [MeasurableSpace α]
 
@@ -42,4 +42,4 @@ space of test functions.
 def Distributions (S : GoodGrid (α := α)) : Type _ :=
   Module.Dual ℝ (TestFunctions S)
 
-end UnbalancedHaarWavelet
+end GoodGridSpace
