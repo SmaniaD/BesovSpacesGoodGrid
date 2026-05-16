@@ -2872,6 +2872,18 @@ theorem besovishSpace_is_linear_subspace
     ∃ E : Submodule ℂ (Lp ℂ p G.measure), E = BesovishSpace A q :=
   ⟨BesovishSpace A q, rfl⟩
 
+/--
+As a submodule of `L^p`, `BesovishSpace A q` carries the ambient complex
+normed-space structure supplied by Mathlib.
+
+This is the inherited `L^p` norm, not the coefficient-cost gauge
+`BesovishSpace.Norm_Costpq`.
+-/
+theorem besovishSpace_has_normedSpace
+    (A : AtomFamily G s p u) (q : ℝ≥0∞) [Fact (1 ≤ q)] :
+    Nonempty (NormedSpace ℂ (BesovishSpace A q)) :=
+  ⟨inferInstance⟩
+
 variable [Fact (1 ≤ q)]
 
 namespace BesovishSpace
@@ -3178,6 +3190,116 @@ theorem eq_zero_of_Norm_Costpq_eq_zero
     exact le_antisymm hLp ENNReal.toReal_nonneg
   apply Subtype.ext
   exact norm_eq_zero.mp hnorm_zero
+
+/--
+The metric/normed additive group structure induced by the coefficient-cost
+gauge `Norm_Costpq`.
+
+This is deliberately a named definition rather than a global instance, because
+`BesovishSpace A q` already inherits Mathlib's ambient `L^p` normed-space
+structure as a submodule.
+-/
+@[reducible]
+noncomputable def costNormedAddCommGroup
+    (hp_top : p ≠ ∞)
+    (hCco_fin : LpGridRepresentation.cCoefficientFinite p q (fun k =>
+      (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal))
+    (hA : HasFiniteCostRepresentations (A := A) q) :
+    NormedAddCommGroup (BesovishSpace A q) where
+  norm := Norm_Costpq A q
+  dist x y := Norm_Costpq A q (-x + y)
+  dist_self := by
+    intro x
+    have h0 := Norm_Costpq_smul_eq (A := A) (q := q) hp_top hA 0 x
+    simpa using h0
+  dist_comm := by
+    intro x y
+    have hcomm : x + -y = -y + x := by
+      abel
+    calc
+      Norm_Costpq A q (-x + y)
+          = Norm_Costpq A q ((-1 : ℂ) • (-x + y)) := by
+              rw [Norm_Costpq_smul_eq (A := A) (q := q) hp_top hA (-1) (-x + y)]
+              simp
+      _ = Norm_Costpq A q (-y + x) := by
+        simpa [hcomm]
+  dist_triangle := by
+    intro x y z
+    have hsum :
+        -x + z = (-x + y) + (-y + z) := by
+      abel
+    calc
+      Norm_Costpq A q (-x + z)
+          = Norm_Costpq A q ((-x + y) + (-y + z)) := by rw [hsum]
+      _ ≤ Norm_Costpq A q (-x + y) + Norm_Costpq A q (-y + z) :=
+        Norm_Costpq_add_le (A := A) (q := q) hp_top hA (-x + y) (-y + z)
+  eq_of_dist_eq_zero := by
+    intro x y hxy
+    have hzero : -x + y = 0 :=
+      eq_zero_of_Norm_Costpq_eq_zero (A := A) (q := q) hp_top hCco_fin hA hxy
+    have h := congrArg (fun z : BesovishSpace A q => x + z) hzero
+    symm
+    simpa [add_assoc] using h
+  dist_eq := by
+    intro x y
+    rfl
+
+/-- The coefficient-cost norm is definitionally the norm in `costNormedAddCommGroup`. -/
+theorem costNormedAddCommGroup_norm
+    (hp_top : p ≠ ∞)
+    (hCco_fin : LpGridRepresentation.cCoefficientFinite p q (fun k =>
+      (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal))
+    (hA : HasFiniteCostRepresentations (A := A) q)
+    (x : BesovishSpace A q) :
+    @norm (BesovishSpace A q)
+      (costNormedAddCommGroup (A := A) (q := q) hp_top hCco_fin hA).toNorm x =
+      Norm_Costpq A q x :=
+  rfl
+
+/--
+The complex normed-space structure associated to the coefficient-cost norm.
+Use it locally with `letI := costNormedAddCommGroup ...` and
+`letI := costNormedSpace ...` when this norm, rather than the inherited `L^p`
+norm, is intended.
+-/
+@[reducible]
+noncomputable def costNormedSpace
+    (hp_top : p ≠ ∞)
+    (hCco_fin : LpGridRepresentation.cCoefficientFinite p q (fun k =>
+      (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal))
+    (hA : HasFiniteCostRepresentations (A := A) q) :
+    @NormedSpace ℂ (BesovishSpace A q) _
+      ({ costNormedAddCommGroup (A := A) (q := q) hp_top hCco_fin hA with } :
+        SeminormedAddCommGroup (BesovishSpace A q)) := by
+  exact
+    @NormedSpace.mk ℂ (BesovishSpace A q) _
+      ({ costNormedAddCommGroup (A := A) (q := q) hp_top hCco_fin hA with } :
+        SeminormedAddCommGroup (BesovishSpace A q))
+      inferInstance
+      (by
+        intro c x
+        change Norm_Costpq A q (c • x) ≤ ‖c‖ * Norm_Costpq A q x
+        rw [Norm_Costpq_smul_eq (A := A) (q := q) hp_top hA])
+
+/--
+Packaged existence statement: under the hypotheses used in
+`normedSpace_and_lp_embedding_summary`, `BesovishSpace A q` admits a complex
+normed-space structure whose norm is exactly `Norm_Costpq`.
+-/
+theorem besovishSpace_has_cost_normedSpace
+    (hp_top : p ≠ ∞)
+    (hCco_fin : LpGridRepresentation.cCoefficientFinite p q (fun k =>
+      (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal))
+    (hA : HasFiniteCostRepresentations (A := A) q) :
+    ∃ N : NormedAddCommGroup (BesovishSpace A q),
+      (∀ x : BesovishSpace A q, @norm (BesovishSpace A q) N.toNorm x = Norm_Costpq A q x) ∧
+      Nonempty
+        (@NormedSpace ℂ (BesovishSpace A q) _
+          ({ N with } : SeminormedAddCommGroup (BesovishSpace A q))) := by
+  refine ⟨costNormedAddCommGroup (A := A) (q := q) hp_top hCco_fin hA, ?_, ?_⟩
+  · intro x
+    rfl
+  · exact ⟨costNormedSpace (A := A) (q := q) hp_top hCco_fin hA⟩
 
 /--
 Main structural summary for the Besov-ish space endowed with `Norm_Costpq`.
