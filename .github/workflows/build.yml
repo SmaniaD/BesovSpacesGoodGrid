@@ -44,9 +44,6 @@ jobs:
           done
           exit 1
 
-      - name: Proof sanity check
-        run: bash scripts/check-proof-sanity.sh
-
       - name: Build
         run: lake build
 
@@ -63,4 +60,5 @@ jobs:
       - name: Leanchecker
         run: lake env leanchecker --fresh "${{ steps.package.outputs.name }}"
 
-
+      - name: Proof sanity check
+        run: bash scripts/check-proof-sanity.sh
