@@ -2625,6 +2625,14 @@ noncomputable def pqPseudoNorm
     (A : AtomFamily G s p u) (q : ℝ≥0∞) (x : BesovishSpace A q) : ℝ :=
   sInf (pqCostUpperSet A q x)
 
+/--
+`Norm_Costpq(g)` is the infimum of the `(p,q)` costs of all admissible
+representations of `g` in the Besov-ish space.
+-/
+noncomputable def Norm_Costpq
+    (A : AtomFamily G s p u) (q : ℝ≥0∞) (g : BesovishSpace A q) : ℝ :=
+  pqPseudoNorm A q g
+
 variable {A : AtomFamily G s p u} {q : ℝ≥0∞}
 
 /-- Global hypothesis: every Besov-ish vector admits a representation with finite `(p,q)` cost. -/
@@ -2647,46 +2655,46 @@ theorem pqCostUpperSet_bddBelow
   rcases hc with ⟨R, hRc⟩
   exact le_trans (LpGridRepresentation.pqCost_nonneg R) hRc
 
-theorem pqPseudoNorm_nonneg
+theorem Norm_Costpq_nonneg
     (hA : HasAdmissibleCostRepresentations (A := A) q)
-    (x : BesovishSpace A q) :
-    0 ≤ pqPseudoNorm A q x := by
-  unfold pqPseudoNorm
-  refine le_csInf (pqCostUpperSet_nonempty (A := A) (q := q) hA x) ?_
+    (g : BesovishSpace A q) :
+    0 ≤ Norm_Costpq A q g := by
+  unfold Norm_Costpq pqPseudoNorm
+  refine le_csInf (pqCostUpperSet_nonempty (A := A) (q := q) hA g) ?_
   intro c hc
   rcases hc with ⟨R, hRc⟩
   exact le_trans (LpGridRepresentation.pqCost_nonneg R) hRc
 
-theorem pqPseudoNorm_le_cost
-    (x : BesovishSpace A q)
-    (R : LpGridRepresentation A (x : Lp ℂ p G.measure)) :
-  pqPseudoNorm A q x ≤ LpGridRepresentation.pqCost (q := q) R := by
-  unfold pqPseudoNorm
-  exact csInf_le (pqCostUpperSet_bddBelow (A := A) (q := q) x) ⟨R, le_rfl⟩
+theorem Norm_Costpq_le_cost
+    (g : BesovishSpace A q)
+    (R : LpGridRepresentation A (g : Lp ℂ p G.measure)) :
+    Norm_Costpq A q g ≤ LpGridRepresentation.pqCost (q := q) R := by
+  unfold Norm_Costpq pqPseudoNorm
+  exact csInf_le (pqCostUpperSet_bddBelow (A := A) (q := q) g) ⟨R, le_rfl⟩
 
-theorem exists_cost_lt_pqPseudoNorm_add
+theorem exists_cost_lt_Norm_Costpq_add
     (hA : HasAdmissibleCostRepresentations (A := A) q)
-    (x : BesovishSpace A q) {ε : ℝ} (hε : 0 < ε) :
-    ∃ R : LpGridRepresentation A (x : Lp ℂ p G.measure),
-      LpGridRepresentation.pqCost (q := q) R < pqPseudoNorm A q x + ε := by
-  have hlt : sInf (pqCostUpperSet A q x) < sInf (pqCostUpperSet A q x) + ε :=
+    (g : BesovishSpace A q) {ε : ℝ} (hε : 0 < ε) :
+    ∃ R : LpGridRepresentation A (g : Lp ℂ p G.measure),
+      LpGridRepresentation.pqCost (q := q) R < Norm_Costpq A q g + ε := by
+  have hlt : sInf (pqCostUpperSet A q g) < sInf (pqCostUpperSet A q g) + ε :=
     lt_add_of_pos_right _ hε
   rcases exists_lt_of_csInf_lt
-      (pqCostUpperSet_nonempty (A := A) (q := q) hA x) hlt with
+      (pqCostUpperSet_nonempty (A := A) (q := q) hA g) hlt with
       ⟨c, hc, hclt⟩
   rcases hc with ⟨R, hRc⟩
   refine ⟨R, ?_⟩
-  exact lt_of_le_of_lt hRc (by simpa [pqPseudoNorm] using hclt)
+  exact lt_of_le_of_lt hRc (by simpa [pqPseudoNorm, Norm_Costpq] using hclt)
 
-theorem pqPseudoNorm_add_le
+theorem Norm_Costpq_add_le
     (hp_top : p ≠ ∞)
-  (hq_one : 1 ≤ q)
+    (hq_one : 1 ≤ q)
     (hfin : ∀ z : BesovishSpace A q, ∀ ε : ℝ, 0 < ε →
       ∃ R : LpGridRepresentation A (z : Lp ℂ p G.measure),
         LpGridRepresentation.FinitePQCost (q := q) R ∧
-          LpGridRepresentation.pqCost (q := q) R < pqPseudoNorm A q z + ε)
+          LpGridRepresentation.pqCost (q := q) R < Norm_Costpq A q z + ε)
     (x y : BesovishSpace A q) :
-    pqPseudoNorm A q (x + y) ≤ pqPseudoNorm A q x + pqPseudoNorm A q y := by
+    Norm_Costpq A q (x + y) ≤ Norm_Costpq A q x + Norm_Costpq A q y := by
   refine le_iff_forall_pos_le_add.mpr ?_
   intro ε hε
   have hε2 : 0 < ε / 2 := by linarith
@@ -2694,47 +2702,47 @@ theorem pqPseudoNorm_add_le
   rcases hfin y (ε / 2) hε2 with ⟨Ry, hRyfin, hRylt⟩
   let Rsum := LpGridRepresentation.add (A := A) Rx Ry
   have h0 :
-      pqPseudoNorm A q (x + y) ≤ LpGridRepresentation.pqCost (q := q) Rsum :=
-    pqPseudoNorm_le_cost (A := A) (q := q) (x := x + y) Rsum
+      Norm_Costpq A q (x + y) ≤ LpGridRepresentation.pqCost (q := q) Rsum :=
+    Norm_Costpq_le_cost (A := A) (q := q) (g := x + y) Rsum
   have h1 :
       LpGridRepresentation.pqCost (q := q) Rsum
         ≤ LpGridRepresentation.pqCost (q := q) Rx + LpGridRepresentation.pqCost (q := q) Ry :=
     LpGridRepresentation.pqCost_triangle (A := A) (q := q) Rx Ry hp_top hq_one hRxfin hRyfin
   have h2 :
       LpGridRepresentation.pqCost (q := q) Rx + LpGridRepresentation.pqCost (q := q) Ry
-        ≤ (pqPseudoNorm A q x + ε / 2) + (pqPseudoNorm A q y + ε / 2) :=
+        ≤ (Norm_Costpq A q x + ε / 2) + (Norm_Costpq A q y + ε / 2) :=
     add_le_add (le_of_lt hRxlt) (le_of_lt hRylt)
   calc
-    pqPseudoNorm A q (x + y)
+    Norm_Costpq A q (x + y)
       ≤ LpGridRepresentation.pqCost (q := q) Rsum := h0
     _ ≤ LpGridRepresentation.pqCost (q := q) Rx + LpGridRepresentation.pqCost (q := q) Ry := h1
-    _ ≤ (pqPseudoNorm A q x + ε / 2) + (pqPseudoNorm A q y + ε / 2) := h2
-    _ = pqPseudoNorm A q x + pqPseudoNorm A q y + ε := by ring
+    _ ≤ (Norm_Costpq A q x + ε / 2) + (Norm_Costpq A q y + ε / 2) := h2
+    _ = Norm_Costpq A q x + Norm_Costpq A q y + ε := by ring
 
-theorem pqPseudoNorm_smul_le
+theorem Norm_Costpq_smul_le
     (hp_top : p ≠ ∞)
-  (hq_one : 1 ≤ q)
+    (hq_one : 1 ≤ q)
     (hfin : ∀ z : BesovishSpace A q, ∀ ε : ℝ, 0 < ε →
       ∃ R : LpGridRepresentation A (z : Lp ℂ p G.measure),
         LpGridRepresentation.FinitePQCost (q := q) R ∧
-          LpGridRepresentation.pqCost (q := q) R < pqPseudoNorm A q z + ε)
+          LpGridRepresentation.pqCost (q := q) R < Norm_Costpq A q z + ε)
     (c : ℂ) (x : BesovishSpace A q) :
-    pqPseudoNorm A q (c • x) ≤ ‖c‖ * pqPseudoNorm A q x := by
+    Norm_Costpq A q (c • x) ≤ ‖c‖ * Norm_Costpq A q x := by
   refine le_iff_forall_pos_le_add.mpr ?_
   intro ε hε
   have hden : 0 < ‖c‖ + 1 := by linarith [norm_nonneg c]
   have hδ : 0 < ε / (‖c‖ + 1) := by positivity
   rcases hfin x (ε / (‖c‖ + 1)) hδ with ⟨Rx, hRxfin, hRxlt⟩
   let Rc := LpGridRepresentation.smul (A := A) c Rx
-  have h0 : pqPseudoNorm A q (c • x) ≤ LpGridRepresentation.pqCost (q := q) Rc :=
-    pqPseudoNorm_le_cost (A := A) (q := q) (x := c • x) Rc
+  have h0 : Norm_Costpq A q (c • x) ≤ LpGridRepresentation.pqCost (q := q) Rc :=
+    Norm_Costpq_le_cost (A := A) (q := q) (g := c • x) Rc
   have h1 : LpGridRepresentation.pqCost (q := q) Rc = ‖c‖ * LpGridRepresentation.pqCost (q := q) Rx :=
     LpGridRepresentation.pqCost_smul (A := A) (q := q) c Rx hp_top hq_one hRxfin
-  have h2 : LpGridRepresentation.pqCost (q := q) Rx ≤ pqPseudoNorm A q x + ε / (‖c‖ + 1) :=
+  have h2 : LpGridRepresentation.pqCost (q := q) Rx ≤ Norm_Costpq A q x + ε / (‖c‖ + 1) :=
     le_of_lt hRxlt
   have h3 :
       ‖c‖ * LpGridRepresentation.pqCost (q := q) Rx
-        ≤ ‖c‖ * (pqPseudoNorm A q x + ε / (‖c‖ + 1)) :=
+        ≤ ‖c‖ * (Norm_Costpq A q x + ε / (‖c‖ + 1)) :=
     mul_le_mul_of_nonneg_left h2 (norm_nonneg c)
   have h4 : ‖c‖ * (ε / (‖c‖ + 1)) ≤ ε := by
     have hfrac : ‖c‖ / (‖c‖ + 1) ≤ (1 : ℝ) :=
@@ -2747,12 +2755,12 @@ theorem pqPseudoNorm_smul_le
       _ ≤ (1 : ℝ) * ε := hmul
       _ = ε := by ring
   calc
-    pqPseudoNorm A q (c • x)
+    Norm_Costpq A q (c • x)
         ≤ LpGridRepresentation.pqCost (q := q) Rc := h0
     _ = ‖c‖ * LpGridRepresentation.pqCost (q := q) Rx := h1
-    _ ≤ ‖c‖ * (pqPseudoNorm A q x + ε / (‖c‖ + 1)) := h3
-    _ = ‖c‖ * pqPseudoNorm A q x + ‖c‖ * (ε / (‖c‖ + 1)) := by ring
-    _ ≤ ‖c‖ * pqPseudoNorm A q x + ε := by linarith [h4]
+    _ ≤ ‖c‖ * (Norm_Costpq A q x + ε / (‖c‖ + 1)) := h3
+    _ = ‖c‖ * Norm_Costpq A q x + ‖c‖ * (ε / (‖c‖ + 1)) := by ring
+    _ ≤ ‖c‖ * Norm_Costpq A q x + ε := by linarith [h4]
 
 end BesovishSpace
 
