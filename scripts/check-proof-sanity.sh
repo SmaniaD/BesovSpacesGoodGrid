@@ -56,10 +56,13 @@ scan_pattern() {
 echo "Scanning ${#lean_files[@]} Lean files for common proof-soundness risks..."
 echo
 
+
 scan_pattern "Found sorry" "CRITICAL" '\bsorry\b'
 scan_pattern "Found admit" "CRITICAL" '\badmit\b'
+scan_pattern "Found sorryAx" "CRITICAL" '\bsorryAx\b'
 scan_pattern "Found explicit axiom/constant declaration" "CRITICAL" '^[[:space:]]*(axiom|constant)[[:space:]]+'
 scan_pattern "Found set_option sorryElab true" "CRITICAL" '\bset_option[[:space:]]+sorryElab[[:space:]]+true\b'
+scan_pattern "Found set_option debug.skipKernelTC" "CRITICAL" '\bset_option[[:space:]]+debug.skipKernelTC[[:space:]]+true\b'
 scan_pattern "Found unsafe declaration (review manually)" "WARNING" '^[[:space:]]*unsafe[[:space:]]+(def|theorem|lemma|example|abbrev|axiom)\b'
 
 if [ "$critical_count" -gt 0 ]; then
