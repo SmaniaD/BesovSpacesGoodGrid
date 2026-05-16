@@ -800,6 +800,211 @@ noncomputable def LevelBlock.toLt
     (B : LevelBlock A k) : Lp ℂ t G.measure :=
   (G.grid.partitions k).attach.sum fun Q => LevelBlock.termLt A ht_le_pu B Q
 
+/-- The pointwise function represented by a level block in the target exponent. -/
+noncomputable def LevelBlock.toFunLt
+    (A : AtomFamily G s p u) {k : ℕ} (B : LevelBlock A k) : α → ℂ :=
+  fun x => (G.grid.partitions k).attach.sum fun Q =>
+    B.coeff Q * A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x
+
+omit [Fact (1 ≤ p)] in
+theorem LevelBlock.toFunLt_memLp
+    (A : AtomFamily G s p u) {t : ℝ≥0∞} [Fact (1 ≤ t)] {k : ℕ}
+    (ht_le_pu : t ≤ p * u)
+    (B : LevelBlock A k) :
+    MeasureTheory.MemLp (B.toFunLt A) t G.measure := by
+  classical
+  unfold LevelBlock.toFunLt
+  refine MeasureTheory.memLp_finsetSum (G.grid.partitions k).attach ?_
+  intro Q hQ
+  have hfinite : MeasureTheory.IsFiniteMeasure G.measure := by
+    dsimp [WeakGridSpace.measure]
+    exact G.grid.isFinite
+  letI := hfinite
+  exact ((A.local_memLp (levelCellToWeakGridCell G k Q) (B.atom Q)).mono_exponent
+    ht_le_pu).const_smul (B.coeff Q)
+
+omit [Fact (1 ≤ p)] in
+theorem LevelBlock.coeFn_termLt
+    (A : AtomFamily G s p u) {t : ℝ≥0∞} [Fact (1 ≤ t)] {k : ℕ}
+    (ht_le_pu : t ≤ p * u)
+    (B : LevelBlock A k) (Q : LevelCell G k) :
+    (LevelBlock.termLt A ht_le_pu B Q : α → ℂ) =ᵐ[G.measure]
+      fun x => B.coeff Q *
+        A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x := by
+  have hfinite : MeasureTheory.IsFiniteMeasure G.measure := by
+    dsimp [WeakGridSpace.measure]
+    exact G.grid.isFinite
+  letI := hfinite
+  unfold LevelBlock.termLt
+  exact (Lp.coeFn_smul (B.coeff Q)
+    (MemLp.toLp
+      (A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q))
+      (by
+        have hfinite : MeasureTheory.IsFiniteMeasure G.measure := by
+          dsimp [WeakGridSpace.measure]
+          exact G.grid.isFinite
+        letI := hfinite
+        exact (A.local_memLp (levelCellToWeakGridCell G k Q) (B.atom Q)).mono_exponent
+          ht_le_pu))).trans
+    ((MemLp.coeFn_toLp
+      ((A.local_memLp (levelCellToWeakGridCell G k Q) (B.atom Q)).mono_exponent
+        ht_le_pu)).fun_const_smul (B.coeff Q))
+
+omit [Fact (1 ≤ p)] in
+theorem LevelBlock.coeFn_toLt
+    (A : AtomFamily G s p u) {t : ℝ≥0∞} [Fact (1 ≤ t)] {k : ℕ}
+    (ht_le_pu : t ≤ p * u)
+    (B : LevelBlock A k) :
+    (B.toLt A ht_le_pu : α → ℂ) =ᵐ[G.measure] B.toFunLt A := by
+  classical
+  unfold LevelBlock.toLt LevelBlock.toFunLt
+  induction (G.grid.partitions k).attach using Finset.induction_on with
+  | empty =>
+      exact Lp.coeFn_zero ℂ t G.measure
+  | insert Q S hQS ih =>
+      simp only [Finset.sum_insert hQS]
+      exact (Lp.coeFn_add _ _).trans <|
+        (LevelBlock.coeFn_termLt A ht_le_pu B Q).add ih
+
+omit [Fact (1 ≤ p)] in
+theorem LevelBlock.active_card_le_Cmult1
+    (A : AtomFamily G s p u) {k : ℕ}
+    (B : LevelBlock A k) (x : α) :
+    ((G.grid.partitions k).attach.filter fun Q =>
+      B.coeff Q * A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x ≠ 0).card
+        ≤ G.grid.Cmult1 := by
+  classical
+  let S := (G.grid.partitions k).attach.filter fun Q =>
+    B.coeff Q * A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x ≠ 0
+  by_cases hS : S.Nonempty
+  · rcases hS with ⟨Q₀, hQ₀S⟩
+    have hQ₀mem : Q₀.1 ∈ G.grid.partitions k := Q₀.2
+    have hxQ₀ : x ∈ Q₀.1 := by
+      have hprod : B.coeff Q₀ *
+          A.toFunction (levelCellToWeakGridCell G k Q₀) (B.atom Q₀) x ≠ 0 := by
+        simpa [S] using (Finset.mem_filter.mp hQ₀S).2
+      by_contra hxnot
+      have hzero :
+          A.toFunction (levelCellToWeakGridCell G k Q₀) (B.atom Q₀) x = 0 := by
+        simpa using A.local_support (levelCellToWeakGridCell G k Q₀) (B.atom Q₀) x hxnot
+      exact hprod (by simp [hzero])
+    have hmap :
+        Set.MapsTo (fun Q : LevelCell G k => Q.1) (S : Set (LevelCell G k))
+          (overlapFinset (G.grid.partitions k) Q₀.1 : Set (Set α)) := by
+      intro Q hQS
+      have hprod : B.coeff Q *
+          A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x ≠ 0 := by
+        simpa [S] using (Finset.mem_filter.mp hQS).2
+      have hxQ : x ∈ Q.1 := by
+        by_contra hxnot
+        have hzero :
+            A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x = 0 := by
+          simpa using A.local_support (levelCellToWeakGridCell G k Q) (B.atom Q) x hxnot
+        exact hprod (by simp [hzero])
+      simp [overlapFinset, Q.2, Set.Nonempty]
+      exact ⟨x, hxQ, hxQ₀⟩
+    have hinj :
+        Set.InjOn (fun Q : LevelCell G k => Q.1) (S : Set (LevelCell G k)) := by
+      intro Q hQS R hRS hQR
+      cases Q
+      cases R
+      simp at hQR
+      simp [hQR]
+    exact (Finset.card_le_card_of_injOn (fun Q : LevelCell G k => Q.1) hmap hinj).trans
+      (G.grid.overlap_card_le k Q₀.1 hQ₀mem)
+  · have hEmpty : S = ∅ := by
+      simpa [Finset.not_nonempty_iff_eq_empty] using hS
+    have hcard :
+        ((G.grid.partitions k).attach.filter fun Q =>
+          B.coeff Q * A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x ≠ 0).card = 0 := by
+      simpa [S] using congrArg Finset.card hEmpty
+    omega
+
+omit [Fact (1 ≤ p)] in
+theorem LevelBlock.norm_toFunLt_rpow_le_Cmult1
+    (A : AtomFamily G s p u) {t : ℝ≥0∞} [Fact (1 ≤ t)] {k : ℕ}
+    (ht_ne_top : t ≠ ∞)
+    (B : LevelBlock A k) (x : α) :
+    ‖B.toFunLt A x‖ ^ t.toReal ≤
+      (G.grid.Cmult1 : ℝ) ^ t.toReal *
+        ∑ Q : LevelCell G k,
+          ‖B.coeff Q *
+            A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x‖ ^ t.toReal := by
+  classical
+  let S := (G.grid.partitions k).attach.filter fun Q =>
+    B.coeff Q * A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x ≠ 0
+  let term : LevelCell G k → ℂ := fun Q =>
+    B.coeff Q * A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x
+  have ht_one : (1 : ℝ) ≤ t.toReal := by
+    have h := ENNReal.toReal_mono ht_ne_top (Fact.out : (1 : ℝ≥0∞) ≤ t)
+    simpa using h
+  have ht_nonneg : 0 ≤ t.toReal := le_trans (zero_le_one : (0 : ℝ) ≤ 1) ht_one
+  have hsum_eq : (G.grid.partitions k).attach.sum term = S.sum term := by
+    simpa [S, term] using (Finset.sum_filter_ne_zero (s := (G.grid.partitions k).attach)
+      (f := term)).symm
+  have hnorm_sum :
+      ‖B.toFunLt A x‖ ≤ ∑ Q ∈ S, ‖term Q‖ := by
+    calc
+      ‖B.toFunLt A x‖
+          = ‖(G.grid.partitions k).attach.sum term‖ := by
+              simp [LevelBlock.toFunLt, term]
+      _ = ‖S.sum term‖ := by rw [hsum_eq]
+      _ ≤ ∑ Q ∈ S, ‖term Q‖ := norm_sum_le S term
+  have hpow_sum :
+      (∑ Q ∈ S, ‖term Q‖) ^ t.toReal ≤
+        (S.card : ℝ) ^ (t.toReal - 1) *
+          ∑ Q ∈ S, ‖term Q‖ ^ t.toReal :=
+    Real.rpow_sum_le_const_mul_sum_rpow_of_nonneg S ht_one
+      (fun Q _ => norm_nonneg (term Q))
+  have hcardC_nat : S.card ≤ G.grid.Cmult1 := by
+    simpa [S, term] using LevelBlock.active_card_le_Cmult1 A B x
+  have hcardC : (S.card : ℝ) ≤ (G.grid.Cmult1 : ℝ) := by exact_mod_cast hcardC_nat
+  have hsum_nonneg : 0 ≤ ∑ Q ∈ S, ‖term Q‖ := by
+    exact Finset.sum_nonneg fun Q _ => norm_nonneg (term Q)
+  have hleft :
+      ‖B.toFunLt A x‖ ^ t.toReal ≤ (∑ Q ∈ S, ‖term Q‖) ^ t.toReal :=
+    Real.rpow_le_rpow (norm_nonneg _) hnorm_sum ht_nonneg
+  have hSsum_le :
+      ∑ Q ∈ S, ‖term Q‖ ^ t.toReal ≤
+        ∑ Q : LevelCell G k, ‖term Q‖ ^ t.toReal := by
+    exact Finset.sum_le_sum_of_subset_of_nonneg
+      (by intro Q hQ; exact (Finset.mem_filter.mp hQ).1)
+      (by intro Q hQ _; exact Real.rpow_nonneg (norm_nonneg (term Q)) _)
+  have hCnonneg : 0 ≤ (G.grid.Cmult1 : ℝ) := by exact_mod_cast Nat.zero_le G.grid.Cmult1
+  by_cases hSempty : S.card = 0
+  · have hS : S = ∅ := Finset.card_eq_zero.mp hSempty
+    have hzero : ∑ Q ∈ S, ‖term Q‖ = 0 := by simp [hS]
+    have hnorm_zero : ‖B.toFunLt A x‖ = 0 := by
+      exact le_antisymm (by simpa [hzero] using hnorm_sum) (norm_nonneg _)
+    rw [hnorm_zero, Real.zero_rpow (lt_of_lt_of_le zero_lt_one ht_one).ne']
+    exact mul_nonneg (Real.rpow_nonneg hCnonneg _)
+      (Finset.sum_nonneg fun Q _ => Real.rpow_nonneg (norm_nonneg _) _)
+  · have hSpos_nat : 1 ≤ S.card := Nat.succ_le_of_lt (Nat.pos_of_ne_zero hSempty)
+    have hSpos : (1 : ℝ) ≤ (S.card : ℝ) := by exact_mod_cast hSpos_nat
+    have hcard_pow_le_C :
+        (S.card : ℝ) ^ (t.toReal - 1) ≤ (G.grid.Cmult1 : ℝ) ^ t.toReal := by
+      calc
+        (S.card : ℝ) ^ (t.toReal - 1)
+            ≤ (S.card : ℝ) ^ t.toReal :=
+              Real.rpow_le_rpow_of_exponent_le hSpos (by linarith)
+        _ ≤ (G.grid.Cmult1 : ℝ) ^ t.toReal :=
+              Real.rpow_le_rpow (by positivity) hcardC ht_nonneg
+    calc
+      ‖B.toFunLt A x‖ ^ t.toReal
+          ≤ (∑ Q ∈ S, ‖term Q‖) ^ t.toReal := hleft
+      _ ≤ (S.card : ℝ) ^ (t.toReal - 1) *
+            ∑ Q ∈ S, ‖term Q‖ ^ t.toReal := hpow_sum
+      _ ≤ (G.grid.Cmult1 : ℝ) ^ t.toReal *
+            ∑ Q : LevelCell G k, ‖term Q‖ ^ t.toReal :=
+          mul_le_mul hcard_pow_le_C hSsum_le
+            (Finset.sum_nonneg fun Q _ => Real.rpow_nonneg (norm_nonneg (term Q)) _)
+            (Real.rpow_nonneg hCnonneg _)
+      _ = (G.grid.Cmult1 : ℝ) ^ t.toReal *
+            ∑ Q : LevelCell G k,
+              ‖B.coeff Q *
+                A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x‖ ^ t.toReal := by
+          simp [term]
+
 namespace LpGridRepresentation
 
 /--
@@ -812,7 +1017,7 @@ theorem lt_norm_atom_le_levelMeasureWeight
     {A : AtomFamily G s p u} {t : ℝ≥0∞}
     [Fact (1 ≤ t)] {k : ℕ} (Q : LevelCell G k)
     (hp_ne_top : p ≠ ∞) (ht_ne_top : t ≠ ∞)
-    (hp_le_t : p ≤ t) (ht_le_pu : t ≤ p * u)
+    (_hp_le_t : p ≤ t) (ht_le_pu : t ≤ p * u)
     (hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / t.toReal)
     (φ : (A.localSpace (levelCellToWeakGridCell G k Q)).carrier)
     (hφ : A.IsAtom (levelCellToWeakGridCell G k Q) φ) :
@@ -825,18 +1030,96 @@ theorem lt_norm_atom_le_levelMeasureWeight
           letI := hfinite
           exact (A.local_memLp (levelCellToWeakGridCell G k Q) φ).mono_exponent ht_le_pu)‖
       ≤ levelMeasureWeight G s p t k := by
-  /-
-  Paper proof:
-    ∫ |a_P|^t 1_P
-      ≤ ‖|a_P|^t‖_{pu/t} ‖1_P‖_{pu/(pu-t)}
-      ≤ ‖a_P‖_{pu}^t |P|^((pu-t)/(pu))
-      ≤ |P|^(t*s - t/(u' p)) |P|^((pu-t)/(pu))
-      = |P|^(t*(s - 1/p + 1/t)).
-
-  The remaining Lean work is the localized Hölder calculation plus the
-  algebraic use of `A.holder_conjugate`.
-  -/
-  sorry
+  let Qg : WeakGridCell G := levelCellToWeakGridCell G k Q
+  let f : α → ℂ := A.toFunction Qg φ
+  have hfinite : MeasureTheory.IsFiniteMeasure G.measure := by
+    dsimp [WeakGridSpace.measure]
+    exact G.grid.isFinite
+  letI := hfinite
+  have ht_ne_zero : t ≠ 0 :=
+    ne_of_gt ((zero_lt_one : (0 : ℝ≥0∞) < 1).trans_le (Fact.out : 1 ≤ t))
+  have ht_pos : 0 < t.toReal := ENNReal.toReal_pos ht_ne_zero ht_ne_top
+  have hQ_meas : MeasurableSet Q.1 := G.grid.measurable k Q.1 Q.2
+  have hQ_pos : 0 < G.measure Q.1 := by
+    simpa [WeakGridSpace.measure] using G.grid.positive_measure k Q.1 Q.2
+  have hQ_ne_zero : G.measure Q.1 ≠ 0 := ne_of_gt hQ_pos
+  have hQ_ne_top : G.measure Q.1 ≠ ∞ := by finiteness
+  have hsupport : Function.support f ⊆ Q.1 := by
+    intro x hx
+    by_contra hxQ
+    exact hx (by simpa [f, Qg] using A.local_support Qg φ x hxQ)
+  have hrestr_t :
+      MeasureTheory.eLpNorm f t (G.measure.restrict Q.1) =
+        MeasureTheory.eLpNorm f t G.measure :=
+    MeasureTheory.eLpNorm_restrict_eq_of_support_subset (μ := G.measure) hsupport
+  have hcompare :
+      MeasureTheory.eLpNorm f t G.measure ≤
+        MeasureTheory.eLpNorm f (p * u) G.measure *
+          (G.measure Q.1) ^ (1 / t.toReal - 1 / (p * u).toReal) := by
+    calc
+      MeasureTheory.eLpNorm f t G.measure
+          = MeasureTheory.eLpNorm f t (G.measure.restrict Q.1) := hrestr_t.symm
+      _ ≤ MeasureTheory.eLpNorm f (p * u) (G.measure.restrict Q.1) *
+            (G.measure.restrict Q.1 Set.univ) ^
+              (1 / t.toReal - 1 / (p * u).toReal) :=
+          MeasureTheory.eLpNorm_le_eLpNorm_mul_rpow_measure_univ
+            (μ := G.measure.restrict Q.1) ht_le_pu
+            ((A.local_memLp Qg φ).aestronglyMeasurable.mono_measure
+              Measure.restrict_le_self)
+      _ = MeasureTheory.eLpNorm f (p * u) (G.measure.restrict Q.1) *
+            (G.measure Q.1) ^ (1 / t.toReal - 1 / (p * u).toReal) := by
+          rw [Measure.restrict_apply_univ]
+      _ ≤ MeasureTheory.eLpNorm f (p * u) G.measure *
+            (G.measure Q.1) ^ (1 / t.toReal - 1 / (p * u).toReal) := by
+          exact mul_le_mul_right'
+            (MeasureTheory.eLpNorm_mono_measure f Measure.restrict_le_self)
+            _
+  have hatom :
+      MeasureTheory.eLpNorm f (p * u) G.measure ≤
+        (G.measure Q.1) ^ atomMeasureExponent s p A.uConj := by
+    simpa [f, Qg, atomMeasureScale] using A.atom_norm_bound hφ
+  have hpow :
+      (G.measure Q.1) ^ atomMeasureExponent s p A.uConj *
+          (G.measure Q.1) ^ (1 / t.toReal - 1 / (p * u).toReal)
+        =
+        (G.measure Q.1) ^ (s - 1 / p.toReal + 1 / t.toReal) := by
+    rw [← ENNReal.rpow_add _ _ hQ_ne_zero hQ_ne_top]
+    congr 1
+    simpa [sub_eq_add_neg, one_div] using
+      atomMeasureExponent_add_embeddingExponent
+        (p := p) (s := s) (u := u) (uConj := A.uConj) (t := t)
+        A.holder_conjugate hp_ne_top
+  have h_enn :
+      MeasureTheory.eLpNorm f t G.measure ≤
+        (G.measure Q.1) ^ (s - 1 / p.toReal + 1 / t.toReal) := by
+    calc
+      MeasureTheory.eLpNorm f t G.measure
+          ≤ MeasureTheory.eLpNorm f (p * u) G.measure *
+              (G.measure Q.1) ^ (1 / t.toReal - 1 / (p * u).toReal) := hcompare
+      _ ≤ (G.measure Q.1) ^ atomMeasureExponent s p A.uConj *
+              (G.measure Q.1) ^ (1 / t.toReal - 1 / (p * u).toReal) :=
+          mul_le_mul_right' hatom _
+      _ = (G.measure Q.1) ^ (s - 1 / p.toReal + 1 / t.toReal) := hpow
+  have hreal :
+      (MeasureTheory.eLpNorm f t G.measure).toReal ≤
+        (G.measure Q.1).toReal ^ (s - 1 / p.toReal + 1 / t.toReal) := by
+    rw [ENNReal.toReal_rpow]
+    exact ENNReal.toReal_mono
+      (ENNReal.rpow_ne_top_of_ne_zero hQ_ne_zero hQ_ne_top) h_enn
+  calc
+    ‖MemLp.toLp
+        (A.toFunction (levelCellToWeakGridCell G k Q) φ)
+        (by
+          have hfinite : MeasureTheory.IsFiniteMeasure G.measure := by
+            dsimp [WeakGridSpace.measure]
+            exact G.grid.isFinite
+          letI := hfinite
+          exact (A.local_memLp (levelCellToWeakGridCell G k Q) φ).mono_exponent ht_le_pu)‖
+        = (MeasureTheory.eLpNorm f t G.measure).toReal := by
+          simp [f, Qg]
+    _ ≤ (G.measure Q.1).toReal ^ (s - 1 / p.toReal + 1 / t.toReal) := hreal
+    _ ≤ levelMeasureWeight G s p t k :=
+          levelCellMeasure_rpow_le_levelMeasureWeight G s p t k hs_nonneg Q
 
 /--
 Level-block `L^t` estimate after the single-atom estimate.
@@ -852,7 +1135,7 @@ theorem lt_norm_levelBlock_le_of_atom_bound
     (hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / t.toReal)
     : ∀ {g : Lp ℂ p G.measure} (R : LpGridRepresentation A g) (k : ℕ),
         ‖(R.block k).toLt (t := t) A ht_le_pu‖ ≤
-          ((G.grid.Cmult1 : ℝ) + 1) *
+          ((G.grid.Cmult1 : ℝ) ^ (1 + 1 / t.toReal)) *
             levelMeasureWeight G s p t k *
               (R.levelCoeffPower k) ^ (1 / p.toReal) := by
   /-
@@ -864,10 +1147,302 @@ theorem lt_norm_levelBlock_le_of_atom_bound
     4. because `p ≤ t`, the finite `ℓ^t` norm of coefficients is bounded by
        their finite `ℓ^p` norm.
 
-  The `+ 1` makes the chosen real constant visibly nonnegative even when
-  `Cmult1 = 0`; it is harmless for the final existential estimate.
+  This keeps the constant from the paper, namely `Cmult1^(1+1/t)`.
   -/
-  sorry
+  intro g R k
+  classical
+  let B := R.block k
+  let C : ℝ := G.grid.Cmult1
+  let W : ℝ := levelMeasureWeight G s p t k
+  have hp_ne_zero : p ≠ 0 :=
+    ne_of_gt ((zero_lt_one : (0 : ℝ≥0∞) < 1).trans_le (Fact.out : 1 ≤ p))
+  have ht_ne_zero : t ≠ 0 :=
+    ne_of_gt ((zero_lt_one : (0 : ℝ≥0∞) < 1).trans_le
+      ((Fact.out : 1 ≤ p).trans hp_le_t))
+  have hp_pos : 0 < p.toReal := ENNReal.toReal_pos hp_ne_zero hp_ne_top
+  have ht_pos : 0 < t.toReal := ENNReal.toReal_pos ht_ne_zero ht_ne_top
+  have ht_nonneg : 0 ≤ t.toReal := ht_pos.le
+  have hW_nonneg : 0 ≤ W := levelMeasureWeight_nonneg G s p t k
+  have hL_nonneg : 0 ≤ R.levelCoeffPower k := R.levelCoeffPower_nonneg k
+  have htarget_nonneg :
+      0 ≤ C ^ (1 + 1 / t.toReal) * W *
+          (R.levelCoeffPower k) ^ (1 / p.toReal) := by
+    positivity
+  have hcoeff_int :
+      (∑ Q : LevelCell G k,
+          (W * ‖B.coeff Q‖) ^ t.toReal)
+        ≤ (W * (R.levelCoeffPower k) ^ (1 / p.toReal)) ^ t.toReal := by
+    have hcoeff :
+        (∑ Q : LevelCell G k, ‖B.coeff Q‖ ^ t.toReal)
+          ≤ (R.levelCoeffPower k) ^ (t.toReal / p.toReal) := by
+      simpa [B] using
+        levelCoeffPower_t_le_levelCoeffPower_rpow
+          (A := A) (t := t) R k hp_ne_top ht_ne_top hp_le_t
+    calc
+      (∑ Q : LevelCell G k, (W * ‖B.coeff Q‖) ^ t.toReal)
+          = W ^ t.toReal *
+              ∑ Q : LevelCell G k, ‖B.coeff Q‖ ^ t.toReal := by
+            simp_rw [Real.mul_rpow hW_nonneg (norm_nonneg _)]
+            rw [Finset.mul_sum]
+      _ ≤ W ^ t.toReal * (R.levelCoeffPower k) ^ (t.toReal / p.toReal) :=
+            mul_le_mul_of_nonneg_left hcoeff (Real.rpow_nonneg hW_nonneg _)
+      _ = (W * (R.levelCoeffPower k) ^ (1 / p.toReal)) ^ t.toReal := by
+            rw [Real.mul_rpow hW_nonneg (Real.rpow_nonneg hL_nonneg _)]
+            congr 1
+            rw [← Real.rpow_mul hL_nonneg]
+            congr 1
+            field_simp [hp_pos.ne']
+  have hterm_eLp :
+      ∀ Q : LevelCell G k,
+        MeasureTheory.eLpNorm
+            (fun x => B.coeff Q *
+              A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x)
+            t G.measure
+          ≤ ENNReal.ofReal
+              (W * ‖B.coeff Q‖) := by
+    intro Q
+    let f : α → ℂ := A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q)
+    have hfinite : MeasureTheory.IsFiniteMeasure G.measure := by
+      dsimp [WeakGridSpace.measure]
+      exact G.grid.isFinite
+    letI := hfinite
+    have hmem : MeasureTheory.MemLp f t G.measure :=
+      (A.local_memLp (levelCellToWeakGridCell G k Q) (B.atom Q)).mono_exponent ht_le_pu
+    have hcell_bound :
+        MeasureTheory.eLpNorm f t G.measure ≤
+          ENNReal.ofReal W := by
+      have hnorm :
+          ‖MeasureTheory.MemLp.toLp f hmem‖ ≤ W := by
+        simpa [f, W] using
+          lt_norm_atom_le_levelMeasureWeight
+            (A := A) (t := t) Q hp_ne_top ht_ne_top hp_le_t ht_le_pu
+            hs_nonneg (B.atom Q) (B.atom_mem Q)
+      rw [MeasureTheory.Lp.norm_toLp] at hnorm
+      exact (ENNReal.le_ofReal_iff_toReal_le hmem.eLpNorm_ne_top hW_nonneg).2 hnorm
+    calc
+      MeasureTheory.eLpNorm
+          (fun x => B.coeff Q *
+            A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x)
+          t G.measure
+          = MeasureTheory.eLpNorm (B.coeff Q • f) t G.measure := by
+              rfl
+      _ = ‖B.coeff Q‖ₑ * MeasureTheory.eLpNorm f t G.measure := by
+              rw [MeasureTheory.eLpNorm_const_smul]
+      _ ≤ ‖B.coeff Q‖ₑ *
+            ENNReal.ofReal W :=
+              mul_le_mul_left' hcell_bound _
+      _ = ENNReal.ofReal (W * ‖B.coeff Q‖) := by
+              rw [← ofReal_norm_eq_enorm, ← ENNReal.ofReal_mul (norm_nonneg (B.coeff Q))]
+              ring_nf
+  have heLp_bound :
+      MeasureTheory.eLpNorm (B.toFunLt A) t G.measure ≤
+        ENNReal.ofReal
+          (C ^ (1 + 1 / t.toReal) * W *
+            (R.levelCoeffPower k) ^ (1 / p.toReal)) := by
+    rw [MeasureTheory.eLpNorm_eq_lintegral_rpow_enorm_toReal ht_ne_zero ht_ne_top]
+    have hCpow_ne_top : ENNReal.ofReal (C ^ t.toReal) ≠ ∞ := by simp
+    have hpoint :
+        ∀ x,
+          ‖B.toFunLt A x‖ₑ ^ t.toReal ≤
+            ENNReal.ofReal (C ^ t.toReal) *
+              ∑ Q : LevelCell G k,
+                ‖B.coeff Q *
+                  A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x‖ₑ ^
+                  t.toReal := by
+      intro x
+      have hreal := LevelBlock.norm_toFunLt_rpow_le_Cmult1
+        (A := A) (t := t) ht_ne_top B x
+      have hrhs_nonneg :
+          0 ≤ C ^ t.toReal *
+            ∑ Q : LevelCell G k,
+              ‖B.coeff Q *
+                A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x‖ ^
+                t.toReal := by
+        positivity
+      have h := (ENNReal.ofReal_le_ofReal_iff hrhs_nonneg).2 (by simpa [C] using hreal)
+      have hleft :
+          ENNReal.ofReal (‖B.toFunLt A x‖ ^ t.toReal)
+            = ‖B.toFunLt A x‖ₑ ^ t.toReal := by
+        rw [← ENNReal.ofReal_rpow_of_nonneg (norm_nonneg _) ht_nonneg]
+        simp
+      have hsum :
+          ENNReal.ofReal
+            (∑ Q ∈ (G.grid.partitions k).attach,
+              (‖B.coeff Q‖ *
+                ‖A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x‖) ^
+                  t.toReal)
+            =
+            ∑ Q ∈ (G.grid.partitions k).attach,
+              ‖B.coeff Q *
+                A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x‖ₑ ^
+                t.toReal := by
+        rw [ENNReal.ofReal_sum_of_nonneg]
+        · apply Finset.sum_congr rfl
+          intro Q _
+          rw [← ENNReal.ofReal_rpow_of_nonneg
+            (mul_nonneg (norm_nonneg _) (norm_nonneg _)) ht_nonneg]
+          simp
+        · intro Q _
+          exact Real.rpow_nonneg
+            (mul_nonneg (norm_nonneg _) (norm_nonneg _)) _
+      rw [hleft] at h
+      simpa [ENNReal.ofReal_mul (Real.rpow_nonneg (by positivity : 0 ≤ C) _),
+        hsum, ENNReal.ofReal_rpow_of_nonneg, norm_mul, ht_nonneg] using h
+    calc
+      (∫⁻ x, ‖B.toFunLt A x‖ₑ ^ t.toReal ∂G.measure) ^ (1 / t.toReal)
+          ≤ (∫⁻ x, ENNReal.ofReal (C ^ t.toReal) *
+              ∑ Q : LevelCell G k,
+                ‖B.coeff Q *
+                  A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x‖ₑ ^
+                    t.toReal ∂G.measure) ^ (1 / t.toReal) :=
+            ENNReal.rpow_le_rpow (lintegral_mono hpoint) (by positivity)
+      _ = (ENNReal.ofReal (C ^ t.toReal) *
+              ∑ Q : LevelCell G k,
+                ∫⁻ x,
+                  ‖B.coeff Q *
+                    A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x‖ₑ ^
+          t.toReal ∂G.measure) ^ (1 / t.toReal) := by
+            congr 1
+            rw [MeasureTheory.lintegral_const_mul'
+              (ENNReal.ofReal (C ^ t.toReal))
+              (fun x =>
+                ∑ Q : LevelCell G k,
+                  ‖B.coeff Q *
+                    A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x‖ₑ ^
+                    t.toReal)
+              hCpow_ne_top]
+            rw [MeasureTheory.lintegral_finsetSum' (Finset.univ : Finset (LevelCell G k))]
+            intro Q _
+            have hfinite : MeasureTheory.IsFiniteMeasure G.measure := by
+              dsimp [WeakGridSpace.measure]
+              exact G.grid.isFinite
+            letI := hfinite
+            have hmem :
+                MeasureTheory.MemLp
+                  (fun x => B.coeff Q *
+                    A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x)
+                  t G.measure := by
+              simpa [Pi.smul_apply] using
+                ((A.local_memLp (levelCellToWeakGridCell G k Q) (B.atom Q)).mono_exponent
+                  ht_le_pu).const_smul (B.coeff Q)
+            simpa [enorm_mul] using hmem.aestronglyMeasurable.enorm.pow_const t.toReal
+      _ ≤ (ENNReal.ofReal (C ^ t.toReal) *
+              ∑ Q : LevelCell G k,
+                (ENNReal.ofReal
+                  (W * ‖B.coeff Q‖)) ^
+                    t.toReal) ^ (1 / t.toReal) := by
+            refine ENNReal.rpow_le_rpow (mul_le_mul_left' ?_ _) (by positivity)
+            refine Finset.sum_le_sum fun Q _ => ?_
+            have hQ := hterm_eLp Q
+            have hInt :
+                ∫⁻ x,
+                  ‖B.coeff Q *
+                    A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x‖ₑ ^
+                    t.toReal ∂G.measure =
+                MeasureTheory.eLpNorm
+                  (fun x => B.coeff Q *
+                    A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x)
+                  t G.measure ^ t.toReal := by
+              rw [MeasureTheory.eLpNorm_eq_lintegral_rpow_enorm_toReal
+                ht_ne_zero ht_ne_top
+                (f := fun x => B.coeff Q *
+                  A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x)
+                (μ := G.measure)]
+              rw [one_div, ENNReal.rpow_inv_rpow ht_pos.ne']
+            rw [hInt]
+            exact ENNReal.rpow_le_rpow hQ ht_nonneg
+      _ ≤ (ENNReal.ofReal (C ^ t.toReal) *
+              ENNReal.ofReal
+                ((W * (R.levelCoeffPower k) ^ (1 / p.toReal)) ^ t.toReal)) ^
+              (1 / t.toReal) := by
+            refine ENNReal.rpow_le_rpow (mul_le_mul_left' ?_ _) (by positivity)
+            have hsum_ofReal :
+                (∑ Q : LevelCell G k,
+                  (ENNReal.ofReal
+                    (W * ‖B.coeff Q‖)) ^
+                      t.toReal)
+                  =
+                  ENNReal.ofReal
+                    (∑ Q : LevelCell G k,
+                      ((W * ‖B.coeff Q‖) ^
+                        t.toReal)) := by
+              rw [ENNReal.ofReal_sum_of_nonneg]
+              · apply Finset.sum_congr rfl
+                intro Q _
+                rw [← ENNReal.ofReal_rpow_of_nonneg
+                  (mul_nonneg hW_nonneg (norm_nonneg _)) ht_nonneg]
+              · intro Q _
+                exact Real.rpow_nonneg (mul_nonneg hW_nonneg (norm_nonneg _)) _
+            rw [hsum_ofReal]
+            exact (ENNReal.ofReal_le_ofReal_iff
+              (Real.rpow_nonneg (mul_nonneg hW_nonneg
+                (Real.rpow_nonneg hL_nonneg _)) _)).2 (by simpa [B, W] using hcoeff_int)
+      _ ≤ ENNReal.ofReal
+            (C ^ (1 + 1 / t.toReal) * W *
+              (R.levelCoeffPower k) ^ (1 / p.toReal)) := by
+            let D : ℝ := W * (R.levelCoeffPower k) ^ (1 / p.toReal)
+            have hC_nonneg : 0 ≤ C := by
+              dsimp [C]
+              exact_mod_cast Nat.zero_le G.grid.Cmult1
+            have hD_nonneg : 0 ≤ D := by
+              dsimp [D]
+              exact mul_nonneg hW_nonneg (Real.rpow_nonneg hL_nonneg _)
+            have hroot_eq :
+                (ENNReal.ofReal (C ^ t.toReal) *
+                    ENNReal.ofReal (D ^ t.toReal)) ^ (1 / t.toReal)
+                  = ENNReal.ofReal (C * D) := by
+              rw [← ENNReal.ofReal_mul (Real.rpow_nonneg hC_nonneg _)]
+              rw [← Real.mul_rpow hC_nonneg hD_nonneg]
+              rw [← ENNReal.ofReal_rpow_of_nonneg (mul_nonneg hC_nonneg hD_nonneg)
+                ht_nonneg]
+              rw [one_div, ← ENNReal.rpow_mul, mul_inv_cancel₀ ht_pos.ne',
+                ENNReal.rpow_one]
+            rw [show W * (R.levelCoeffPower k) ^ (1 / p.toReal) = D by rfl]
+            rw [hroot_eq]
+            have hC_le :
+                C ≤ C ^ (1 + 1 / t.toReal) := by
+              by_cases hCzero : C = 0
+              · rw [hCzero]
+                exact Real.rpow_nonneg le_rfl _
+              · have hCnat_ne : G.grid.Cmult1 ≠ 0 := by
+                  intro hnat
+                  apply hCzero
+                  dsimp [C]
+                  exact_mod_cast hnat
+                have hC_one : (1 : ℝ) ≤ C := by
+                  dsimp [C]
+                  exact_mod_cast Nat.succ_le_of_lt (Nat.pos_of_ne_zero hCnat_ne)
+                have hexp : (1 : ℝ) ≤ 1 + 1 / t.toReal := by
+                  linarith [one_div_pos.mpr ht_pos]
+                simpa using Real.rpow_le_rpow_of_exponent_le hC_one hexp
+            have hreal :
+                C * D ≤ C ^ (1 + 1 / t.toReal) * W *
+                    (R.levelCoeffPower k) ^ (1 / p.toReal) := by
+              dsimp [D]
+              calc
+                C * (W * R.levelCoeffPower k ^ (1 / p.toReal))
+                    ≤ C ^ (1 + 1 / t.toReal) *
+                        (W * R.levelCoeffPower k ^ (1 / p.toReal)) :=
+                      mul_le_mul_of_nonneg_right hC_le
+                        (mul_nonneg hW_nonneg (Real.rpow_nonneg hL_nonneg _))
+                _ = C ^ (1 + 1 / t.toReal) * W *
+                        R.levelCoeffPower k ^ (1 / p.toReal) := by
+                      ring
+            exact (ENNReal.ofReal_le_ofReal_iff htarget_nonneg).2 hreal
+  have hcoe :
+      ((B.toLt (t := t) A ht_le_pu : Lp ℂ t G.measure) : α → ℂ)
+        =ᵐ[G.measure] B.toFunLt A :=
+    LevelBlock.coeFn_toLt A ht_le_pu B
+  have hnorm_toReal :
+      ‖B.toLt (t := t) A ht_le_pu‖
+        ≤ (ENNReal.ofReal
+          (C ^ (1 + 1 / t.toReal) * W *
+            (R.levelCoeffPower k) ^ (1 / p.toReal))).toReal := by
+    rw [Lp.norm_def]
+    rw [MeasureTheory.eLpNorm_congr_ae hcoe]
+    exact ENNReal.toReal_mono (by simp) heLp_bound
+  rw [ENNReal.toReal_ofReal htarget_nonneg] at hnorm_toReal
+  simpa [B, C, W] using hnorm_toReal
 
 /--
 Levelwise `L^t` estimate for one atomic block.
@@ -887,7 +1462,7 @@ theorem lt_norm_levelBlock_le
         ‖(R.block k).toLt (t := t) A ht_le_pu‖ ≤
           C * levelMeasureWeight G s p t k *
             (R.levelCoeffPower k) ^ (1 / p.toReal) := by
-  refine ⟨(G.grid.Cmult1 : ℝ) + 1, by positivity, ?_⟩
+  refine ⟨(G.grid.Cmult1 : ℝ) ^ (1 + 1 / t.toReal), by positivity, ?_⟩
   intro g R k
   exact lt_norm_levelBlock_le_of_atom_bound
     (A := A) (t := t) hp_ne_top ht_ne_top hp_le_t ht_le_pu hs_nonneg R k
