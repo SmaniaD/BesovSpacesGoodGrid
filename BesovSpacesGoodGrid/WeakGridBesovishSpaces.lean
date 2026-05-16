@@ -3041,6 +3041,37 @@ theorem Norm_Costpq_smul_le
       simpa [add_comm, add_left_comm, add_assoc] using
         add_le_add_right h4 (‖c‖ * Norm_Costpq A q x)
 
+/-- The gauge `Norm_Costpq` is exactly homogeneous with respect to complex scalars. -/
+theorem Norm_Costpq_smul_eq
+    (hp_top : p ≠ ∞)
+    (hA : HasFiniteCostRepresentations (A := A) q)
+    (c : ℂ) (x : BesovishSpace A q) :
+    Norm_Costpq A q (c • x) = ‖c‖ * Norm_Costpq A q x := by
+  refine le_antisymm
+    (Norm_Costpq_smul_le (A := A) (q := q) hp_top hA c x) ?_
+  by_cases hc : c = 0
+  · subst c
+    simpa using Norm_Costpq_nonneg (A := A) (q := q) hA ((0 : ℂ) • x)
+  · have hcx :
+        c⁻¹ • (c • x) = x := by
+      rw [smul_smul, inv_mul_cancel₀ hc, one_smul]
+    have hle :
+        Norm_Costpq A q x ≤ ‖c⁻¹‖ * Norm_Costpq A q (c • x) := by
+      simpa [hcx] using
+        Norm_Costpq_smul_le (A := A) (q := q) hp_top hA c⁻¹ (c • x)
+    have hc_norm_pos : 0 < ‖c‖ := norm_pos_iff.mpr hc
+    have hmul :
+        ‖c‖ * Norm_Costpq A q x ≤
+          ‖c‖ * (‖c⁻¹‖ * Norm_Costpq A q (c • x)) :=
+      mul_le_mul_of_nonneg_left hle (norm_nonneg c)
+    have hnorm_inv : ‖c‖ * ‖c⁻¹‖ = (1 : ℝ) := by
+      rw [norm_inv, mul_inv_cancel₀ (ne_of_gt hc_norm_pos)]
+    calc
+      ‖c‖ * Norm_Costpq A q x
+          ≤ ‖c‖ * (‖c⁻¹‖ * Norm_Costpq A q (c • x)) := hmul
+      _ = Norm_Costpq A q (c • x) := by
+        rw [← mul_assoc, hnorm_inv, one_mul]
+
 /--
 `Norm_Costpq` controls the `L^t` size of a Besov-ish vector by passing the
 representation estimate `lp_embedding_adapted_statement` to almost-minimizing
@@ -3156,7 +3187,7 @@ the norm axioms on `BesovishSpace A q`; moreover every admissible exponent
 `t` with `p ≤ t ≤ p*u` yields the continuous embedding estimate
 `‖g‖_{L^t} ≤ C_t * Norm_Costpq(g)` with the explicit constant `C_t`.
 -/
-theorem normedSpace_and_lp_embedding_summary
+theorem normedSpace_and_lp_embedding
     (hp_top : p ≠ ∞)
     (hA : HasFiniteCostRepresentations (A := A) q)
     (hCco_fin_p : LpGridRepresentation.cCoefficientFinite p q (fun k =>
@@ -3165,7 +3196,7 @@ theorem normedSpace_and_lp_embedding_summary
     (∀ x y : BesovishSpace A q,
       Norm_Costpq A q (x + y) ≤ Norm_Costpq A q x + Norm_Costpq A q y) ∧
     (∀ c : ℂ, ∀ x : BesovishSpace A q,
-      Norm_Costpq A q (c • x) ≤ ‖c‖ * Norm_Costpq A q x) ∧
+      Norm_Costpq A q (c • x) = ‖c‖ * Norm_Costpq A q x) ∧
     (∀ g : BesovishSpace A q, Norm_Costpq A q g = 0 → g = 0) ∧
     (∀ {t : ℝ≥0∞} [Fact (1 ≤ t)]
         (ht_top : t ≠ ∞) (hp_le_t : p ≤ t) (ht_le_pu : t ≤ p * u)
@@ -3186,7 +3217,7 @@ theorem normedSpace_and_lp_embedding_summary
   · intro x y
     exact Norm_Costpq_add_le (A := A) (q := q) hp_top hA x y
   · intro c x
-    exact Norm_Costpq_smul_le (A := A) (q := q) hp_top hA c x
+    exact Norm_Costpq_smul_eq (A := A) (q := q) hp_top hA c x
   · intro g hg
     exact eq_zero_of_Norm_Costpq_eq_zero (A := A) (q := q)
       hp_top hCco_fin_p hA hg
