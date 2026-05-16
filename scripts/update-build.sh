@@ -17,4 +17,7 @@ lake exe cache get
 echo "==> Compilando..."
 lake build
 
+echo "==> Rodando leanchecker..."
+lake env leanchecker --fresh BesovSpacesGoodGrid
+
 echo "==> Pronto."
