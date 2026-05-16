@@ -38,4 +38,7 @@ lake build
 echo "==> Running leanchecker..."
 lake env leanchecker "$pkg_name"
 
+echo "==> Running proof sanity check..."
+bash scripts/check-proof-sanity.sh
+
 echo "==> Done."
