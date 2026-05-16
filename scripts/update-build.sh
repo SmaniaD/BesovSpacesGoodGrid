@@ -4,7 +4,7 @@ set -euo pipefail
 # Deve ser rodado na raiz do projeto Lake.
 
 if [ ! -f lakefile.toml ] && [ ! -f lakefile.lean ]; then
-  echo "Erro: rode este script na raiz do projeto Lake."
+  echo "Error: run this script from the root of a Lake project."
   exit 1
 fi
 
@@ -23,19 +23,19 @@ if [ -f lakefile.toml ]; then
   fi
 fi
 
-echo "==> Repositório: $repo_name"
-echo "==> Pacote Lean: $pkg_name"
+echo "==> Repository: $repo_name"
+echo "==> Lean package: $pkg_name"
 
-echo "==> Rodando lake update..."
+echo "==> Running lake update..."
 lake update
 
-echo "==> Baixando cache da mathlib..."
+echo "==> Downloading Mathlib cache..."
 lake exe cache get
 
-echo "==> Compilando..."
+echo "==> Building..."
 lake build
 
-echo "==> Rodando leanchecker..."
+echo "==> Running leanchecker..."
 lake env leanchecker "$pkg_name"
 
-echo "==> Pronto."
+echo "==> Done."
