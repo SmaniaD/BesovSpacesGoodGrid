@@ -42,4 +42,17 @@ jobs:
       - name: Build
         run: lake build
 
+      - name: Detect package name
+        id: package
+        run: |
+          pkg=$(sed -n 's/^name = "\(.*\)"/\1/p' lakefile.toml | head -n1)
+          if [ -z "$pkg" ]; then
+            echo "Could not detect package name from lakefile.toml" >&2
+            exit 1
+          fi
+          echo "name=$pkg" >> "$GITHUB_OUTPUT"
+
+      - name: Leanchecker
+        run: lake env leanchecker --fresh "${{ steps.package.outputs.name }}"
+
 
