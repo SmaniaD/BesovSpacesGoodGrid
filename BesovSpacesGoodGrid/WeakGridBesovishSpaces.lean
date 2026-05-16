@@ -2,6 +2,7 @@ import BesovSpacesGoodGrid.WeakGridAtomsDefinition
 import Mathlib.MeasureTheory.Function.LpSpace.Basic
 import Mathlib.Analysis.Normed.Group.InfiniteSum
 import Mathlib.Analysis.Convex.Combination
+import Mathlib.Analysis.MeanInequalitiesPow
 
 /-!
 Besov-ish spaces associated to a weak grid and a family of atoms.
@@ -400,6 +401,48 @@ structure LpGridRepresentation
 
 namespace LpGridRepresentation
 
+theorem finset_sum_rpow_le_sum_rpow_of_le
+    {ι : Type*} (S : Finset ι) (a : ι → ℝ)
+    {p t : ℝ} (hp_pos : 0 < p) (hpt : p ≤ t)
+    (ha_nonneg : ∀ i ∈ S, 0 ≤ a i) :
+    (∑ i ∈ S, a i ^ t) ≤ (∑ i ∈ S, a i ^ p) ^ (t / p) := by
+  classical
+  have hr : 1 ≤ t / p := by
+    rw [le_div_iff₀ hp_pos]
+    simpa using hpt
+  revert ha_nonneg
+  refine Finset.induction_on S ?base ?step
+  · intro ha_nonneg
+    simp only [Finset.sum_empty]
+    exact Real.rpow_nonneg (le_refl 0) _
+  · intro x S hx ih ha_nonneg
+    have hS_nonneg : ∀ i ∈ S, 0 ≤ a i := by
+      intro i hi
+      exact ha_nonneg i (Finset.mem_insert_of_mem hi)
+    have hx_nonneg : 0 ≤ a x := ha_nonneg x (Finset.mem_insert_self x S)
+    have hsum_p_nonneg : 0 ≤ ∑ i ∈ S, a i ^ p :=
+      Finset.sum_nonneg fun i hi => Real.rpow_nonneg (hS_nonneg i hi) _
+    have hpow_step :
+        (∑ i ∈ S, a i ^ p) ^ (t / p) + (a x ^ p) ^ (t / p)
+          ≤ ((∑ i ∈ S, a i ^ p) + a x ^ p) ^ (t / p) :=
+      Real.add_rpow_le_rpow_add hsum_p_nonneg (Real.rpow_nonneg hx_nonneg _) hr
+    have hx_pow : (a x ^ p) ^ (t / p) = a x ^ t := by
+      rw [← Real.rpow_mul hx_nonneg]
+      field_simp [hp_pos.ne']
+    calc
+      ∑ i ∈ insert x S, a i ^ t
+          = (∑ i ∈ S, a i ^ t) + a x ^ t := by
+            rw [Finset.sum_insert hx]
+            abel
+      _ ≤ (∑ i ∈ S, a i ^ p) ^ (t / p) + a x ^ t :=
+            add_le_add (ih hS_nonneg) le_rfl
+      _ = (∑ i ∈ S, a i ^ p) ^ (t / p) + (a x ^ p) ^ (t / p) := by
+            rw [hx_pow]
+      _ ≤ ((∑ i ∈ S, a i ^ p) + a x ^ p) ^ (t / p) := hpow_step
+      _ = (∑ i ∈ insert x S, a i ^ p) ^ (t / p) := by
+            rw [Finset.sum_insert hx]
+            abel_nf
+
 /--
 Level-`k` coefficient `ℓ^p` power sum: `∑_{Q ∈ P^k} |s_Q|^p`.
 
@@ -409,6 +452,36 @@ def levelCoeffPower
     {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
     (R : LpGridRepresentation A g) (k : ℕ) : ℝ :=
   ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ ^ p.toReal
+
+theorem levelCoeffPower_nonneg
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (k : ℕ) :
+    0 ≤ R.levelCoeffPower k := by
+  unfold levelCoeffPower
+  exact Finset.sum_nonneg fun Q _ => Real.rpow_nonneg (norm_nonneg _) _
+
+/--
+Finite coefficient monotonicity: since `p ≤ t`, the finite `ℓ^t` coefficient
+power is controlled by the `ℓ^p` coefficient power.
+
+This is the coefficient step used after the overlap estimate in the paper.
+-/
+theorem levelCoeffPower_t_le_levelCoeffPower_rpow
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    {t : ℝ≥0∞} (R : LpGridRepresentation A g) (k : ℕ)
+    (hp_ne_top : p ≠ ∞) (ht_ne_top : t ≠ ∞) (hp_le_t : p ≤ t) :
+    (∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ ^ t.toReal)
+      ≤ (R.levelCoeffPower k) ^ (t.toReal / p.toReal) := by
+  have hp_ne_zero : p ≠ 0 :=
+    ne_of_gt ((zero_lt_one : (0 : ℝ≥0∞) < 1).trans_le (Fact.out : 1 ≤ p))
+  have hp_pos : 0 < p.toReal := ENNReal.toReal_pos hp_ne_zero hp_ne_top
+  have hp_le_t_real : p.toReal ≤ t.toReal := ENNReal.toReal_mono ht_ne_top hp_le_t
+  simpa [levelCoeffPower] using
+    finset_sum_rpow_le_sum_rpow_of_le
+      (S := (Finset.univ : Finset (LevelCell G k)))
+      (a := fun Q => ‖(R.block k).coeff Q‖)
+      hp_pos hp_le_t_real
+      (fun Q _ => norm_nonneg ((R.block k).coeff Q))
 
 /--
 The level weight which appears in the `L^t` embedding estimate from the paper:
@@ -422,6 +495,149 @@ noncomputable def levelMeasureWeight
     (G : WeakGridSpace (α := α)) (s : ℝ) (p t : ℝ≥0∞) (k : ℕ) : ℝ :=
   (sSup (Set.range fun Q : LevelCell G k => (G.measure Q.1).toReal)) ^
     (s - 1 / p.toReal + 1 / t.toReal)
+
+theorem levelMeasureWeight_nonneg
+    (G : WeakGridSpace (α := α)) (s : ℝ) (p t : ℝ≥0∞) (k : ℕ) :
+    0 ≤ levelMeasureWeight G s p t k := by
+  unfold levelMeasureWeight
+  have hbase :
+      0 ≤ sSup (Set.range fun Q : LevelCell G k => (G.measure Q.1).toReal) := by
+    classical
+    by_cases hne : Nonempty (LevelCell G k)
+    · obtain ⟨Q⟩ := hne
+      exact le_trans ENNReal.toReal_nonneg
+        (le_csSup (Finite.bddAbove_range fun Q : LevelCell G k => (G.measure Q.1).toReal)
+          ⟨Q, rfl⟩)
+    · have hempty :
+          Set.range (fun Q : LevelCell G k => (G.measure Q.1).toReal) = ∅ := by
+        ext x
+        constructor
+        · rintro ⟨Q, rfl⟩
+          exact False.elim (hne ⟨Q⟩)
+        · intro hx
+          cases hx
+      simp [hempty]
+  exact Real.rpow_nonneg hbase _
+
+theorem levelCellMeasure_rpow_le_levelMeasureWeight
+    (G : WeakGridSpace (α := α)) (s : ℝ) (p t : ℝ≥0∞) (k : ℕ)
+    (hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / t.toReal)
+    (Q : LevelCell G k) :
+    (G.measure Q.1).toReal ^ (s - 1 / p.toReal + 1 / t.toReal)
+      ≤ levelMeasureWeight G s p t k := by
+  unfold levelMeasureWeight
+  exact Real.rpow_le_rpow ENNReal.toReal_nonneg
+    (le_csSup (Finite.bddAbove_range fun Q : LevelCell G k => (G.measure Q.1).toReal)
+      ⟨Q, rfl⟩)
+    hs_nonneg
+
+theorem weighted_levelCoeffPower_t_le
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    {t : ℝ≥0∞} (R : LpGridRepresentation A g) (k : ℕ)
+    (hp_ne_top : p ≠ ∞) (ht_ne_top : t ≠ ∞) (hp_le_t : p ≤ t)
+    (hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / t.toReal) :
+    (∑ Q : LevelCell G k,
+        ((G.measure Q.1).toReal ^ (s - 1 / p.toReal + 1 / t.toReal) *
+          ‖(R.block k).coeff Q‖) ^ t.toReal)
+      ≤ (levelMeasureWeight G s p t k *
+          (R.levelCoeffPower k) ^ (1 / p.toReal)) ^ t.toReal := by
+  have hp_ne_zero : p ≠ 0 :=
+    ne_of_gt ((zero_lt_one : (0 : ℝ≥0∞) < 1).trans_le (Fact.out : 1 ≤ p))
+  have hp_pos : 0 < p.toReal := ENNReal.toReal_pos hp_ne_zero hp_ne_top
+  have ht_ne_zero : t ≠ 0 := by
+    exact ne_of_gt ((zero_lt_one : (0 : ℝ≥0∞) < 1).trans_le
+      ((Fact.out : 1 ≤ p).trans hp_le_t))
+  have ht_pos : 0 < t.toReal := ENNReal.toReal_pos ht_ne_zero ht_ne_top
+  let W := levelMeasureWeight G s p t k
+  have hW_nonneg : 0 ≤ W := levelMeasureWeight_nonneg G s p t k
+  have hL_nonneg : 0 ≤ R.levelCoeffPower k := R.levelCoeffPower_nonneg k
+  have hterm_le :
+      ∀ Q : LevelCell G k,
+        ((G.measure Q.1).toReal ^ (s - 1 / p.toReal + 1 / t.toReal) *
+            ‖(R.block k).coeff Q‖) ^ t.toReal
+          ≤ (W * ‖(R.block k).coeff Q‖) ^ t.toReal := by
+    intro Q
+    have hcell_nonneg :
+        0 ≤ (G.measure Q.1).toReal ^ (s - 1 / p.toReal + 1 / t.toReal) :=
+      Real.rpow_nonneg ENNReal.toReal_nonneg _
+    have hmul_nonneg :
+        0 ≤ (G.measure Q.1).toReal ^ (s - 1 / p.toReal + 1 / t.toReal) *
+            ‖(R.block k).coeff Q‖ :=
+      mul_nonneg hcell_nonneg (norm_nonneg _)
+    have hbase_le :
+        (G.measure Q.1).toReal ^ (s - 1 / p.toReal + 1 / t.toReal) *
+            ‖(R.block k).coeff Q‖
+          ≤ W * ‖(R.block k).coeff Q‖ :=
+      mul_le_mul_of_nonneg_right
+        (levelCellMeasure_rpow_le_levelMeasureWeight G s p t k hs_nonneg Q)
+        (norm_nonneg _)
+    exact Real.rpow_le_rpow hmul_nonneg hbase_le ht_pos.le
+  have hcoeff :
+      (∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ ^ t.toReal)
+        ≤ (R.levelCoeffPower k) ^ (t.toReal / p.toReal) :=
+    levelCoeffPower_t_le_levelCoeffPower_rpow
+      (A := A) (t := t) R k hp_ne_top ht_ne_top hp_le_t
+  calc
+    (∑ Q : LevelCell G k,
+        ((G.measure Q.1).toReal ^ (s - 1 / p.toReal + 1 / t.toReal) *
+          ‖(R.block k).coeff Q‖) ^ t.toReal)
+        ≤ ∑ Q : LevelCell G k, (W * ‖(R.block k).coeff Q‖) ^ t.toReal :=
+          Finset.sum_le_sum fun Q _ => hterm_le Q
+    _ = W ^ t.toReal *
+          (∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ ^ t.toReal) := by
+          simp_rw [Real.mul_rpow hW_nonneg (norm_nonneg _)]
+          rw [Finset.mul_sum]
+    _ ≤ W ^ t.toReal * (R.levelCoeffPower k) ^ (t.toReal / p.toReal) :=
+          mul_le_mul_of_nonneg_left hcoeff (Real.rpow_nonneg hW_nonneg _)
+    _ = (W * (R.levelCoeffPower k) ^ (1 / p.toReal)) ^ t.toReal := by
+          rw [Real.mul_rpow hW_nonneg (Real.rpow_nonneg hL_nonneg _)]
+          congr 1
+          rw [← Real.rpow_mul hL_nonneg]
+          congr 1
+          field_simp [hp_pos.ne']
+
+theorem holderConjugate_atom_exponent_identity
+    {u uConj : ℝ≥0∞} (hu : ENNReal.HolderConjugate u uConj)
+    (hp_ne_top : p ≠ ∞) :
+    (uConj.toReal * p.toReal)⁻¹ + (p * u).toReal⁻¹ = p.toReal⁻¹ := by
+  have hp_ne_zero : p ≠ 0 :=
+    ne_of_gt ((zero_lt_one : (0 : ℝ≥0∞) < 1).trans_le (Fact.out : 1 ≤ p))
+  have hp_pos : 0 < p.toReal := ENNReal.toReal_pos hp_ne_zero hp_ne_top
+  have hholder : u⁻¹ + uConj⁻¹ = 1 := ENNReal.holderConjugate_iff.mp hu
+  have huinv_ne_top : u⁻¹ ≠ ∞ := by
+    intro htop
+    have hbad : u⁻¹ + uConj⁻¹ = ∞ := by simp [htop]
+    rw [hholder] at hbad
+    exact ENNReal.one_ne_top hbad
+  have huConjinv_ne_top : uConj⁻¹ ≠ ∞ := by
+    intro htop
+    have hbad : u⁻¹ + uConj⁻¹ = ∞ := by simp [htop]
+    rw [hholder] at hbad
+    exact ENNReal.one_ne_top hbad
+  have hreal :
+      u.toReal⁻¹ + uConj.toReal⁻¹ = 1 := by
+    have h := congrArg ENNReal.toReal hholder
+    rw [ENNReal.toReal_add huinv_ne_top huConjinv_ne_top] at h
+    simpa using h
+  calc
+    (uConj.toReal * p.toReal)⁻¹ + (p * u).toReal⁻¹
+        = uConj.toReal⁻¹ * p.toReal⁻¹ + p.toReal⁻¹ * u.toReal⁻¹ := by
+          rw [ENNReal.toReal_mul]
+          field_simp [mul_inv_rev]
+    _ = p.toReal⁻¹ * (u.toReal⁻¹ + uConj.toReal⁻¹) := by ring
+    _ = p.toReal⁻¹ := by rw [hreal, mul_one]
+
+theorem atomMeasureExponent_add_embeddingExponent
+    {u uConj t : ℝ≥0∞} (hu : ENNReal.HolderConjugate u uConj)
+    (hp_ne_top : p ≠ ∞) :
+    atomMeasureExponent s p uConj + (1 / t.toReal - 1 / (p * u).toReal)
+      = s - 1 / p.toReal + 1 / t.toReal := by
+  have hholder :=
+    holderConjugate_atom_exponent_identity (p := p) (u := u) (uConj := uConj)
+      hu hp_ne_top
+  unfold atomMeasureExponent
+  simp only [one_div]
+  linarith
 
 end LpGridRepresentation
 
@@ -559,13 +775,18 @@ end LpGridRepresentation
 /-- The `L^t` term attached to one cell in a level block. -/
 noncomputable def LevelBlock.termLt
     (A : AtomFamily G s p u) {t : ℝ≥0∞} [Fact (1 ≤ t)] {k : ℕ}
+    (ht_le_pu : t ≤ p * u)
     (B : LevelBlock A k) (Q : LevelCell G k) : Lp ℂ t G.measure :=
   B.coeff Q • MemLp.toLp
     (A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q))
     (by
-      -- Since atoms are in `L^(p*u)` and `p ≤ t ≤ p*u`, they are in `L^t`
+      -- Since atoms are in `L^(p*u)` and `t ≤ p*u`, they are in `L^t`
       -- on the finite ambient measure space.
-      sorry)
+      have hfinite : MeasureTheory.IsFiniteMeasure G.measure := by
+        dsimp [WeakGridSpace.measure]
+        exact G.grid.isFinite
+      letI := hfinite
+      exact (A.local_memLp (levelCellToWeakGridCell G k Q) (B.atom Q)).mono_exponent ht_le_pu)
 
 /--
 The canonical realization of a level block as an element of `L^t`.
@@ -575,10 +796,78 @@ target exponent `t`.
 -/
 noncomputable def LevelBlock.toLt
     (A : AtomFamily G s p u) {t : ℝ≥0∞} [Fact (1 ≤ t)] {k : ℕ}
+    (ht_le_pu : t ≤ p * u)
     (B : LevelBlock A k) : Lp ℂ t G.measure :=
-  (G.grid.partitions k).attach.sum fun Q => LevelBlock.termLt A B Q
+  (G.grid.partitions k).attach.sum fun Q => LevelBlock.termLt A ht_le_pu B Q
 
 namespace LpGridRepresentation
+
+/--
+Single-atom `L^t` estimate used in the level embedding.
+
+This is the formal target corresponding to the first Hölder computation:
+`‖a_P‖_t ≤ |P|^(s - 1/p + 1/t)`.
+-/
+theorem lt_norm_atom_le_levelMeasureWeight
+    {A : AtomFamily G s p u} {t : ℝ≥0∞}
+    [Fact (1 ≤ t)] {k : ℕ} (Q : LevelCell G k)
+    (hp_ne_top : p ≠ ∞) (ht_ne_top : t ≠ ∞)
+    (hp_le_t : p ≤ t) (ht_le_pu : t ≤ p * u)
+    (hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / t.toReal)
+    (φ : (A.localSpace (levelCellToWeakGridCell G k Q)).carrier)
+    (hφ : A.IsAtom (levelCellToWeakGridCell G k Q) φ) :
+    ‖MemLp.toLp
+        (A.toFunction (levelCellToWeakGridCell G k Q) φ)
+        (by
+          have hfinite : MeasureTheory.IsFiniteMeasure G.measure := by
+            dsimp [WeakGridSpace.measure]
+            exact G.grid.isFinite
+          letI := hfinite
+          exact (A.local_memLp (levelCellToWeakGridCell G k Q) φ).mono_exponent ht_le_pu)‖
+      ≤ levelMeasureWeight G s p t k := by
+  /-
+  Paper proof:
+    ∫ |a_P|^t 1_P
+      ≤ ‖|a_P|^t‖_{pu/t} ‖1_P‖_{pu/(pu-t)}
+      ≤ ‖a_P‖_{pu}^t |P|^((pu-t)/(pu))
+      ≤ |P|^(t*s - t/(u' p)) |P|^((pu-t)/(pu))
+      = |P|^(t*(s - 1/p + 1/t)).
+
+  The remaining Lean work is the localized Hölder calculation plus the
+  algebraic use of `A.holder_conjugate`.
+  -/
+  sorry
+
+/--
+Level-block `L^t` estimate after the single-atom estimate.
+
+This is the formal target corresponding to the overlap computation with
+`Ω_Q^k` and `G.grid.Cmult1`.
+-/
+theorem lt_norm_levelBlock_le_of_atom_bound
+    {A : AtomFamily G s p u} {t : ℝ≥0∞}
+    [Fact (1 ≤ t)]
+    (hp_ne_top : p ≠ ∞) (ht_ne_top : t ≠ ∞)
+    (hp_le_t : p ≤ t) (ht_le_pu : t ≤ p * u)
+    (hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / t.toReal)
+    : ∀ {g : Lp ℂ p G.measure} (R : LpGridRepresentation A g) (k : ℕ),
+        ‖(R.block k).toLt (t := t) A ht_le_pu‖ ≤
+          ((G.grid.Cmult1 : ℝ) + 1) *
+            levelMeasureWeight G s p t k *
+              (R.levelCoeffPower k) ^ (1 / p.toReal) := by
+  /-
+  Paper proof:
+    1. support of each atom reduces the integral on `Q` to
+       `P ∈ overlapFinset (G.grid.partitions k) Q`;
+    2. finite triangle / convexity gives the `Cmult1` factor;
+    3. `G.grid.overlap_card_le` changes the double sum into a single sum;
+    4. because `p ≤ t`, the finite `ℓ^t` norm of coefficients is bounded by
+       their finite `ℓ^p` norm.
+
+  The `+ 1` makes the chosen real constant visibly nonnegative even when
+  `Cmult1 = 0`; it is harmless for the final existential estimate.
+  -/
+  sorry
 
 /--
 Levelwise `L^t` estimate for one atomic block.
@@ -593,12 +882,15 @@ theorem lt_norm_levelBlock_le
     (hp_ne_top : p ≠ ∞) (ht_ne_top : t ≠ ∞)
     (hp_le_t : p ≤ t) (ht_le_pu : t ≤ p * u)
     (hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / t.toReal)
-    : ∃ Cmult : ℝ, 0 ≤ Cmult ∧
+    : ∃ C : ℝ, 0 ≤ C ∧
       ∀ {g : Lp ℂ p G.measure} (R : LpGridRepresentation A g) (k : ℕ),
-        ‖(R.block k).toLt (t := t) A‖ ≤
-          Cmult * levelMeasureWeight G s p t k *
+        ‖(R.block k).toLt (t := t) A ht_le_pu‖ ≤
+          C * levelMeasureWeight G s p t k *
             (R.levelCoeffPower k) ^ (1 / p.toReal) := by
-  sorry
+  refine ⟨(G.grid.Cmult1 : ℝ) + 1, by positivity, ?_⟩
+  intro g R k
+  exact lt_norm_levelBlock_le_of_atom_bound
+    (A := A) (t := t) hp_ne_top ht_ne_top hp_le_t ht_le_pu hs_nonneg R k
 
 /--
 Coefficient summation estimate used in the `L^t` embedding.
@@ -641,8 +933,8 @@ theorem lp_embedding_adapted_statement
     (Cmult Ckt : ℝ) (hCmult_nonneg : 0 ≤ Cmult)
     {g : Lp ℂ p G.measure} (R : LpGridRepresentation A g)
     (hRfin : LpGridRepresentation.FinitePQCost (q := q) R) :
-    Summable (fun k => (R.block k).toLt (t := t) A) ∧
-      (∑' k, ‖(R.block k).toLt (t := t) A‖) ≤
+    Summable (fun k => (R.block k).toLt (t := t) A ht_le_pu) ∧
+      (∑' k, ‖(R.block k).toLt (t := t) A ht_le_pu‖) ≤
         Cmult * Ckt * LpGridRepresentation.pqCost (q := q) R := by
   sorry
 
