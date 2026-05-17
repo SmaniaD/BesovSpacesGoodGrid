@@ -71,6 +71,175 @@ lemma tailCoefficientWeight_nonneg
   · exact le_rfl
   · exact Real.rpow_nonneg (LpGridRepresentation.levelMeasureWeight_nonneg G s p p k) _
 
+private lemma weighted_sum_le_cCoefficient_mul_pqCost_of_weight
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (hp_ne_top : p ≠ ∞)
+    (b : ℕ → ℝ) (hb_nonneg : ∀ k, 0 ≤ b k)
+    (hq_one : 1 ≤ q)
+    (R : LpGridRepresentation A g)
+    (hRfin : LpGridRepresentation.FinitePQCost (q := q) R)
+    (hb_fin : LpGridRepresentation.cCoefficientFinite p q b) :
+    Summable (fun k => b k ^ (1 / p.toReal) *
+      (R.levelCoeffPower k) ^ (1 / p.toReal)) ∧
+      (∑' k, b k ^ (1 / p.toReal) *
+          (R.levelCoeffPower k) ^ (1 / p.toReal)) ≤
+        LpGridRepresentation.cCoefficient p q b *
+          LpGridRepresentation.pqCost (q := q) R := by
+  let w : ℕ → ℝ := fun k => b k ^ (1 / p.toReal)
+  let a : ℕ → ℝ := fun k => (R.levelCoeffPower k) ^ (1 / p.toReal)
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ p)).ne' hp_ne_top
+  by_cases hq1 : q = 1
+  · have hb_bdd : BddAbove (Set.range fun k => b k ^ (1 / p.toReal)) := by
+      simpa [LpGridRepresentation.cCoefficientFinite, hq1] using hb_fin
+    let C : ℝ := LpGridRepresentation.cCoefficient p q b
+    have hC_def : C = sSup (Set.range fun k => b k ^ (1 / p.toReal)) := by
+      simp [C, LpGridRepresentation.cCoefficient, hq1]
+    have hw_le_C : ∀ k, w k ≤ C := by
+      intro k
+      simpa [w, hC_def] using le_csSup hb_bdd ⟨k, rfl⟩
+    have hRsum : Summable a := by
+      simpa [LpGridRepresentation.FinitePQCost, hq1, a] using hRfin
+    have hprod_le : (fun k => w k * a k) ≤ fun k => C * a k := by
+      intro k
+      exact mul_le_mul_of_nonneg_right (hw_le_C k)
+        (by dsimp [a]; exact Real.rpow_nonneg (R.levelCoeffPower_nonneg k) _)
+    have hprod_sum : Summable (fun k => w k * a k) :=
+      Summable.of_nonneg_of_le
+        (fun k => mul_nonneg
+          (by dsimp [w]; exact Real.rpow_nonneg (hb_nonneg k) _)
+          (by dsimp [a]; exact Real.rpow_nonneg (R.levelCoeffPower_nonneg k) _))
+        hprod_le
+        (hRsum.mul_left C)
+    have htsum_le : (∑' k, w k * a k) ≤ ∑' k, C * a k :=
+      hprod_sum.tsum_le_tsum hprod_le (hRsum.mul_left C)
+    have htsum_scaled : (∑' k, C * a k) = C * ∑' k, a k :=
+      (hRsum.hasSum.mul_left C).tsum_eq
+    have hpq_q1 : LpGridRepresentation.pqCost (q := q) R = ∑' k, a k := by
+      simp [LpGridRepresentation.pqCost, hq1, a]
+    refine ⟨by simpa [w, a] using hprod_sum, ?_⟩
+    calc
+      (∑' k, b k ^ (1 / p.toReal) * (R.levelCoeffPower k) ^ (1 / p.toReal))
+          = ∑' k, w k * a k := by rfl
+      _ ≤ ∑' k, C * a k := htsum_le
+      _ = C * ∑' k, a k := htsum_scaled
+      _ = LpGridRepresentation.cCoefficient p q b *
+            LpGridRepresentation.pqCost (q := q) R := by
+          simpa [C, hpq_q1]
+  · by_cases hq_top : q = ∞
+    · subst hq_top
+      have hRbdd : BddAbove (Set.range a) := by
+        simpa [LpGridRepresentation.FinitePQCost, a] using hRfin
+      let C : ℝ := LpGridRepresentation.pqCost (q := ∞) R
+      have hC_def : C = sSup (Set.range a) := by
+        simp [C, LpGridRepresentation.pqCost, a]
+      have ha_le_C : ∀ k, a k ≤ C := by
+        intro k
+        simpa [hC_def] using le_csSup hRbdd ⟨k, rfl⟩
+      have hWsum : Summable w := by
+        simpa [LpGridRepresentation.cCoefficientFinite, w] using hb_fin
+      have hprod_le : (fun k => w k * a k) ≤ fun k => w k * C := by
+        intro k
+        exact mul_le_mul_of_nonneg_left (ha_le_C k)
+          (by dsimp [w]; exact Real.rpow_nonneg (hb_nonneg k) _)
+      have hprod_sum : Summable (fun k => w k * a k) :=
+        Summable.of_nonneg_of_le
+          (fun k => mul_nonneg
+            (by dsimp [w]; exact Real.rpow_nonneg (hb_nonneg k) _)
+            (by dsimp [a]; exact Real.rpow_nonneg (R.levelCoeffPower_nonneg k) _))
+          hprod_le
+          (hWsum.mul_right C)
+      have htsum_le : (∑' k, w k * a k) ≤ ∑' k, w k * C :=
+        hprod_sum.tsum_le_tsum hprod_le (hWsum.mul_right C)
+      have htsum_scaled : (∑' k, w k * C) = (∑' k, w k) * C := by
+        simpa [mul_comm] using (hWsum.hasSum.mul_right C).tsum_eq
+      have hCco_rhs : LpGridRepresentation.cCoefficient p ∞ b = ∑' k, w k := by
+        simp [LpGridRepresentation.cCoefficient, w]
+      refine ⟨by simpa [w, a] using hprod_sum, ?_⟩
+      calc
+        (∑' k, b k ^ (1 / p.toReal) * (R.levelCoeffPower k) ^ (1 / p.toReal))
+            = ∑' k, w k * a k := by rfl
+        _ ≤ ∑' k, w k * C := htsum_le
+        _ = (∑' k, w k) * C := htsum_scaled
+        _ = LpGridRepresentation.cCoefficient p ∞ b *
+              LpGridRepresentation.pqCost (q := ∞) R := by
+            simp [hCco_rhs, C]
+    · let q' : ℝ≥0∞ := q / (q - 1)
+      have hq_toReal_le : (1 : ℝ) ≤ q.toReal := by
+        have h := ENNReal.toReal_mono hq_top hq_one
+        simpa using h
+      have hq_toReal_ne_one : q.toReal ≠ 1 := by
+        intro hreal
+        apply hq1
+        have hqeq : (1 : ℝ≥0∞) = q :=
+          (ENNReal.toReal_eq_toReal ENNReal.one_ne_top hq_top).mp (by simpa [hreal])
+        exact hqeq.symm
+      have hq_toReal_one : 1 < q.toReal :=
+        lt_of_le_of_ne hq_toReal_le (Ne.symm hq_toReal_ne_one)
+      have hBsum : Summable (fun k => b k ^ (q'.toReal / p.toReal)) := by
+        simpa [LpGridRepresentation.cCoefficientFinite, hq1, hq_top, q'] using hb_fin
+      have hAsum_raw : Summable (fun k => (R.levelCoeffPower k) ^ (q.toReal / p.toReal)) := by
+        simpa [LpGridRepresentation.FinitePQCost, hq_top] using hRfin
+      have hwpow : ∀ k, (w k) ^ q'.toReal = b k ^ (q'.toReal / p.toReal) := by
+        intro k
+        have hdiv : q'.toReal / p.toReal = (1 / p.toReal) * q'.toReal := by
+          field_simp [hp_pos.ne']
+        calc
+          (w k) ^ q'.toReal
+              = (b k ^ (1 / p.toReal)) ^ q'.toReal := by rfl
+          _ = b k ^ ((1 / p.toReal) * q'.toReal) := by
+              rw [← Real.rpow_mul (hb_nonneg k)]
+          _ = b k ^ (q'.toReal / p.toReal) := by rw [hdiv]
+      have hApow : ∀ k, (a k) ^ q.toReal =
+          (R.levelCoeffPower k) ^ (q.toReal / p.toReal) := by
+        intro k
+        have hdiv : q.toReal / p.toReal = (1 / p.toReal) * q.toReal := by
+          field_simp [hp_pos.ne']
+        calc
+          (a k) ^ q.toReal
+              = ((R.levelCoeffPower k) ^ (1 / p.toReal)) ^ q.toReal := by rfl
+          _ = (R.levelCoeffPower k) ^ ((1 / p.toReal) * q.toReal) := by
+              rw [← Real.rpow_mul (R.levelCoeffPower_nonneg k)]
+          _ = (R.levelCoeffPower k) ^ (q.toReal / p.toReal) := by rw [hdiv]
+      have hWsum : Summable (fun k => (w k) ^ q'.toReal) :=
+        hBsum.congr (fun k => (hwpow k).symm)
+      have hAsum : Summable (fun k => (a k) ^ q.toReal) :=
+        hAsum_raw.congr (fun k => (hApow k).symm)
+      have hq_conj : q'.toReal.HolderConjugate q.toReal := by
+        simpa [q'] using LpGridRepresentation.holderConjugate_q_div_qsub1_toReal
+          (q := q) hq_toReal_one hq_top
+      have hw_nonneg : ∀ k, 0 ≤ w k := fun k => Real.rpow_nonneg (hb_nonneg k) _
+      have ha_nonneg : ∀ k, 0 ≤ a k :=
+        fun k => Real.rpow_nonneg (R.levelCoeffPower_nonneg k) _
+      have hprod_sum : Summable (fun k => w k * a k) :=
+        Real.summable_mul_of_Lp_Lq_of_nonneg hq_conj hw_nonneg ha_nonneg hWsum hAsum
+      have hholder :=
+        Real.inner_le_Lp_mul_Lq_tsum_of_nonneg
+          (p := q'.toReal) (q := q.toReal)
+          hq_conj hw_nonneg ha_nonneg hWsum hAsum
+      have hC_rhs :
+          (∑' k, (w k) ^ q'.toReal) ^ (1 / q'.toReal) =
+            LpGridRepresentation.cCoefficient p q b := by
+        rw [LpGridRepresentation.cCoefficient, if_neg hq1, if_neg hq_top]
+        dsimp [q']
+        congr 1
+        exact tsum_congr hwpow
+      have hA_rhs :
+          (∑' k, (a k) ^ q.toReal) ^ (1 / q.toReal) =
+            LpGridRepresentation.pqCost (q := q) R := by
+        rw [LpGridRepresentation.pqCost, if_neg hq_top]
+        congr 1
+        exact tsum_congr hApow
+      refine ⟨by simpa [w, a] using hprod_sum, ?_⟩
+      calc
+        (∑' k, b k ^ (1 / p.toReal) * (R.levelCoeffPower k) ^ (1 / p.toReal))
+            = ∑' k, w k * a k := by rfl
+        _ ≤ (∑' k, (w k) ^ q'.toReal) ^ (1 / q'.toReal) *
+              (∑' k, (a k) ^ q.toReal) ^ (1 / q.toReal) := hholder
+        _ = LpGridRepresentation.cCoefficient p q b *
+              LpGridRepresentation.pqCost (q := q) R := by
+            rw [hC_rhs, hA_rhs]
+
 omit [Fact (1 ≤ p)] [Fact (1 ≤ q)] in
 lemma levelWeightP_tendsto_zero
     (hG2 : AssumptionG2 G s p u q) (hs_pos : 0 < s) :
@@ -89,6 +258,229 @@ lemma levelWeightP_tendsto_zero
 private lemma tailSum_tendsto_zero (f : ℕ → ℝ) :
     Tendsto (fun N => ∑' k, f (k + N)) atTop (𝓝 0) :=
   tendsto_sum_nat_add f
+
+private lemma tailCoefficientFinite
+    (hG2 : AssumptionG2 G s p u q) (hp_ne_top : p ≠ ∞) (N : ℕ) :
+    LpGridRepresentation.cCoefficientFinite p q (tailCoefficientWeight G s p N) := by
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ p)).ne' hp_ne_top
+  let b : ℕ → ℝ := fun k =>
+    (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal
+  have hb_nonneg : ∀ k, 0 ≤ b k := by
+    intro k
+    dsimp [b]
+    exact Real.rpow_nonneg (LpGridRepresentation.levelMeasureWeight_nonneg G s p p k) _
+  by_cases hq1 : q = 1
+  · have hfull : BddAbove (Set.range fun k => b k ^ (1 / p.toReal)) := by
+      simpa [AssumptionG2, LpGridRepresentation.cCoefficientFinite, hq1, b] using hG2.1
+    have htailbdd :
+        BddAbove (Set.range fun k => tailCoefficientWeight G s p N k ^ (1 / p.toReal)) := by
+      rcases hfull with ⟨M, hM⟩
+      refine ⟨max 0 M, ?_⟩
+      intro x hx
+      rcases hx with ⟨k, rfl⟩
+      by_cases hk : k < N
+      · have hzero : tailCoefficientWeight G s p N k ^ (1 / p.toReal) = 0 := by
+          simp [tailCoefficientWeight, hk, Real.zero_rpow (inv_pos.mpr hp_pos).ne']
+        calc
+          (fun k => tailCoefficientWeight G s p N k ^ (1 / p.toReal)) k
+              = 0 := hzero
+          _ ≤ max 0 M := le_max_left 0 M
+      · have heq : tailCoefficientWeight G s p N k = b k := by
+          simp [tailCoefficientWeight, levelWeightP, b, hk]
+        calc
+          tailCoefficientWeight G s p N k ^ (1 / p.toReal)
+              = b k ^ (1 / p.toReal) := by rw [heq]
+          _ ≤ M := hM ⟨k, rfl⟩
+          _ ≤ max 0 M := le_max_right 0 M
+    simpa [LpGridRepresentation.cCoefficientFinite, hq1] using htailbdd
+  · by_cases hq_top : q = ∞
+    · have hfull : Summable (fun k => b k ^ (1 / p.toReal)) := by
+        simpa [AssumptionG2, LpGridRepresentation.cCoefficientFinite, hq1, hq_top, b] using hG2.1
+      have hle :
+          (fun k => tailCoefficientWeight G s p N k ^ (1 / p.toReal)) ≤
+            fun k => b k ^ (1 / p.toReal) := by
+        intro k
+        by_cases hk : k < N
+        · simp [tailCoefficientWeight, hk, Real.zero_rpow (inv_pos.mpr hp_pos).ne',
+            Real.rpow_nonneg (hb_nonneg k) _]
+        · simp [tailCoefficientWeight, levelWeightP, b, hk]
+      have hnonneg : ∀ k, 0 ≤ tailCoefficientWeight G s p N k ^ (1 / p.toReal) :=
+        fun k => Real.rpow_nonneg (tailCoefficientWeight_nonneg G s p N k) _
+      simpa [LpGridRepresentation.cCoefficientFinite, hq1, hq_top] using
+        Summable.of_nonneg_of_le hnonneg hle hfull
+    · let q' : ℝ≥0∞ := q / (q - 1)
+      have hq_toReal_le : (1 : ℝ) ≤ q.toReal := by
+        have h := ENNReal.toReal_mono hq_top (Fact.out : 1 ≤ q)
+        simpa using h
+      have hq_toReal_ne_one : q.toReal ≠ 1 := by
+        intro hreal
+        apply hq1
+        have hqeq : (1 : ℝ≥0∞) = q :=
+          (ENNReal.toReal_eq_toReal ENNReal.one_ne_top hq_top).mp (by simpa [hreal])
+        exact hqeq.symm
+      have hq_toReal_one : 1 < q.toReal :=
+        lt_of_le_of_ne hq_toReal_le (Ne.symm hq_toReal_ne_one)
+      have hq_conj : q'.toReal.HolderConjugate q.toReal := by
+        simpa [q'] using LpGridRepresentation.holderConjugate_q_div_qsub1_toReal
+          (q := q) hq_toReal_one hq_top
+      have hq'_pos : 0 < q'.toReal := by
+        rw [Real.holderConjugate_iff] at hq_conj
+        exact zero_lt_one.trans hq_conj.1
+      have hexp_pos : 0 < q'.toReal / p.toReal := div_pos hq'_pos hp_pos
+      have hfull : Summable (fun k => b k ^ (q'.toReal / p.toReal)) := by
+        simpa [AssumptionG2, LpGridRepresentation.cCoefficientFinite, hq1, hq_top, q', b]
+          using hG2.1
+      have hle :
+          (fun k => tailCoefficientWeight G s p N k ^ (q'.toReal / p.toReal)) ≤
+            fun k => b k ^ (q'.toReal / p.toReal) := by
+        intro k
+        by_cases hk : k < N
+        · simp [tailCoefficientWeight, hk, Real.zero_rpow hexp_pos.ne',
+            Real.rpow_nonneg (hb_nonneg k) _]
+        · simp [tailCoefficientWeight, levelWeightP, b, hk]
+      have hnonneg : ∀ k, 0 ≤ tailCoefficientWeight G s p N k ^ (q'.toReal / p.toReal) :=
+        fun k => Real.rpow_nonneg (tailCoefficientWeight_nonneg G s p N k) _
+      simpa [LpGridRepresentation.cCoefficientFinite, hq1, hq_top, q'] using
+        Summable.of_nonneg_of_le hnonneg hle hfull
+
+private lemma sharp_tail_embedding_bound
+    {A : AtomFamily G s p u}
+    (hG2 : AssumptionG2 G s p u q)
+    (hp_ne_top : p ≠ ∞) (hu_one : 1 ≤ u) (hs_pos : 0 < s)
+    {g : Lp ℂ p G.measure} (R : LpGridRepresentation A g)
+    (hRfin : LpGridRepresentation.FinitePQCost (q := q) R)
+    (N : ℕ) (hzero : ∀ k, k < N → R.levelCoeffPower k = 0) :
+    ‖g‖ ≤
+      ((G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)) *
+        tailCCoefficient G s p q N *
+          LpGridRepresentation.pqCost (q := q) R := by
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ p)).ne' hp_ne_top
+  have ht_le_pu : p ≤ p * u := by
+    calc
+      p = p * 1 := by rw [mul_one]
+      _ ≤ p * u := by exact mul_le_mul_right hu_one p
+  have hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / p.toReal := by linarith [hs_pos.le]
+  have htail_fin := tailCoefficientFinite (G := G) (s := s) (p := p) (u := u) (q := q)
+    hG2 hp_ne_top N
+  have hsharp :=
+    weighted_sum_le_cCoefficient_mul_pqCost_of_weight
+      (G := G) (s := s) (p := p) (u := u) (q := q) (A := A)
+      hp_ne_top (tailCoefficientWeight G s p N)
+      (tailCoefficientWeight_nonneg G s p N) (Fact.out : 1 ≤ q)
+      R hRfin htail_fin
+  have hterm_eq : ∀ k,
+      LpGridRepresentation.levelMeasureWeight G s p p k *
+          (R.levelCoeffPower k) ^ (1 / p.toReal) =
+        tailCoefficientWeight G s p N k ^ (1 / p.toReal) *
+          (R.levelCoeffPower k) ^ (1 / p.toReal) := by
+    intro k
+    by_cases hk : k < N
+    · have hA0 : (R.levelCoeffPower k) ^ (1 / p.toReal) = 0 := by
+        rw [hzero k hk]
+        exact Real.zero_rpow (by positivity : 1 / p.toReal ≠ 0)
+      rw [hA0, mul_zero, mul_zero]
+    · have htail_pow :
+          tailCoefficientWeight G s p N k ^ (1 / p.toReal) =
+            LpGridRepresentation.levelMeasureWeight G s p p k := by
+        have hw_nonneg : 0 ≤ LpGridRepresentation.levelMeasureWeight G s p p k :=
+          LpGridRepresentation.levelMeasureWeight_nonneg G s p p k
+        simp [tailCoefficientWeight, levelWeightP, hk,
+          Real.rpow_rpow_inv hw_nonneg hp_pos.ne']
+      rw [htail_pow]
+  have hWeightSummable : Summable (fun k =>
+      LpGridRepresentation.levelMeasureWeight G s p p k *
+        (R.levelCoeffPower k) ^ (1 / p.toReal)) := by
+    exact hsharp.1.congr fun k => (hterm_eq k).symm
+  have hWeightedBound :
+      (∑' k, LpGridRepresentation.levelMeasureWeight G s p p k *
+          (R.levelCoeffPower k) ^ (1 / p.toReal)) ≤
+        tailCCoefficient G s p q N *
+          LpGridRepresentation.pqCost (q := q) R := by
+    calc
+      (∑' k, LpGridRepresentation.levelMeasureWeight G s p p k *
+          (R.levelCoeffPower k) ^ (1 / p.toReal))
+          = ∑' k, tailCoefficientWeight G s p N k ^ (1 / p.toReal) *
+              (R.levelCoeffPower k) ^ (1 / p.toReal) := tsum_congr hterm_eq
+      _ ≤ tailCCoefficient G s p q N *
+            LpGridRepresentation.pqCost (q := q) R := by
+          simpa [tailCCoefficient] using hsharp.2
+  let Cemb : ℝ := (G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)
+  have hCemb_nonneg : 0 ≤ Cemb := by positivity
+  have hblock_bound : ∀ k,
+      ‖(R.block k).toLt (t := p) A ht_le_pu‖ ≤
+        Cemb * (LpGridRepresentation.levelMeasureWeight G s p p k *
+          (R.levelCoeffPower k) ^ (1 / p.toReal)) := by
+    intro k
+    have h :=
+      LpGridRepresentation.lt_norm_levelBlock_le_of_atom_bound
+        (G := G) (s := s) (p := p) (u := u) (A := A) (t := p)
+        hp_ne_top hp_ne_top le_rfl ht_le_pu hs_nonneg R k
+    simpa [Cemb, mul_assoc] using h
+  have hSummableNorm : Summable fun k => ‖(R.block k).toLt (t := p) A ht_le_pu‖ := by
+    refine Summable.of_nonneg_of_le (fun k => norm_nonneg _) hblock_bound ?_
+    exact hWeightSummable.mul_left Cemb
+  have hNormSumBound :
+      (∑' k, ‖(R.block k).toLt (t := p) A ht_le_pu‖) ≤
+        Cemb * tailCCoefficient G s p q N *
+          LpGridRepresentation.pqCost (q := q) R := by
+    have htsum_le :
+        (∑' k, ‖(R.block k).toLt (t := p) A ht_le_pu‖) ≤
+          ∑' k, Cemb * (LpGridRepresentation.levelMeasureWeight G s p p k *
+            (R.levelCoeffPower k) ^ (1 / p.toReal)) :=
+      hSummableNorm.tsum_le_tsum hblock_bound (hWeightSummable.mul_left Cemb)
+    have hscaled :
+        (∑' k, Cemb * (LpGridRepresentation.levelMeasureWeight G s p p k *
+            (R.levelCoeffPower k) ^ (1 / p.toReal))) =
+          Cemb * ∑' k, LpGridRepresentation.levelMeasureWeight G s p p k *
+            (R.levelCoeffPower k) ^ (1 / p.toReal) :=
+      (hWeightSummable.hasSum.mul_left Cemb).tsum_eq
+    calc
+      (∑' k, ‖(R.block k).toLt (t := p) A ht_le_pu‖)
+          ≤ ∑' k, Cemb * (LpGridRepresentation.levelMeasureWeight G s p p k *
+              (R.levelCoeffPower k) ^ (1 / p.toReal)) := htsum_le
+      _ = Cemb * ∑' k, LpGridRepresentation.levelMeasureWeight G s p p k *
+            (R.levelCoeffPower k) ^ (1 / p.toReal) := hscaled
+      _ ≤ Cemb * (tailCCoefficient G s p q N *
+            LpGridRepresentation.pqCost (q := q) R) :=
+          mul_le_mul_of_nonneg_left hWeightedBound hCemb_nonneg
+      _ = Cemb * tailCCoefficient G s p q N *
+            LpGridRepresentation.pqCost (q := q) R := by ring
+  let F : ℕ → Lp ℂ p G.measure := fun k => (R.block k).toLt (t := p) A ht_le_pu
+  have hSummableF : Summable F := hSummableNorm.of_norm
+  let h : Lp ℂ p G.measure := ∑' k, F k
+  let I := LpGridRepresentation.lpInclusion (G := G) (p := p) (t := p)
+    hp_ne_top hp_ne_top le_rfl
+  have hHasSumI : HasSum (fun k => I (F k)) (I h) := by
+    simpa [F, h] using hSummableF.hasSum.mapL I
+  have hHasSumP : HasSum (fun k => (R.block k).toLp A) (I h) := by
+    refine hHasSumI.congr_fun ?_
+    intro k
+    simpa [F] using (LpGridRepresentation.lpInclusion_levelBlock_toLt
+      (G := G) (s := s) (p := p) (u := u) (A := A) (t := p)
+      hp_ne_top hp_ne_top le_rfl ht_le_pu (R.block k)).symm
+  have hIg : I h = g := HasSum.unique hHasSumP R.hasSum
+  have hg_ae : (g : α → ℂ) =ᵐ[G.measure] h := by
+    exact ((show (I h : α → ℂ) =ᵐ[G.measure] (g : α → ℂ) by simpa [hIg])).symm.trans
+      (LpGridRepresentation.coeFn_lpInclusion (G := G) (p := p) (t := p)
+        hp_ne_top hp_ne_top le_rfl h)
+  have hnorm_h : ‖h‖ ≤ ∑' k, ‖F k‖ := by
+    simpa [F, h] using norm_tsum_le_tsum_norm hSummableNorm
+  calc
+    ‖g‖ = (MeasureTheory.eLpNorm (g : α → ℂ) p G.measure).toReal := by
+      rw [Lp.norm_def]
+    _ = (MeasureTheory.eLpNorm (h : α → ℂ) p G.measure).toReal := by
+      exact congrArg ENNReal.toReal (MeasureTheory.eLpNorm_congr_ae hg_ae)
+    _ = ‖h‖ := by
+      symm
+      rw [Lp.norm_def]
+    _ ≤ ∑' k, ‖F k‖ := hnorm_h
+    _ = ∑' k, ‖(R.block k).toLt (t := p) A ht_le_pu‖ := by rfl
+    _ ≤ ((G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)) *
+          tailCCoefficient G s p q N *
+            LpGridRepresentation.pqCost (q := q) R := by
+        simpa [Cemb] using hNormSumBound
 
 /--
 The `q = ∞` case of `tailCCoefficient → 0`:
@@ -163,7 +555,112 @@ private lemma tailCCoefficient_tendsto_zero_q_pos
     (hG2 : AssumptionG2 G s p u q) (hp_ne_top : p ≠ ∞)
     (hq1 : q ≠ 1) (hqtop : q ≠ ∞) :
     Tendsto (fun N => tailCCoefficient G s p q N) atTop (𝓝 0) := by
-  sorry
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ p)).ne' hp_ne_top
+  have hq_toReal_one : 1 < q.toReal := by
+    have h := ENNReal.toReal_mono hqtop (Fact.out : 1 ≤ q)
+    simp at h
+    rcases lt_or_eq_of_le h with hlt | heq
+    · exact hlt
+    · exfalso
+      exact hq1 ((ENNReal.toReal_eq_toReal_iff' ENNReal.one_ne_top hqtop).mp heq).symm
+  let q' : ℝ≥0∞ := q / (q - 1)
+  have hholder : q'.toReal.HolderConjugate q.toReal :=
+    LpGridRepresentation.holderConjugate_q_div_qsub1_toReal hq_toReal_one hqtop
+  have hq'_pos : 0 < q'.toReal := by
+    rw [Real.holderConjugate_iff] at hholder
+    exact zero_lt_one.trans hholder.1
+  have hroot_pow : ∀ k,
+      ((LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal) ^
+          (q'.toReal / p.toReal) =
+        (levelWeightP G s p k) ^ q'.toReal := by
+    intro k
+    dsimp only [levelWeightP]
+    have hw_nonneg : 0 ≤ LpGridRepresentation.levelMeasureWeight G s p p k :=
+      LpGridRepresentation.levelMeasureWeight_nonneg G s p p k
+    have hdiv : q'.toReal / p.toReal = (1 / p.toReal) * q'.toReal := by
+      field_simp [hp_pos.ne']
+    calc
+      ((LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal) ^
+          (q'.toReal / p.toReal)
+          = ((LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal) ^
+              ((1 / p.toReal) * q'.toReal) := by rw [hdiv]
+      _ = (((LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal) ^
+              (1 / p.toReal)) ^ q'.toReal := by
+            rw [Real.rpow_mul (Real.rpow_nonneg hw_nonneg _)]
+      _ = (LpGridRepresentation.levelMeasureWeight G s p p k) ^ q'.toReal := by
+            have hroot :
+                ((LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal) ^
+                    (1 / p.toReal) =
+                  LpGridRepresentation.levelMeasureWeight G s p p k := by
+              simpa [one_div] using Real.rpow_rpow_inv hw_nonneg hp_pos.ne'
+            rw [hroot]
+  have hSummable_wq' : Summable (fun k => (levelWeightP G s p k) ^ q'.toReal) := by
+    have hfin : Summable fun k =>
+        ((LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal) ^
+          (q'.toReal / p.toReal) := by
+      simpa [AssumptionG2, LpGridRepresentation.cCoefficientFinite, hq1, hqtop, q'] using hG2.1
+    convert hfin using 1
+    ext k
+    exact (hroot_pow k).symm
+  have htCC_eq : ∀ N, tailCCoefficient G s p q N =
+      (∑' k, if k < N then 0 else (levelWeightP G s p k) ^ q'.toReal) ^
+        (1 / q'.toReal) := by
+    intro N
+    unfold tailCCoefficient LpGridRepresentation.cCoefficient tailCoefficientWeight
+    simp only [if_neg hq1, if_neg hqtop]
+    congr 1
+    apply tsum_congr
+    intro k
+    by_cases hk : k < N
+    · rw [if_pos hk, if_pos hk]
+      exact Real.zero_rpow (div_pos hq'_pos hp_pos).ne'
+    · rw [if_neg hk, if_neg hk]
+      exact hroot_pow k
+  have htail_eq_shift : ∀ N,
+      (∑' k, if k < N then 0 else (levelWeightP G s p k) ^ q'.toReal) =
+        ∑' k, (levelWeightP G s p (k + N)) ^ q'.toReal := by
+    intro N
+    let f : ℕ → ℝ := fun k => (levelWeightP G s p k) ^ q'.toReal
+    let g : ℕ → ℝ := fun k => if k < N then 0 else f k
+    have hg_summable : Summable g := by
+      refine hSummable_wq'.norm.of_norm_bounded_eventually_nat ?_
+      filter_upwards with k
+      by_cases hk : k < N
+      · simp [g, hk]
+      · dsimp [g, f]
+        rw [if_neg hk]
+    have hsum_zero : (∑ k ∈ Finset.range N, g k) = 0 := by
+      refine Finset.sum_eq_zero ?_
+      intro k hk
+      simp [g, Finset.mem_range.mp hk]
+    have hshift_g : (fun k => g (k + N)) = fun k => f (k + N) := by
+      funext k
+      simp [g, f]
+    have h := hg_summable.sum_add_tsum_nat_add N
+    rw [hsum_zero, zero_add, hshift_g] at h
+    exact h.symm
+  rw [show (fun N => tailCCoefficient G s p q N) =
+      fun N => (∑' k, (levelWeightP G s p (k + N)) ^ q'.toReal) ^
+        (1 / q'.toReal) by
+        funext N
+        rw [htCC_eq N, htail_eq_shift N]]
+  have hshift_tendsto :
+      Tendsto (fun N => ∑' k, (levelWeightP G s p (k + N)) ^ q'.toReal)
+        atTop (𝓝 0) :=
+    tailSum_tendsto_zero (fun k => (levelWeightP G s p k) ^ q'.toReal)
+  have hcont : ContinuousAt (fun x : ℝ => x ^ (1 / q'.toReal)) 0 :=
+    Real.continuousAt_rpow_const 0 (1 / q'.toReal)
+      (Or.inr (div_pos one_pos hq'_pos).le)
+  have hzero_rpow : (0 : ℝ) ^ (1 / q'.toReal) = 0 :=
+    Real.zero_rpow (div_pos one_pos hq'_pos).ne'
+  have htend := hcont.tendsto.comp hshift_tendsto
+  change Tendsto
+      (fun N => (∑' k, (levelWeightP G s p (k + N)) ^ q'.toReal) ^
+        (1 / q'.toReal)) atTop (𝓝 ((0 : ℝ) ^ (1 / q'.toReal))) at htend
+  have hzero_rpow_inv : (0 : ℝ) ^ q'.toReal⁻¹ = 0 := by
+    simpa [one_div] using hzero_rpow
+  simpa [one_div, hzero_rpow_inv] using htend
 
 omit [Fact (1 ≤ q)] in
 lemma tailCCoefficient_tendsto_zero_q_one
@@ -628,9 +1125,99 @@ lemma representation_limit_weak_tendsto
     have htail_norm_uniform : ∀ ε > 0, ∃ N, ∀ n,
         ‖((gseq n - ∑ k ∈ Finset.range N, ((H.Rseq n).block k).toLp A) -
             (gLim - ∑ k ∈ Finset.range N, (H.Rlim.block k).toLp A))‖ < ε := by
-      -- This is the remaining analytic core: a tail version of the `L^p`
-      -- embedding bound, with the truncated coefficient weights.
-      sorry
+      intro ε hε
+      let Cemb : ℝ := (G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)
+      let K : ℝ := Cemb * (2 * C) + 1
+      have hCemb_nonneg : 0 ≤ Cemb := by positivity
+      have htwoC_nonneg : 0 ≤ 2 * C := by positivity
+      have hK_pos : 0 < K := by
+        dsimp [K]
+        nlinarith [mul_nonneg hCemb_nonneg htwoC_nonneg]
+      have hη_pos : 0 < ε / K := by positivity
+      have htail_tendsto :
+          Tendsto (fun N => tailCCoefficient G s p q N) atTop (𝓝 0) :=
+        tailCCoefficient_tendsto_zero (G := G) (s := s) (p := p) (u := u) (q := q)
+          hG2 hp_ne_top hs_pos
+      rw [Metric.tendsto_atTop] at htail_tendsto
+      rcases htail_tendsto (ε / K) hη_pos with ⟨N, hN⟩
+      refine ⟨N, fun n => ?_⟩
+      have htail_nonneg : 0 ≤ tailCCoefficient G s p q N :=
+        LpGridRepresentation.cCoefficient_nonneg p q (tailCoefficientWeight G s p N)
+          (tailCoefficientWeight_nonneg G s p N)
+      have htail_small : tailCCoefficient G s p q N < ε / K := by
+        have hdist := hN N le_rfl
+        simpa [dist_eq_norm, Real.norm_eq_abs, abs_of_nonneg htail_nonneg] using hdist
+      have htail_seq_fin :
+          LpGridRepresentation.FinitePQCost (q := q)
+            (LpGridRepresentation.tail (H.Rseq n) N) :=
+        LpGridRepresentation.tail_finitePQCost (H.Rseq n) N (Fact.out : 1 ≤ q) (hseq_fin n)
+      have htail_lim_fin :
+          LpGridRepresentation.FinitePQCost (q := q)
+            (LpGridRepresentation.tail H.Rlim N) :=
+        LpGridRepresentation.tail_finitePQCost H.Rlim N (Fact.out : 1 ≤ q)
+          (representation_limit_finitePQCost H)
+      have hsmul_tail_lim_fin :
+          LpGridRepresentation.FinitePQCost (q := q)
+            (LpGridRepresentation.smul (-1 : ℂ) (LpGridRepresentation.tail H.Rlim N)) :=
+        LpGridRepresentation.smul_finitePQCost
+          (A := A) (q := q) (-1 : ℂ) htail_lim_fin
+      have hDtail_fin :
+          LpGridRepresentation.FinitePQCost (q := q) (Dtail N n) :=
+        LpGridRepresentation.add_finitePQCost
+          (A := A) (q := q)
+          (LpGridRepresentation.tail (H.Rseq n) N)
+          (LpGridRepresentation.smul (-1 : ℂ) (LpGridRepresentation.tail H.Rlim N))
+          hp_ne_top (Fact.out : 1 ≤ q) htail_seq_fin hsmul_tail_lim_fin
+      have hzeroD : ∀ k, k < N → (Dtail N n).levelCoeffPower k = 0 := by
+        intro k hk
+        have hp_pos : 0 < p.toReal :=
+          ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ p)).ne' hp_ne_top
+        simp [Dtail, LpGridRepresentation.levelCoeffPower, LpGridRepresentation.add,
+          LpGridRepresentation.tail, LpGridRepresentation.smul, LevelBlock.add,
+          LevelBlock.smul, LevelBlock.zero, hk, Real.zero_rpow hp_pos.ne']
+      have hbound :=
+        sharp_tail_embedding_bound
+          (G := G) (s := s) (p := p) (u := u) (q := q) (A := A)
+          hG2 hp_ne_top hu_one hs_pos (Dtail N n) hDtail_fin N hzeroD
+      have hcost := hDtail_cost_le N n
+      have hbound' :
+          ‖((gseq n - ∑ k ∈ Finset.range N, ((H.Rseq n).block k).toLp A) -
+              (gLim - ∑ k ∈ Finset.range N, (H.Rlim.block k).toLp A))‖ ≤
+            Cemb * tailCCoefficient G s p q N *
+              LpGridRepresentation.pqCost (q := q) (Dtail N n) := by
+        have hx :
+            ((gseq n - ∑ k ∈ Finset.range N, ((H.Rseq n).block k).toLp A) -
+                (gLim - ∑ k ∈ Finset.range N, (H.Rlim.block k).toLp A)) =
+              (gseq n - ∑ k ∈ Finset.range N, ((H.Rseq n).block k).toLp A) +
+                (-1 : ℂ) •
+                  (gLim - ∑ k ∈ Finset.range N, (H.Rlim.block k).toLp A) := by
+          simp [sub_eq_add_neg]
+          abel
+        rw [hx]
+        simpa [Cemb, Dtail] using hbound
+      have hcost_nonneg : 0 ≤ LpGridRepresentation.pqCost (q := q) (Dtail N n) :=
+        LpGridRepresentation.pqCost_nonneg (Dtail N n)
+      have htailcost_le :
+          Cemb * tailCCoefficient G s p q N *
+              LpGridRepresentation.pqCost (q := q) (Dtail N n) ≤
+            Cemb * tailCCoefficient G s p q N * (2 * C) := by
+        exact mul_le_mul_of_nonneg_left hcost
+          (mul_nonneg hCemb_nonneg htail_nonneg)
+      have hmain_lt :
+          Cemb * tailCCoefficient G s p q N * (2 * C) < ε := by
+        have hcoef_le_K : Cemb * (2 * C) ≤ K := by
+          dsimp [K]
+          linarith
+        have htail_nonneg' := htail_nonneg
+        calc
+          Cemb * tailCCoefficient G s p q N * (2 * C)
+              = (Cemb * (2 * C)) * tailCCoefficient G s p q N := by ring
+          _ ≤ K * tailCCoefficient G s p q N :=
+              mul_le_mul_of_nonneg_right hcoef_le_K htail_nonneg'
+          _ < K * (ε / K) :=
+              mul_lt_mul_of_pos_left htail_small hK_pos
+          _ = ε := by field_simp [hK_pos.ne']
+      exact lt_of_le_of_lt (hbound'.trans htailcost_le) hmain_lt
     intro ε hε
     let δ : ℝ := ε / (2 * (‖Λ‖ + 1))
     have hδ_pos : 0 < δ := by
