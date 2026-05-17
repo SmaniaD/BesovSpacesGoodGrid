@@ -7,11 +7,13 @@ import Mathlib.Analysis.MeanInequalitiesPow
 /-!
 Besov-ish spaces associated to a weak grid and a family of atoms.
 
-The paper defines a Besov-ish element by an atomic expansion whose level
-blocks converge absolutely in `L^p`.  A level block is explicitly indexed by
+The paper defines a Besov-ish element as a function in L^p
+that has a representaion as a sum of level
+blocks converge  in `L^p` and with finite pq-cost.  A level block is explicitly indexed by
 the cells of the level-`k` partition: for each cell there is one coefficient
 and one atom.  This matches the paper's finite inner sum
-`∑_{Q ∈ P^k} s_Q a_Q`.
+`∑_{Q ∈ P^k} s_Q a_Q`. We also define a norm of the Besovish space,
+ that is the infimum of the pq-costs of all representations.
 -/
 
 namespace WeakGridSpace
@@ -82,6 +84,7 @@ def toLp (A : AtomFamily G s p u) {k : ℕ}
     (B : LevelBlock A k) : Lp ℂ p G.measure :=
   (G.grid.partitions k).attach.sum fun Q => B.term A Q
 
+/-- The zero level block represents the zero element of `L^p`. -/
 @[simp]
 theorem zero_toLp (A : AtomFamily G s p u) (k : ℕ) :
     (zero A k).toLp A = 0 := by
@@ -94,6 +97,7 @@ def smul (A : AtomFamily G s p u) {k : ℕ} (c : ℂ)
   atom := B.atom
   atom_mem := B.atom_mem
 
+/-- Evaluating a scaled level block in `L^p` agrees with scalar multiplication. -/
 @[simp]
 theorem smul_toLp (A : AtomFamily G s p u) {k : ℕ} (c : ℂ)
     (B : LevelBlock A k) :
@@ -109,10 +113,12 @@ def LevelBlockSet (A : AtomFamily G s p u) (k : ℕ) :
     Set (Lp ℂ p G.measure) :=
   { f | ∃ B : LevelBlock A k, B.toLp A = f }
 
+/-- The zero element belongs to the set of level-`k` atomic blocks. -/
 theorem zero_mem_LevelBlockSet (A : AtomFamily G s p u) (k : ℕ) :
     (0 : Lp ℂ p G.measure) ∈ LevelBlockSet A k :=
   ⟨LevelBlock.zero A k, by simp⟩
 
+/-- Level block sets are closed under scalar multiplication. -/
 theorem smul_mem_LevelBlockSet (A : AtomFamily G s p u) (k : ℕ)
   (c : ℂ) {x : Lp ℂ p G.measure} (hx : x ∈ LevelBlockSet A k) :
   c • x ∈ LevelBlockSet A k := by
@@ -121,6 +127,7 @@ theorem smul_mem_LevelBlockSet (A : AtomFamily G s p u) (k : ℕ)
   exact ⟨LevelBlock.smul A c B, by simp⟩
 
 omit [Fact (1 ≤ p)] in
+/-- The zero vector is an atom on every weak grid cell. -/
 theorem atom_zero_mem (A : AtomFamily G s p u) (Q : WeakGridCell G) :
     (0 : (A.localSpace Q).carrier) ∈ A.atoms Q := by
   classical
@@ -135,6 +142,7 @@ theorem atom_zero_mem (A : AtomFamily G s p u) (Q : WeakGridCell G) :
   simp
 
 omit [Fact (1 ≤ p)] in
+/-- Atoms are stable under scalar multiplication by complex scalars of norm at most one. -/
 theorem atom_smul_mem_of_norm_le_one (A : AtomFamily G s p u) (Q : WeakGridCell G)
     {c : ℂ} (hc : ‖c‖ ≤ (1 : ℝ))
     {φ : (A.localSpace Q).carrier} (hφ : φ ∈ A.atoms Q) :
@@ -162,11 +170,13 @@ theorem atom_smul_mem_of_norm_le_one (A : AtomFamily G s p u) (Q : WeakGridCell 
   simp [σ, hnorm_pos]
 
 omit [Fact (1 ≤ p)] in
+/-- Normalize a coefficient to a phase and apply it to an atom, using zero at coefficient zero. -/
 noncomputable def phaseAtom (A : AtomFamily G s p u) (Q : WeakGridCell G)
     (c : ℂ) (φ : (A.localSpace Q).carrier) : (A.localSpace Q).carrier :=
   if c = 0 then 0 else ((‖c‖ : ℂ)⁻¹ * c) • φ
 
 omit [Fact (1 ≤ p)] in
+/-- The phase-normalized atom remains in the atom set. -/
 theorem phaseAtom_mem (A : AtomFamily G s p u) (Q : WeakGridCell G)
     (c : ℂ) {φ : (A.localSpace Q).carrier} (hφ : φ ∈ A.atoms Q) :
     phaseAtom A Q c φ ∈ A.atoms Q := by
@@ -179,6 +189,7 @@ theorem phaseAtom_mem (A : AtomFamily G s p u) (Q : WeakGridCell G)
     simp [norm_inv, hnorm_pos]
 
 omit [Fact (1 ≤ p)] in
+/-- Multiplying the phase-normalized atom by the coefficient norm recovers the original scalar multiple. -/
 theorem norm_smul_phaseAtom (A : AtomFamily G s p u) (Q : WeakGridCell G)
     (c : ℂ) (φ : (A.localSpace Q).carrier) :
     (‖c‖ : ℝ) • phaseAtom A Q c φ = c • φ := by
@@ -192,6 +203,7 @@ theorem norm_smul_phaseAtom (A : AtomFamily G s p u) (Q : WeakGridCell G)
     simp [hnorm_pos]
 
 omit [Fact (1 ≤ p)] in
+/-- A convex combination with total coefficient norm at most one is again an atom. -/
 theorem atom_add_combo_mem_of_norm_add_le_one
     (A : AtomFamily G s p u) (Q : WeakGridCell G)
     {c d : ℂ} (hcd : ‖c‖ + ‖d‖ ≤ (1 : ℝ))
@@ -226,6 +238,10 @@ theorem atom_add_combo_mem_of_norm_add_le_one
     norm_smul_phaseAtom A Q d ψ]
 
 omit [Fact (1 ≤ p)] in
+/--
+Repackage a sum of two coefficient-times-atom terms as one nonnegative
+coefficient times a single atom on the same cell.
+-/
 theorem atom_add_repackage (A : AtomFamily G s p u) (Q : WeakGridCell G)
     (c d : ℂ) {φ ψ : (A.localSpace Q).carrier}
     (hφ : φ ∈ A.atoms Q) (hψ : ψ ∈ A.atoms Q) :
@@ -286,6 +302,7 @@ noncomputable def add (A : AtomFamily G s p u) {k : ℕ}
         (B.coeff Q) (C.coeff Q) (B.atom_mem Q) (C.atom_mem Q))).1
 
 omit [Fact (1 ≤ p)] in
+/-- The atom chosen for the sum block has the expected cellwise scalar identity. -/
 theorem add_atom_spec (A : AtomFamily G s p u) {k : ℕ}
     (B C : LevelBlock A k) (Q : LevelCell G k) :
     ((‖B.coeff Q‖ + ‖C.coeff Q‖ : ℝ) : ℂ) • (add A B C).atom Q =
@@ -295,6 +312,7 @@ theorem add_atom_spec (A : AtomFamily G s p u) {k : ℕ}
       (B.coeff Q) (C.coeff Q) (B.atom_mem Q) (C.atom_mem Q))).2
 
 omit [Fact (1 ≤ p)] in
+/-- The `L^p` cell term of a sum block is the sum of the two original cell terms. -/
 theorem add_term (A : AtomFamily G s p u) {k : ℕ}
     (B C : LevelBlock A k) (Q : LevelCell G k) :
     (add A B C).term A Q = B.term A Q + C.term A Q := by
@@ -320,6 +338,7 @@ theorem add_term (A : AtomFamily G s p u) {k : ℕ}
   exact MemLp.toLp_congr _ _ (Filter.Eventually.of_forall fun x => congrFun hfun x)
 
 omit [Fact (1 ≤ p)] in
+/-- Evaluating the sum block in `L^p` gives the sum of the represented blocks. -/
 @[simp]
 theorem add_toLp (A : AtomFamily G s p u) {k : ℕ}
     (B C : LevelBlock A k) :
@@ -379,6 +398,7 @@ def chooseLevelBlock {A : AtomFamily G s p u} {k : ℕ}
   Classical.choose hf
 
 omit [Fact (1 ≤ p)] in
+/-- The chosen level block evaluates to the element it was chosen to represent. -/
 theorem chooseLevelBlock_toLp {A : AtomFamily G s p u} {k : ℕ}
   {f : Lp ℂ p G.measure} (hf : f ∈ LevelBlockSet A k) :
     (chooseLevelBlock hf).toLp A = f :=
@@ -401,6 +421,12 @@ structure LpGridRepresentation
 
 namespace LpGridRepresentation
 
+/--
+Finite `ℓ^p`-to-`ℓ^t` monotonicity for nonnegative real families.
+
+This elementary inequality is used to pass from coefficient `p`-powers to
+coefficient `t`-powers on one finite level.
+-/
 theorem finset_sum_rpow_le_sum_rpow_of_le
     {ι : Type*} (S : Finset ι) (a : ι → ℝ)
     {p t : ℝ} (hp_pos : 0 < p) (hpt : p ≤ t)
@@ -453,6 +479,7 @@ def levelCoeffPower
     (R : LpGridRepresentation A g) (k : ℕ) : ℝ :=
   ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ ^ p.toReal
 
+/-- The level coefficient power is nonnegative. -/
 theorem levelCoeffPower_nonneg
     {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
     (R : LpGridRepresentation A g) (k : ℕ) :
@@ -496,6 +523,7 @@ noncomputable def levelMeasureWeight
   (sSup (Set.range fun Q : LevelCell G k => (G.measure Q.1).toReal)) ^
     (s - 1 / p.toReal + 1 / t.toReal)
 
+/-- The level measure weight is nonnegative. -/
 theorem levelMeasureWeight_nonneg
     (G : WeakGridSpace (α := α)) (s : ℝ) (p t : ℝ≥0∞) (k : ℕ) :
     0 ≤ levelMeasureWeight G s p t k := by
@@ -519,6 +547,7 @@ theorem levelMeasureWeight_nonneg
       simp [hempty]
   exact Real.rpow_nonneg hbase _
 
+/-- Each cell's measure factor is bounded by the level measure weight. -/
 theorem levelCellMeasure_rpow_le_levelMeasureWeight
     (G : WeakGridSpace (α := α)) (s : ℝ) (p t : ℝ≥0∞) (k : ℕ)
     (hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / t.toReal)
@@ -531,6 +560,10 @@ theorem levelCellMeasure_rpow_le_levelMeasureWeight
       ⟨Q, rfl⟩)
     hs_nonneg
 
+/--
+Weighted level coefficient estimate after replacing each cell weight by the
+level weight and using finite `ℓ^p`-to-`ℓ^t` monotonicity.
+-/
 theorem weighted_levelCoeffPower_t_le
     {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
     {t : ℝ≥0∞} (R : LpGridRepresentation A g) (k : ℕ)
@@ -596,6 +629,10 @@ theorem weighted_levelCoeffPower_t_le
           congr 1
           field_simp [hp_pos.ne']
 
+/--
+Algebraic exponent identity coming from the Hölder conjugacy of `u` and
+`uConj`.
+-/
 theorem holderConjugate_atom_exponent_identity
     {u uConj : ℝ≥0∞} (hu : ENNReal.HolderConjugate u uConj)
     (hp_ne_top : p ≠ ∞) :
@@ -627,6 +664,10 @@ theorem holderConjugate_atom_exponent_identity
     _ = p.toReal⁻¹ * (u.toReal⁻¹ + uConj.toReal⁻¹) := by ring
     _ = p.toReal⁻¹ := by rw [hreal, mul_one]
 
+/--
+Combining the atom measure exponent with the finite-measure embedding exponent
+gives the level embedding exponent.
+-/
 theorem atomMeasureExponent_add_embeddingExponent
     {u uConj t : ℝ≥0∞} (hu : ENNReal.HolderConjugate u uConj)
     (hp_ne_top : p ≠ ∞) :
@@ -660,6 +701,7 @@ noncomputable def add
       hasSum := by
         simpa [LevelBlock.add_toLp] using R.hasSum.add S.hasSum }
 
+/-- The block of a sum representation evaluates levelwise to the sum of blocks. -/
 @[simp]
 theorem add_block_toLp
     {A : AtomFamily G s p u} {g h : Lp ℂ p G.measure}
@@ -678,6 +720,7 @@ noncomputable def smul
       hasSum := by
         simpa [LevelBlock.smul_toLp] using R.hasSum.const_smul c }
 
+/-- The block of a scaled representation evaluates levelwise to the scaled block. -/
 @[simp]
 theorem smul_block_toLp
     {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
@@ -685,6 +728,7 @@ theorem smul_block_toLp
     ((smul c R).block k).toLp A = c • (R.block k).toLp A := by
   simp [smul]
 
+/-- The absolute-convergence cost is nonnegative. -/
 theorem lpCost_nonneg
     {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
     (R : LpGridRepresentation A g) :
@@ -692,6 +736,7 @@ theorem lpCost_nonneg
   simpa [LpGridRepresentation.lpCost] using
     (tsum_nonneg fun k => norm_nonneg ((R.block k).toLp A))
 
+/-- The `lpCost` of the sum of two summable representations satisfies the triangle inequality. -/
 theorem lpCost_triangle
     {A : AtomFamily G s p u} {g h : Lp ℂ p G.measure}
     (R : LpGridRepresentation A g)
@@ -725,6 +770,7 @@ theorem lpCost_triangle
       htsum_add
     _ = LpGridRepresentation.lpCost R + LpGridRepresentation.lpCost S := rfl
 
+/-- The `lpCost` of a scaled summable representation scales by the scalar norm. -/
 theorem lpCost_smul
     {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
     (c : ℂ) (R : LpGridRepresentation A g)
@@ -750,6 +796,7 @@ theorem lpCost_smul
 end LpGridRepresentation
 
 
+/-- The `(p,q)` coefficient gauge of a representation. -/
 def LpGridRepresentation.pqCost
     {A : AtomFamily G s p u} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
     (R : LpGridRepresentation A g) : ℝ :=
@@ -801,6 +848,7 @@ def cCoefficientFinite (t q : ℝ≥0∞) (b : ℕ → ℝ) : Prop :=
     let q' := q / (q - 1)
     Summable (fun k => b k ^ (q'.toReal / t.toReal))
 
+/-- The coefficient-cost function is nonnegative for nonnegative input data. -/
 theorem cCoefficient_nonneg (t q : ℝ≥0∞) (b : ℕ → ℝ)
     (hb_nonneg : ∀ k, 0 ≤ b k) :
     0 ≤ cCoefficient t q b := by
@@ -850,6 +898,7 @@ noncomputable def LevelBlock.toFunLt
     B.coeff Q * A.toFunction (levelCellToWeakGridCell G k Q) (B.atom Q) x
 
 omit [Fact (1 ≤ p)] in
+/-- The pointwise target-exponent realization of a level block belongs to `L^t`. -/
 theorem LevelBlock.toFunLt_memLp
     (A : AtomFamily G s p u) {t : ℝ≥0∞} [Fact (1 ≤ t)] {k : ℕ}
     (ht_le_pu : t ≤ p * u)
@@ -867,6 +916,7 @@ theorem LevelBlock.toFunLt_memLp
     ht_le_pu).const_smul (B.coeff Q)
 
 omit [Fact (1 ≤ p)] in
+/-- The coefficient function of a single `L^p` cell term is the expected scalar atom. -/
 theorem LevelBlock.coeFn_term
     (A : AtomFamily G s p u) {k : ℕ}
     (B : LevelBlock A k) (Q : LevelCell G k) :
@@ -883,6 +933,7 @@ theorem LevelBlock.coeFn_term
         (B.coeff Q))
 
 omit [Fact (1 ≤ p)] in
+/-- The `L^p` representative of a level block agrees a.e. with its pointwise finite sum. -/
 theorem LevelBlock.coeFn_toLp
     (A : AtomFamily G s p u) {k : ℕ}
     (B : LevelBlock A k) :
@@ -898,6 +949,7 @@ theorem LevelBlock.coeFn_toLp
         (LevelBlock.coeFn_term A B Q).add ih
 
 omit [Fact (1 ≤ p)] in
+/-- The coefficient function of a single `L^t` cell term is the expected scalar atom. -/
 theorem LevelBlock.coeFn_termLt
     (A : AtomFamily G s p u) {t : ℝ≥0∞} [Fact (1 ≤ t)] {k : ℕ}
     (ht_le_pu : t ≤ p * u)
@@ -925,6 +977,7 @@ theorem LevelBlock.coeFn_termLt
         ht_le_pu)).fun_const_smul (B.coeff Q))
 
 omit [Fact (1 ≤ p)] in
+/-- The `L^t` representative of a level block agrees a.e. with its pointwise finite sum. -/
 theorem LevelBlock.coeFn_toLt
     (A : AtomFamily G s p u) {t : ℝ≥0∞} [Fact (1 ≤ t)] {k : ℕ}
     (ht_le_pu : t ≤ p * u)
@@ -941,6 +994,7 @@ theorem LevelBlock.coeFn_toLt
         (LevelBlock.coeFn_termLt A ht_le_pu B Q).add ih
 
 omit [Fact (1 ≤ p)] in
+/-- At each point, at most `Cmult1` cells of a level contribute nontrivially. -/
 theorem LevelBlock.active_card_le_Cmult1
     (A : AtomFamily G s p u) {k : ℕ}
     (B : LevelBlock A k) (x : α) :
@@ -995,6 +1049,10 @@ theorem LevelBlock.active_card_le_Cmult1
     omega
 
 omit [Fact (1 ≤ p)] in
+/--
+Pointwise overlap estimate for a level block, bounding the norm of the finite
+sum by `Cmult1` times the sum of powered cell contributions.
+-/
 theorem LevelBlock.norm_toFunLt_rpow_le_Cmult1
     (A : AtomFamily G s p u) {t : ℝ≥0∞} [Fact (1 ≤ t)] {k : ℕ}
     (ht_ne_top : t ≠ ∞)
@@ -1542,9 +1600,7 @@ theorem lt_norm_levelBlock_le
     (A := A) (t := t) hp_ne_top ht_ne_top hp_le_t ht_le_pu hs_nonneg R k
 
 /--
-Weighted coefficient estimate used in the `L^t` block summability step.
-
-For `q = 1`, this is the `ℓ¹`-`ℓ^∞` bound; for `q ≠ 1`, this is Hölder.
+The real exponent `q / (q - 1)` is Hölder conjugate to `q` when `1 < q < ∞`.
 -/
 lemma holderConjugate_q_div_qsub1_toReal (hq_one : 1 < q.toReal) (hq_ne_top : q ≠ ∞) :
     (q / (q - 1)).toReal.HolderConjugate q.toReal := by
@@ -1566,6 +1622,12 @@ lemma holderConjugate_q_div_qsub1_toReal (hq_one : 1 < q.toReal) (hq_ne_top : q 
       ring
   simpa [hqdiv] using hreal
 
+/--
+Hölder estimate for the weighted coefficient sum when `q` is finite.
+
+The `q = 1` branch is treated as an `ℓ¹`-`ℓ^∞` estimate; the remaining
+finite cases use the conjugate exponent `q / (q - 1)`.
+-/
 theorem weighted_sum_le_cCoefficient_mul_pqCost
     {A : AtomFamily G s p u} {t : ℝ≥0∞}
     [Fact (1 ≤ t)]
@@ -1724,6 +1786,12 @@ theorem weighted_sum_le_cCoefficient_mul_pqCost
             LpGridRepresentation.pqCost (q := q) R := by
           rfl
 
+/--
+Weighted coefficient estimate for the endpoint `q = ∞`.
+
+Here `pqCost` is a supremum and `cCoefficient` contributes the summable
+weight sequence.
+-/
 theorem weighted_sum_le_cCoefficient_mul_pqCost_top
     {A : AtomFamily G s p u} {t : ℝ≥0∞}
     [Fact (1 ≤ t)]
@@ -1786,6 +1854,7 @@ theorem weighted_sum_le_cCoefficient_mul_pqCost_top
           LpGridRepresentation.pqCost (q := ∞) R := by
         simp [hCco_rhs, C, w]
 
+/-- Uniform wrapper for the weighted coefficient estimate for all `1 ≤ q ≤ ∞`. -/
 theorem weighted_sum_le_cCoefficient_mul_pqCost_of_one_le
     {A : AtomFamily G s p u} {t : ℝ≥0∞}
     [Fact (1 ≤ t)]
@@ -1882,6 +1951,12 @@ theorem summable_blockLt_norm_of_summable_weighted_coeff
           dsimp [C]
           ring
 
+/--
+Continuous inclusion `L^t → L^p` on the finite measure space when `p ≤ t`.
+
+This is used to compare the `L^t` reconstruction of an atomic series with its
+original `L^p` representation.
+-/
 noncomputable def lpInclusion
     {t : ℝ≥0∞} [Fact (1 ≤ t)]
     (hp_ne_top : p ≠ ∞) (ht_ne_top : t ≠ ∞) (hp_le_t : p ≤ t) :
@@ -1950,6 +2025,7 @@ noncomputable def lpInclusion
     _ = C * ‖f‖ := by
           rfl
 
+/-- The continuous inclusion `lpInclusion` preserves the underlying function a.e. -/
 theorem coeFn_lpInclusion
     {t : ℝ≥0∞} [Fact (1 ≤ t)]
     (hp_ne_top : p ≠ ∞) (ht_ne_top : t ≠ ∞) (hp_le_t : p ≤ t)
@@ -1963,6 +2039,7 @@ theorem coeFn_lpInclusion
     (((Lp.memLp f).mono_exponent hp_le_t).toLp f : α → ℂ) =ᵐ[G.measure] f
   exact MemLp.coeFn_toLp ((Lp.memLp f).mono_exponent hp_le_t)
 
+/-- Applying `lpInclusion` to the `L^t` realization of a level block recovers its `L^p` value. -/
 theorem lpInclusion_levelBlock_toLt
     {A : AtomFamily G s p u} {t : ℝ≥0∞} [Fact (1 ≤ t)]
     (hp_ne_top : p ≠ ∞) (ht_ne_top : t ≠ ∞)
@@ -2173,6 +2250,7 @@ theorem lp_embedding_adapted_statement
           cCoefficient t q (fun k => (levelMeasureWeight G s p t k) ^ t.toReal) *
             LpGridRepresentation.pqCost (q := q) R := hNormSumBound
 
+/-- The representation coefficient gauge `pqCost` is nonnegative. -/
 theorem pqCost_nonneg
   {A : AtomFamily G s p u} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
     (R : LpGridRepresentation A g) :
@@ -2190,6 +2268,10 @@ theorem pqCost_nonneg
     intro k
     exact Real.rpow_nonneg (Finset.sum_nonneg fun Q _ => by positivity) _
 
+/--
+The representation coefficient gauge satisfies the triangle inequality for
+finite-cost representations.
+-/
 theorem pqCost_triangle
     {A : AtomFamily G s p u} {q : ℝ≥0∞} {g h : Lp ℂ p G.measure}
     (R : LpGridRepresentation A g)
@@ -2388,6 +2470,7 @@ theorem pqCost_triangle
             + (∑' k, (S.levelCoeffPower k) ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by
           rw [hsum_R, hsum_S]
 
+/-- Finite `(p,q)` coefficient cost is preserved under addition of representations. -/
 theorem add_finitePQCost
     {A : AtomFamily G s p u} {q : ℝ≥0∞} {g h : Lp ℂ p G.measure}
     (R : LpGridRepresentation A g)
@@ -2496,6 +2579,7 @@ theorem add_finitePQCost
       rw [Real.rpow_mul ((add R S).levelCoeffPower_nonneg k)]
     simpa [FinitePQCost, hq] using hsum
 
+/-- Scaling a representation scales its `pqCost` by the scalar norm. -/
 theorem pqCost_smul
     {A : AtomFamily G s p u} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
     (c : ℂ) (R : LpGridRepresentation A g)
@@ -2615,6 +2699,7 @@ theorem pqCost_smul
           simpa [one_div] using (Real.rpow_rpow_inv (norm_nonneg c) hq_pos.ne')
         rw [hcp]
 
+/-- Finite `(p,q)` coefficient cost is preserved under scalar multiplication of representations. -/
 theorem smul_finitePQCost
     {A : AtomFamily G s p u} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
     (c : ℂ) {R : LpGridRepresentation A g}
