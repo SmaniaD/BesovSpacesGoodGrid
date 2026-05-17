@@ -800,6 +800,21 @@ def AtomsTendstoWeak
         (atomLp A (levelCellToWeakGridCell G k Q) ((Rlim.block k).atom Q))))
 
 /--
+Atoms of a sequence of representations converge strongly in ambient `L^p`,
+cell by cell, to the atoms of `Rlim`.
+-/
+def AtomsTendstoStrong
+    {A : AtomFamily G s p u} {gseq : ℕ → Lp ℂ p G.measure}
+    {gLim : Lp ℂ p G.measure}
+    (Rseq : ∀ n, LpGridRepresentation A (gseq n))
+    (Rlim : LpGridRepresentation A gLim) : Prop :=
+  ∀ (k : ℕ) (Q : LevelCell G k),
+    Tendsto
+      (fun n => atomLp A (levelCellToWeakGridCell G k Q) (((Rseq n).block k).atom Q))
+      atTop
+      (𝓝 (atomLp A (levelCellToWeakGridCell G k Q) ((Rlim.block k).atom Q)))
+
+/--
 Data for Proposition `compa2` in the `1 ≤ p < ∞` formalization used here.
 
 The paper allows either strong or weak convergence of the atoms. In this Lean
@@ -814,6 +829,36 @@ structure RepresentationLimitHypotheses
   uniform_bound : ∀ n, LpGridRepresentation.pqCostENNReal (q := q) (Rseq n) ≤ ENNReal.ofReal C
   coeff_tendsto : CoefficientsTendsto Rseq Rlim
   atom_tendsto : AtomsTendstoWeak Rseq Rlim
+
+/--
+Strong-topology variant of the representation-limit hypotheses.
+
+This is the same coefficient/cost data as `RepresentationLimitHypotheses`, but
+the atoms are assumed to converge in the norm topology of ambient `L^p`.
+-/
+structure RepresentationLimitStrongHypotheses
+    (A : AtomFamily G s p u) (q : ℝ≥0∞)
+    (gseq : ℕ → Lp ℂ p G.measure) (gLim : Lp ℂ p G.measure) (C : ℝ) where
+  Rseq : ∀ n, LpGridRepresentation A (gseq n)
+  Rlim : LpGridRepresentation A gLim
+  uniform_bound : ∀ n, LpGridRepresentation.pqCostENNReal (q := q) (Rseq n) ≤ ENNReal.ofReal C
+  coeff_tendsto : CoefficientsTendsto Rseq Rlim
+  atom_tendsto : AtomsTendstoStrong Rseq Rlim
+
+/-- Strong atom convergence implies the weak atom convergence hypotheses. -/
+def RepresentationLimitStrongHypotheses.toWeak
+    {A : AtomFamily G s p u} {gseq : ℕ → Lp ℂ p G.measure}
+    {gLim : Lp ℂ p G.measure} {C : ℝ}
+    (H : RepresentationLimitStrongHypotheses A q gseq gLim C) :
+    RepresentationLimitHypotheses A q gseq gLim C where
+  Rseq := H.Rseq
+  Rlim := H.Rlim
+  uniform_bound := H.uniform_bound
+  coeff_tendsto := H.coeff_tendsto
+  atom_tendsto := by
+    intro k Q
+    exact (map_continuous (toWeakSpaceCLM ℂ (Lp ℂ p G.measure))).continuousAt.tendsto.comp
+      (H.atom_tendsto k Q)
 
 omit [Fact (1 ≤ q)] in
 /--
@@ -1264,6 +1309,195 @@ lemma representation_limit_weak_tendsto
       hterm htail_uniform
 
 /--
+Strong-topology version of `representation_limit_weak_tendsto`.
+
+If the atoms converge strongly in ambient `L^p`, then the represented functions
+`gseq n` converge to `gLim` in the norm topology of `L^p`.
+-/
+lemma representation_limit_strong_tendsto
+    (A : AtomFamily G s p u)(hG2 : AssumptionG2 G s p u q)
+    {gseq : ℕ → Lp ℂ p G.measure}
+    {gLim : Lp ℂ p G.measure} {C : ℝ}
+    (H : RepresentationLimitStrongHypotheses A q gseq gLim C)
+    (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u)
+    [Fact (1 ≤ u)] (hC : 0 ≤ C) :
+    Tendsto gseq atTop (𝓝 gLim) := by
+  let Hw : RepresentationLimitHypotheses A q gseq gLim C := H.toWeak
+  have hterm : ∀ k, Tendsto (fun n => ((H.Rseq n).block k).toLp A) atTop
+      (𝓝 ((H.Rlim.block k).toLp A)) := by
+    intro k
+    simp only [LevelBlock.toLp, LevelBlock.term]
+    refine tendsto_finsetSum (G.grid.partitions k).attach fun Q _ => ?_
+    exact Filter.Tendsto.smul (H.coeff_tendsto k Q)
+      (by simpa [atomLp] using H.atom_tendsto k Q)
+  have hseq_fin : ∀ n, LpGridRepresentation.FinitePQCost (q := q) (H.Rseq n) := by
+    intro n
+    exact LpGridRepresentation.finitePQCost_of_pqCostENNReal_le (H.Rseq n)
+      (Fact.out : 1 ≤ q) (H.uniform_bound n)
+  have hseq_cost_le : ∀ n, LpGridRepresentation.pqCost (q := q) (H.Rseq n) ≤ C := by
+    intro n
+    exact pqCost_le_of_pqCostENNReal_le (H.Rseq n) (H.uniform_bound n) hC
+  have hlim_cost_le : LpGridRepresentation.pqCost (q := q) H.Rlim ≤ C :=
+    representation_limit_pqCost_le Hw hC
+  let Dtail := fun (N n : ℕ) =>
+      LpGridRepresentation.add
+        (LpGridRepresentation.tail (H.Rseq n) N)
+        (LpGridRepresentation.smul (-1 : ℂ) (LpGridRepresentation.tail H.Rlim N))
+  have hDtail_cost_le : ∀ N n,
+      LpGridRepresentation.pqCost (q := q) (Dtail N n) ≤ 2 * C := by
+    intro N n
+    have htail_seq_fin :
+        LpGridRepresentation.FinitePQCost (q := q)
+          (LpGridRepresentation.tail (H.Rseq n) N) :=
+      LpGridRepresentation.tail_finitePQCost (H.Rseq n) N (Fact.out : 1 ≤ q) (hseq_fin n)
+    have htail_lim_fin :
+        LpGridRepresentation.FinitePQCost (q := q)
+          (LpGridRepresentation.tail H.Rlim N) :=
+      LpGridRepresentation.tail_finitePQCost H.Rlim N (Fact.out : 1 ≤ q)
+        (representation_limit_finitePQCost Hw)
+    have hsmul_tail_lim_fin :
+        LpGridRepresentation.FinitePQCost (q := q)
+          (LpGridRepresentation.smul (-1 : ℂ) (LpGridRepresentation.tail H.Rlim N)) :=
+      LpGridRepresentation.smul_finitePQCost
+        (A := A) (q := q) (-1 : ℂ) htail_lim_fin
+    have htri :=
+      LpGridRepresentation.pqCost_triangle
+        (A := A) (q := q)
+        (LpGridRepresentation.tail (H.Rseq n) N)
+        (LpGridRepresentation.smul (-1 : ℂ) (LpGridRepresentation.tail H.Rlim N))
+        hp_ne_top (Fact.out : 1 ≤ q) htail_seq_fin hsmul_tail_lim_fin
+    have htail_seq_cost :
+        LpGridRepresentation.pqCost (q := q)
+          (LpGridRepresentation.tail (H.Rseq n) N) ≤ C :=
+      (LpGridRepresentation.pqCost_tail_le (H.Rseq n) N (Fact.out : 1 ≤ q)
+        (hseq_fin n)).trans (hseq_cost_le n)
+    have htail_lim_cost :
+        LpGridRepresentation.pqCost (q := q)
+          (LpGridRepresentation.tail H.Rlim N) ≤ C :=
+      (LpGridRepresentation.pqCost_tail_le H.Rlim N (Fact.out : 1 ≤ q)
+        (representation_limit_finitePQCost Hw)).trans hlim_cost_le
+    have hsmul_cost :
+        LpGridRepresentation.pqCost (q := q)
+          (LpGridRepresentation.smul (-1 : ℂ) (LpGridRepresentation.tail H.Rlim N)) =
+          LpGridRepresentation.pqCost (q := q) (LpGridRepresentation.tail H.Rlim N) := by
+      have h :=
+        LpGridRepresentation.pqCost_smul
+          (A := A) (q := q) (-1 : ℂ) (LpGridRepresentation.tail H.Rlim N)
+          hp_ne_top (Fact.out : 1 ≤ q) htail_lim_fin
+      simpa using h
+    calc
+      LpGridRepresentation.pqCost (q := q) (Dtail N n)
+          ≤ LpGridRepresentation.pqCost (q := q) (LpGridRepresentation.tail (H.Rseq n) N) +
+              LpGridRepresentation.pqCost (q := q)
+                (LpGridRepresentation.smul (-1 : ℂ) (LpGridRepresentation.tail H.Rlim N)) := by
+            simpa [Dtail] using htri
+      _ = LpGridRepresentation.pqCost (q := q) (LpGridRepresentation.tail (H.Rseq n) N) +
+            LpGridRepresentation.pqCost (q := q) (LpGridRepresentation.tail H.Rlim N) := by
+            rw [hsmul_cost]
+      _ ≤ C + C := add_le_add htail_seq_cost htail_lim_cost
+      _ = 2 * C := by ring
+  have htail_uniform : ∀ ε > 0, ∃ N, ∀ n,
+      ‖((gseq n - ∑ k ∈ Finset.range N, ((H.Rseq n).block k).toLp A) -
+          (gLim - ∑ k ∈ Finset.range N, (H.Rlim.block k).toLp A))‖ < ε := by
+    intro ε hε
+    let Cemb : ℝ := (G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)
+    let K : ℝ := Cemb * (2 * C) + 1
+    have hCemb_nonneg : 0 ≤ Cemb := by positivity
+    have htwoC_nonneg : 0 ≤ 2 * C := by positivity
+    have hK_pos : 0 < K := by
+      dsimp [K]
+      nlinarith [mul_nonneg hCemb_nonneg htwoC_nonneg]
+    have hη_pos : 0 < ε / K := by positivity
+    have htail_tendsto :
+        Tendsto (fun N => tailCCoefficient G s p q N) atTop (𝓝 0) :=
+      tailCCoefficient_tendsto_zero (G := G) (s := s) (p := p) (u := u) (q := q)
+        hG2 hp_ne_top hs_pos
+    rw [Metric.tendsto_atTop] at htail_tendsto
+    rcases htail_tendsto (ε / K) hη_pos with ⟨N, hN⟩
+    refine ⟨N, fun n => ?_⟩
+    have htail_nonneg : 0 ≤ tailCCoefficient G s p q N :=
+      LpGridRepresentation.cCoefficient_nonneg p q (tailCoefficientWeight G s p N)
+        (tailCoefficientWeight_nonneg G s p N)
+    have htail_small : tailCCoefficient G s p q N < ε / K := by
+      have hdist := hN N le_rfl
+      simpa [dist_eq_norm, Real.norm_eq_abs, abs_of_nonneg htail_nonneg] using hdist
+    have htail_seq_fin :
+        LpGridRepresentation.FinitePQCost (q := q)
+          (LpGridRepresentation.tail (H.Rseq n) N) :=
+      LpGridRepresentation.tail_finitePQCost (H.Rseq n) N (Fact.out : 1 ≤ q) (hseq_fin n)
+    have htail_lim_fin :
+        LpGridRepresentation.FinitePQCost (q := q)
+          (LpGridRepresentation.tail H.Rlim N) :=
+      LpGridRepresentation.tail_finitePQCost H.Rlim N (Fact.out : 1 ≤ q)
+        (representation_limit_finitePQCost Hw)
+    have hsmul_tail_lim_fin :
+        LpGridRepresentation.FinitePQCost (q := q)
+          (LpGridRepresentation.smul (-1 : ℂ) (LpGridRepresentation.tail H.Rlim N)) :=
+      LpGridRepresentation.smul_finitePQCost
+        (A := A) (q := q) (-1 : ℂ) htail_lim_fin
+    have hDtail_fin :
+        LpGridRepresentation.FinitePQCost (q := q) (Dtail N n) :=
+      LpGridRepresentation.add_finitePQCost
+        (A := A) (q := q)
+        (LpGridRepresentation.tail (H.Rseq n) N)
+        (LpGridRepresentation.smul (-1 : ℂ) (LpGridRepresentation.tail H.Rlim N))
+        hp_ne_top (Fact.out : 1 ≤ q) htail_seq_fin hsmul_tail_lim_fin
+    have hzeroD : ∀ k, k < N → (Dtail N n).levelCoeffPower k = 0 := by
+      intro k hk
+      have hp_pos : 0 < p.toReal :=
+        ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ p)).ne' hp_ne_top
+      simp [Dtail, LpGridRepresentation.levelCoeffPower, LpGridRepresentation.add,
+        LpGridRepresentation.tail, LpGridRepresentation.smul, LevelBlock.add,
+        LevelBlock.smul, LevelBlock.zero, hk, Real.zero_rpow hp_pos.ne']
+    have hbound :=
+      sharp_tail_embedding_bound
+        (G := G) (s := s) (p := p) (u := u) (q := q) (A := A)
+        hG2 hp_ne_top hu_one hs_pos (Dtail N n) hDtail_fin N hzeroD
+    have hbound' :
+        ‖((gseq n - ∑ k ∈ Finset.range N, ((H.Rseq n).block k).toLp A) -
+            (gLim - ∑ k ∈ Finset.range N, (H.Rlim.block k).toLp A))‖ ≤
+          Cemb * tailCCoefficient G s p q N *
+            LpGridRepresentation.pqCost (q := q) (Dtail N n) := by
+      have hx :
+          ((gseq n - ∑ k ∈ Finset.range N, ((H.Rseq n).block k).toLp A) -
+              (gLim - ∑ k ∈ Finset.range N, (H.Rlim.block k).toLp A)) =
+            (gseq n - ∑ k ∈ Finset.range N, ((H.Rseq n).block k).toLp A) +
+              (-1 : ℂ) •
+                (gLim - ∑ k ∈ Finset.range N, (H.Rlim.block k).toLp A) := by
+        simp [sub_eq_add_neg]
+        abel
+      rw [hx]
+      simpa [Cemb, Dtail] using hbound
+    have hcost := hDtail_cost_le N n
+    have htailcost_le :
+        Cemb * tailCCoefficient G s p q N *
+            LpGridRepresentation.pqCost (q := q) (Dtail N n) ≤
+          Cemb * tailCCoefficient G s p q N * (2 * C) := by
+      exact mul_le_mul_of_nonneg_left hcost
+        (mul_nonneg hCemb_nonneg htail_nonneg)
+    have hmain_lt :
+        Cemb * tailCCoefficient G s p q N * (2 * C) < ε := by
+      have hcoef_le_K : Cemb * (2 * C) ≤ K := by
+        dsimp [K]
+        linarith
+      calc
+        Cemb * tailCCoefficient G s p q N * (2 * C)
+            = (Cemb * (2 * C)) * tailCCoefficient G s p q N := by ring
+        _ ≤ K * tailCCoefficient G s p q N :=
+            mul_le_mul_of_nonneg_right hcoef_le_K htail_nonneg
+        _ < K * (ε / K) :=
+            mul_lt_mul_of_pos_left htail_small hK_pos
+        _ = ε := by field_simp [hK_pos.ne']
+    exact lt_of_le_of_lt (hbound'.trans htailcost_le) hmain_lt
+  simpa using
+    tendsto_of_termwise_of_uniform_tails
+      (f := fun n k => ((H.Rseq n).block k).toLp A)
+      (F := fun k => (H.Rlim.block k).toLp A)
+      (sn := fun n => gseq n)
+      (S := gLim)
+      hterm htail_uniform
+
+/--
 Proposition `compa2` in the weak `L^p` topology.
 
 If a sequence of Besov-ish representations has uniformly bounded coefficient
@@ -1287,6 +1521,30 @@ theorem representation_limit
     representation_limit_finitePQCost H,
     representation_limit_pqCost_le H hC,
     representation_limit_weak_tendsto A hG2 H hp_ne_top hs_pos hu_one hC⟩
+
+/--
+Proposition `compa2` in the strong `L^p` topology.
+
+This is the strong-convergence branch: if the atoms converge in ambient `L^p`
+norm, then the represented functions converge to the limiting representation in
+the norm topology of `L^p`.
+-/
+theorem representation_limit_strong
+    (A : AtomFamily G s p u)(hG2 : AssumptionG2 G s p u q)
+     {gseq : ℕ → Lp ℂ p G.measure}
+    {gLim : Lp ℂ p G.measure} {C : ℝ}
+    (H : RepresentationLimitStrongHypotheses A q gseq gLim C)
+    (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u)
+    [Fact (1 ≤ u)] (hC : 0 ≤ C) :
+    MemBesovishCoeffCost A q gLim ∧
+      LpGridRepresentation.FinitePQCost (q := q) H.Rlim ∧
+      LpGridRepresentation.pqCost (q := q) H.Rlim ≤ C ∧
+      Tendsto gseq atTop (𝓝 gLim) := by
+  let Hw : RepresentationLimitHypotheses A q gseq gLim C := H.toWeak
+  exact ⟨representation_limit_memBesovishCoeffCost Hw,
+    representation_limit_finitePQCost Hw,
+    representation_limit_pqCost_le Hw hC,
+    representation_limit_strong_tendsto A hG2 H hp_ne_top hs_pos hu_one hC⟩
 
 
 
