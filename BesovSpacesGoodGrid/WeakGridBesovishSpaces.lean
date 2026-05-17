@@ -728,6 +728,114 @@ theorem smul_block_toLp
     ((smul c R).block k).toLp A = c • (R.block k).toLp A := by
   simp [smul]
 
+/-- Finite initial segment represented by the first `N` level blocks. -/
+noncomputable def initialSegment
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (N : ℕ) :
+    LpGridRepresentation A (∑ k ∈ Finset.range N, (R.block k).toLp A) := by
+  refine
+    { block := fun k => if k < N then R.block k else LevelBlock.zero A k
+      hasSum := ?_ }
+  have hfinite :
+      HasSum
+        (fun k => if k < N then (R.block k).toLp A else 0)
+        (∑ k ∈ Finset.range N, (R.block k).toLp A) := by
+    have hfinite0 :=
+      hasSum_sum_of_ne_finset_zero
+        (α := Lp ℂ p G.measure) (L := SummationFilter.unconditional ℕ)
+        (s := Finset.range N)
+        (f := fun k => if k < N then (R.block k).toLp A else 0)
+        (by
+          intro k hk
+          by_cases hlt : k < N
+          · exact False.elim (hk (Finset.mem_range.mpr hlt))
+          · simp [hlt])
+    convert hfinite0 using 1
+    exact Finset.sum_congr rfl fun k hk => by
+      simp [Finset.mem_range.mp hk]
+  refine hfinite.congr_fun ?_
+  intro k
+  by_cases hk : k < N
+  · simp [hk]
+  · simp [hk]
+
+/--
+Tail representation obtained by zeroing out all levels `< N`.
+
+Its represented value is the original sum minus the finite initial segment.
+-/
+noncomputable def tail
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (N : ℕ) :
+    LpGridRepresentation A
+      (g - ∑ k ∈ Finset.range N, (R.block k).toLp A) := by
+  refine
+    { block := fun k => if k < N then LevelBlock.zero A k else R.block k
+      hasSum := ?_ }
+  have hprefix :
+      HasSum
+        (fun k => if k < N then (R.block k).toLp A else 0)
+        (∑ k ∈ Finset.range N, (R.block k).toLp A) := by
+    have hfinite0 :=
+      hasSum_sum_of_ne_finset_zero
+        (α := Lp ℂ p G.measure) (L := SummationFilter.unconditional ℕ)
+        (s := Finset.range N)
+        (f := fun k => if k < N then (R.block k).toLp A else 0)
+        (by
+          intro k hk
+          by_cases hlt : k < N
+          · exact False.elim (hk (Finset.mem_range.mpr hlt))
+          · simp [hlt])
+    convert hfinite0 using 1
+    exact Finset.sum_congr rfl fun k hk => by
+      simp [Finset.mem_range.mp hk]
+  have hsub := R.hasSum.sub hprefix
+  refine hsub.congr_fun ?_
+  intro k
+  by_cases hk : k < N
+  · simp [hk]
+  · simp [hk]
+
+@[simp]
+theorem initialSegment_block_toLp
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (N k : ℕ) :
+    ((initialSegment R N).block k).toLp A =
+      if k < N then (R.block k).toLp A else 0 := by
+  by_cases hk : k < N <;> simp [initialSegment, hk]
+
+@[simp]
+theorem tail_block_toLp
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (N k : ℕ) :
+    ((tail R N).block k).toLp A =
+      if k < N then 0 else (R.block k).toLp A := by
+  by_cases hk : k < N <;> simp [tail, hk]
+
+@[simp]
+theorem initialSegment_levelCoeffPower
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (N k : ℕ) :
+    (initialSegment R N).levelCoeffPower k =
+      if k < N then R.levelCoeffPower k else 0 := by
+  by_cases hk : k < N
+  · simp [initialSegment, hk, LpGridRepresentation.levelCoeffPower]
+  · have hp_pos : 0 < p.toReal := (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+    simp [initialSegment, hk, LpGridRepresentation.levelCoeffPower, LevelBlock.zero,
+      Real.zero_rpow hp_pos.ne']
+
+@[simp]
+theorem tail_levelCoeffPower
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (N k : ℕ) :
+    (tail R N).levelCoeffPower k =
+      if k < N then 0 else R.levelCoeffPower k := by
+  by_cases hk : k < N
+  · have hp_pos : 0 < p.toReal := (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+    simp [tail, hk, LpGridRepresentation.levelCoeffPower, LevelBlock.zero,
+      Real.zero_rpow hp_pos.ne']
+  · simp [tail, hk, LpGridRepresentation.levelCoeffPower]
+
 /-- The absolute-convergence cost is nonnegative. -/
 theorem lpCost_nonneg
     {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
@@ -806,6 +914,25 @@ def LpGridRepresentation.pqCost
     else
       (∑' k, (R.levelCoeffPower k) ^ (q.toReal / p.toReal)) ^ (1 / q.toReal)
 
+/--
+Extended `(p,q)` coefficient cost of a representation.
+It can be ∞ if the coefficient series is not summable.
+
+Unlike `pqCost`, this version takes values in `ℝ≥0∞`, so a non-summable
+coefficient series is recorded as `∞` instead of collapsing through the ambient
+real-valued `tsum`. This is the right object for compactness and completeness
+arguments where a uniform bound should force genuine finiteness.
+-/
+def LpGridRepresentation.pqCostENNReal
+    {A : AtomFamily G s p u} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) : ℝ≥0∞ :=
+  if q = ∞ then
+      sSup (Set.range fun k =>
+        ENNReal.ofReal ((R.levelCoeffPower k) ^ (1 / p.toReal)))
+    else
+      (∑' k, ENNReal.ofReal ((R.levelCoeffPower k) ^ (q.toReal / p.toReal))) ^
+        (1 / q.toReal)
+
 namespace LpGridRepresentation
 
 /-- Finiteness condition for the `(p,q)` coefficient-cost data of a representation. -/
@@ -816,6 +943,132 @@ def FinitePQCost
     BddAbove (Set.range fun k => (R.levelCoeffPower k) ^ (1 / p.toReal))
   else
     Summable (fun k => (R.levelCoeffPower k) ^ (q.toReal / p.toReal))
+
+/--
+If the extended coefficient cost is finite, then the representation has finite
+`(p,q)` coefficient cost in the original real-valued sense.
+-/
+theorem finitePQCost_of_pqCostENNReal_ne_top
+    {A : AtomFamily G s p u} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (hq_one : 1 ≤ q)
+    (hR : LpGridRepresentation.pqCostENNReal (q := q) R ≠ ∞) :
+    FinitePQCost (q := q) R := by
+  by_cases hq : q = ∞
+  · simp only [FinitePQCost, hq, ↓reduceIte]
+    simp only [LpGridRepresentation.pqCostENNReal, hq, ↓reduceIte] at hR
+    refine ⟨(sSup (Set.range fun k =>
+          ENNReal.ofReal ((R.levelCoeffPower k) ^ (1 / p.toReal)))).toReal,
+        fun x hx => ?_⟩
+    obtain ⟨k, rfl⟩ := hx
+    rw [← ENNReal.ofReal_le_iff_le_toReal hR]
+    exact le_sSup ⟨k, rfl⟩
+  · simp only [FinitePQCost, hq, ↓reduceIte]
+    simp only [LpGridRepresentation.pqCostENNReal, hq, ↓reduceIte] at hR
+    have hq_pos : 0 < q.toReal :=
+      ENNReal.toReal_pos (zero_lt_one.trans_le hq_one).ne' hq
+    have h_inv_pos : 0 < 1 / q.toReal := div_pos one_pos hq_pos
+    have htsum_ne_top : ∑' k, ENNReal.ofReal ((R.levelCoeffPower k) ^ (q.toReal / p.toReal)) ≠ ∞ := by
+      intro heq
+      apply hR
+      rw [heq, ENNReal.top_rpow_of_pos h_inv_pos]
+    exact (ENNReal.summable_toReal htsum_ne_top).congr
+      (fun k => ENNReal.toReal_ofReal (Real.rpow_nonneg (R.levelCoeffPower_nonneg k) _))
+
+/--
+A finite upper bound on the extended coefficient cost forces finite
+`(p,q)`-cost.
+-/
+theorem finitePQCost_of_pqCostENNReal_le
+    {A : AtomFamily G s p u} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (hq_one : 1 ≤ q) {C : ℝ}
+    (hR : LpGridRepresentation.pqCostENNReal (q := q) R ≤ ENNReal.ofReal C) :
+    FinitePQCost (q := q) R := by
+  apply finitePQCost_of_pqCostENNReal_ne_top (R := R) hq_one
+  exact lt_top_iff_ne_top.mp (lt_of_le_of_lt hR ENNReal.ofReal_lt_top)
+
+/-- Finite `(p,q)` cost is preserved by taking tails. -/
+theorem tail_finitePQCost
+    {A : AtomFamily G s p u} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (N : ℕ)
+    (hq_one : 1 ≤ q)
+    (hRfin : FinitePQCost (q := q) R) :
+    FinitePQCost (q := q) (tail R N) := by
+  have hp_pos : 0 < p.toReal := (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+  by_cases hq : q = ∞
+  · simp only [FinitePQCost, hq, ↓reduceIte] at hRfin ⊢
+    rcases hRfin with ⟨C, hC⟩
+    have hC_nonneg : 0 ≤ C := by
+      exact (Real.rpow_nonneg (R.levelCoeffPower_nonneg 0) _).trans
+        (hC ⟨0, rfl⟩)
+    refine ⟨C, ?_⟩
+    rintro x ⟨k, rfl⟩
+    by_cases hk : k < N
+    · have hinv_pos : 0 < 1 / p.toReal := div_pos one_pos hp_pos
+      have hzero : (0 : ℝ) ^ (p.toReal)⁻¹ = 0 := by
+        simpa [one_div] using Real.zero_rpow hinv_pos.ne'
+      simpa [tail_levelCoeffPower, hk, hzero] using hC_nonneg
+    · simpa [tail_levelCoeffPower, hk] using hC ⟨k, rfl⟩
+  · simp only [FinitePQCost, hq, ↓reduceIte] at hRfin ⊢
+    have hq_pos : 0 < q.toReal :=
+      ENNReal.toReal_pos (zero_lt_one.trans_le hq_one).ne' hq
+    have hpow_pos : 0 < q.toReal / p.toReal := div_pos hq_pos hp_pos
+    refine Summable.of_nonneg_of_le
+      (fun k => Real.rpow_nonneg ((tail R N).levelCoeffPower_nonneg k) _) ?_ hRfin
+    intro k
+    by_cases hk : k < N
+    · simp [tail_levelCoeffPower, hk, Real.zero_rpow hpow_pos.ne',
+        Real.rpow_nonneg (R.levelCoeffPower_nonneg k) _]
+    · simp [tail_levelCoeffPower, hk]
+
+/-- Taking a tail cannot increase the `(p,q)` coefficient cost. -/
+theorem pqCost_tail_le
+    {A : AtomFamily G s p u} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (N : ℕ)
+    (hq_one : 1 ≤ q)
+    (hRfin : FinitePQCost (q := q) R) :
+    LpGridRepresentation.pqCost (q := q) (tail R N) ≤
+      LpGridRepresentation.pqCost (q := q) R := by
+  have hp_pos : 0 < p.toReal := (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+  by_cases hq : q = ∞
+  · simp only [LpGridRepresentation.pqCost, hq, ↓reduceIte]
+    simp only [FinitePQCost, hq, ↓reduceIte] at hRfin
+    apply csSup_le (Set.range_nonempty _)
+    rintro x ⟨k, rfl⟩
+    by_cases hk : k < N
+    · have hinv_pos : 0 < 1 / p.toReal := div_pos one_pos hp_pos
+      have hzero : (0 : ℝ) ^ (p.toReal)⁻¹ = 0 := by
+        simpa [one_div] using Real.zero_rpow hinv_pos.ne'
+      have horig_nonneg : 0 ≤ (R.levelCoeffPower 0) ^ (1 / p.toReal) :=
+        Real.rpow_nonneg (R.levelCoeffPower_nonneg 0) _
+      have hsup_nonneg :
+          0 ≤ sSup (Set.range fun k => (R.levelCoeffPower k) ^ (1 / p.toReal)) :=
+        horig_nonneg.trans (le_csSup hRfin ⟨0, rfl⟩)
+      simpa [tail_levelCoeffPower, hk, hzero] using hsup_nonneg
+    · exact le_csSup hRfin ⟨k, by simp [tail_levelCoeffPower, hk]⟩
+  · simp only [LpGridRepresentation.pqCost, hq, ↓reduceIte]
+    simp only [FinitePQCost, hq, ↓reduceIte] at hRfin
+    have hq_pos : 0 < q.toReal :=
+      ENNReal.toReal_pos (zero_lt_one.trans_le hq_one).ne' hq
+    have hpow_pos : 0 < q.toReal / p.toReal := div_pos hq_pos hp_pos
+    have htailfin := tail_finitePQCost R N hq_one (by simpa [FinitePQCost, hq] using hRfin)
+    simp only [FinitePQCost, hq, ↓reduceIte] at htailfin
+    have hterm_le :
+        (fun k => ((tail R N).levelCoeffPower k) ^ (q.toReal / p.toReal))
+          ≤ fun k => (R.levelCoeffPower k) ^ (q.toReal / p.toReal) := by
+      intro k
+      by_cases hk : k < N
+      · simp [tail_levelCoeffPower, hk, Real.zero_rpow hpow_pos.ne',
+          Real.rpow_nonneg (R.levelCoeffPower_nonneg k) _]
+      · simp [tail_levelCoeffPower, hk]
+    have hsum_le :
+        (∑' k, ((tail R N).levelCoeffPower k) ^ (q.toReal / p.toReal))
+          ≤ ∑' k, (R.levelCoeffPower k) ^ (q.toReal / p.toReal) :=
+      htailfin.tsum_le_tsum hterm_le hRfin
+    exact Real.rpow_le_rpow
+      (tsum_nonneg fun k =>
+        Real.rpow_nonneg ((tail R N).levelCoeffPower_nonneg k) _)
+      hsum_le
+      (div_nonneg zero_le_one hq_pos.le)
 
 /--
 The paper's `C_co(t,q,b)` coefficient-cost function for `t ≥ 1`, `q ≥ 1`.
