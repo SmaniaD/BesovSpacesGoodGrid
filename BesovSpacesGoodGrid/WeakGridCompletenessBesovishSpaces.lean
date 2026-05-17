@@ -425,10 +425,10 @@ Proof sketch (3ε argument):
   The finite sum converges weakly term-by-term via `coeff_tendsto` + `atom_tendsto`.
 -/
 lemma representation_limit_weak_tendsto
-    {A : AtomFamily G s p u} {gseq : ℕ → Lp ℂ p G.measure}
+    {A : AtomFamily G s p u}(hG2 : AssumptionG2 G s p u q)
+    {gseq : ℕ → Lp ℂ p G.measure}
     {gLim : Lp ℂ p G.measure} {C : ℝ}
     (H : RepresentationLimitHypotheses A q gseq gLim C)
-    (hG2 : AssumptionG2 G s p u q)
     (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u)
     [Fact (1 ≤ u)] (hC : 0 ≤ C) :
     Tendsto (fun n => toWeakSpace ℂ (Lp ℂ p G.measure) (gseq n)) atTop
