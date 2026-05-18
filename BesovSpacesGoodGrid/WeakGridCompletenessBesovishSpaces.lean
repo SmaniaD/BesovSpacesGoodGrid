@@ -125,7 +125,7 @@ private lemma weighted_sum_le_cCoefficient_mul_pqCost_of_weight
       _ = C * ∑' k, a k := htsum_scaled
       _ = LpGridRepresentation.cCoefficient p q b *
             LpGridRepresentation.pqCost (q := q) R := by
-          simpa [C, hpq_q1]
+          simp [C, hpq_q1]
   · by_cases hq_top : q = ∞
     · subst hq_top
       have hRbdd : BddAbove (Set.range a) := by
@@ -172,7 +172,7 @@ private lemma weighted_sum_le_cCoefficient_mul_pqCost_of_weight
         intro hreal
         apply hq1
         have hqeq : (1 : ℝ≥0∞) = q :=
-          (ENNReal.toReal_eq_toReal ENNReal.one_ne_top hq_top).mp (by simpa [hreal])
+          (ENNReal.toReal_eq_toReal_iff' ENNReal.one_ne_top hq_top).mp (by simp [hreal])
         exact hqeq.symm
       have hq_toReal_one : 1 < q.toReal :=
         lt_of_le_of_ne hq_toReal_le (Ne.symm hq_toReal_ne_one)
@@ -317,7 +317,7 @@ private lemma tailCoefficientFinite
         intro hreal
         apply hq1
         have hqeq : (1 : ℝ≥0∞) = q :=
-          (ENNReal.toReal_eq_toReal ENNReal.one_ne_top hq_top).mp (by simpa [hreal])
+          (ENNReal.toReal_eq_toReal_iff' ENNReal.one_ne_top hq_top).mp (by simp [hreal])
         exact hqeq.symm
       have hq_toReal_one : 1 < q.toReal :=
         lt_of_le_of_ne hq_toReal_le (Ne.symm hq_toReal_ne_one)
@@ -462,7 +462,7 @@ private lemma sharp_tail_embedding_bound
       hp_ne_top hp_ne_top le_rfl ht_le_pu (R.block k)).symm
   have hIg : I h = g := HasSum.unique hHasSumP R.hasSum
   have hg_ae : (g : α → ℂ) =ᵐ[G.measure] h := by
-    exact ((show (I h : α → ℂ) =ᵐ[G.measure] (g : α → ℂ) by simpa [hIg])).symm.trans
+    exact ((show (I h : α → ℂ) =ᵐ[G.measure] (g : α → ℂ) by simp [hIg])).symm.trans
       (LpGridRepresentation.coeFn_lpInclusion (G := G) (p := p) (t := p)
         hp_ne_top hp_ne_top le_rfl h)
   have hnorm_h : ‖h‖ ≤ ∑' k, ‖F k‖ := by
@@ -1573,7 +1573,7 @@ noncomputable def blockLvlCoeff (block : (k : ℕ) → LevelBlock A k) (k : ℕ)
 omit [Fact (1 ≤ p)] in
 lemma blockLvlCoeff_nonneg (block : (k : ℕ) → LevelBlock A k) (k : ℕ) :
     0 ≤ blockLvlCoeff block k :=
-  Finset.sum_nonneg fun Q _ => Real.rpow_nonneg (norm_nonneg _) _
+  Finset.sum_nonneg fun _ _ => Real.rpow_nonneg (norm_nonneg _) _
 
 lemma blockLvlCoeff_eq_levelCoeffPower {g : Lp ℂ p G.measure}
     (R : LpGridRepresentation A g) (k : ℕ) :
@@ -1597,6 +1597,7 @@ def AbstractFinitePQCost (block : (k : ℕ) → LevelBlock A k) : Prop :=
 noncomputable def windowSum (block : (k : ℕ) → LevelBlock A k) (N M : ℕ) : Lp ℂ p G.measure :=
   ∑ k ∈ Finset.Ico N M, (block k).toLp A
 
+omit [Fact (1 ≤ p)] in
 /-- The partial-sum difference `S_M - S_N` equals the window sum (for N ≤ M). -/
 lemma partialSum_sub_eq_windowSum (block : (k : ℕ) → LevelBlock A k) {N M : ℕ} (hNM : N ≤ M) :
     (∑ k ∈ Finset.range M, (block k).toLp A) -
@@ -1724,6 +1725,7 @@ lemma pqCost_windowRep_le (block : (k : ℕ) → LevelBlock A k) (N M : ℕ)
           hfin
     · exact div_nonneg zero_le_one hq_pos.le
 
+omit [Fact (1 ≤ p)] [Fact (1 ≤ q)] in
 /-- The abstract pq-cost is nonneg. -/
 lemma abstractPQCost_nonneg
   (block : (k : ℕ) → LevelBlock A k) :
@@ -1808,7 +1810,7 @@ theorem formalBlockSeq_summable
         simp only [LpGridRepresentation.levelCoeffPower, tRep, tBlock, hk, ↓reduceIte,
             LevelBlock.zero]
         simp only [norm_zero, Real.zero_rpow hp_pos.ne', Finset.sum_const_zero,
-            Real.zero_rpow (inv_pos.mpr hp_pos).ne']
+            Real.zero_rpow (one_div_pos.mpr hp_pos).ne']
     · -- q ≠ ∞: only t terms nonzero
       refine (hasSum_sum_of_ne_finset_zero
           (α := ℝ) (L := SummationFilter.unconditional ℕ) (s := t)
@@ -1890,5 +1892,7 @@ theorem formalBlockSeq_hasRepresentation
     ⟨⟨{ block := block, hasSum := hsum.hasSum }, rfl⟩⟩⟩
 
 end FormalBlockConvergence
+
+end -- closes noncomputable section
 
 end WeakGridSpace
