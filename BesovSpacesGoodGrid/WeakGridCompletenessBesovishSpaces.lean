@@ -1893,6 +1893,198 @@ theorem formalBlockSeq_hasRepresentation
 
 end FormalBlockConvergence
 
+omit [Fact (1 ≤ p)] in
+/--
+Diagonal compactness for abstract block coefficients.
+
+If every coefficient coordinate `(k,Q)` of a sequence of formal block families
+is bounded in `ℂ`, then there is one subsequence along which all coefficients
+converge.  The limit atoms are chosen from the zeroth block family; this lemma
+only extracts coefficient convergence.
+-/
+lemma exists_subseq_coeff_tendsto_of_coord_bounded
+    {A : AtomFamily G s p u}
+    (Rseq : ℕ → (k : ℕ) → LevelBlock A k)
+    (hbounded : ∀ (k : ℕ) (Q : LevelCell G k),
+      BddAbove (Set.range fun n : ℕ => ‖(Rseq n k).coeff Q‖)) :
+    ∃ (φ : ℕ → ℕ) (_hφ : StrictMono φ) (Rlim : (k : ℕ) → LevelBlock A k),
+      ∀ (k : ℕ) (Q : LevelCell G k),
+        Tendsto (fun n => (Rseq (φ n) k).coeff Q) atTop
+          (𝓝 ((Rlim k).coeff Q)) := by
+  classical
+  let coord := Σ k : ℕ, LevelCell G k
+  let radius : coord → ℝ := fun i => sSup (Set.range fun n : ℕ => ‖(Rseq n i.1).coeff i.2‖)
+  have hmem : ∀ n i,
+      (Rseq n i.1).coeff i.2 ∈ Metric.closedBall (0 : ℂ) (radius i) := by
+    intro n i
+    simp only [Metric.mem_closedBall, dist_zero_right, radius]
+    exact le_csSup (hbounded i.1 i.2) ⟨n, rfl⟩
+  let K : coord → Type _ := fun i => Metric.closedBall (0 : ℂ) (radius i)
+  haveI : ∀ i : coord, CompactSpace (K i) := by
+    intro i
+    exact isCompact_iff_compactSpace.mp (isCompact_closedBall (0 : ℂ) (radius i))
+  let xseq : ℕ → (∀ i : coord, K i) := fun n i => ⟨(Rseq n i.1).coeff i.2, hmem n i⟩
+  rcases CompactSpace.tendsto_subseq xseq with ⟨xlim, φ, hφ, hxlim⟩
+  let Rlim : (k : ℕ) → LevelBlock A k := fun k =>
+    { coeff := fun Q => (xlim ⟨k, Q⟩ : K ⟨k, Q⟩)
+      atom := fun Q => (Rseq 0 k).atom Q
+      atom_mem := fun Q => (Rseq 0 k).atom_mem Q }
+  refine ⟨φ, hφ, Rlim, ?_⟩
+  intro k Q
+  have hcoord :
+      Tendsto (fun n => (xseq (φ n) ⟨k, Q⟩ : K ⟨k, Q⟩)) atTop
+        (𝓝 (xlim ⟨k, Q⟩)) :=
+    (continuous_apply ⟨k, Q⟩).continuousAt.tendsto.comp hxlim
+  exact (continuous_subtype_val.tendsto _).comp hcoord
+
+/-- Cellwise coefficient convergence implies convergence of each bare level coefficient power. -/
+lemma blockLvlCoeff_tendsto_of_coeff_tendsto
+    {A : AtomFamily G s p u} {gseq : ℕ → Lp ℂ p G.measure}
+    (Rseq : ∀ n, LpGridRepresentation A (gseq n))
+    (block : (k : ℕ) → LevelBlock A k)
+    (hcoeff : ∀ (k : ℕ) (Q : LevelCell G k),
+      Tendsto (fun n => ((Rseq n).block k).coeff Q) atTop
+        (𝓝 ((block k).coeff Q)))
+    (k : ℕ) :
+    Tendsto (fun n => (Rseq n).levelCoeffPower k) atTop
+      (𝓝 (blockLvlCoeff block k)) := by
+  unfold LpGridRepresentation.levelCoeffPower blockLvlCoeff
+  refine tendsto_finsetSum (Finset.univ) ?_
+  intro Q hQ
+  have hnorm : Tendsto (fun n => ‖((Rseq n).block k).coeff Q‖) atTop
+      (𝓝 ‖(block k).coeff Q‖) :=
+    tendsto_norm.comp (hcoeff k Q)
+  have hp_nonneg : 0 ≤ p.toReal := ENNReal.toReal_nonneg
+  exact (Real.continuousAt_rpow_const
+      (x := ‖(block k).coeff Q‖) (q := p.toReal) (Or.inr hp_nonneg)).tendsto.comp hnorm
+
+/--
+The abstract coefficient cost of a bare block limit is finite as a consequence
+of a uniform extended coefficient-cost bound and cellwise coefficient convergence.
+-/
+lemma abstractFinitePQCost_of_coeff_tendsto_uniform_bound
+    {A : AtomFamily G s p u} {gseq : ℕ → Lp ℂ p G.measure}
+    (Rseq : ∀ n, LpGridRepresentation A (gseq n))
+    {C : ℝ} (hC : 0 ≤ C)
+    (uniform_bound : ∀ n,
+      LpGridRepresentation.pqCostENNReal (q := q) (Rseq n) ≤ ENNReal.ofReal C)
+    (block : (k : ℕ) → LevelBlock A k)
+    (hcoeff : ∀ (k : ℕ) (Q : LevelCell G k),
+      Tendsto (fun n => ((Rseq n).block k).coeff Q) atTop
+        (𝓝 ((block k).coeff Q))) :
+    AbstractFinitePQCost (q := q) block := by
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ p)).ne' A.p_ne_top
+  by_cases hq : q = ∞
+  · simp only [AbstractFinitePQCost, hq, ↓reduceIte]
+    refine ⟨C, ?_⟩
+    rintro x ⟨k, rfl⟩
+    have htend : Tendsto
+        (fun n => (Rseq n).levelCoeffPower k ^ (1 / p.toReal)) atTop
+        (𝓝 (blockLvlCoeff block k ^ (1 / p.toReal))) := by
+      exact (Real.continuousAt_rpow_const
+          (x := blockLvlCoeff block k) (q := 1 / p.toReal)
+          (Or.inr (div_nonneg zero_le_one hp_pos.le))).tendsto.comp
+        (blockLvlCoeff_tendsto_of_coeff_tendsto Rseq block hcoeff k)
+    apply le_of_tendsto' htend
+    intro n
+    have hbound := uniform_bound n
+    simp only [LpGridRepresentation.pqCostENNReal, hq, ↓reduceIte] at hbound
+    exact (ENNReal.ofReal_le_ofReal_iff hC).mp
+      ((le_sSup (Set.mem_range.mpr ⟨k, rfl⟩)).trans hbound)
+  · simp only [AbstractFinitePQCost, hq, ↓reduceIte]
+    have hq_pos : 0 < q.toReal :=
+      ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ q)).ne' hq
+    have hterm_nonneg : ∀ k, 0 ≤ blockLvlCoeff block k ^ (q.toReal / p.toReal) :=
+      fun k => Real.rpow_nonneg (blockLvlCoeff_nonneg block k) _
+    apply summable_of_sum_range_le hterm_nonneg
+    intro N
+    have hprefix_tendsto : Tendsto
+        (fun n => ∑ k ∈ Finset.range N,
+          (Rseq n).levelCoeffPower k ^ (q.toReal / p.toReal)) atTop
+        (𝓝 (∑ k ∈ Finset.range N,
+          blockLvlCoeff block k ^ (q.toReal / p.toReal))) := by
+      refine tendsto_finsetSum (Finset.range N) ?_
+      intro k hk
+      exact (Real.continuousAt_rpow_const
+          (x := blockLvlCoeff block k) (q := q.toReal / p.toReal)
+          (Or.inr (div_nonneg hq_pos.le hp_pos.le))).tendsto.comp
+        (blockLvlCoeff_tendsto_of_coeff_tendsto Rseq block hcoeff k)
+    apply le_of_tendsto' hprefix_tendsto
+    intro n
+    have hbound := uniform_bound n
+    simp only [LpGridRepresentation.pqCostENNReal, hq, ↓reduceIte] at hbound
+    have hbound_pow := ENNReal.rpow_le_rpow hbound hq_pos.le
+    rw [← ENNReal.rpow_mul, one_div_mul_cancel hq_pos.ne', ENNReal.rpow_one] at hbound_pow
+    have hsum_enn :
+        ∑ k ∈ Finset.range N,
+            ENNReal.ofReal ((Rseq n).levelCoeffPower k ^ (q.toReal / p.toReal))
+          ≤ (ENNReal.ofReal C) ^ q.toReal :=
+      (ENNReal.sum_le_tsum (Finset.range N)).trans hbound_pow
+    have hsum_enn' :
+        ENNReal.ofReal
+            (∑ k ∈ Finset.range N,
+              (Rseq n).levelCoeffPower k ^ (q.toReal / p.toReal))
+          ≤ ENNReal.ofReal (C ^ q.toReal) := by
+      rw [ENNReal.ofReal_sum_of_nonneg
+        (fun k hk => Real.rpow_nonneg ((Rseq n).levelCoeffPower_nonneg k) _)]
+      rw [← ENNReal.ofReal_rpow_of_nonneg hC hq_pos.le]
+      exact hsum_enn
+    exact (ENNReal.ofReal_le_ofReal_iff (Real.rpow_nonneg hC _)).mp hsum_enn'
+
+theorem representation_limit_strong_existence
+    (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u)
+    (A : AtomFamily G s p u)(hG2 : AssumptionG2 G s p u q)
+     {gseq : ℕ → Lp ℂ p G.measure}
+     (Rseq : ∀ n, LpGridRepresentation A (gseq n))
+    {C : ℝ}
+    [Fact (1 ≤ u)]
+    (hC : 0 ≤ C)
+    (uniform_bound : ∀ n, LpGridRepresentation.pqCostENNReal (q := q) (Rseq n) ≤ ENNReal.ofReal C)
+    (Rlim : (k : ℕ) → LevelBlock A k)
+    (coeff_tendsto : ∀ (k : ℕ) (Q : LevelCell G k),
+      Tendsto (fun n => ((Rseq n).block k).coeff Q) atTop
+        (𝓝 ((Rlim k).coeff Q)))
+    (atom_tendsto : ∀ (k : ℕ) (Q : LevelCell G k),
+      Tendsto
+        (fun n => atomLp A (levelCellToWeakGridCell G k Q) (((Rseq n).block k).atom Q))
+        atTop
+        (𝓝 (atomLp A (levelCellToWeakGridCell G k Q) ((Rlim k).atom Q)))) :
+    ∃ gLim : Lp ℂ p G.measure,
+      ∃ hRlim : HasSum (fun k => (Rlim k).toLp A) gLim,
+        let RlimRep : LpGridRepresentation A gLim := { block := Rlim, hasSum := hRlim }
+        MemBesovishCoeffCost A q gLim ∧
+        LpGridRepresentation.FinitePQCost (q := q) RlimRep ∧
+        LpGridRepresentation.pqCost (q := q) RlimRep ≤ C ∧
+        Tendsto gseq atTop (𝓝 gLim) := by
+  have hfin : AbstractFinitePQCost (q := q) Rlim :=
+    abstractFinitePQCost_of_coeff_tendsto_uniform_bound
+      (A := A) Rseq hC uniform_bound Rlim coeff_tendsto
+  have hsum := formalBlockSeq_summable
+      (A := A) hG2 hp_ne_top hs_pos hu_one Rlim hfin
+  let gLim : Lp ℂ p G.measure := ∑' k, (Rlim k).toLp A
+  let hRlim : HasSum (fun k => (Rlim k).toLp A) gLim := hsum.hasSum
+  let RlimRep : LpGridRepresentation A gLim := { block := Rlim, hasSum := hRlim }
+  let H : RepresentationLimitStrongHypotheses A q gseq gLim C :=
+    { Rseq := Rseq
+      Rlim := RlimRep
+      uniform_bound := uniform_bound
+      coeff_tendsto := by
+        intro k Q
+        exact coeff_tendsto k Q
+      atom_tendsto := by
+        intro k Q
+        exact atom_tendsto k Q }
+  let Hw : RepresentationLimitHypotheses A q gseq gLim C := H.toWeak
+  exact ⟨gLim, hRlim,
+    representation_limit_memBesovishCoeffCost Hw,
+    representation_limit_finitePQCost Hw,
+    representation_limit_pqCost_le Hw hC,
+    representation_limit_strong_tendsto A hG2 H hp_ne_top hs_pos hu_one hC⟩
+
+
+
+
 end -- closes noncomputable section
 
 end WeakGridSpace
