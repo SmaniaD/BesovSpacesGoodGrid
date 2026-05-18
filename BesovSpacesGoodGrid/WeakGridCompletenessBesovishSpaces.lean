@@ -2654,7 +2654,6 @@ theorem closed_Norm_Costpq_ball_strongly_seqCompact
     (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u)
     (A : AtomFamily G s p u) (hG2 : AssumptionG2 G s p u q)
     (hA5 : AssumptionA5 A)
-    (hA : BesovishSpace.HasFiniteCostRepresentations (A := A) q)
     {C : ℝ}
     [Fact (1 ≤ u)]
     (hC : 0 ≤ C)
@@ -2677,19 +2676,22 @@ theorem closed_Norm_Costpq_ball_strongly_seqCompact
     fun n =>
       Classical.choose
         (BesovishSpace.exists_cost_lt_Norm_Costpq_add
-          (A := A) (q := q) hA (gseq n) (hε_pos n))
+          (A := A) (q := q) (BesovishSpace.hasFiniteCostRepresentations A q)
+          (gseq n) (hε_pos n))
   have hRseq_fin : ∀ n, LpGridRepresentation.FinitePQCost (q := q) (Rseq n) := by
     intro n
     exact (Classical.choose_spec
       (BesovishSpace.exists_cost_lt_Norm_Costpq_add
-        (A := A) (q := q) hA (gseq n) (hε_pos n))).1
+        (A := A) (q := q) (BesovishSpace.hasFiniteCostRepresentations A q)
+        (gseq n) (hε_pos n))).1
   have hRseq_cost_lt : ∀ n,
       LpGridRepresentation.pqCost (q := q) (Rseq n) <
         BesovishSpace.Norm_Costpq A q (gseq n) + ε n := by
     intro n
     exact (Classical.choose_spec
       (BesovishSpace.exists_cost_lt_Norm_Costpq_add
-        (A := A) (q := q) hA (gseq n) (hε_pos n))).2
+        (A := A) (q := q) (BesovishSpace.hasFiniteCostRepresentations A q)
+        (gseq n) (hε_pos n))).2
   have hε_le_one : ∀ n, ε n ≤ 1 := by
     intro n
     dsimp [ε]
@@ -2839,7 +2841,6 @@ theorem besovishSpace_Norm_Costpq_cauchySeq_tendsto
     (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u)
     (A : AtomFamily G s p u) (hG2 : AssumptionG2 G s p u q)
     (hA5 : AssumptionA5 A)
-    (hA : BesovishSpace.HasFiniteCostRepresentations (A := A) q)
     [Fact (1 ≤ u)]
     (gseq : ℕ → BesovishSpace A q)
     (hcauchy : ∀ η > 0, ∃ N, ∀ m ≥ N, ∀ n ≥ N,
@@ -2854,11 +2855,13 @@ theorem besovishSpace_Norm_Costpq_cauchySeq_tendsto
       ∑ n ∈ Finset.range N0, BesovishSpace.Norm_Costpq A q (gseq n)
   have hC_nonneg : 0 ≤ C := by
     have hbase : 0 ≤ BesovishSpace.Norm_Costpq A q (gseq N0) :=
-      BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q) hA (gseq N0)
+      BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q)
+        (BesovishSpace.hasFiniteCostRepresentations A q) (gseq N0)
     have hsum_nonneg :
         0 ≤ ∑ n ∈ Finset.range N0, BesovishSpace.Norm_Costpq A q (gseq n) :=
       Finset.sum_nonneg fun n hn =>
-        BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q) hA (gseq n)
+        BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q)
+          (BesovishSpace.hasFiniteCostRepresentations A q) (gseq n)
     linarith
   have hball : ∀ n, BesovishSpace.Norm_Costpq A q (gseq n) ≤ C := by
     intro n
@@ -2867,11 +2870,13 @@ theorem besovishSpace_Norm_Costpq_cauchySeq_tendsto
         hN0 N0 le_rfl n hn
       have htri :=
         BesovishSpace.Norm_Costpq_add_le
-          (A := A) (q := q) hp_ne_top hA (gseq n - gseq N0) (gseq N0)
+          (A := A) (q := q) hp_ne_top
+          (BesovishSpace.hasFiniteCostRepresentations A q) (gseq n - gseq N0) (gseq N0)
       have hsum_nonneg :
           0 ≤ ∑ n ∈ Finset.range N0, BesovishSpace.Norm_Costpq A q (gseq n) :=
         Finset.sum_nonneg fun n hn =>
-          BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q) hA (gseq n)
+          BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q)
+            (BesovishSpace.hasFiniteCostRepresentations A q) (gseq n)
       calc
         BesovishSpace.Norm_Costpq A q (gseq n)
             = BesovishSpace.Norm_Costpq A q ((gseq n - gseq N0) + gseq N0) := by
@@ -2887,15 +2892,17 @@ theorem besovishSpace_Norm_Costpq_cauchySeq_tendsto
           BesovishSpace.Norm_Costpq A q (gseq n) ≤
             ∑ m ∈ Finset.range N0, BesovishSpace.Norm_Costpq A q (gseq m) := by
         exact Finset.single_le_sum
-          (fun m hm => BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q) hA (gseq m))
+          (fun m hm => BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q)
+            (BesovishSpace.hasFiniteCostRepresentations A q) (gseq m))
           hnmem
       have hbase_nonneg : 0 ≤ BesovishSpace.Norm_Costpq A q (gseq N0) :=
-        BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q) hA (gseq N0)
+        BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q)
+          (BesovishSpace.hasFiniteCostRepresentations A q) (gseq N0)
       dsimp [C]
       linarith
   rcases closed_Norm_Costpq_ball_strongly_seqCompact
       (G := G) (s := s) (p := p) (u := u) (q := q)
-      hp_ne_top hs_pos hu_one A hG2 hA5 hA hC_nonneg gseq hball with
+      hp_ne_top hs_pos hu_one A hG2 hA5 hC_nonneg gseq hball with
       ⟨φ, hφ, gLim, hLim_ball, hLp_tendsto⟩
   refine ⟨gLim, ?_⟩
   intro η hη
@@ -2913,7 +2920,7 @@ theorem besovishSpace_Norm_Costpq_cauchySeq_tendsto
     exact le_of_lt (by simpa [dseq] using hN i hi (φ (k + K)) hφN)
   rcases closed_Norm_Costpq_ball_strongly_seqCompact
       (G := G) (s := s) (p := p) (u := u) (q := q)
-      hp_ne_top hs_pos hu_one A hG2 hA5 hA hδ_pos.le dseq hdseq_ball with
+      hp_ne_top hs_pos hu_one A hG2 hA5 hδ_pos.le dseq hdseq_ball with
       ⟨χ, hχ, hDiffLim, hDiffNorm, hDiffLp_tendsto⟩
   have hidx_tendsto : Tendsto (fun n : ℕ => χ n + K) atTop atTop :=
     (tendsto_add_atTop_nat K).comp hχ.tendsto_atTop
@@ -2940,6 +2947,68 @@ theorem besovishSpace_Norm_Costpq_cauchySeq_tendsto
     dsimp [δ]
     linarith
   exact lt_of_le_of_lt htarget_norm hδ_lt_eta
+
+/--
+`BesovishSpace A q`, endowed with the coefficient-cost norm `Norm_Costpq`, is a
+complete metric space. Use this theorem after activating the local structure
+`BesovishSpace.costNormedAddCommGroup`; then Mathlib's Banach-space machinery
+can use the resulting `CompleteSpace` instance.
+-/
+theorem besovishSpace_costNorm_completeSpace
+    (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u)
+    (A : AtomFamily G s p u) (hG2 : AssumptionG2 G s p u q)
+    (hA5 : AssumptionA5 A)
+    [Fact (1 ≤ u)] :
+    @CompleteSpace (BesovishSpace A q)
+      (BesovishSpace.costNormedAddCommGroup
+        (A := A) (q := q) hp_ne_top hG2.1).toMetricSpace.toPseudoMetricSpace.toUniformSpace := by
+  classical
+  letI : NormedAddCommGroup (BesovishSpace A q) :=
+    BesovishSpace.costNormedAddCommGroup
+      (A := A) (q := q) hp_ne_top hG2.1
+  have hnorm_eq :
+      ∀ x : BesovishSpace A q, ‖x‖ = BesovishSpace.Norm_Costpq A q x := by
+    intro x
+    rfl
+  refine @Metric.complete_of_cauchySeq_tendsto (BesovishSpace A q)
+    (BesovishSpace.costNormedAddCommGroup
+      (A := A) (q := q) hp_ne_top hG2.1).toMetricSpace.toPseudoMetricSpace ?_
+  intro gseq hgseq
+  have hcauchy : ∀ η > 0, ∃ N, ∀ m ≥ N, ∀ n ≥ N,
+      BesovishSpace.Norm_Costpq A q (gseq n - gseq m) < η := by
+    intro η hη
+    have hgseq' :
+        @CauchySeq (BesovishSpace A q) ℕ
+          (BesovishSpace.costNormedAddCommGroup
+            (A := A) (q := q) hp_ne_top hG2.1).toMetricSpace.toPseudoMetricSpace.toUniformSpace
+          SemilatticeSup.toPartialOrder.toPreorder gseq := by
+      exact hgseq
+    rcases (@Metric.cauchySeq_iff (BesovishSpace A q) ℕ
+        (BesovishSpace.costNormedAddCommGroup
+          (A := A) (q := q) hp_ne_top hG2.1).toMetricSpace.toPseudoMetricSpace
+        _ _ gseq).mp hgseq' η hη with ⟨N, hN⟩
+    refine ⟨N, fun m hm n hn => ?_⟩
+    have hdist := hN m hm n hn
+    change BesovishSpace.Norm_Costpq A q (-gseq m + gseq n) < η at hdist
+    simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using hdist
+  rcases besovishSpace_Norm_Costpq_cauchySeq_tendsto
+      (G := G) (s := s) (p := p) (u := u) (q := q)
+      hp_ne_top hs_pos hu_one A hG2 hA5 gseq hcauchy with
+      ⟨gLim, hlim⟩
+  refine ⟨gLim, ?_⟩
+  refine (@Metric.tendsto_atTop (BesovishSpace A q) ℕ
+    (BesovishSpace.costNormedAddCommGroup
+      (A := A) (q := q) hp_ne_top hG2.1).toMetricSpace.toPseudoMetricSpace
+    _ _ gseq gLim).mpr ?_
+  intro η hη
+  rcases hlim η hη with ⟨N, hN⟩
+  refine ⟨N, fun n hn => ?_⟩
+  have hcost : BesovishSpace.Norm_Costpq A q (gLim - gseq n) < η := hN n hn
+  have hdist_cost :
+      BesovishSpace.Norm_Costpq A q (-gseq n + gLim) < η := by
+    simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using hcost
+  change BesovishSpace.Norm_Costpq A q (-gseq n + gLim) < η
+  exact hdist_cost
 
 
 
