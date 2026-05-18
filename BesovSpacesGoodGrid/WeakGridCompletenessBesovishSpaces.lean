@@ -1549,6 +1549,348 @@ theorem representation_limit_strong
 
 
 
-end
+/-! ## Formal block sequence completeness
+
+Under `AssumptionG2`, any formal block sequence (a family of level blocks indexed by ℕ)
+with finite abstract (p,q)-cost has a convergent series in `L^p`.  This gives a canonical
+`LpGridRepresentation` for the limit function.
+
+**Proof sketch**: For N ≤ M, the window sum `∑_{k ∈ Ico N M} (block k).toLp A` admits a
+`LpGridRepresentation` with zero blocks outside [N, M).  Apply `sharp_tail_embedding_bound`
+with parameter N (all blocks below N are zero) to bound the window norm by
+`C_emb · tailCCoefficient N · C` where `C` is the abstract pq-cost.  As N → ∞ the bound
+tends to 0, so partial sums form a Cauchy sequence, which converges by completeness of `L^p`.
+-/
+
+section FormalBlockConvergence
+
+variable {A : AtomFamily G s p u}
+
+/-- Level-k coefficient power computed from blocks alone (no limit function required). -/
+noncomputable def blockLvlCoeff (block : (k : ℕ) → LevelBlock A k) (k : ℕ) : ℝ :=
+  ∑ Q : LevelCell G k, ‖(block k).coeff Q‖ ^ p.toReal
+
+omit [Fact (1 ≤ p)] in
+lemma blockLvlCoeff_nonneg (block : (k : ℕ) → LevelBlock A k) (k : ℕ) :
+    0 ≤ blockLvlCoeff block k :=
+  Finset.sum_nonneg fun Q _ => Real.rpow_nonneg (norm_nonneg _) _
+
+lemma blockLvlCoeff_eq_levelCoeffPower {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (k : ℕ) :
+    blockLvlCoeff R.block k = R.levelCoeffPower k := rfl
+
+/-- Abstract pq-cost of a bare block sequence. -/
+noncomputable def abstractPQCost (block : (k : ℕ) → LevelBlock A k) : ℝ :=
+  if q = ∞ then
+    sSup (Set.range fun k => (blockLvlCoeff block k) ^ (1 / p.toReal))
+  else
+    (∑' k, (blockLvlCoeff block k) ^ (q.toReal / p.toReal)) ^ (1 / q.toReal)
+
+/-- Finite pq-cost condition for a bare block sequence. -/
+def AbstractFinitePQCost (block : (k : ℕ) → LevelBlock A k) : Prop :=
+  if q = ∞ then
+    BddAbove (Set.range fun k => (blockLvlCoeff block k) ^ (1 / p.toReal))
+  else
+    Summable (fun k => (blockLvlCoeff block k) ^ (q.toReal / p.toReal))
+
+/-- The window sum `∑_{k ∈ Ico N M} (block k).toLp A`. -/
+noncomputable def windowSum (block : (k : ℕ) → LevelBlock A k) (N M : ℕ) : Lp ℂ p G.measure :=
+  ∑ k ∈ Finset.Ico N M, (block k).toLp A
+
+/-- The partial-sum difference `S_M - S_N` equals the window sum (for N ≤ M). -/
+lemma partialSum_sub_eq_windowSum (block : (k : ℕ) → LevelBlock A k) {N M : ℕ} (hNM : N ≤ M) :
+    (∑ k ∈ Finset.range M, (block k).toLp A) -
+      (∑ k ∈ Finset.range N, (block k).toLp A) =
+    windowSum block N M := by
+  simp only [windowSum]
+  have hdisj : Disjoint (Finset.range N) (Finset.Ico N M) :=
+    Finset.disjoint_left.mpr fun k h1 h2 =>
+      absurd (Finset.mem_Ico.mp h2).1 (Nat.not_le.mpr (Finset.mem_range.mp h1))
+  have hunion : Finset.range N ∪ Finset.Ico N M = Finset.range M := by
+    ext k; simp [Finset.mem_union, Finset.mem_range, Finset.mem_Ico]; omega
+  rw [← hunion, Finset.sum_union hdisj]
+  abel
+
+/-- The window representation: blocks from N to M-1, zeros elsewhere. -/
+noncomputable def windowRep (block : (k : ℕ) → LevelBlock A k) (N M : ℕ) :
+    LpGridRepresentation A (windowSum block N M) where
+  block := fun k => if N ≤ k ∧ k < M then block k else LevelBlock.zero A k
+  hasSum := by
+    simp only [windowSum]
+    have hfin0 :=
+      hasSum_sum_of_ne_finset_zero
+        (α := Lp ℂ p G.measure) (L := SummationFilter.unconditional ℕ)
+        (s := Finset.Ico N M)
+        (f := fun k => if N ≤ k ∧ k < M then (block k).toLp A else 0)
+        (by
+          intro k hk
+          simp only [Finset.mem_Ico, not_and_or, not_lt] at hk
+          simp only [show ¬(N ≤ k ∧ k < M) from by
+            rcases hk with h | h
+            · exact fun ⟨hle, _⟩ => absurd hle (Nat.not_le.mpr h)
+            · exact fun ⟨_, hlt⟩ => absurd hlt (not_lt.mpr h),
+            if_false])
+    refine hfin0.congr_fun (fun k => ?_)
+    split_ifs with h <;> [rfl; simp [LevelBlock.zero_toLp]]
+
+/-- The levelCoeffPower of the window representation. -/
+@[simp]
+lemma windowRep_levelCoeffPower (block : (k : ℕ) → LevelBlock A k) (N M k : ℕ) :
+    (windowRep block N M).levelCoeffPower k =
+      if N ≤ k ∧ k < M then blockLvlCoeff block k else 0 := by
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ p)).ne' A.p_ne_top
+  simp only [LpGridRepresentation.levelCoeffPower, windowRep, blockLvlCoeff]
+  split_ifs with h
+  · rfl
+  · simp [LevelBlock.zero, Real.zero_rpow hp_pos.ne']
+
+/-- Window levelCoeffPower is zero below N. -/
+lemma windowRep_levelCoeffPower_zero_of_lt (block : (k : ℕ) → LevelBlock A k)
+    (N M k : ℕ) (hk : k < N) :
+    (windowRep block N M).levelCoeffPower k = 0 := by
+  rw [windowRep_levelCoeffPower]
+  simp [Nat.not_le.mpr hk]
+
+/-- The window representation has finite pq-cost (finitely many nonzero blocks). -/
+lemma windowRep_finitePQCost (block : (k : ℕ) → LevelBlock A k) (N M : ℕ) :
+    LpGridRepresentation.FinitePQCost (q := q) (windowRep block N M) := by
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ p)).ne' A.p_ne_top
+  simp only [LpGridRepresentation.FinitePQCost]
+  split_ifs with hq
+  · -- q = ∞: BddAbove — range is contained in a finite set of reals
+    apply Set.Finite.bddAbove
+    apply (Finset.finite_toSet
+        (insert 0 ((Finset.Ico N M).image
+          (fun k => blockLvlCoeff block k ^ (1 / p.toReal))))).subset
+    rintro x ⟨k, rfl⟩
+    simp only [Finset.coe_insert, Finset.coe_image, Set.mem_insert_iff, Set.mem_image,
+        Finset.mem_coe, Finset.mem_Ico]
+    rw [windowRep_levelCoeffPower]
+    split_ifs with h
+    · exact Or.inr ⟨k, h, rfl⟩
+    · left; simp [Real.zero_rpow (one_div_pos.mpr hp_pos).ne']
+  · -- q ≠ ∞: Summable — only Ico N M terms nonzero
+    refine (hasSum_sum_of_ne_finset_zero
+        (α := ℝ) (L := SummationFilter.unconditional ℕ)
+        (s := Finset.Ico N M)
+        (f := fun k => (windowRep block N M).levelCoeffPower k ^ (q.toReal / p.toReal))
+        (by
+          intro k hk
+          simp only [Finset.mem_Ico, not_and_or, not_lt] at hk
+          rw [windowRep_levelCoeffPower]
+          simp only [show ¬(N ≤ k ∧ k < M) from by
+            rcases hk with h | h
+            · exact fun ⟨hle, _⟩ => absurd hle (Nat.not_le.mpr h)
+            · exact fun ⟨_, hlt⟩ => absurd hlt (not_lt.mpr h),
+            if_false, Real.zero_rpow (div_pos (ENNReal.toReal_pos
+              (zero_lt_one.trans_le (Fact.out : 1 ≤ q)).ne' hq) hp_pos).ne'])).summable
+
+/-- The pq-cost of the window is bounded by the abstract pq-cost of the full block sequence. -/
+lemma pqCost_windowRep_le (block : (k : ℕ) → LevelBlock A k) (N M : ℕ)
+    (hfin : AbstractFinitePQCost (q := q) block) :
+    LpGridRepresentation.pqCost (q := q) (windowRep block N M) ≤
+      abstractPQCost (q := q) block := by
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ p)).ne' A.p_ne_top
+  simp only [LpGridRepresentation.pqCost, abstractPQCost]
+  split_ifs with hq
+  · -- q = ∞: window sup ≤ full sup
+    simp only [AbstractFinitePQCost, hq, ↓reduceIte] at hfin
+    apply csSup_le (Set.range_nonempty _)
+    rintro x ⟨k, rfl⟩
+    rw [windowRep_levelCoeffPower]
+    split_ifs with h
+    · exact le_csSup hfin ⟨k, rfl⟩
+    · -- 0^{1/p} = 0 ≤ sSup(full range)
+      simp only [Real.zero_rpow (one_div_pos.mpr hp_pos).ne']
+      exact Real.sSup_nonneg ⟨_, ⟨0, rfl⟩,
+        Real.rpow_nonneg (blockLvlCoeff_nonneg block 0) _⟩
+  · -- q ≠ ∞: window tsum ≤ full tsum, then apply rpow_le_rpow
+    simp only [AbstractFinitePQCost, hq, ↓reduceIte] at hfin
+    have hq_pos : 0 < q.toReal :=
+      ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ q)).ne' hq
+    apply Real.rpow_le_rpow
+    · exact tsum_nonneg fun k =>
+        Real.rpow_nonneg ((windowRep block N M).levelCoeffPower_nonneg k) _
+    · apply tsum_le_tsum
+      · intro k
+        rw [windowRep_levelCoeffPower]
+        split_ifs with h
+        · exact le_refl _
+        · exact Real.rpow_nonneg (blockLvlCoeff_nonneg block k) _
+      · apply Summable.of_nonneg_of_le
+            (fun k => Real.rpow_nonneg ((windowRep block N M).levelCoeffPower_nonneg k) _)
+        · intro k
+          rw [windowRep_levelCoeffPower]
+          split_ifs with h
+          · exact le_refl _
+          · exact Real.rpow_nonneg (blockLvlCoeff_nonneg block k) _
+        · exact hfin
+      · exact hfin
+    · exact div_nonneg zero_le_one hq_pos.le
+
+/-- The abstract pq-cost is nonneg. -/
+lemma abstractPQCost_nonneg (block : (k : ℕ) → LevelBlock A k) :
+    0 ≤ abstractPQCost (q := q) block := by
+  simp only [abstractPQCost]
+  split_ifs with hq
+  · exact Real.sSup_nonneg ⟨_, ⟨0, rfl⟩, Real.rpow_nonneg (blockLvlCoeff_nonneg block 0) _⟩
+  · exact Real.rpow_nonneg
+      (tsum_nonneg fun k => Real.rpow_nonneg (blockLvlCoeff_nonneg block k) _) _
+
+/--
+Under `AssumptionG2`, a formal block sequence with finite abstract (p,q)-cost
+is summable in `L^p`.
+
+**Proof**: the window sum `S_M - S_N = windowSum block N M` admits a representation
+`windowRep block N M` to which `sharp_tail_embedding_bound` (parameter N, zero blocks below N)
+applies.  The norm bound `‖S_M - S_N‖ ≤ C_emb · tailCCoefficient N · abstractPQCost`
+tends to 0 as N → ∞, making the partial sums Cauchy; completeness of `L^p` gives the limit.
+-/
+theorem formalBlockSeq_summable
+    (hG2 : AssumptionG2 G s p u q)
+    (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u) [Fact (1 ≤ u)]
+    (block : (k : ℕ) → LevelBlock A k)
+    (hfin : AbstractFinitePQCost (q := q) block) :
+    Summable (fun k => (block k).toLp A) := by
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ p)).ne' hp_ne_top
+  let C := abstractPQCost (q := q) block
+  have hC_nonneg : 0 ≤ C := abstractPQCost_nonneg block
+  let Cemb : ℝ := (G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)
+  have hCemb_nonneg : 0 ≤ Cemb := by positivity
+  -- Tail bound tends to zero
+  have htail_bound : Tendsto (fun N => Cemb * tailCCoefficient G s p q N * C) atTop (𝓝 0) := by
+    have h := (tailCCoefficient_tendsto_zero (G := G) (s := s) (p := p) (u := u) (q := q)
+      hG2 hp_ne_top hs_pos).const_mul (Cemb * C)
+    simpa only [mul_zero] using h.congr (fun N => by ring)
+  -- Apply vanishing norm criterion: Summable iff ∀ ε > 0, ∃ s, ∀ t disjoint from s, ‖∑ t f‖ < ε
+  rw [summable_iff_vanishing_norm]
+  intro ε hε
+  -- Pick N large enough that Cemb * tail(N) * C < ε
+  obtain ⟨N, hN⟩ := (htail_bound.eventually_lt tendsto_const_nhds hε).exists
+  refine ⟨Finset.range N, fun t ht => ?_⟩
+  -- Define the finset representation: block k for k ∈ t, zero block otherwise
+  let tBlock : (k : ℕ) → LevelBlock A k := fun k => if k ∈ t then block k else LevelBlock.zero A k
+  -- HasSum for tBlock
+  have htBlock_hasSum : HasSum (fun k => (tBlock k).toLp A) (∑ k ∈ t, (block k).toLp A) := by
+    have h0 := hasSum_sum_of_ne_finset_zero
+        (α := Lp ℂ p G.measure) (L := SummationFilter.unconditional ℕ) (s := t)
+        (f := fun k => if k ∈ t then (block k).toLp A else 0)
+        (by intro k hk; simp [hk])
+    have hkey : ∀ k, (tBlock k).toLp A = (if k ∈ t then (block k).toLp A else 0) := by
+      intro k; simp only [tBlock]; split_ifs with h <;> [rfl; simp [LevelBlock.zero_toLp]]
+    have hsum : ∑ k ∈ t, (if k ∈ t then (block k).toLp A else (0 : Lp ℂ p G.measure)) =
+        ∑ k ∈ t, (block k).toLp A :=
+      Finset.sum_congr rfl (fun k hk => by simp [hk])
+    rw [← hsum]; exact h0.congr_fun hkey
+  -- Build the representation
+  let tRep : LpGridRepresentation A (∑ k ∈ t, (block k).toLp A) :=
+    { block := tBlock, hasSum := htBlock_hasSum }
+  -- All levels below N have zero levelCoeffPower (t is disjoint from range N)
+  have htRep_zero : ∀ k, k < N → tRep.levelCoeffPower k = 0 := by
+    intro k hkN
+    have hknotin : k ∉ t :=
+      Finset.disjoint_right.mp ht (Finset.mem_range.mpr hkN)
+    simp only [LpGridRepresentation.levelCoeffPower, tRep, tBlock, hknotin, ↓reduceIte,
+        LevelBlock.zero]
+    simp [Real.zero_rpow hp_pos.ne']
+  -- tRep has finite pq-cost (only finitely many nonzero terms, indexed by t)
+  have htRep_fin : LpGridRepresentation.FinitePQCost (q := q) tRep := by
+    simp only [LpGridRepresentation.FinitePQCost]
+    split_ifs with hq
+    · -- q = ∞: the range is contained in a finite set
+      apply Set.Finite.bddAbove
+      apply (Finset.finite_toSet
+          (insert 0 (t.image (fun k => tRep.levelCoeffPower k ^ (1 / p.toReal))))).subset
+      rintro x ⟨k, rfl⟩
+      simp only [Finset.coe_insert, Finset.coe_image, Set.mem_insert_iff, Set.mem_image,
+          Finset.mem_coe]
+      by_cases hk : k ∈ t
+      · exact Or.inr ⟨k, hk, rfl⟩
+      · left
+        simp only [LpGridRepresentation.levelCoeffPower, tRep, tBlock, hk, ↓reduceIte,
+            LevelBlock.zero]
+        simp [Real.zero_rpow hp_pos.ne', Real.zero_rpow (one_div_pos.mpr hp_pos).ne']
+    · -- q ≠ ∞: only t terms nonzero
+      refine (hasSum_sum_of_ne_finset_zero
+          (α := ℝ) (L := SummationFilter.unconditional ℕ) (s := t)
+          (f := fun k => tRep.levelCoeffPower k ^ (q.toReal / p.toReal))
+          (by
+            intro k hk
+            simp only [LpGridRepresentation.levelCoeffPower, tRep, tBlock, hk, ↓reduceIte,
+                LevelBlock.zero]
+            simp [Real.zero_rpow hp_pos.ne',
+                Real.zero_rpow (div_pos (ENNReal.toReal_pos
+                  (zero_lt_one.trans_le (Fact.out : 1 ≤ q)).ne' hq) hp_pos).ne'])).summable
+  -- pqCost of tRep is bounded by abstract pq-cost
+  have hcost_le : LpGridRepresentation.pqCost (q := q) tRep ≤ C := by
+    simp only [LpGridRepresentation.pqCost, C, abstractPQCost]
+    split_ifs with hq
+    · simp only [AbstractFinitePQCost, hq, ↓reduceIte] at hfin
+      apply csSup_le (Set.range_nonempty _)
+      rintro x ⟨k, rfl⟩
+      simp only [LpGridRepresentation.levelCoeffPower, tRep, tBlock]
+      by_cases hk : k ∈ t
+      · simp only [hk, ↓reduceIte]
+        exact le_csSup hfin ⟨k, rfl⟩
+      · simp only [hk, ↓reduceIte, LevelBlock.zero,
+            Real.zero_rpow (one_div_pos.mpr hp_pos).ne']
+        exact Real.sSup_nonneg _ ⟨_, ⟨0, rfl⟩, Real.rpow_nonneg (blockLvlCoeff_nonneg block 0) _⟩
+    · simp only [AbstractFinitePQCost, hq, ↓reduceIte] at hfin
+      have hq_pos : 0 < q.toReal :=
+        ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ q)).ne' hq
+      apply Real.rpow_le_rpow
+      · exact tsum_nonneg fun k => Real.rpow_nonneg (tRep.levelCoeffPower_nonneg k) _
+      · apply tsum_le_tsum
+        · intro k
+          simp only [LpGridRepresentation.levelCoeffPower, tRep, tBlock]
+          by_cases hk : k ∈ t
+          · simp [hk]
+          · simp only [hk, ↓reduceIte, LevelBlock.zero,
+                Real.zero_rpow hp_pos.ne', Real.zero_rpow (div_pos hq_pos hp_pos).ne']
+            exact Real.rpow_nonneg (blockLvlCoeff_nonneg block k) _
+        · exact Summable.of_nonneg_of_le
+              (fun k => Real.rpow_nonneg (tRep.levelCoeffPower_nonneg k) _)
+              (fun k => by
+                simp only [LpGridRepresentation.levelCoeffPower, tRep, tBlock]
+                by_cases hk : k ∈ t
+                · simp [hk]
+                · simp only [hk, ↓reduceIte, LevelBlock.zero,
+                      Real.zero_rpow hp_pos.ne', Real.zero_rpow (div_pos hq_pos hp_pos).ne']
+                  exact Real.rpow_nonneg (blockLvlCoeff_nonneg block k) _)
+              hfin
+        · exact hfin
+      · exact div_nonneg zero_le_one hq_pos.le
+  -- Apply the sharp tail embedding bound and chain the inequalities
+  have hbound := sharp_tail_embedding_bound (A := A) hG2 hp_ne_top hu_one hs_pos
+      tRep htRep_fin N htRep_zero
+  calc ‖∑ k ∈ t, (block k).toLp A‖
+      ≤ Cemb * tailCCoefficient G s p q N *
+            LpGridRepresentation.pqCost (q := q) tRep := by simpa [Cemb] using hbound
+    _ ≤ Cemb * tailCCoefficient G s p q N * C :=
+          mul_le_mul_of_nonneg_left hcost_le
+            (mul_nonneg hCemb_nonneg
+              (LpGridRepresentation.cCoefficient_nonneg p q _
+                (tailCoefficientWeight_nonneg G s p N)))
+    _ < ε := hN
+
+/--
+Under `AssumptionG2`, a formal block sequence with finite abstract (p,q)-cost
+defines an `LpGridRepresentation` of the limit function in `L^p`.
+-/
+theorem formalBlockSeq_hasRepresentation
+    (hG2 : AssumptionG2 G s p u q)
+    (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u) [Fact (1 ≤ u)]
+    (block : (k : ℕ) → LevelBlock A k)
+    (hfin : AbstractFinitePQCost (q := q) block) :
+    ∃ g : Lp ℂ p G.measure, Nonempty (LpGridRepresentation A g) := by
+  have hsum := formalBlockSeq_summable hG2 hp_ne_top hs_pos hu_one block hfin
+  exact ⟨∑' k, (block k).toLp A,
+    ⟨{ block := block, hasSum := hsum.hasSum }⟩⟩
+
+end FormalBlockConvergence
 
 end WeakGridSpace
