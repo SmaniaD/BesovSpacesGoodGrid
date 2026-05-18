@@ -3258,6 +3258,16 @@ def HasFiniteCostRepresentations (A : AtomFamily G s p u) (q : ℝ≥0∞)
     ∃ R : LpGridRepresentation A (x : Lp ℂ p G.measure),
       LpGridRepresentation.FinitePQCost (q := q) R
 
+/--
+Every element of `BesovishSpace A q` already carries a finite-cost
+representation by definition, so the global finite-cost hypothesis is automatic.
+-/
+theorem hasFiniteCostRepresentations (A : AtomFamily G s p u) (q : ℝ≥0∞)
+    [Fact (1 ≤ q)] :
+    HasFiniteCostRepresentations (A := A) q := by
+  intro x
+  simpa [BesovishSpace, MemBesovishCoeffCost, LpGridRepresentation.FinitePQCost] using x.property
+
 /-- The set of admissible `pqCost` upper bounds is nonempty under the global hypothesis. -/
 theorem pqCostUpperSet_nonempty
     (hA : HasFiniteCostRepresentations (A := A) q)
@@ -3541,14 +3551,14 @@ structure as a submodule.
 noncomputable def costNormedAddCommGroup
     (hp_top : p ≠ ∞)
     (hCco_fin : LpGridRepresentation.cCoefficientFinite p q (fun k =>
-      (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal))
-    (hA : HasFiniteCostRepresentations (A := A) q) :
+      (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal)) :
     NormedAddCommGroup (BesovishSpace A q) where
   norm := Norm_Costpq A q
   dist x y := Norm_Costpq A q (-x + y)
   dist_self := by
     intro x
-    have h0 := Norm_Costpq_smul_eq (A := A) (q := q) hp_top hA 0 x
+    have h0 := Norm_Costpq_smul_eq (A := A) (q := q) hp_top
+      (hasFiniteCostRepresentations (A := A) q) 0 x
     simpa using h0
   dist_comm := by
     intro x y
@@ -3557,7 +3567,8 @@ noncomputable def costNormedAddCommGroup
     calc
       Norm_Costpq A q (-x + y)
           = Norm_Costpq A q ((-1 : ℂ) • (-x + y)) := by
-              rw [Norm_Costpq_smul_eq (A := A) (q := q) hp_top hA (-1) (-x + y)]
+              rw [Norm_Costpq_smul_eq (A := A) (q := q) hp_top
+                (hasFiniteCostRepresentations (A := A) q) (-1) (-x + y)]
               simp
       _ = Norm_Costpq A q (-y + x) := by
         simpa [hcomm]
@@ -3570,11 +3581,13 @@ noncomputable def costNormedAddCommGroup
       Norm_Costpq A q (-x + z)
           = Norm_Costpq A q ((-x + y) + (-y + z)) := by rw [hsum]
       _ ≤ Norm_Costpq A q (-x + y) + Norm_Costpq A q (-y + z) :=
-        Norm_Costpq_add_le (A := A) (q := q) hp_top hA (-x + y) (-y + z)
+        Norm_Costpq_add_le (A := A) (q := q) hp_top
+          (hasFiniteCostRepresentations (A := A) q) (-x + y) (-y + z)
   eq_of_dist_eq_zero := by
     intro x y hxy
     have hzero : -x + y = 0 :=
-      eq_zero_of_Norm_Costpq_eq_zero (A := A) (q := q) hp_top hCco_fin hA hxy
+      eq_zero_of_Norm_Costpq_eq_zero (A := A) (q := q) hp_top hCco_fin
+        (hasFiniteCostRepresentations (A := A) q) hxy
     have h := congrArg (fun z : BesovishSpace A q => x + z) hzero
     symm
     simpa [add_assoc] using h
@@ -3587,10 +3600,9 @@ theorem costNormedAddCommGroup_norm
     (hp_top : p ≠ ∞)
     (hCco_fin : LpGridRepresentation.cCoefficientFinite p q (fun k =>
       (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal))
-    (hA : HasFiniteCostRepresentations (A := A) q)
     (x : BesovishSpace A q) :
     @norm (BesovishSpace A q)
-      (costNormedAddCommGroup (A := A) (q := q) hp_top hCco_fin hA).toNorm x =
+      (costNormedAddCommGroup (A := A) (q := q) hp_top hCco_fin).toNorm x =
       Norm_Costpq A q x :=
   rfl
 
@@ -3604,20 +3616,20 @@ norm, is intended.
 noncomputable def costNormedSpace
     (hp_top : p ≠ ∞)
     (hCco_fin : LpGridRepresentation.cCoefficientFinite p q (fun k =>
-      (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal))
-    (hA : HasFiniteCostRepresentations (A := A) q) :
+      (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal)) :
     @NormedSpace ℂ (BesovishSpace A q) _
-      ({ costNormedAddCommGroup (A := A) (q := q) hp_top hCco_fin hA with } :
+      ({ costNormedAddCommGroup (A := A) (q := q) hp_top hCco_fin with } :
         SeminormedAddCommGroup (BesovishSpace A q)) := by
   exact
     @NormedSpace.mk ℂ (BesovishSpace A q) _
-      ({ costNormedAddCommGroup (A := A) (q := q) hp_top hCco_fin hA with } :
+      ({ costNormedAddCommGroup (A := A) (q := q) hp_top hCco_fin with } :
         SeminormedAddCommGroup (BesovishSpace A q))
       inferInstance
       (by
         intro c x
         change Norm_Costpq A q (c • x) ≤ ‖c‖ * Norm_Costpq A q x
-        rw [Norm_Costpq_smul_eq (A := A) (q := q) hp_top hA])
+        rw [Norm_Costpq_smul_eq (A := A) (q := q) hp_top
+          (hasFiniteCostRepresentations (A := A) q)])
 
 /--
 Packaged existence statement: under the hypotheses used in
@@ -3627,17 +3639,16 @@ normed-space structure whose norm is exactly `Norm_Costpq`.
 theorem besovishSpace_has_cost_normedSpace
     (hp_top : p ≠ ∞)
     (hCco_fin : LpGridRepresentation.cCoefficientFinite p q (fun k =>
-      (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal))
-    (hA : HasFiniteCostRepresentations (A := A) q) :
+      (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal)) :
     ∃ N : NormedAddCommGroup (BesovishSpace A q),
       (∀ x : BesovishSpace A q, @norm (BesovishSpace A q) N.toNorm x = Norm_Costpq A q x) ∧
       Nonempty
         (@NormedSpace ℂ (BesovishSpace A q) _
           ({ N with } : SeminormedAddCommGroup (BesovishSpace A q))) := by
-  refine ⟨costNormedAddCommGroup (A := A) (q := q) hp_top hCco_fin hA, ?_, ?_⟩
+  refine ⟨costNormedAddCommGroup (A := A) (q := q) hp_top hCco_fin, ?_, ?_⟩
   · intro x
     rfl
-  · exact ⟨costNormedSpace (A := A) (q := q) hp_top hCco_fin hA⟩
+  · exact ⟨costNormedSpace (A := A) (q := q) hp_top hCco_fin⟩
 
 /--
 Main structural summary for the Besov-ish space endowed with `Norm_Costpq`.

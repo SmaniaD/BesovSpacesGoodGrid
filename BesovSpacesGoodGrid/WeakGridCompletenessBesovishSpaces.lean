@@ -1049,6 +1049,36 @@ lemma representation_limit_pqCost_le
   exact pqCost_le_of_pqCostENNReal_le H.Rlim (representation_limit_pqCostENNReal_le H) hC
 
 /--
+Conversely, for a finite-cost representation, a real `pqCost` bound gives the
+same bound for the extended `ENNReal` cost.
+-/
+private lemma pqCostENNReal_le_of_finitePQCost_pqCost_le
+    {A : AtomFamily G s p u} {q : ℝ≥0∞} [Fact (1 ≤ q)]
+    {g : Lp ℂ p G.measure} {C : ℝ}
+    (R : LpGridRepresentation A g)
+    (hRfin : LpGridRepresentation.FinitePQCost (q := q) R)
+    (hcost : LpGridRepresentation.pqCost (q := q) R ≤ C) :
+    LpGridRepresentation.pqCostENNReal (q := q) R ≤ ENNReal.ofReal C := by
+  by_cases hq : q = ∞
+  · simp only [LpGridRepresentation.pqCostENNReal, hq, ↓reduceIte]
+    simp only [LpGridRepresentation.pqCost, hq, ↓reduceIte] at hcost
+    simp only [LpGridRepresentation.FinitePQCost, hq, ↓reduceIte] at hRfin
+    apply sSup_le
+    rintro x ⟨k, rfl⟩
+    exact ENNReal.ofReal_le_ofReal ((le_csSup hRfin ⟨k, rfl⟩).trans hcost)
+  · simp only [LpGridRepresentation.pqCostENNReal, hq, ↓reduceIte]
+    simp only [LpGridRepresentation.pqCost, hq, ↓reduceIte] at hcost
+    simp only [LpGridRepresentation.FinitePQCost, hq, ↓reduceIte] at hRfin
+    have hq_pos : 0 < q.toReal :=
+      ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ q)).ne' hq
+    have h_nonneg : ∀ k, 0 ≤ R.levelCoeffPower k ^ (q.toReal / p.toReal) :=
+      fun k => Real.rpow_nonneg (R.levelCoeffPower_nonneg k) _
+    rw [← ENNReal.ofReal_tsum_of_nonneg h_nonneg hRfin,
+        ENNReal.ofReal_rpow_of_nonneg (tsum_nonneg h_nonneg)
+          (div_nonneg zero_le_one hq_pos.le)]
+    exact ENNReal.ofReal_le_ofReal hcost
+
+/--
 The limit representation defines a Besov-ish element with finite coefficient
 cost.
 -/
@@ -2447,6 +2477,469 @@ theorem representation_limit_weak_existence
     representation_limit_pqCost_le H hC,
     representation_limit_weak_tendsto A hG2 H hp_ne_top hs_pos hu_one hC⟩
 
+/--
+Sequential compactness core for uniformly coefficient-bounded representations.
+
+Given a sequence of actual representations with uniformly bounded extended
+`(p,q)` cost, coordinatewise bounded coefficients, and strong sequential
+compactness of the atom sets (`A5`), one can extract a subsequence converging
+strongly in ambient `L^p` to a Besov-ish limit.
+-/
+theorem exists_strongly_convergent_subseq_of_uniform_representations
+    (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u)
+    (A : AtomFamily G s p u) (hG2 : AssumptionG2 G s p u q)
+    (hA5 : AssumptionA5 A)
+    {gseq : ℕ → Lp ℂ p G.measure}
+    (Rseq : ∀ n, LpGridRepresentation A (gseq n))
+    {C : ℝ}
+    [Fact (1 ≤ u)]
+    (hC : 0 ≤ C)
+    (uniform_bound : ∀ n,
+      LpGridRepresentation.pqCostENNReal (q := q) (Rseq n) ≤ ENNReal.ofReal C)
+    (coeff_bounded : ∀ (k : ℕ) (Q : LevelCell G k),
+      BddAbove (Set.range fun n : ℕ => ‖((Rseq n).block k).coeff Q‖)) :
+    ∃ (φ : ℕ → ℕ) (_hφ : StrictMono φ) (gLim : Lp ℂ p G.measure),
+      MemBesovishCoeffCost A q gLim ∧
+        Tendsto (fun n => gseq (φ n)) atTop (𝓝 gLim) := by
+  let Bseq : ℕ → (k : ℕ) → LevelBlock A k := fun n => (Rseq n).block
+  rcases exists_subseq_coeff_tendsto_of_coord_bounded
+      (A := A) Bseq coeff_bounded with ⟨φc, hφc, RcoeffLim, hcoeff_lim⟩
+  let Bseqc : ℕ → (k : ℕ) → LevelBlock A k := fun n => Bseq (φc n)
+  rcases exists_subseq_atoms_tendsto_of_abstract
+      (A := A) hA5 Bseqc with ⟨φa, hφa, RatomLim, hatom_lim⟩
+  let φ : ℕ → ℕ := φc ∘ φa
+  have hφ : StrictMono φ := hφc.comp hφa
+  let Rlim : (k : ℕ) → LevelBlock A k := fun k =>
+    { coeff := (RcoeffLim k).coeff
+      atom := (RatomLim k).atom
+      atom_mem := (RatomLim k).atom_mem }
+  have hcoeff_lim' : ∀ (k : ℕ) (Q : LevelCell G k),
+      Tendsto (fun n => ((Rseq (φ n)).block k).coeff Q) atTop
+        (𝓝 ((Rlim k).coeff Q)) := by
+    intro k Q
+    have hcoeff_to_Rcoeff :
+        Tendsto (fun n => (Bseq (φc n) k).coeff Q) atTop
+          (𝓝 ((RcoeffLim k).coeff Q)) :=
+      hcoeff_lim k Q
+    have hcoeff_to_Rcoeff_sub :
+        Tendsto (fun n => (Bseq (φc (φa n)) k).coeff Q) atTop
+          (𝓝 ((RcoeffLim k).coeff Q)) :=
+      hcoeff_to_Rcoeff.comp hφa.tendsto_atTop
+    simpa [φ, Bseq, Rlim] using hcoeff_to_Rcoeff_sub
+  have hatom_lim' : ∀ (k : ℕ) (Q : LevelCell G k),
+      Tendsto
+        (fun n => atomLp A (levelCellToWeakGridCell G k Q) (((Rseq (φ n)).block k).atom Q))
+        atTop
+        (𝓝 (atomLp A (levelCellToWeakGridCell G k Q) ((Rlim k).atom Q))) := by
+    intro k Q
+    simpa [φ, Bseq, Bseqc, Rlim] using hatom_lim k Q
+  have uniform_bound' : ∀ n,
+      LpGridRepresentation.pqCostENNReal (q := q) (Rseq (φ n)) ≤ ENNReal.ofReal C := by
+    intro n
+    exact uniform_bound (φ n)
+  rcases representation_limit_strong_existence
+      (G := G) (s := s) (p := p) (u := u) (q := q)
+      hp_ne_top hs_pos hu_one A hG2
+      (fun n => Rseq (φ n)) hC uniform_bound' Rlim hcoeff_lim' hatom_lim' with
+      ⟨gLim, hRlim, hmem, hfin, hcost, htend⟩
+  exact ⟨φ, hφ, gLim, hmem, htend⟩
+
+lemma coeff_bounded_of_uniform_pqCostENNReal_le
+    {A : AtomFamily G s p u} {gseq : ℕ → Lp ℂ p G.measure}
+    (Rseq : ∀ n, LpGridRepresentation A (gseq n))
+    {C : ℝ} (hC : 0 ≤ C)
+    (uniform_bound : ∀ n,
+      LpGridRepresentation.pqCostENNReal (q := q) (Rseq n) ≤ ENNReal.ofReal C) :
+    ∀ (k : ℕ) (Q : LevelCell G k),
+      BddAbove (Set.range fun n : ℕ => ‖((Rseq n).block k).coeff Q‖) := by
+  intro k Q
+  refine ⟨C, ?_⟩
+  rintro x ⟨n, rfl⟩
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ p)).ne' A.p_ne_top
+  have hcoeff_power_le :
+      ‖((Rseq n).block k).coeff Q‖ ^ p.toReal ≤ (Rseq n).levelCoeffPower k := by
+    unfold LpGridRepresentation.levelCoeffPower
+    exact Finset.single_le_sum
+      (fun Q _ => Real.rpow_nonneg (norm_nonneg (((Rseq n).block k).coeff Q)) _)
+      (Finset.mem_univ Q)
+  have hcoeff_le_level :
+      ‖((Rseq n).block k).coeff Q‖ ≤ (Rseq n).levelCoeffPower k ^ (1 / p.toReal) := by
+    calc
+      ‖((Rseq n).block k).coeff Q‖
+          = (‖((Rseq n).block k).coeff Q‖ ^ p.toReal) ^ (1 / p.toReal) := by
+            simpa [one_div] using
+              (Real.rpow_rpow_inv (norm_nonneg (((Rseq n).block k).coeff Q))
+                hp_pos.ne').symm
+      _ ≤ ((Rseq n).levelCoeffPower k) ^ (1 / p.toReal) :=
+          Real.rpow_le_rpow
+            (Real.rpow_nonneg (norm_nonneg _) _) hcoeff_power_le
+            (div_nonneg zero_le_one hp_pos.le)
+  have hlevel_le_C :
+      (Rseq n).levelCoeffPower k ^ (1 / p.toReal) ≤ C := by
+    by_cases hq : q = ∞
+    · have hbound := uniform_bound n
+      simp only [LpGridRepresentation.pqCostENNReal, hq, ↓reduceIte] at hbound
+      exact (ENNReal.ofReal_le_ofReal_iff hC).mp
+        ((le_sSup (Set.mem_range.mpr ⟨k, rfl⟩)).trans hbound)
+    · have hq_pos : 0 < q.toReal :=
+        ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ q)).ne' hq
+      have hbound := uniform_bound n
+      simp only [LpGridRepresentation.pqCostENNReal, hq, ↓reduceIte] at hbound
+      have hpow := ENNReal.rpow_le_rpow hbound hq_pos.le
+      rw [← ENNReal.rpow_mul, one_div_mul_cancel hq_pos.ne', ENNReal.rpow_one] at hpow
+      have hterm :
+          ENNReal.ofReal ((Rseq n).levelCoeffPower k ^ (q.toReal / p.toReal))
+            ≤ ENNReal.ofReal (C ^ q.toReal) := by
+        rw [← ENNReal.ofReal_rpow_of_nonneg hC hq_pos.le]
+        exact (ENNReal.le_tsum k).trans hpow
+      have hreal :
+          (Rseq n).levelCoeffPower k ^ (q.toReal / p.toReal) ≤ C ^ q.toReal :=
+        (ENNReal.ofReal_le_ofReal_iff (Real.rpow_nonneg hC _)).mp hterm
+      have hroot := Real.rpow_le_rpow
+        (Real.rpow_nonneg ((Rseq n).levelCoeffPower_nonneg k) _) hreal
+        (div_nonneg zero_le_one hq_pos.le)
+      calc
+        (Rseq n).levelCoeffPower k ^ (1 / p.toReal)
+            = ((Rseq n).levelCoeffPower k ^ (q.toReal / p.toReal)) ^
+                (1 / q.toReal) := by
+              rw [← Real.rpow_mul ((Rseq n).levelCoeffPower_nonneg k)]
+              congr 1
+              field_simp [hp_pos.ne', hq_pos.ne']
+        _ ≤ (C ^ q.toReal) ^ (1 / q.toReal) := hroot
+        _ = C := by
+          simpa [one_div] using Real.rpow_rpow_inv hC hq_pos.ne'
+  exact hcoeff_le_level.trans hlevel_le_C
+
+/--
+Sequential compactness core for uniformly bounded representations.
+
+Under `G2` and strong sequential compactness of the atom sets (`A5`), any
+sequence of representations with uniformly bounded extended `(p,q)` cost has a
+subsequence converging strongly in ambient `L^p` to a Besov-ish limit.
+
+The coefficient boundedness needed for the Cantor diagonal extraction is
+derived from the uniform cost bound.
+-/
+theorem exists_strongly_convergent_subseq_of_uniform_pqCostENNReal
+    (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u)
+    (A : AtomFamily G s p u) (hG2 : AssumptionG2 G s p u q)
+    (hA5 : AssumptionA5 A)
+    {gseq : ℕ → Lp ℂ p G.measure}
+    (Rseq : ∀ n, LpGridRepresentation A (gseq n))
+    {C : ℝ}
+    [Fact (1 ≤ u)]
+    (hC : 0 ≤ C)
+    (uniform_bound : ∀ n,
+      LpGridRepresentation.pqCostENNReal (q := q) (Rseq n) ≤ ENNReal.ofReal C) :
+    ∃ (φ : ℕ → ℕ) (_hφ : StrictMono φ) (gLim : Lp ℂ p G.measure),
+      MemBesovishCoeffCost A q gLim ∧
+        Tendsto (fun n => gseq (φ n)) atTop (𝓝 gLim) := by
+  exact exists_strongly_convergent_subseq_of_uniform_representations
+    (G := G) (s := s) (p := p) (u := u) (q := q)
+    hp_ne_top hs_pos hu_one A hG2 hA5 Rseq hC uniform_bound
+    (coeff_bounded_of_uniform_pqCostENNReal_le
+      (G := G) (s := s) (p := p) (u := u) (q := q) Rseq hC uniform_bound)
+
+/--
+The closed `Norm_Costpq` ball is sequentially compact for the ambient strong
+`L^p` topology, assuming `G2` and strong sequential compactness of atoms.
+
+This is the formal sequential-compactness version of the compactness statement:
+from any sequence in the closed cost ball of radius `C`, extract a subsequence
+that converges in `L^p` to a Besov-ish element still lying in the same closed
+ball.
+-/
+theorem closed_Norm_Costpq_ball_strongly_seqCompact
+    (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u)
+    (A : AtomFamily G s p u) (hG2 : AssumptionG2 G s p u q)
+    (hA5 : AssumptionA5 A)
+    (hA : BesovishSpace.HasFiniteCostRepresentations (A := A) q)
+    {C : ℝ}
+    [Fact (1 ≤ u)]
+    (hC : 0 ≤ C)
+    (gseq : ℕ → BesovishSpace A q)
+    (hball : ∀ n, BesovishSpace.Norm_Costpq A q (gseq n) ≤ C) :
+    ∃ (φ : ℕ → ℕ) (_hφ : StrictMono φ) (gLim : BesovishSpace A q),
+      BesovishSpace.Norm_Costpq A q gLim ≤ C ∧
+        Tendsto
+          (fun n => ((gseq (φ n) : BesovishSpace A q) : Lp ℂ p G.measure))
+          atTop
+          (𝓝 ((gLim : BesovishSpace A q) : Lp ℂ p G.measure)) := by
+  classical
+  let ε : ℕ → ℝ := fun n => ((n + 1 : ℕ) : ℝ)⁻¹
+  have hε_pos : ∀ n, 0 < ε n := by
+    intro n
+    dsimp [ε]
+    positivity
+  let Rseq : ∀ n,
+      LpGridRepresentation A ((gseq n : BesovishSpace A q) : Lp ℂ p G.measure) :=
+    fun n =>
+      Classical.choose
+        (BesovishSpace.exists_cost_lt_Norm_Costpq_add
+          (A := A) (q := q) hA (gseq n) (hε_pos n))
+  have hRseq_fin : ∀ n, LpGridRepresentation.FinitePQCost (q := q) (Rseq n) := by
+    intro n
+    exact (Classical.choose_spec
+      (BesovishSpace.exists_cost_lt_Norm_Costpq_add
+        (A := A) (q := q) hA (gseq n) (hε_pos n))).1
+  have hRseq_cost_lt : ∀ n,
+      LpGridRepresentation.pqCost (q := q) (Rseq n) <
+        BesovishSpace.Norm_Costpq A q (gseq n) + ε n := by
+    intro n
+    exact (Classical.choose_spec
+      (BesovishSpace.exists_cost_lt_Norm_Costpq_add
+        (A := A) (q := q) hA (gseq n) (hε_pos n))).2
+  have hε_le_one : ∀ n, ε n ≤ 1 := by
+    intro n
+    dsimp [ε]
+    have hn : (1 : ℝ) ≤ ((n + 1 : ℕ) : ℝ) := by exact_mod_cast Nat.succ_le_succ (Nat.zero_le n)
+    exact inv_le_one_of_one_le₀ hn
+  have hC1_nonneg : 0 ≤ C + 1 := by linarith
+  have uniform_bound_C1 : ∀ n,
+      LpGridRepresentation.pqCostENNReal (q := q) (Rseq n) ≤ ENNReal.ofReal (C + 1) := by
+    intro n
+    have hcost_le : LpGridRepresentation.pqCost (q := q) (Rseq n) ≤ C + 1 := by
+      calc
+        LpGridRepresentation.pqCost (q := q) (Rseq n)
+            ≤ BesovishSpace.Norm_Costpq A q (gseq n) + ε n :=
+              le_of_lt (hRseq_cost_lt n)
+        _ ≤ C + 1 := add_le_add (hball n) (hε_le_one n)
+    exact pqCostENNReal_le_of_finitePQCost_pqCost_le
+      (G := G) (s := s) (p := p) (u := u) (q := q)
+      (Rseq n) (hRseq_fin n) hcost_le
+  let Bseq : ℕ → (k : ℕ) → LevelBlock A k := fun n => (Rseq n).block
+  have coeff_bounded : ∀ (k : ℕ) (Q : LevelCell G k),
+      BddAbove (Set.range fun n : ℕ => ‖(Bseq n k).coeff Q‖) := by
+    simpa [Bseq] using
+      coeff_bounded_of_uniform_pqCostENNReal_le
+        (G := G) (s := s) (p := p) (u := u) (q := q)
+        Rseq hC1_nonneg uniform_bound_C1
+  rcases exists_subseq_coeff_tendsto_of_coord_bounded
+      (A := A) Bseq coeff_bounded with ⟨φc, hφc, RcoeffLim, hcoeff_lim⟩
+  let Bseqc : ℕ → (k : ℕ) → LevelBlock A k := fun n => Bseq (φc n)
+  rcases exists_subseq_atoms_tendsto_of_abstract
+      (A := A) hA5 Bseqc with ⟨φa, hφa, RatomLim, hatom_lim⟩
+  let φ : ℕ → ℕ := φc ∘ φa
+  have hφ : StrictMono φ := hφc.comp hφa
+  let Rlim : (k : ℕ) → LevelBlock A k := fun k =>
+    { coeff := (RcoeffLim k).coeff
+      atom := (RatomLim k).atom
+      atom_mem := (RatomLim k).atom_mem }
+  have hcoeff_lim' : ∀ (k : ℕ) (Q : LevelCell G k),
+      Tendsto (fun n => ((Rseq (φ n)).block k).coeff Q) atTop
+        (𝓝 ((Rlim k).coeff Q)) := by
+    intro k Q
+    have hcoeff_to_Rcoeff :
+        Tendsto (fun n => (Bseq (φc n) k).coeff Q) atTop
+          (𝓝 ((RcoeffLim k).coeff Q)) :=
+      hcoeff_lim k Q
+    have hcoeff_to_Rcoeff_sub :
+        Tendsto (fun n => (Bseq (φc (φa n)) k).coeff Q) atTop
+          (𝓝 ((RcoeffLim k).coeff Q)) :=
+      hcoeff_to_Rcoeff.comp hφa.tendsto_atTop
+    simpa [φ, Bseq, Rlim] using hcoeff_to_Rcoeff_sub
+  have hatom_lim' : ∀ (k : ℕ) (Q : LevelCell G k),
+      Tendsto
+        (fun n => atomLp A (levelCellToWeakGridCell G k Q) (((Rseq (φ n)).block k).atom Q))
+        atTop
+        (𝓝 (atomLp A (levelCellToWeakGridCell G k Q) ((Rlim k).atom Q))) := by
+    intro k Q
+    simpa [φ, Bseq, Bseqc, Rlim] using hatom_lim k Q
+  have uniform_bound_sub_C1 : ∀ n,
+      LpGridRepresentation.pqCostENNReal (q := q) (Rseq (φ n)) ≤ ENNReal.ofReal (C + 1) := by
+    intro n
+    exact uniform_bound_C1 (φ n)
+  rcases representation_limit_strong_existence
+      (G := G) (s := s) (p := p) (u := u) (q := q)
+      hp_ne_top hs_pos hu_one A hG2
+      (fun n => Rseq (φ n)) hC1_nonneg uniform_bound_sub_C1
+      Rlim hcoeff_lim' hatom_lim' with
+      ⟨gLp, hRlim, hmem, hfin, hcost_C1, htend⟩
+  let gLim : BesovishSpace A q := ⟨gLp, hmem⟩
+  let RlimRep : LpGridRepresentation A gLp := { block := Rlim, hasSum := hRlim }
+  have hcost_le_add : ∀ δ > 0,
+      LpGridRepresentation.pqCost (q := q) RlimRep ≤ C + δ := by
+    intro δ hδ
+    have hD_nonneg : 0 ≤ C + δ := by linarith
+    have hε_eventually : ∀ᶠ n in atTop, ε (φ n) < δ := by
+      have hε_tendsto : Tendsto (fun n : ℕ => ε n) atTop (𝓝 0) := by
+        simpa [ε] using (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ))
+      have hε_sub_tendsto : Tendsto (fun n : ℕ => ε (φ n)) atTop (𝓝 0) :=
+        hε_tendsto.comp hφ.tendsto_atTop
+      rcases (Metric.tendsto_atTop.mp hε_sub_tendsto) δ hδ with ⟨N, hN⟩
+      refine eventually_atTop.2 ⟨N, ?_⟩
+      intro n hn
+      have hdist := hN n hn
+      have hnonneg : 0 ≤ ε (φ n) := (hε_pos (φ n)).le
+      simpa [dist_eq_norm, Real.norm_eq_abs, abs_of_nonneg hnonneg] using hdist
+    rcases eventually_atTop.1 hε_eventually with ⟨N, hN⟩
+    let ψ : ℕ → ℕ := fun n => φ (n + N)
+    have hψ_coeff : ∀ (k : ℕ) (Q : LevelCell G k),
+        Tendsto (fun n => ((Rseq (ψ n)).block k).coeff Q) atTop
+          (𝓝 ((Rlim k).coeff Q)) := by
+      intro k Q
+      exact (hcoeff_lim' k Q).comp (tendsto_add_atTop_nat N)
+    have hψ_atom : ∀ (k : ℕ) (Q : LevelCell G k),
+        Tendsto
+          (fun n => atomLp A (levelCellToWeakGridCell G k Q) (((Rseq (ψ n)).block k).atom Q))
+          atTop
+          (𝓝 (atomLp A (levelCellToWeakGridCell G k Q) ((Rlim k).atom Q))) := by
+      intro k Q
+      exact (hatom_lim' k Q).comp (tendsto_add_atTop_nat N)
+    have hψ_bound : ∀ n,
+        LpGridRepresentation.pqCostENNReal (q := q) (Rseq (ψ n)) ≤
+          ENNReal.ofReal (C + δ) := by
+      intro n
+      have hcost_le : LpGridRepresentation.pqCost (q := q) (Rseq (ψ n)) ≤ C + δ := by
+        calc
+          LpGridRepresentation.pqCost (q := q) (Rseq (ψ n))
+              ≤ BesovishSpace.Norm_Costpq A q (gseq (ψ n)) + ε (ψ n) :=
+                le_of_lt (hRseq_cost_lt (ψ n))
+          _ ≤ C + ε (ψ n) := by
+              linarith [hball (ψ n)]
+          _ ≤ C + δ := by
+              have hsmall : ε (ψ n) < δ := hN (n + N) (Nat.le_add_left N n)
+              linarith
+      exact pqCostENNReal_le_of_finitePQCost_pqCost_le
+        (G := G) (s := s) (p := p) (u := u) (q := q)
+        (Rseq (ψ n)) (hRseq_fin (ψ n)) hcost_le
+    let Hwδ : RepresentationLimitHypotheses A q
+        (fun n => ((gseq (ψ n) : BesovishSpace A q) : Lp ℂ p G.measure))
+        gLp (C + δ) :=
+      { Rseq := fun n => Rseq (ψ n)
+        Rlim := RlimRep
+        uniform_bound := hψ_bound
+        coeff_tendsto := hψ_coeff
+        atom_tendsto := by
+          intro k Q
+          exact (map_continuous (toWeakSpaceCLM ℂ (Lp ℂ p G.measure))).continuousAt.tendsto.comp
+            (hψ_atom k Q) }
+    have hcostδ := representation_limit_pqCost_le Hwδ hD_nonneg
+    simpa [Hwδ] using hcostδ
+  have hNorm_le_C : BesovishSpace.Norm_Costpq A q gLim ≤ C := by
+    refine le_iff_forall_pos_le_add.mpr ?_
+    intro δ hδ
+    have hNorm_le_cost :
+        BesovishSpace.Norm_Costpq A q gLim ≤
+          LpGridRepresentation.pqCost (q := q) RlimRep :=
+      BesovishSpace.Norm_Costpq_le_cost (A := A) (q := q) (g := gLim)
+        RlimRep hfin
+    exact hNorm_le_cost.trans (hcost_le_add δ hδ)
+  exact ⟨φ, hφ, gLim, hNorm_le_C, by simpa [gLim] using htend⟩
+
+/--
+Completeness of the Besov-ish space for the coefficient-cost norm.
+
+The statement is packaged with the local normed-group structure
+`BesovishSpace.costNormedAddCommGroup`, since `BesovishSpace A q` also has the
+ambient inherited `L^p` norm as a submodule.
+-/
+theorem besovishSpace_Norm_Costpq_cauchySeq_tendsto
+    (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u)
+    (A : AtomFamily G s p u) (hG2 : AssumptionG2 G s p u q)
+    (hA5 : AssumptionA5 A)
+    (hA : BesovishSpace.HasFiniteCostRepresentations (A := A) q)
+    [Fact (1 ≤ u)]
+    (gseq : ℕ → BesovishSpace A q)
+    (hcauchy : ∀ η > 0, ∃ N, ∀ m ≥ N, ∀ n ≥ N,
+      BesovishSpace.Norm_Costpq A q (gseq n - gseq m) < η) :
+    ∃ gLim : BesovishSpace A q,
+      ∀ η > 0, ∃ N, ∀ n ≥ N,
+        BesovishSpace.Norm_Costpq A q (gLim - gseq n) < η := by
+  classical
+  rcases hcauchy 1 zero_lt_one with ⟨N0, hN0⟩
+  let C : ℝ :=
+    BesovishSpace.Norm_Costpq A q (gseq N0) + 1 +
+      ∑ n ∈ Finset.range N0, BesovishSpace.Norm_Costpq A q (gseq n)
+  have hC_nonneg : 0 ≤ C := by
+    have hbase : 0 ≤ BesovishSpace.Norm_Costpq A q (gseq N0) :=
+      BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q) hA (gseq N0)
+    have hsum_nonneg :
+        0 ≤ ∑ n ∈ Finset.range N0, BesovishSpace.Norm_Costpq A q (gseq n) :=
+      Finset.sum_nonneg fun n hn =>
+        BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q) hA (gseq n)
+    linarith
+  have hball : ∀ n, BesovishSpace.Norm_Costpq A q (gseq n) ≤ C := by
+    intro n
+    by_cases hn : N0 ≤ n
+    · have hdiff : BesovishSpace.Norm_Costpq A q (gseq n - gseq N0) < 1 :=
+        hN0 N0 le_rfl n hn
+      have htri :=
+        BesovishSpace.Norm_Costpq_add_le
+          (A := A) (q := q) hp_ne_top hA (gseq n - gseq N0) (gseq N0)
+      have hsum_nonneg :
+          0 ≤ ∑ n ∈ Finset.range N0, BesovishSpace.Norm_Costpq A q (gseq n) :=
+        Finset.sum_nonneg fun n hn =>
+          BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q) hA (gseq n)
+      calc
+        BesovishSpace.Norm_Costpq A q (gseq n)
+            = BesovishSpace.Norm_Costpq A q ((gseq n - gseq N0) + gseq N0) := by
+                congr 1
+                abel
+        _ ≤ BesovishSpace.Norm_Costpq A q (gseq n - gseq N0) +
+              BesovishSpace.Norm_Costpq A q (gseq N0) := htri
+        _ ≤ C := by
+              dsimp [C]
+              linarith
+    · have hnmem : n ∈ Finset.range N0 := Finset.mem_range.mpr (Nat.lt_of_not_ge hn)
+      have hterm_le :
+          BesovishSpace.Norm_Costpq A q (gseq n) ≤
+            ∑ m ∈ Finset.range N0, BesovishSpace.Norm_Costpq A q (gseq m) := by
+        exact Finset.single_le_sum
+          (fun m hm => BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q) hA (gseq m))
+          hnmem
+      have hbase_nonneg : 0 ≤ BesovishSpace.Norm_Costpq A q (gseq N0) :=
+        BesovishSpace.Norm_Costpq_nonneg (A := A) (q := q) hA (gseq N0)
+      dsimp [C]
+      linarith
+  rcases closed_Norm_Costpq_ball_strongly_seqCompact
+      (G := G) (s := s) (p := p) (u := u) (q := q)
+      hp_ne_top hs_pos hu_one A hG2 hA5 hA hC_nonneg gseq hball with
+      ⟨φ, hφ, gLim, hLim_ball, hLp_tendsto⟩
+  refine ⟨gLim, ?_⟩
+  intro η hη
+  let δ : ℝ := η / 2
+  have hδ_pos : 0 < δ := by dsimp [δ]; positivity
+  rcases hcauchy δ hδ_pos with ⟨N, hN⟩
+  refine ⟨N, fun i hi => ?_⟩
+  have hφ_eventually : ∀ᶠ k in atTop, N ≤ φ k :=
+    hφ.tendsto_atTop.eventually (eventually_ge_atTop N)
+  rcases eventually_atTop.1 hφ_eventually with ⟨K, hK⟩
+  let dseq : ℕ → BesovishSpace A q := fun k => gseq (φ (k + K)) - gseq i
+  have hdseq_ball : ∀ k, BesovishSpace.Norm_Costpq A q (dseq k) ≤ δ := by
+    intro k
+    have hφN : N ≤ φ (k + K) := hK (k + K) (Nat.le_add_left K k)
+    exact le_of_lt (by simpa [dseq] using hN i hi (φ (k + K)) hφN)
+  rcases closed_Norm_Costpq_ball_strongly_seqCompact
+      (G := G) (s := s) (p := p) (u := u) (q := q)
+      hp_ne_top hs_pos hu_one A hG2 hA5 hA hδ_pos.le dseq hdseq_ball with
+      ⟨χ, hχ, hDiffLim, hDiffNorm, hDiffLp_tendsto⟩
+  have hidx_tendsto : Tendsto (fun n : ℕ => χ n + K) atTop atTop :=
+    (tendsto_add_atTop_nat K).comp hχ.tendsto_atTop
+  have hLp_diff_to_expected :
+      Tendsto
+        (fun n => ((dseq (χ n) : BesovishSpace A q) : Lp ℂ p G.measure))
+        atTop
+        (𝓝 (((gLim - gseq i : BesovishSpace A q) : Lp ℂ p G.measure))) := by
+    have hsubseq :
+        Tendsto
+          (fun n => ((gseq (φ (χ n + K)) : BesovishSpace A q) : Lp ℂ p G.measure))
+          atTop
+          (𝓝 ((gLim : BesovishSpace A q) : Lp ℂ p G.measure)) :=
+      hLp_tendsto.comp hidx_tendsto
+    simpa [dseq] using hsubseq.sub tendsto_const_nhds
+  have hDiff_eq :
+      hDiffLim = gLim - gseq i := by
+    apply Subtype.ext
+    exact tendsto_nhds_unique hDiffLp_tendsto hLp_diff_to_expected
+  have htarget_norm :
+      BesovishSpace.Norm_Costpq A q (gLim - gseq i) ≤ δ := by
+    simpa [hDiff_eq] using hDiffNorm
+  have hδ_lt_eta : δ < η := by
+    dsimp [δ]
+    linarith
+  exact lt_of_le_of_lt htarget_norm hδ_lt_eta
 
 
 
