@@ -747,6 +747,15 @@ def atomSetLp (A : AtomFamily G s p u) (Q : WeakGridCell G) :
         MemLp.toLp (A.toFunction Q φ) (A.local_memLp_p Q φ) = f }
 
 /--
+Assumption A5 (`compacts`): `p ∈ [1,∞)` and, for every grid cell `Q`, the atom
+set `A(Q)`, realized in ambient `L^p`, is sequentially compact in the strong
+topology.
+-/
+def AssumptionA5 (A : AtomFamily G s p u) : Prop :=
+  1 ≤ p ∧ p ≠ ∞ ∧
+    ∀ Q : WeakGridCell G, IsSeqCompact (atomSetLp A Q)
+
+/--
 Assumption A6 (`compactw`): `p ∈ [1,∞)` and, for every grid cell `Q`, the atom
 set `A(Q)`, realized in `L^p`, is sequentially compact for the weak topology.
 
@@ -1937,6 +1946,301 @@ lemma exists_subseq_coeff_tendsto_of_coord_bounded
     (continuous_apply ⟨k, Q⟩).continuousAt.tendsto.comp hxlim
   exact (continuous_subtype_val.tendsto _).comp hcoord
 
+
+/--
+Diagonal compactness for abstract block atoms under strong atom compactness.
+
+If the atom set on every cell is sequentially compact in the ambient strong
+`L^p` topology, then a sequence of formal block families has one subsequence
+along which all atoms converge strongly in `L^p`.
+-/
+lemma exists_subseq_atoms_tendsto_of_abstract
+    {A : AtomFamily G s p u}
+    (hA5 : AssumptionA5 A)
+    (Rseq : ℕ → (k : ℕ) → LevelBlock A k) :
+    ∃ (φ : ℕ → ℕ) (_hφ : StrictMono φ) (Rlim : (k : ℕ) → LevelBlock A k),
+      ∀ (k : ℕ) (Q : LevelCell G k),
+        Tendsto
+          (fun n => atomLp A (levelCellToWeakGridCell G k Q) ((Rseq (φ n) k).atom Q))
+          atTop
+          (𝓝 (atomLp A (levelCellToWeakGridCell G k Q) ((Rlim k).atom Q))) := by
+  classical
+  let coord := Σ k : ℕ, LevelCell G k
+  let cell : coord → WeakGridCell G := fun i => levelCellToWeakGridCell G i.1 i.2
+  have hmem : ∀ n i,
+      atomLp A (cell i) ((Rseq n i.1).atom i.2) ∈ atomSetLp A (cell i) := by
+    intro n i
+    exact ⟨(Rseq n i.1).atom i.2, (Rseq n i.1).atom_mem i.2, rfl⟩
+  let K : coord → Type _ := fun i => atomSetLp A (cell i)
+  haveI : ∀ i : coord, CompactSpace (K i) := by
+    intro i
+    exact isCompact_iff_compactSpace.mp ((hA5.2.2 (cell i)).isCompact)
+  let xseq : ℕ → (∀ i : coord, K i) := fun n i =>
+    ⟨atomLp A (cell i) ((Rseq n i.1).atom i.2), hmem n i⟩
+  rcases CompactSpace.tendsto_subseq xseq with ⟨xlim, φ, hφ, hxlim⟩
+  let chosenAtom : ∀ i : coord, (A.localSpace (cell i)).carrier := fun i =>
+    Classical.choose (xlim i).2
+  have hchosen_mem : ∀ i : coord, A.IsAtom (cell i) (chosenAtom i) := fun i =>
+    (Classical.choose_spec (xlim i).2).1
+  have hchosen_atomLp : ∀ i : coord,
+      atomLp A (cell i) (chosenAtom i) = (xlim i : Lp ℂ p G.measure) := fun i => by
+    simpa [atomLp, chosenAtom] using (Classical.choose_spec (xlim i).2).2
+  let Rlim : (k : ℕ) → LevelBlock A k := fun k =>
+    { coeff := fun Q => (Rseq 0 k).coeff Q
+      atom := fun Q => chosenAtom ⟨k, Q⟩
+      atom_mem := fun Q => hchosen_mem ⟨k, Q⟩ }
+  refine ⟨φ, hφ, Rlim, ?_⟩
+  intro k Q
+  have hcoord :
+      Tendsto (fun n => (xseq (φ n) ⟨k, Q⟩ : K ⟨k, Q⟩)) atTop
+        (𝓝 (xlim ⟨k, Q⟩)) :=
+    (continuous_apply ⟨k, Q⟩).continuousAt.tendsto.comp hxlim
+  have hval :
+      Tendsto
+        (fun n => atomLp A (levelCellToWeakGridCell G k Q) ((Rseq (φ n) k).atom Q))
+        atTop
+        (𝓝 (xlim ⟨k, Q⟩ : Lp ℂ p G.measure)) := by
+    simpa [xseq, cell] using (continuous_subtype_val.tendsto _).comp hcoord
+  simpa [Rlim, cell, hchosen_atomLp ⟨k, Q⟩] using hval
+
+namespace SeqCompactDiagonal
+
+variable {X : ℕ → Type*} [∀ i, TopologicalSpace (X i)] [∀ i, SeqCompactSpace (X i)]
+
+noncomputable def limitValue (x : ℕ → ∀ i, X i) (m : ℕ) (ψ : ℕ → ℕ) : X m :=
+  Classical.choose (SeqCompactSpace.tendsto_subseq (fun n => x (ψ n) m))
+
+noncomputable def limitSubseq (x : ℕ → ∀ i, X i) (m : ℕ) (ψ : ℕ → ℕ) : ℕ → ℕ :=
+  Classical.choose
+    (Classical.choose_spec (SeqCompactSpace.tendsto_subseq (fun n => x (ψ n) m)))
+
+lemma limitSubseq_spec (x : ℕ → ∀ i, X i) (m : ℕ) (ψ : ℕ → ℕ) :
+    StrictMono (limitSubseq x m ψ) ∧
+      Tendsto (fun n => x (ψ (limitSubseq x m ψ n)) m) atTop
+        (𝓝 (limitValue x m ψ)) := by
+  simpa [limitValue, limitSubseq] using
+    Classical.choose_spec
+      (Classical.choose_spec (SeqCompactSpace.tendsto_subseq (fun n => x (ψ n) m)))
+
+noncomputable def subseqChain (x : ℕ → ∀ i, X i) : ℕ → ℕ → ℕ
+  | 0 => id
+  | m + 1 =>
+      subseqChain x m ∘ limitSubseq x m (subseqChain x m)
+
+lemma subseqChain_strictMono (x : ℕ → ∀ i, X i) :
+    ∀ m, StrictMono (subseqChain x m) := by
+  intro m
+  induction m with
+  | zero =>
+      exact strictMono_id
+  | succ m ih =>
+      exact ih.comp (limitSubseq_spec x m (subseqChain x m)).1
+
+lemma subseqChain_succ_tendsto (x : ℕ → ∀ i, X i) (m : ℕ) :
+    Tendsto (fun n => x (subseqChain x (m + 1) n) m) atTop
+      (𝓝 (limitValue x m (subseqChain x m))) := by
+  simpa [subseqChain] using (limitSubseq_spec x m (subseqChain x m)).2
+
+lemma subseqChain_subseq_ge (x : ℕ → ∀ i, X i) :
+    ∀ m r t, ∃ l, t ≤ l ∧ subseqChain x (m + r) t = subseqChain x m l := by
+  intro m r
+  induction r with
+  | zero =>
+      intro t
+      exact ⟨t, le_rfl, by simp⟩
+  | succ r ih =>
+      intro t
+      let θ := limitSubseq x (m + r) (subseqChain x (m + r))
+      have hθ : StrictMono θ :=
+        (limitSubseq_spec x (m + r) (subseqChain x (m + r))).1
+      rcases ih (θ t) with ⟨l, hl, hψ⟩
+      refine ⟨l, le_trans ?_ hl, ?_⟩
+      · exact (hθ.le_apply).trans' le_rfl
+      · simpa [subseqChain, Nat.add_assoc, θ] using hψ
+
+theorem seqCompactSpace_nat_pi :
+    SeqCompactSpace (∀ i, X i) := by
+  classical
+  refine ⟨?_⟩
+  intro x hx
+  let a : ∀ i, X i := fun i => limitValue x i (subseqChain x i)
+  let φ : ℕ → ℕ := fun n => subseqChain x n n
+  have hφ : StrictMono φ := by
+    apply strictMono_nat_of_lt_succ
+    intro n
+    have hψ := subseqChain_strictMono x n
+    let θ := limitSubseq x n (subseqChain x n)
+    have hθ : StrictMono θ :=
+      (limitSubseq_spec x n (subseqChain x n)).1
+    have hn_le : n + 1 ≤ θ (n + 1) := hθ.le_apply
+    exact hψ (lt_of_lt_of_le (Nat.lt_succ_self n) hn_le)
+  refine ⟨a, trivial, φ, hφ, ?_⟩
+  rw [tendsto_pi_nhds]
+  intro m
+  have hbase :
+      Tendsto (fun n => x (subseqChain x (m + 1) n) m) atTop (𝓝 (a m)) := by
+    simpa [a] using subseqChain_succ_tendsto x m
+  let η : ℕ → ℕ := fun n =>
+    if h : m + 1 ≤ n then
+      Classical.choose (subseqChain_subseq_ge x (m + 1) (n - (m + 1)) n)
+    else n
+  have hη_ge : ∀ᶠ n in atTop, n ≤ η n := by
+    refine eventually_atTop.2 ⟨m + 1, ?_⟩
+    intro n hn
+    rw [show η n =
+        Classical.choose (subseqChain_subseq_ge x (m + 1) (n - (m + 1)) n) by
+      dsimp [η]
+      exact dif_pos hn]
+    exact (Classical.choose_spec
+      (subseqChain_subseq_ge x (m + 1) (n - (m + 1)) n)).1
+  have hη_tendsto : Tendsto η atTop atTop :=
+    tendsto_atTop_mono' atTop hη_ge tendsto_id
+  have heq :
+      (fun n => x (φ n) m) =ᶠ[atTop]
+        (fun n => x (subseqChain x (m + 1) (η n)) m) := by
+    refine eventually_atTop.2 ⟨m + 1, ?_⟩
+    intro n hn
+    have hspec := (Classical.choose_spec
+      (subseqChain_subseq_ge x (m + 1) (n - (m + 1)) n)).2
+    have hidx : m + 1 + (n - (m + 1)) = n := Nat.add_sub_of_le hn
+    change x (subseqChain x n n) m =
+      x (subseqChain x (m + 1) (η n)) m
+    rw [show η n =
+        Classical.choose (subseqChain_subseq_ge x (m + 1) (n - (m + 1)) n) by
+      dsimp [η]
+      exact dif_pos hn]
+    simpa [hidx] using congrArg (fun t => x t m) hspec
+  exact (hbase.comp hη_tendsto).congr' heq.symm
+
+end SeqCompactDiagonal
+
+namespace SeqCompactDiagonal
+
+variable {ι X : Type*} [Nonempty ι] [Countable ι] [TopologicalSpace X]
+
+/--
+Cantor diagonalization for a countable family of sequentially compact subsets
+of one ambient topological space.
+-/
+theorem exists_subseq_forall_tendsto_of_countable_seqCompact
+    (S : ι → Set X) (hS : ∀ i, IsSeqCompact (S i))
+    (x : ℕ → ι → X) (hx : ∀ n i, x n i ∈ S i) :
+    ∃ (φ : ℕ → ℕ) (_hφ : StrictMono φ) (a : ι → X),
+      (∀ i, a i ∈ S i) ∧
+        ∀ i, Tendsto (fun n => x (φ n) i) atTop (𝓝 (a i)) := by
+  classical
+  obtain ⟨enum, henum⟩ := exists_surjective_nat ι
+  let idx : ι → ℕ := fun i => Classical.choose (henum i)
+  have hidx : ∀ i, enum (idx i) = i := fun i => Classical.choose_spec (henum i)
+  let Xnat : ℕ → Type _ := fun n => S (enum n)
+  haveI : ∀ n : ℕ, SeqCompactSpace (Xnat n) := by
+    intro n
+    refine ⟨?_⟩
+    intro y hy
+    have hyS : ∀ r, (y r : X) ∈ S (enum n) := fun r => (y r).2
+    rcases hS (enum n) hyS with ⟨a, ha, ψ, hψ, hψlim⟩
+    refine ⟨⟨a, ha⟩, trivial, ψ, hψ, ?_⟩
+    exact tendsto_subtype_rng.2 hψlim
+  haveI : SeqCompactSpace (∀ n : ℕ, Xnat n) :=
+    SeqCompactDiagonal.seqCompactSpace_nat_pi
+  let xnat : ℕ → ∀ n : ℕ, Xnat n := fun r n => ⟨x r (enum n), hx r (enum n)⟩
+  rcases SeqCompactSpace.tendsto_subseq xnat with ⟨alim, φ, hφ, halim⟩
+  let a : ι → X := fun i => (alim (idx i) : X)
+  have ha : ∀ i, a i ∈ S i := by
+    intro i
+    have hmem : (alim (idx i) : X) ∈ S (enum (idx i)) := (alim (idx i)).2
+    simpa [a, hidx i] using hmem
+  have htend : ∀ i, Tendsto (fun n => x (φ n) i) atTop (𝓝 (a i)) := by
+    intro i
+    have hcoord :
+        Tendsto (fun n => (xnat (φ n) (idx i) : X)) atTop
+          (𝓝 (alim (idx i) : X)) :=
+      (continuous_subtype_val.tendsto _).comp ((tendsto_pi_nhds.1 halim) (idx i))
+    have hfun :
+        (fun n => (xnat (φ n) (idx i) : X)) = fun n => x (φ n) i := by
+      funext n
+      simp [xnat, hidx i]
+    simpa [a, hfun] using hcoord
+  exact ⟨φ, hφ, a, ha, htend⟩
+
+end SeqCompactDiagonal
+
+/--
+Diagonal compactness for abstract block atoms under weak atom compactness.
+
+This is the weak-topology analogue of
+`exists_subseq_atoms_tendsto_of_abstract`: under `AssumptionA6`, there is one
+subsequence along which all atoms converge in the weak topology of ambient
+`L^p`.
+-/
+lemma exists_subseq_atoms_tendsto_weak_of_abstract
+    {A : AtomFamily G s p u}
+    (hA6 : AssumptionA6 A)
+    (Rseq : ℕ → (k : ℕ) → LevelBlock A k) :
+    ∃ (φ : ℕ → ℕ) (_hφ : StrictMono φ) (Rlim : (k : ℕ) → LevelBlock A k),
+      ∀ (k : ℕ) (Q : LevelCell G k),
+        Tendsto
+          (fun n =>
+            toWeakSpace ℂ (Lp ℂ p G.measure)
+              (atomLp A (levelCellToWeakGridCell G k Q) ((Rseq (φ n) k).atom Q)))
+          atTop
+          (𝓝 (toWeakSpace ℂ (Lp ℂ p G.measure)
+            (atomLp A (levelCellToWeakGridCell G k Q) ((Rlim k).atom Q)))) := by
+  classical
+  let coord := Σ k : ℕ, LevelCell G k
+  letI : Nonempty coord := by
+    rcases G.grid.exists_nonempty with ⟨k, hk⟩
+    rcases hk with ⟨Q, hQ⟩
+    exact ⟨⟨k, ⟨Q, hQ⟩⟩⟩
+  let cell : coord → WeakGridCell G := fun i => levelCellToWeakGridCell G i.1 i.2
+  let S : coord → Set (WeakSpace ℂ (Lp ℂ p G.measure)) := fun i =>
+    ((toWeakSpace ℂ (Lp ℂ p G.measure)) '' atomSetLp A (cell i) :
+      Set (WeakSpace ℂ (Lp ℂ p G.measure)))
+  have hmem : ∀ n i,
+      toWeakSpace ℂ (Lp ℂ p G.measure) (atomLp A (cell i) ((Rseq n i.1).atom i.2)) ∈
+        S i := by
+    intro n i
+    refine ⟨atomLp A (cell i) ((Rseq n i.1).atom i.2), ?_, rfl⟩
+    exact ⟨(Rseq n i.1).atom i.2, (Rseq n i.1).atom_mem i.2, rfl⟩
+  have hcoord_seq : ∀ i : coord, IsSeqCompact (S i) := by
+    intro i
+    exact hA6.2.2 (cell i)
+  let xseq : ℕ → coord → WeakSpace ℂ (Lp ℂ p G.measure) := fun n i =>
+    toWeakSpace ℂ (Lp ℂ p G.measure) (atomLp A (cell i) ((Rseq n i.1).atom i.2))
+  rcases SeqCompactDiagonal.exists_subseq_forall_tendsto_of_countable_seqCompact
+      (S := S) hcoord_seq xseq hmem with ⟨φ, hφ, xlim, hxlim_mem, hxlim_tendsto⟩
+  let chosenLp : ∀ i : coord, Lp ℂ p G.measure := fun i =>
+    Classical.choose (hxlim_mem i)
+  have hchosenLp_mem : ∀ i : coord, chosenLp i ∈ atomSetLp A (cell i) := fun i =>
+    (Classical.choose_spec (hxlim_mem i)).1
+  have hchosenLp_weak : ∀ i : coord,
+      toWeakSpace ℂ (Lp ℂ p G.measure) (chosenLp i) =
+        xlim i := fun i => by
+    simpa [chosenLp] using (Classical.choose_spec (hxlim_mem i)).2
+  let chosenAtom : ∀ i : coord, (A.localSpace (cell i)).carrier := fun i =>
+    Classical.choose (hchosenLp_mem i)
+  have hchosen_mem : ∀ i : coord, A.IsAtom (cell i) (chosenAtom i) := fun i =>
+    (Classical.choose_spec (hchosenLp_mem i)).1
+  have hchosen_atomLp : ∀ i : coord,
+      atomLp A (cell i) (chosenAtom i) = chosenLp i := fun i => by
+    simpa [atomLp, chosenAtom] using (Classical.choose_spec (hchosenLp_mem i)).2
+  let Rlim : (k : ℕ) → LevelBlock A k := fun k =>
+    { coeff := fun Q => (Rseq 0 k).coeff Q
+      atom := fun Q => chosenAtom ⟨k, Q⟩
+      atom_mem := fun Q => hchosen_mem ⟨k, Q⟩ }
+  refine ⟨φ, hφ, Rlim, ?_⟩
+  intro k Q
+  have hval :
+      Tendsto
+        (fun n =>
+          toWeakSpace ℂ (Lp ℂ p G.measure)
+            (atomLp A (levelCellToWeakGridCell G k Q) ((Rseq (φ n) k).atom Q)))
+        atTop
+        (𝓝 (xlim ⟨k, Q⟩)) := by
+    simpa [xseq, cell] using hxlim_tendsto ⟨k, Q⟩
+  simpa [Rlim, cell, hchosen_atomLp ⟨k, Q⟩, hchosenLp_weak ⟨k, Q⟩] using hval
+
+
 /-- Cellwise coefficient convergence implies convergence of each bare level coefficient power. -/
 lemma blockLvlCoeff_tendsto_of_coeff_tendsto
     {A : AtomFamily G s p u} {gseq : ℕ → Lp ℂ p G.measure}
@@ -2081,6 +2385,67 @@ theorem representation_limit_strong_existence
     representation_limit_finitePQCost Hw,
     representation_limit_pqCost_le Hw hC,
     representation_limit_strong_tendsto A hG2 H hp_ne_top hs_pos hu_one hC⟩
+
+/--
+Existence version of the representation-limit theorem with weak convergence
+of the atoms.
+
+The bare block sequence `Rlim` is completed to a genuine representation of
+`gLim`; the abstract finite-cost hypothesis for `Rlim` is derived from the
+uniform `pqCostENNReal` bound and cellwise coefficient convergence.
+-/
+theorem representation_limit_weak_existence
+    (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u)
+    (A : AtomFamily G s p u)(hG2 : AssumptionG2 G s p u q)
+     {gseq : ℕ → Lp ℂ p G.measure}
+     (Rseq : ∀ n, LpGridRepresentation A (gseq n))
+    {C : ℝ}
+    [Fact (1 ≤ u)]
+    (hC : 0 ≤ C)
+    (uniform_bound : ∀ n, LpGridRepresentation.pqCostENNReal (q := q) (Rseq n) ≤ ENNReal.ofReal C)
+    (Rlim : (k : ℕ) → LevelBlock A k)
+    (coeff_tendsto : ∀ (k : ℕ) (Q : LevelCell G k),
+      Tendsto (fun n => ((Rseq n).block k).coeff Q) atTop
+        (𝓝 ((Rlim k).coeff Q)))
+    (atom_tendsto : ∀ (k : ℕ) (Q : LevelCell G k),
+      Tendsto
+        (fun n =>
+          toWeakSpace ℂ (Lp ℂ p G.measure)
+            (atomLp A (levelCellToWeakGridCell G k Q) (((Rseq n).block k).atom Q)))
+        atTop
+        (𝓝 (toWeakSpace ℂ (Lp ℂ p G.measure)
+          (atomLp A (levelCellToWeakGridCell G k Q) ((Rlim k).atom Q))))) :
+    ∃ gLim : Lp ℂ p G.measure,
+      ∃ hRlim : HasSum (fun k => (Rlim k).toLp A) gLim,
+        let RlimRep : LpGridRepresentation A gLim := { block := Rlim, hasSum := hRlim }
+        MemBesovishCoeffCost A q gLim ∧
+        LpGridRepresentation.FinitePQCost (q := q) RlimRep ∧
+        LpGridRepresentation.pqCost (q := q) RlimRep ≤ C ∧
+        Tendsto (fun n => toWeakSpace ℂ (Lp ℂ p G.measure) (gseq n)) atTop
+          (𝓝 (toWeakSpace ℂ (Lp ℂ p G.measure) gLim)) := by
+  have hfin : AbstractFinitePQCost (q := q) Rlim :=
+    abstractFinitePQCost_of_coeff_tendsto_uniform_bound
+      (A := A) Rseq hC uniform_bound Rlim coeff_tendsto
+  have hsum := formalBlockSeq_summable
+      (A := A) hG2 hp_ne_top hs_pos hu_one Rlim hfin
+  let gLim : Lp ℂ p G.measure := ∑' k, (Rlim k).toLp A
+  let hRlim : HasSum (fun k => (Rlim k).toLp A) gLim := hsum.hasSum
+  let RlimRep : LpGridRepresentation A gLim := { block := Rlim, hasSum := hRlim }
+  let H : RepresentationLimitHypotheses A q gseq gLim C :=
+    { Rseq := Rseq
+      Rlim := RlimRep
+      uniform_bound := uniform_bound
+      coeff_tendsto := by
+        intro k Q
+        exact coeff_tendsto k Q
+      atom_tendsto := by
+        intro k Q
+        exact atom_tendsto k Q }
+  exact ⟨gLim, hRlim,
+    representation_limit_memBesovishCoeffCost H,
+    representation_limit_finitePQCost H,
+    representation_limit_pqCost_le H hC,
+    representation_limit_weak_tendsto A hG2 H hp_ne_top hs_pos hu_one hC⟩
 
 
 
