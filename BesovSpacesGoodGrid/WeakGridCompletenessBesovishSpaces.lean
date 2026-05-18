@@ -1725,7 +1725,8 @@ lemma pqCost_windowRep_le (block : (k : ℕ) → LevelBlock A k) (N M : ℕ)
     · exact div_nonneg zero_le_one hq_pos.le
 
 /-- The abstract pq-cost is nonneg. -/
-lemma abstractPQCost_nonneg (block : (k : ℕ) → LevelBlock A k) :
+lemma abstractPQCost_nonneg
+  (block : (k : ℕ) → LevelBlock A k) :
     0 ≤ abstractPQCost (q := q) block := by
   simp only [abstractPQCost]
   split_ifs with hq
