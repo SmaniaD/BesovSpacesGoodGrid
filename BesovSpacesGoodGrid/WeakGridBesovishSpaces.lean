@@ -286,6 +286,48 @@ theorem atom_add_repackage (A : AtomFamily G s p u) (Q : WeakGridCell G)
     change ((r : ℂ) * c') • φ + ((r : ℂ) * d') • ψ = c • φ + d • ψ
     rw [hrc, hrd]
 
+omit [Fact (1 ≤ p)] in
+/-- A finite weighted sum of atoms `∑ λᵢ • aᵢ` is an atom provided
+    `∑ ‖λᵢ‖ ≤ 1` and every `aᵢ` is an atom on the same cell `Q`. -/
+theorem atom_finsum_mem
+    (A : AtomFamily G s p u) (Q : WeakGridCell G)
+    {ι : Type*} (F : Finset ι)
+    (lam : ι → ℂ) (a : ι → (A.localSpace Q).carrier)
+    (ha : ∀ i ∈ F, a i ∈ A.atoms Q)
+    (hlam : ∑ i ∈ F, ‖lam i‖ ≤ 1) :
+    ∑ i ∈ F, lam i • a i ∈ A.atoms Q := by
+  classical
+  -- Rewrite each term: lam i • a i = ‖lam i‖ • phaseAtom A Q (lam i) (a i)
+  have hrw : ∀ i ∈ F, lam i • a i = (‖lam i‖ : ℝ) • phaseAtom A Q (lam i) (a i) :=
+    fun i _ => (norm_smul_phaseAtom A Q (lam i) (a i)).symm
+  rw [Finset.sum_congr rfl hrw]
+  set r : ℝ := ∑ i ∈ F, ‖lam i‖
+  by_cases hr : r = 0
+  · -- Every weight is zero, so the entire sum is zero
+    have hall : ∀ i ∈ F, ‖lam i‖ = 0 := fun i hi =>
+      le_antisymm (hr ▸ Finset.single_le_sum (fun j _ => norm_nonneg _) hi) (norm_nonneg _)
+    have h0 : ∑ i ∈ F, (‖lam i‖ : ℝ) • phaseAtom A Q (lam i) (a i) = 0 :=
+      Finset.sum_eq_zero (fun i hi => by simp [hall i hi])
+    rw [h0]; exact atom_zero_mem A Q
+  · have hr_pos : 0 < r :=
+      lt_of_le_of_ne (Finset.sum_nonneg fun i _ => norm_nonneg _) (Ne.symm hr)
+    -- The normalized weights sum to 1, and each phaseAtom is an atom
+    have h_conv : ∑ i ∈ F, (‖lam i‖ / r) • phaseAtom A Q (lam i) (a i) ∈ A.atoms Q :=
+      (A.atoms_convex Q).sum_mem
+        (fun i _ => div_nonneg (norm_nonneg _) hr_pos.le)
+        (by rw [← Finset.sum_div]; exact div_self hr_pos.ne')
+        (fun i hi => phaseAtom_mem A Q (lam i) (ha i hi))
+    -- Factor: ∑ ‖lam i‖ • φᵢ = r • ∑ (‖lam i‖/r) • φᵢ
+    have h_factor : ∑ i ∈ F, (‖lam i‖ : ℝ) • phaseAtom A Q (lam i) (a i) =
+        (r : ℝ) • ∑ i ∈ F, (‖lam i‖ / r) • phaseAtom A Q (lam i) (a i) := by
+      conv_rhs => rw [Finset.smul_sum]
+      refine Finset.sum_congr rfl fun i _ => ?_
+      rw [smul_smul, mul_div_cancel₀ _ (ne_of_gt hr_pos)]
+    -- Convert ℝ-smul to ℂ-smul and apply atom_smul_mem_of_norm_le_one
+    rw [h_factor, RCLike.real_smul_eq_coe_smul (K := ℂ)]
+    exact atom_smul_mem_of_norm_le_one A Q
+      (by rw [RCLike.norm_ofReal, abs_of_pos hr_pos]; exact hlam) h_conv
+
 namespace LevelBlock
 
 /-- Addition of level blocks, reusing one atom per cell. -/
