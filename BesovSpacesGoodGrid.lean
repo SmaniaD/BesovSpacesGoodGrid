@@ -3,3 +3,4 @@ import BesovSpacesGoodGrid.WeakGridDefinition
 import BesovSpacesGoodGrid.WeakGridAtomsDefinition
 import BesovSpacesGoodGrid.WeakGridBesovishSpaces
 import BesovSpacesGoodGrid.WeakGridCompletenessBesovishSpaces
+import BesovSpacesGoodGrid.WeakGridTransmutation
