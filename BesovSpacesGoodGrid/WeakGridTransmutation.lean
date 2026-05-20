@@ -2370,9 +2370,11 @@ lemma transmutationBlock_abstractFinitePQCost
     truncated integer kernel `b_n = lam ^ (r * n)` when `n > A / r - 1`,
     and `Cm1 = Nat.ceil r` accounts for the `⌈r⌉` residue classes.
 
-    The ALS lower-offset `A`, upper-offset `B`, and slope `r` are witnessed from `hk`:
+    The ALS lower-offset `A`, upper-offset `B`, and slope `r` are exactly the
+    witnesses unpacked from `hk : AlmostLinearSequence k`:
     `AlmostLinearSequence k` gives `∃ A B r, r > 0 ∧ ∀ i, k(i) ≤ r*i + B ∧ r*i+A ≤ k(i)`,
-    so the existential in Part 2 is witnessed by `A`, `B`, and `r`. -/
+    and Part 2 states that the coefficient inequality holds for every choice of
+    ALS witnesses for `k`. -/
 theorem ClaimII
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
@@ -2393,8 +2395,12 @@ theorem ClaimII
     /- Part 1: the transmutation level blocks sum to `PartialSumLevels` in Lp. -/
     HasSum (fun j => (TransmutationBlock G W AW h R c N j).toLp AW)
            (PartialSumLevels G W h c N) ∧
-    /- Part 2: ∃ ALS offsets A,B and slope r (from `hk`) such that the (p,q)-cost satisfies -/
-    ∃ (A_als B_als r_als : ℝ), 0 < r_als ∧
+    /- Part 2: for every triple `A_als`, `B_als`, `r_als` witnessing
+       `AlmostLinearSequence k`, the same `(p,q)`-cost estimate holds. -/
+    ∀ (A_als B_als r_als : ℝ), 0 < r_als →
+      (∀ i : ℕ,
+        (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+        r_als * (i : NNReal) + A_als ≤ (k i : NNReal)) →
       CoeffPQCost (p := p) (q := q) W (fun _ P => (TransmutationCoeff G W AW h R c N P : ℂ)) ≤
         (G.grid.Cmult1 : ℝ) *
         C ^ (1 / p.toReal) *
@@ -2441,9 +2447,8 @@ theorem ClaimII
     rw [← htsum_eq]
     exact hsum.hasSum
   · -- Part 2: Coefficient bound (paper Prop 8.1)
-    have hk0 : AlmostLinearSequence k := hk
-    obtain ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ := hk
-    refine ⟨A_als, B_als, r_als, hr_als, ?_⟩
+    intro A_als B_als r_als hr_als hk_bound
+    have hk0 : AlmostLinearSequence k := ⟨A_als, B_als, r_als, hr_als, hk_bound⟩
     -- Since q ≠ ∞, unpack CoeffPQCost on both sides as (∑' ...)^{1/q}
     have hLHS_eq :
         CoeffPQCost (p := p) (q := q) W
