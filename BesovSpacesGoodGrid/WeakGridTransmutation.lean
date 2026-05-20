@@ -1135,10 +1135,47 @@ lemma transmutation_level_bound
   rw [hleft_eq]
   exact hMinkowski.trans (hfinite_le.trans hfinite_tsum)
 
+namespace LpGridRepresentation
+
+/-- Integer-indexed version of the paper's coefficient-cost function.
+
+This is used for the convolution trick exactly as it appears in the paper,
+where the kernel is naturally indexed by `ℤ` and may have a finite negative
+tail. -/
+noncomputable def cCoefficientInt (t q : ℝ≥0∞) (b : ℤ → ℝ) : ℝ :=
+  if q = 1 then
+    sSup (Set.range fun k => b k ^ (1 / t.toReal))
+  else if q = ∞ then
+    ∑' k : ℤ, b k ^ (1 / t.toReal)
+  else
+    let q' := q / (q - 1)
+    (∑' k : ℤ, b k ^ (q'.toReal / t.toReal)) ^ (1 / q'.toReal)
+
+/-- Nonnegativity of the integer-indexed coefficient-cost function. -/
+theorem cCoefficientInt_nonneg (t q : ℝ≥0∞) (b : ℤ → ℝ)
+    (hb_nonneg : ∀ k, 0 ≤ b k) :
+    0 ≤ cCoefficientInt t q b := by
+  unfold cCoefficientInt
+  split_ifs with hq1 hqtop
+  · refine Real.sSup_nonneg ?_
+    intro x hx
+    rcases hx with ⟨k, rfl⟩
+    exact Real.rpow_nonneg (hb_nonneg k) _
+  · exact tsum_nonneg fun k => Real.rpow_nonneg (hb_nonneg k) _
+  · exact Real.rpow_nonneg (tsum_nonneg fun k => Real.rpow_nonneg (hb_nonneg k) _) _
+
+end LpGridRepresentation
+
+/-- The truncated integer kernel from the paper:
+`b_n = λ^(r n)` when `n > A / r - 1`, and `0` otherwise. -/
+noncomputable def transmutationKernelZ (lam A r : ℝ) : ℤ → ℝ :=
+  fun n => if A / r - 1 < (n : ℝ) then lam ^ (r * (n : ℝ)) else 0
+
 /-- The convolution/ALS estimate used in Claim II.
 
 This is the Lean statement of the paper's residue-class decomposition and
-Young convolution trick with `b_n = lam^(r*n)`. -/
+Young convolution trick with the truncated integer kernel
+`b_n = lam^(r*n)` if `n > A/r - 1`, and `0` otherwise. -/
 lemma transmutation_convolution_bound
     (k : ℕ → ℕ)
     (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
@@ -1158,12 +1195,12 @@ lemma transmutation_convolution_bound
         lam ^ ((↑(j - k i) : ℝ) / p.toReal) *
           (vL i) ^ (1 / p.toReal) else 0) ^ q.toReal) ^ (1 / q.toReal) ≤
       lam ^ (-(B_als : ℝ) / p.toReal) *
-      LpGridRepresentation.cCoefficient p ∞
-        (fun n => lam ^ ((r_als : ℝ) * (n : ℝ))) *
+      LpGridRepresentation.cCoefficientInt p ∞
+        (transmutationKernelZ lam A_als r_als) *
       (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
       (∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by
   let alpha : ℕ := Nat.ceil (r_als : ℝ)
-  let b : ℕ → ℝ := fun n => lam ^ ((r_als : ℝ) * (n : ℝ))
+  let bZ : ℤ → ℝ := transmutationKernelZ lam A_als r_als
   let convL : ℕ → ℝ := fun j =>
     ∑' i, if k i ≤ j then
       lam ^ ((↑(j - k i) : ℝ) / p.toReal) * (vL i) ^ (1 / p.toReal) else 0
@@ -1178,9 +1215,12 @@ lemma transmutation_convolution_bound
   have halpha_pos : 0 < alpha := by
     have hr_pos_real : 0 < (r_als : ℝ) := by exact_mod_cast hr_als
     exact Nat.ceil_pos.mpr hr_pos_real
-  have hb_nonneg : ∀ n, 0 ≤ b n := by
+  have hbZ_nonneg : ∀ n, 0 ≤ bZ n := by
     intro n
-    exact Real.rpow_nonneg hlam_pos.le _
+    dsimp [bZ, transmutationKernelZ]
+    split_ifs
+    · exact Real.rpow_nonneg hlam_pos.le _
+    · exact le_rfl
   have hconvL_nn : ∀ j, 0 ≤ convL j := by
     intro j
     exact tsum_nonneg fun i => by
@@ -1190,33 +1230,12 @@ lemma transmutation_convolution_bound
   have hsource_nn : ∀ i, 0 ≤ vL i ^ (q.toReal / p.toReal) := by
     intro i
     exact Real.rpow_nonneg (hvL_nn i) _
-  have hccoeff_nonneg : 0 ≤ LpGridRepresentation.cCoefficient p ∞ b :=
-    LpGridRepresentation.cCoefficient_nonneg p ∞ b hb_nonneg
+  have hccoeff_nonneg : 0 ≤ LpGridRepresentation.cCoefficientInt p ∞ bZ :=
+    LpGridRepresentation.cCoefficientInt_nonneg p ∞ bZ hbZ_nonneg
   have hccoeff_eq :
-      LpGridRepresentation.cCoefficient p ∞ b =
-        ∑' n, b n ^ (1 / p.toReal) := by
-    simp [LpGridRepresentation.cCoefficient, b]
-  let rho : ℝ := lam ^ ((r_als : ℝ) / p.toReal)
-  have hrho_nonneg : 0 ≤ rho := by
-    dsimp [rho]
-    exact Real.rpow_nonneg hlam_pos.le _
-  have hrho_lt_one : rho < 1 := by
-    dsimp [rho]
-    refine Real.rpow_lt_one hlam_pos.le hlam_lt ?_
-    positivity
-  have hb_root_eq : ∀ n, b n ^ (1 / p.toReal) = rho ^ n := by
-    intro n
-    dsimp [b, rho]
-    rw [← Real.rpow_mul hlam_pos.le]
-    have hexp : ((r_als : ℝ) * (n : ℝ)) * (1 / p.toReal) = ((r_als : ℝ) / p.toReal) * n := by
-      ring
-    rw [hexp, Real.rpow_mul hlam_pos.le, Real.rpow_natCast]
-  have hb_root_summable : Summable (fun n => b n ^ (1 / p.toReal)) := by
-    have hrho_sum : Summable (fun n : ℕ => rho ^ n) :=
-      summable_geometric_of_lt_one hrho_nonneg hrho_lt_one
-    convert hrho_sum using 1
-    funext n
-    exact hb_root_eq n
+      LpGridRepresentation.cCoefficientInt p ∞ bZ =
+        ∑' n : ℤ, bZ n ^ (1 / p.toReal) := by
+    simp [LpGridRepresentation.cCoefficientInt, bZ]
   let srcPow : Fin alpha → ℕ → ℝ :=
     fun m n => vL (m.1 + alpha * n) ^ (q.toReal / p.toReal)
   have hsrcPow_summable : ∀ m : Fin alpha, Summable (srcPow m) := by
@@ -1330,8 +1349,8 @@ lemma transmutationBlock_abstractFinitePQCost
       Summable (fun j => convL j ^ q.toReal) ∧
       (∑' j, convL j ^ q.toReal) ^ (1 / q.toReal) ≤
         lam ^ (-(B_als : ℝ) / p.toReal) *
-        LpGridRepresentation.cCoefficient p ∞
-          (fun n => lam ^ ((r_als : ℝ) * (n : ℝ))) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
         (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
         (∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by
     simpa [convL] using
@@ -1377,13 +1396,15 @@ lemma transmutationBlock_abstractFinitePQCost
 
     where `Cmult1 = G.grid.Cmult1` (multiplicity of G), `C` and `lam` are the
     decay constants from `hR`, `B` and `r` are the ALS upper-offset and slope from `hk`,
-    `Cco2(p,b) = LpGridRepresentation.cCoefficient p ∞ (fun n => lam ^ (r * n))`
-    is the convolution trick constant (Prop 4.2, Case A) with `b_n = lam ^ (r * n)`,
+    `Cco2(p,b) = LpGridRepresentation.cCoefficientInt p ∞
+      (transmutationKernelZ lam A r)`
+    is the convolution trick constant (Prop 4.2, Case A) with the paper's
+    truncated integer kernel `b_n = lam ^ (r * n)` when `n > A / r - 1`,
     and `Cm1 = Nat.ceil r` accounts for the `⌈r⌉` residue classes.
 
-    Both the ALS upper-offset `B` and slope `r` are witnessed from `hk`:
+    The ALS lower-offset `A`, upper-offset `B`, and slope `r` are witnessed from `hk`:
     `AlmostLinearSequence k` gives `∃ A B r, r > 0 ∧ ∀ i, k(i) ≤ r*i + B ∧ r*i+A ≤ k(i)`,
-    so the existential in Part 2 is witnessed by `B` and `r`. -/
+    so the existential in Part 2 is witnessed by `A`, `B`, and `r`. -/
 theorem ClaimII
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
@@ -1404,14 +1425,14 @@ theorem ClaimII
     /- Part 1: the transmutation level blocks sum to `PartialSumLevels` in Lp. -/
     HasSum (fun j => (TransmutationBlock G W AW h R c N j).toLp AW)
            (PartialSumLevels G W h c N) ∧
-    /- Part 2: ∃ ALS upper-offset B and slope r (from `hk`) such that the (p,q)-cost satisfies -/
-    ∃ (B_als r_als : ℝ), 0 < r_als ∧
+    /- Part 2: ∃ ALS offsets A,B and slope r (from `hk`) such that the (p,q)-cost satisfies -/
+    ∃ (A_als B_als r_als : ℝ), 0 < r_als ∧
       CoeffPQCost (p := p) (q := q) W (fun _ P => (TransmutationCoeff G W AW h R c N P : ℂ)) ≤
         (G.grid.Cmult1 : ℝ) *
         C ^ (1 / p.toReal) *
         lam ^ (-(B_als : ℝ) / p.toReal) *
-        LpGridRepresentation.cCoefficient p ∞
-          (fun n => lam ^ ((r_als : ℝ) * (n : ℝ))) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
         (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
         CoeffPQCost (p := p) (q := q) G c := by
   have hq_pos : (0 : ℝ) < q.toReal :=
@@ -1454,7 +1475,7 @@ theorem ClaimII
   · -- Part 2: Coefficient bound (paper Prop 8.1)
     have hk0 : AlmostLinearSequence k := hk
     obtain ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ := hk
-    refine ⟨B_als, r_als, hr_als, ?_⟩
+    refine ⟨A_als, B_als, r_als, hr_als, ?_⟩
     -- Since q ≠ ∞, unpack CoeffPQCost on both sides as (∑' ...)^{1/q}
     have hLHS_eq :
         CoeffPQCost (p := p) (q := q) W
@@ -1519,8 +1540,8 @@ theorem ClaimII
         Summable (fun j => convL j ^ q.toReal) ∧
         (∑' j, convL j ^ q.toReal) ^ (1 / q.toReal) ≤
         lam ^ (-(B_als : ℝ) / p.toReal) *
-        LpGridRepresentation.cCoefficient p ∞
-          (fun n => lam ^ ((r_als : ℝ) * (n : ℝ))) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
         (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
         (∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by
       simpa [convL] using
@@ -1530,8 +1551,8 @@ theorem ClaimII
     have hConvBound :
         (∑' j, convL j ^ q.toReal) ^ (1 / q.toReal) ≤
         lam ^ (-(B_als : ℝ) / p.toReal) *
-        LpGridRepresentation.cCoefficient p ∞
-          (fun n => lam ^ ((r_als : ℝ) * (n : ℝ))) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
         (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
         (∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) :=
       hConv.2
@@ -1625,15 +1646,15 @@ theorem ClaimII
           hStepE
       _ ≤ (G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
           (lam ^ (-(B_als : ℝ) / p.toReal) *
-           LpGridRepresentation.cCoefficient p ∞
-             (fun n => lam ^ ((r_als : ℝ) * (n : ℝ))) *
+           LpGridRepresentation.cCoefficientInt p ∞
+             (transmutationKernelZ lam A_als r_als) *
            (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
            (∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal)) :=
           mul_le_mul_of_nonneg_left hConvBound
             (mul_nonneg (Nat.cast_nonneg _) (Real.rpow_nonneg hC _))
       _ = (G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) * lam ^ (-(B_als : ℝ) / p.toReal) *
-          LpGridRepresentation.cCoefficient p ∞
-            (fun n => lam ^ ((r_als : ℝ) * (n : ℝ))) *
+          LpGridRepresentation.cCoefficientInt p ∞
+            (transmutationKernelZ lam A_als r_als) *
           (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
           (∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by ring
 
