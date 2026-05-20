@@ -64,7 +64,7 @@ def CoeffFinitePQCost
       (CoeffPLevel  (p := p) G c i) ^ (q.toReal / p.toReal)
 
 def AlmostLinearSequence (k : ℕ → ℕ) : Prop :=
-  ∃ (A B : NNReal) (r : NNReal), r > 0 ∧ ∀ i : ℕ,
+  ∃ (A B : ℝ) (r : ℝ), r > 0 ∧ ∀ i : ℕ,
     (k i : NNReal) ≤ r * (i : NNReal) + B ∧
     r * (i : NNReal) + A ≤ (k i : NNReal)
 
@@ -73,24 +73,22 @@ lemma almostLinearSequence_finite_le_level
     {i : ℕ | k i ≤ j}.Finite := by
   classical
   obtain ⟨A, B, r, hr, hk_bound⟩ := hk
-  let M : ℕ := Nat.ceil (((j : NNReal) / r)) + 1
+  let M : ℕ := Nat.ceil (((j : ℝ) - A) / r) + 1
   refine (Set.finite_lt_nat M).subset ?_
   intro i hi
   simp only [Set.mem_setOf_eq] at hi ⊢
-  have hlower : r * (i : NNReal) + A ≤ (k i : NNReal) := (hk_bound i).2
-  have hkj : (k i : NNReal) ≤ (j : NNReal) := by exact_mod_cast hi
-  have hri_le_j : r * (i : NNReal) ≤ (j : NNReal) := by
+  have hlower : r * (i : ℝ) + A ≤ (k i : ℝ) := by
+    simpa using (hk_bound i).2
+  have hkj : (k i : ℝ) ≤ (j : ℝ) := by exact_mod_cast hi
+  have hri_le : r * (i : ℝ) ≤ (j : ℝ) - A := by
     calc
-      r * (i : NNReal) ≤ r * (i : NNReal) + A := le_add_of_nonneg_right A.2
-      _ ≤ (k i : NNReal) := hlower
-      _ ≤ (j : NNReal) := hkj
-  have hi_div : (i : NNReal) ≤ (j : NNReal) / r := by
+      r * (i : ℝ) ≤ (k i : ℝ) - A := by linarith
+      _ ≤ (j : ℝ) - A := by linarith
+  have hi_div : (i : ℝ) ≤ ((j : ℝ) - A) / r := by
     rw [le_div_iff₀ hr]
-    simpa [mul_comm] using hri_le_j
-  have hi_ceil_nn : (i : NNReal) ≤ (Nat.ceil ((j : NNReal) / r) : ℕ) :=
-    hi_div.trans (Nat.le_ceil ((j : NNReal) / r))
-  have hi_ceil : i ≤ Nat.ceil ((j : NNReal) / r) := by
-    exact_mod_cast hi_ceil_nn
+    simpa [mul_comm] using hri_le
+  have hi_ceil : i ≤ Nat.ceil (((j : ℝ) - A) / r) := by
+    exact_mod_cast (hi_div.trans (Nat.le_ceil (((j : ℝ) - A) / r)))
   omega
 
 def PartialSumLevels
@@ -229,33 +227,63 @@ theorem TransmutationAtomLocal_isAtom
           ((m : ℂ)⁻¹ * (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P)) •
             ((R iQ.1 iQ.2).block j).atom P from by
       rw [Finset.smul_sum]; congr 1; ext iQ; rw [smul_smul]]
-    apply atom_finsum_mem AW Pg FS
-        (fun iQ => (m : ℂ)⁻¹ * (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P))
-        (fun iQ => ((R iQ.1 iQ.2).block j).atom P)
-    · -- Every b_{P,Q} is in AW.atoms Pg
-      intro ⟨i, Q⟩ _
+    let lamFS : (Σ i : ℕ, LevelCell G i) → ℂ :=
+      fun iQ => (m : ℂ)⁻¹ * (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P)
+    let aFS : (Σ i : ℕ, LevelCell G i) → (AW.localSpace Pg).carrier :=
+      fun iQ => ((R iQ.1 iQ.2).block j).atom P
+    have haFS : ∀ iQ ∈ FS, aFS iQ ∈ AW.atoms Pg := by
+      intro iQ hiQ
+      rcases iQ with ⟨i, Q⟩
       exact (R i Q).block j |>.atom_mem P
-    · -- Norm bound: ∑ ‖m⁻¹ · c_Q · s_{P,Q}‖ ≤ 1
-      -- Flatten the sigma sum back to the nested form to get TransmutationCoeff = m
-      have h_flat : ∑ iQ ∈ FS, ‖c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P‖ = m := by
-        show ∑ iQ ∈ (Finset.range N).sigma
-            (fun i => (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1)),
-            ‖c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P‖ = m
-        rw [Finset.sum_sigma]
-        rfl
-      -- ‖(m : ℂ)‖ = m (since m > 0)
-      have hm_norm : ‖(m : ℂ)‖ = m :=
-        (RCLike.norm_ofReal (K := ℂ) m).trans (abs_of_pos hm_pos)
-      -- Prove equality then use .le
-      have hbound : ∑ iQ ∈ FS,
-          ‖(m : ℂ)⁻¹ * (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P)‖ = 1 := by
+    -- Flatten the sigma sum back to the nested form to recover `m`.
+    have h_flat : ∑ iQ ∈ FS, ‖c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P‖ = m := by
+      show ∑ iQ ∈ (Finset.range N).sigma
+          (fun i => (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1)),
+          ‖c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P‖ = m
+      rw [Finset.sum_sigma]
+      rfl
+    have hm_norm : ‖(m : ℂ)‖ = m :=
+      (RCLike.norm_ofReal (K := ℂ) m).trans (abs_of_pos hm_pos)
+    have hlamFS : ∑ iQ ∈ FS, ‖lamFS iQ‖ ≤ 1 := by
+      have hbound : ∑ iQ ∈ FS, ‖lamFS iQ‖ = 1 := by
         have h_expand : ∀ iQ ∈ FS,
-            ‖(m : ℂ)⁻¹ * (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P)‖ =
-            m⁻¹ * ‖c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P‖ :=
-          fun iQ _ => by rw [norm_mul, norm_inv, hm_norm]
+            ‖lamFS iQ‖ = m⁻¹ * ‖c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P‖ :=
+          fun iQ _ => by
+            dsimp [lamFS]
+            rw [norm_mul, norm_inv, hm_norm]
         rw [Finset.sum_congr rfl h_expand, ← Finset.mul_sum, h_flat,
           inv_mul_cancel₀ hm_pos.ne']
       exact hbound.le
+    have hrw : ∀ iQ ∈ FS, lamFS iQ • aFS iQ =
+        (‖lamFS iQ‖ : ℝ) • phaseAtom AW Pg (lamFS iQ) (aFS iQ) := by
+      intro iQ hiQ
+      exact (norm_smul_phaseAtom AW Pg (lamFS iQ) (aFS iQ)).symm
+    rw [Finset.sum_congr rfl hrw]
+    set r : ℝ := ∑ iQ ∈ FS, ‖lamFS iQ‖
+    by_cases hr : r = 0
+    · have hall : ∀ iQ ∈ FS, ‖lamFS iQ‖ = 0 := fun iQ hiQ =>
+        le_antisymm (hr ▸ Finset.single_le_sum (fun jQ _ => norm_nonneg _) hiQ) (norm_nonneg _)
+      have h0 : ∑ iQ ∈ FS, (‖lamFS iQ‖ : ℝ) • phaseAtom AW Pg (lamFS iQ) (aFS iQ) = 0 :=
+        Finset.sum_eq_zero (fun iQ hiQ => by simp [hall iQ hiQ])
+      rw [h0]
+      exact atom_zero_mem AW Pg
+    · have hr_pos : 0 < r :=
+        lt_of_le_of_ne (Finset.sum_nonneg fun iQ _ => norm_nonneg _) (Ne.symm hr)
+      have h_conv :
+          ∑ iQ ∈ FS, (‖lamFS iQ‖ / r) • phaseAtom AW Pg (lamFS iQ) (aFS iQ) ∈ AW.atoms Pg := by
+        exact (AW.atoms_convex Pg).sum_mem
+          (fun iQ _ => div_nonneg (norm_nonneg _) hr_pos.le)
+          (by rw [← Finset.sum_div]; exact div_self hr_pos.ne')
+          (fun iQ hiQ => phaseAtom_mem AW Pg (lamFS iQ) (haFS iQ hiQ))
+      have h_factor :
+          ∑ iQ ∈ FS, (‖lamFS iQ‖ : ℝ) • phaseAtom AW Pg (lamFS iQ) (aFS iQ) =
+            (r : ℝ) • ∑ iQ ∈ FS, (‖lamFS iQ‖ / r) • phaseAtom AW Pg (lamFS iQ) (aFS iQ) := by
+        conv_rhs => rw [Finset.smul_sum]
+        refine Finset.sum_congr rfl fun iQ _ => ?_
+        rw [smul_smul, mul_div_cancel₀ _ (ne_of_gt hr_pos)]
+      rw [h_factor, RCLike.real_smul_eq_coe_smul (K := ℂ)]
+      exact atom_smul_mem_of_norm_le_one AW Pg
+        (by rw [RCLike.norm_ofReal, abs_of_pos hr_pos]; exact hlamFS) h_conv
 
 /-- **Claim I**: `∑_j ∑_{P∈W^j} m_{P,N} · d_{P,N} = ∑_{i<N} ∑_{Q∈G^i} c_Q · h_Q` in Lp.
     Proof: exchange summation order using `h_Q = ∑_j ∑_{P⊆Q} s_{P,Q}·b_{P,Q}` (from `hR`)
@@ -845,6 +873,106 @@ lemma finset_Lp_sum_le_sum_Lp
         ∑ i' ∈ insert i S, (∑ k ∈ T, (a i' k) ^ p.toReal) ^ (1 / p.toReal) := by
           rw [Finset.sum_insert hi]
 
+/-- The arithmetic progression `n ↦ b + a * n` is injective when `a > 0`. -/
+lemma arithProg_injective {a b : ℕ} (ha : 0 < a) :
+    Function.Injective (fun n : ℕ => b + a * n) := by
+  intro n m hnm
+  have hmul : a * n = a * m := by
+    exact Nat.add_left_cancel hnm
+  exact Nat.mul_left_cancel ha hmul
+
+/-- A summable sequence remains summable when restricted to an arithmetic progression. -/
+lemma summable_arithProg_comp {f : ℕ → ℝ} (hf : Summable f) {a b : ℕ} (ha : 0 < a) :
+    Summable (fun n => f (b + a * n)) := by
+  exact hf.comp_injective (arithProg_injective ha)
+
+/-- The sum over an arithmetic progression is bounded by the total sum for nonnegative terms. -/
+lemma tsum_arithProg_le {f : ℕ → ℝ} (hf : Summable f) (hf_nonneg : ∀ n, 0 ≤ f n)
+    {a b : ℕ} (ha : 0 < a) :
+    (∑' n, f (b + a * n)) ≤ ∑' n, f n := by
+  let phi : ℕ → ℕ := fun n => b + a * n
+  have hphi_inj : Function.Injective phi := arithProg_injective ha
+  let e : ℕ ≃ Set.range phi := Equiv.ofInjective phi hphi_inj
+  have h_range : (∑' n, f (phi n)) = ∑' x : Set.range phi, f x.1 := by
+    simpa [phi, e] using e.tsum_eq (fun x : Set.range phi => f x.1)
+  have hind_summable : Summable (Set.indicator (Set.range phi) f) := by
+    refine Summable.of_nonneg_of_le ?_ ?_ hf
+    · intro n
+      by_cases hn : n ∈ Set.range phi
+      · simp [Set.indicator, hn, hf_nonneg]
+      · simp [Set.indicator, hn]
+    · intro n
+      by_cases hn : n ∈ Set.range phi
+      · simp [Set.indicator, hn]
+      · simp [Set.indicator, hn, hf_nonneg]
+  calc
+    (∑' n, f (b + a * n)) = ∑' x : Set.range phi, f x.1 := by simpa [phi] using h_range
+    _ = ∑' n, Set.indicator (Set.range phi) f n := by
+      simpa using (tsum_subtype (Set.range phi) f)
+    _ ≤ ∑' n, f n := hind_summable.tsum_le_tsum (fun n => by
+      by_cases hn : n ∈ Set.range phi
+      · simp [Set.indicator, hn]
+      · simp [Set.indicator, hn, hf_nonneg]) hf
+
+/-- An injective reindexing cannot increase the sum of a nonnegative summable family. -/
+lemma tsum_comp_le_tsum_of_injective
+    {ι κ : Type*} [Encodable ι] [Encodable κ]
+    {f : κ → ℝ} (hf : Summable f) (hf_nonneg : ∀ x, 0 ≤ f x)
+    {phi : ι → κ} (hphi : Function.Injective phi) :
+    (∑' i, f (phi i)) ≤ ∑' x, f x := by
+  let e : ι ≃ Set.range phi := Equiv.ofInjective phi hphi
+  have h_range : (∑' i, f (phi i)) = ∑' x : Set.range phi, f x.1 := by
+    simpa [e] using e.tsum_eq (fun x : Set.range phi => f x.1)
+  have hind_summable : Summable (Set.indicator (Set.range phi) f) := by
+    refine Summable.of_nonneg_of_le ?_ ?_ hf
+    · intro x
+      by_cases hx : x ∈ Set.range phi
+      · simp [Set.indicator, hx, hf_nonneg]
+      · simp [Set.indicator, hx]
+    · intro x
+      by_cases hx : x ∈ Set.range phi
+      · simp [Set.indicator, hx]
+      · simp [Set.indicator, hx, hf_nonneg]
+  calc
+    (∑' i, f (phi i)) = ∑' x : Set.range phi, f x.1 := by simpa using h_range
+    _ = ∑' x, Set.indicator (Set.range phi) f x := by
+      simpa using (tsum_subtype (Set.range phi) f)
+    _ ≤ ∑' x, f x := hind_summable.tsum_le_tsum (fun x => by
+      by_cases hx : x ∈ Set.range phi
+      · simp [Set.indicator, hx]
+      · simp [Set.indicator, hx, hf_nonneg]) hf
+
+/-- A finite family of nonnegative terms bounded above by `C` has `ℓ^q` norm at most
+`card^(1/q) * C`. -/
+lemma finset_Lq_le_card_rpow_mul_bound {ι : Type*} (S : Finset ι) (a : ι → ℝ) (C : ℝ)
+    (ha_nonneg : ∀ i ∈ S, 0 ≤ a i) (ha_le : ∀ i ∈ S, a i ≤ C)
+    (hC_nonneg : 0 ≤ C) (hq_ne_top : q ≠ ∞) :
+    (∑ i ∈ S, a i ^ q.toReal) ^ (1 / q.toReal) ≤ (S.card : ℝ) ^ (1 / q.toReal) * C := by
+  have hq_pos : 0 < q.toReal :=
+    ENNReal.toReal_pos
+      (fun h0 => absurd (h0 ▸ (Fact.out : (1 : ℝ≥0∞) ≤ q)) (by norm_num))
+      hq_ne_top
+  have hsum_le : ∑ i ∈ S, a i ^ q.toReal ≤ ∑ i ∈ S, C ^ q.toReal := by
+    exact Finset.sum_le_sum fun i hi =>
+      Real.rpow_le_rpow (ha_nonneg i hi) (ha_le i hi) hq_pos.le
+  have hpow_le :
+      (∑ i ∈ S, a i ^ q.toReal) ^ (1 / q.toReal) ≤
+        (∑ i ∈ S, C ^ q.toReal) ^ (1 / q.toReal) :=
+    Real.rpow_le_rpow
+      (Finset.sum_nonneg fun i hi => Real.rpow_nonneg (ha_nonneg i hi) _)
+      hsum_le
+      (div_nonneg zero_le_one hq_pos.le)
+  have hsumC : ∑ i ∈ S, C ^ q.toReal = (S.card : ℝ) * C ^ q.toReal := by
+    rw [Finset.sum_const, nsmul_eq_mul]
+  calc
+    (∑ i ∈ S, a i ^ q.toReal) ^ (1 / q.toReal)
+        ≤ ((S.card : ℝ) * C ^ q.toReal) ^ (1 / q.toReal) := by simpa [hsumC] using hpow_le
+    _ = (S.card : ℝ) ^ (1 / q.toReal) * C := by
+      rw [Real.mul_rpow (Nat.cast_nonneg _) (Real.rpow_nonneg hC_nonneg _)]
+      rw [← Real.rpow_mul hC_nonneg]
+      field_simp [hq_pos.ne']
+      rw [Real.rpow_one]
+
 /-- The per-level estimate in Claim II, corresponding to the chain ending at
 equation `(for)` in the paper.
 
@@ -1014,11 +1142,13 @@ Young convolution trick with `b_n = lam^(r*n)`. -/
 lemma transmutation_convolution_bound
     (k : ℕ → ℕ)
     (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
-    (B_als r_als : NNReal) (hr_als : 0 < r_als)
+  (A_als B_als r_als : ℝ ) (hr_als : 0 < r_als)
     (hk_upper : ∀ i : ℕ, (k i : NNReal) ≤ r_als * (i : NNReal) + B_als)
+  (hk_lower : ∀ i : ℕ, r_als * (i : NNReal) + A_als ≤ k i)
     (vL : ℕ → ℝ)
     (hvL_nn : ∀ i, 0 ≤ vL i)
     (hsource : Summable fun i => vL i ^ (q.toReal / p.toReal))
+  (hp_ne_top : p ≠ ∞)
     (hq_ne_top : q ≠ ∞) :
     Summable (fun j =>
       (∑' i, if k i ≤ j then
@@ -1032,6 +1162,118 @@ lemma transmutation_convolution_bound
         (fun n => lam ^ ((r_als : ℝ) * (n : ℝ))) *
       (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
       (∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by
+  let alpha : ℕ := Nat.ceil (r_als : ℝ)
+  let b : ℕ → ℝ := fun n => lam ^ ((r_als : ℝ) * (n : ℝ))
+  let convL : ℕ → ℝ := fun j =>
+    ∑' i, if k i ≤ j then
+      lam ^ ((↑(j - k i) : ℝ) / p.toReal) * (vL i) ^ (1 / p.toReal) else 0
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos
+      (fun h0 => absurd (h0 ▸ (Fact.out : (1 : ℝ≥0∞) ≤ p)) (by norm_num))
+      hp_ne_top
+  have hq_pos : 0 < q.toReal :=
+    ENNReal.toReal_pos
+      (fun h0 => absurd (h0 ▸ (Fact.out : (1 : ℝ≥0∞) ≤ q)) (by norm_num))
+      hq_ne_top
+  have halpha_pos : 0 < alpha := by
+    have hr_pos_real : 0 < (r_als : ℝ) := by exact_mod_cast hr_als
+    exact Nat.ceil_pos.mpr hr_pos_real
+  have hb_nonneg : ∀ n, 0 ≤ b n := by
+    intro n
+    exact Real.rpow_nonneg hlam_pos.le _
+  have hconvL_nn : ∀ j, 0 ≤ convL j := by
+    intro j
+    exact tsum_nonneg fun i => by
+      split_ifs with hij
+      · exact mul_nonneg (Real.rpow_nonneg hlam_pos.le _) (Real.rpow_nonneg (hvL_nn i) _)
+      · exact le_rfl
+  have hsource_nn : ∀ i, 0 ≤ vL i ^ (q.toReal / p.toReal) := by
+    intro i
+    exact Real.rpow_nonneg (hvL_nn i) _
+  have hccoeff_nonneg : 0 ≤ LpGridRepresentation.cCoefficient p ∞ b :=
+    LpGridRepresentation.cCoefficient_nonneg p ∞ b hb_nonneg
+  have hccoeff_eq :
+      LpGridRepresentation.cCoefficient p ∞ b =
+        ∑' n, b n ^ (1 / p.toReal) := by
+    simp [LpGridRepresentation.cCoefficient, b]
+  let rho : ℝ := lam ^ ((r_als : ℝ) / p.toReal)
+  have hrho_nonneg : 0 ≤ rho := by
+    dsimp [rho]
+    exact Real.rpow_nonneg hlam_pos.le _
+  have hrho_lt_one : rho < 1 := by
+    dsimp [rho]
+    refine Real.rpow_lt_one hlam_pos.le hlam_lt ?_
+    positivity
+  have hb_root_eq : ∀ n, b n ^ (1 / p.toReal) = rho ^ n := by
+    intro n
+    dsimp [b, rho]
+    rw [← Real.rpow_mul hlam_pos.le]
+    have hexp : ((r_als : ℝ) * (n : ℝ)) * (1 / p.toReal) = ((r_als : ℝ) / p.toReal) * n := by
+      ring
+    rw [hexp, Real.rpow_mul hlam_pos.le, Real.rpow_natCast]
+  have hb_root_summable : Summable (fun n => b n ^ (1 / p.toReal)) := by
+    have hrho_sum : Summable (fun n : ℕ => rho ^ n) :=
+      summable_geometric_of_lt_one hrho_nonneg hrho_lt_one
+    convert hrho_sum using 1
+    funext n
+    exact hb_root_eq n
+  let srcPow : Fin alpha → ℕ → ℝ :=
+    fun m n => vL (m.1 + alpha * n) ^ (q.toReal / p.toReal)
+  have hsrcPow_summable : ∀ m : Fin alpha, Summable (srcPow m) := by
+    intro m
+    simpa [srcPow] using
+      summable_arithProg_comp hsource (a := alpha) (b := m.1) halpha_pos
+  have hsrcPow_le : ∀ m : Fin alpha, (∑' n, srcPow m n) ≤ ∑' i, vL i ^ (q.toReal / p.toReal) := by
+    intro m
+    simpa [srcPow] using
+      tsum_arithProg_le hsource hsource_nn (a := alpha) (b := m.1) halpha_pos
+  have hsrcRoot_le : ∀ m : Fin alpha,
+      (∑' n, srcPow m n) ^ (1 / q.toReal) ≤
+        (∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by
+    intro m
+    exact Real.rpow_le_rpow
+      (tsum_nonneg fun n => by simpa [srcPow] using hsource_nn (m.1 + alpha * n))
+      (hsrcPow_le m)
+      (div_nonneg zero_le_one hq_pos.le)
+  let Csrc : ℝ := (∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal)
+  have hCsrc_nonneg : 0 ≤ Csrc := by
+    dsimp [Csrc]
+    exact Real.rpow_nonneg (tsum_nonneg hsource_nn) _
+  have hsrcFamily_le :
+      (∑ m : Fin alpha, ((∑' n, srcPow m n) ^ (1 / q.toReal)) ^ q.toReal) ^ (1 / q.toReal) ≤
+        (alpha : ℝ) ^ (1 / q.toReal) * Csrc := by
+    simpa [Csrc] using
+      finset_Lq_le_card_rpow_mul_bound (q := q) (S := (Finset.univ : Finset (Fin alpha)))
+        (a := fun m => (∑' n, srcPow m n) ^ (1 / q.toReal))
+        ((∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal))
+        (fun m hm => Real.rpow_nonneg (tsum_nonneg fun n => by
+          simpa [srcPow] using hsource_nn (m.1 + alpha * n)) _)
+        (fun m hm => hsrcRoot_le m)
+        hCsrc_nonneg
+        hq_ne_top
+  let kout : Fin alpha → ℕ → ℕ :=
+    fun ell j => Nat.ceil ((r_als : ℝ) * (j : ℝ) + (ell.1 : ℝ))
+  let koutExists : Fin alpha → ℕ → Prop :=
+    fun ell j => ((kout ell j : ℕ) : ℝ) < (r_als : ℝ) * ((j + 1 : ℕ) : ℝ)
+  have hkout_lower : ∀ ell : Fin alpha, ∀ j : ℕ,
+      (r_als : ℝ) * (j : ℝ) + (ell.1 : ℝ) ≤ (kout ell j : ℕ) := by
+    intro ell j
+    exact Nat.le_ceil _
+  have hkout_lt_add_one : ∀ ell : Fin alpha, ∀ j : ℕ,
+      ((kout ell j : ℕ) : ℝ) < (r_als : ℝ) * (j : ℝ) + (ell.1 : ℝ) + 1 := by
+    intro ell j
+    apply Nat.ceil_lt_add_one
+    positivity
+  have hkout_eq_when_exists : ∀ ell : Fin alpha, ∀ j : ℕ,
+      koutExists ell j →
+        (r_als : ℝ) * (j : ℝ) + (ell.1 : ℝ) ≤ (kout ell j : ℕ) ∧
+        ((kout ell j : ℕ) : ℝ) < (r_als : ℝ) * ((j + 1 : ℕ) : ℝ) := by
+    intro ell j hEx
+    exact ⟨hkout_lower ell j, hEx⟩
+  -- The remaining proof follows the paper's residue-class decomposition with
+  -- `alpha = ceil r_als`, applied to `convL`, and then finite Minkowski over the
+  -- `alpha` residue classes. The local arithmetic and reindexing helpers are still
+  -- to be filled in.
   sorry
 
 /-- Finite abstract cost for the transmutation blocks.
@@ -1053,7 +1295,7 @@ lemma transmutationBlock_abstractFinitePQCost
     AbstractFinitePQCost (q := q) (TransmutationBlock G W AW h R c N) := by
   have hq_pos : (0 : ℝ) < q.toReal :=
     ENNReal.toReal_pos (fun h0 => absurd (h0 ▸ (Fact.out : 1 ≤ q)) (by norm_num)) hq_ne_top
-  obtain ⟨_, B_als, r_als, hr_als, hk_bound⟩ := hk
+  obtain ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ := hk
   let uL : ℕ → ℝ :=
     fun j => CoeffPLevel (p := p) W
       (fun _ P => (TransmutationCoeff G W AW h R c N P : ℂ)) j
@@ -1081,6 +1323,9 @@ lemma transmutationBlock_abstractFinitePQCost
         G W AW k hk0 lam hlam_pos hlam_lt C hC h R hR c N j hp_ne_top
   have hk_upper : ∀ i : ℕ, (k i : NNReal) ≤ r_als * (i : NNReal) + B_als :=
     fun i => (hk_bound i).1
+  have hk_lower : ∀ i : ℕ, r_als * (i : NNReal) + A_als ≤ k i := by
+    intro i
+    exact_mod_cast (hk_bound i).2
   have hConv :
       Summable (fun j => convL j ^ q.toReal) ∧
       (∑' j, convL j ^ q.toReal) ^ (1 / q.toReal) ≤
@@ -1091,8 +1336,8 @@ lemma transmutationBlock_abstractFinitePQCost
         (∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by
     simpa [convL] using
       transmutation_convolution_bound
-        (p := p) (q := q) k lam hlam_pos hlam_lt B_als r_als hr_als
-        hk_upper vL hvL_nn hvL_sum hq_ne_top
+        (p := p) (q := q) k lam hlam_pos hlam_lt A_als B_als r_als hr_als
+        hk_upper hk_lower vL hvL_nn hvL_sum hp_ne_top hq_ne_top
   have hterm_le : ∀ j,
       uL j ^ (q.toReal / p.toReal) ≤
       (G.grid.Cmult1 : ℝ) ^ q.toReal * C ^ (q.toReal / p.toReal) *
@@ -1160,7 +1405,7 @@ theorem ClaimII
     HasSum (fun j => (TransmutationBlock G W AW h R c N j).toLp AW)
            (PartialSumLevels G W h c N) ∧
     /- Part 2: ∃ ALS upper-offset B and slope r (from `hk`) such that the (p,q)-cost satisfies -/
-    ∃ (B_als r_als : NNReal), 0 < r_als ∧
+    ∃ (B_als r_als : ℝ), 0 < r_als ∧
       CoeffPQCost (p := p) (q := q) W (fun _ P => (TransmutationCoeff G W AW h R c N P : ℂ)) ≤
         (G.grid.Cmult1 : ℝ) *
         C ^ (1 / p.toReal) *
@@ -1208,7 +1453,7 @@ theorem ClaimII
     exact hsum.hasSum
   · -- Part 2: Coefficient bound (paper Prop 8.1)
     have hk0 : AlmostLinearSequence k := hk
-    obtain ⟨_, B_als, r_als, hr_als, hk_bound⟩ := hk
+    obtain ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ := hk
     refine ⟨B_als, r_als, hr_als, ?_⟩
     -- Since q ≠ ∞, unpack CoeffPQCost on both sides as (∑' ...)^{1/q}
     have hLHS_eq :
@@ -1267,6 +1512,9 @@ theorem ClaimII
       simpa [CoeffFinitePQCost, hq_ne_top, vL] using hc
     have hk_upper : ∀ i : ℕ, (k i : NNReal) ≤ r_als * (i : NNReal) + B_als :=
       fun i => (hk_bound i).1
+    have hk_lower : ∀ i : ℕ, r_als * (i : NNReal) + A_als ≤ k i := by
+      intro i
+      exact_mod_cast (hk_bound i).2
     have hConv :
         Summable (fun j => convL j ^ q.toReal) ∧
         (∑' j, convL j ^ q.toReal) ^ (1 / q.toReal) ≤
@@ -1277,8 +1525,8 @@ theorem ClaimII
         (∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by
       simpa [convL] using
         transmutation_convolution_bound
-          (p := p) (q := q) k lam hlam_pos hlam_lt B_als r_als hr_als
-          hk_upper vL hvL_nn hvL_sum hq_ne_top
+          (p := p) (q := q) k lam hlam_pos hlam_lt A_als B_als r_als hr_als
+          hk_upper hk_lower vL hvL_nn hvL_sum hp_ne_top hq_ne_top
     have hConvBound :
         (∑' j, convL j ^ q.toReal) ^ (1 / q.toReal) ≤
         lam ^ (-(B_als : ℝ) / p.toReal) *
