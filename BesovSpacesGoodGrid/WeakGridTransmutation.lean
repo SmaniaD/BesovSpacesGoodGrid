@@ -430,11 +430,11 @@ lemma transmutationBlock_toLp_eq
             ((Lp.coeFn_smul _ _).trans
               ((LevelBlock.coeFn_term AW ((R iQ.1 iQ.2).block j) P).fun_const_smul _)).trans
               (Filter.Eventually.of_forall (fun x => by
-                simp only [Pi.smul_apply, smul_eq_mul]
+                simp only [smul_eq_mul]
                 ring))
           exact (hhead.add ih).trans
             (Filter.Eventually.of_forall (fun x => by
-              simp only [Pi.add_apply, Finset.sum_insert hiQ]))
+              simp only [Pi.add_apply]))
     filter_upwards
       [Lp.coeFn_smul (m : ℂ)
         (MemLp.toLp
@@ -457,6 +457,370 @@ lemma transmutationBlock_toLp_eq
     rw [← mul_assoc, mul_inv_cancel₀ hmC, one_mul]
     simp only [Finset.sum_apply, Pi.smul_apply, smul_eq_mul]
 
+/-- If a fixed target cell `P` is contained in cells `Q` of one source level,
+then those `Q`s form an overlap family. Hence their number is bounded by
+`G.grid.Cmult1`.
+
+This is the geometric multiplicity used in Claim II at the step
+`(∑_{Q:P⊆Q} a_Q)^p ≤ Cmult1^p ∑_{Q:P⊆Q} a_Q^p`. -/
+lemma containing_cells_card_le_Cmult1
+    (G W : WeakGridSpace (α := α)) (i j : ℕ) (P : LevelCell W j) :
+    ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1).card
+      ≤ G.grid.Cmult1 := by
+  classical
+  let S := (G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1
+  by_cases hS : S.Nonempty
+  · rcases hS with ⟨Q₀, hQ₀S⟩
+    have hPne : P.1.Nonempty := by
+      by_contra hne
+      have hEmpty : P.1 = ∅ := Set.not_nonempty_iff_eq_empty.mp hne
+      have hpos : 0 < W.measure P.1 := by
+        simpa [WeakGridSpace.measure] using W.grid.positive_measure j P.1 P.2
+      rw [hEmpty, measure_empty] at hpos
+      exact (lt_irrefl (0 : ℝ≥0∞)) hpos
+    have hQ₀mem : Q₀.1 ∈ G.grid.partitions i := Q₀.2
+    have hQ₀contains : P.1 ⊆ Q₀.1 := by
+      simpa [S] using (Finset.mem_filter.mp hQ₀S).2
+    have hmap :
+        Set.MapsTo (fun Q : LevelCell G i => Q.1) (S : Set (LevelCell G i))
+          (overlapFinset (G.grid.partitions i) Q₀.1 : Set (Set α)) := by
+      intro Q hQS
+      have hQcontains : P.1 ⊆ Q.1 := by
+        simpa [S] using (Finset.mem_filter.mp hQS).2
+      rcases hPne with ⟨x, hxP⟩
+      simp [overlapFinset, Q.2]
+      exact ⟨x, hQcontains hxP, hQ₀contains hxP⟩
+    have hinj :
+        Set.InjOn (fun Q : LevelCell G i => Q.1) (S : Set (LevelCell G i)) := by
+      intro Q hQS R hRS hQR
+      cases Q
+      cases R
+      simp at hQR
+      simp [hQR]
+    simpa [S] using
+      (Finset.card_le_card_of_injOn (fun Q : LevelCell G i => Q.1) hmap hinj).trans
+        (G.grid.overlap_card_le i Q₀.1 hQ₀mem)
+  · have hEmpty : S = ∅ := by
+      simpa [Finset.not_nonempty_iff_eq_empty] using hS
+    have hcard :
+        ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1).card = 0 := by
+      simpa [S] using congrArg Finset.card hEmpty
+    omega
+
+/-- Power-sum estimate for the cells of one source level that contain a fixed
+target cell.
+
+This is the formal version of the Claim II step
+`(∑_{Q:P⊆Q} a_Q)^p ≤ Cmult1^p ∑_{Q:P⊆Q} a_Q^p`. -/
+lemma containing_cells_sum_rpow_le_Cmult1
+    (G W : WeakGridSpace (α := α)) (i j : ℕ) (P : LevelCell W j)
+    (a : LevelCell G i → ℝ)
+    (hp_ne_top : p ≠ ∞)
+    (ha_nonneg : ∀ Q ∈
+      ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1),
+        0 ≤ a Q) :
+    (∑ Q ∈ ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1),
+        a Q) ^ p.toReal ≤
+      (G.grid.Cmult1 : ℝ) ^ p.toReal *
+        ∑ Q ∈ ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1),
+          a Q ^ p.toReal := by
+  classical
+  let S := (G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1
+  have hp_one : (1 : ℝ) ≤ p.toReal := by
+    have h := ENNReal.toReal_mono hp_ne_top (Fact.out : (1 : ℝ≥0∞) ≤ p)
+    simpa using h
+  have hp_nonneg : 0 ≤ p.toReal := le_trans (zero_le_one : (0 : ℝ) ≤ 1) hp_one
+  have hpow_sum :
+      (∑ Q ∈ S, a Q) ^ p.toReal ≤
+        (S.card : ℝ) ^ (p.toReal - 1) *
+          ∑ Q ∈ S, a Q ^ p.toReal :=
+    Real.rpow_sum_le_const_mul_sum_rpow_of_nonneg S hp_one
+      (by simpa [S] using ha_nonneg)
+  have hcardC_nat : S.card ≤ G.grid.Cmult1 := by
+    simpa [S] using containing_cells_card_le_Cmult1 G W i j P
+  have hcardC : (S.card : ℝ) ≤ (G.grid.Cmult1 : ℝ) := by exact_mod_cast hcardC_nat
+  have hCnonneg : 0 ≤ (G.grid.Cmult1 : ℝ) := by exact_mod_cast Nat.zero_le G.grid.Cmult1
+  by_cases hSempty : S.card = 0
+  · have hS : S = ∅ := Finset.card_eq_zero.mp hSempty
+    change (∑ Q ∈ S, a Q) ^ p.toReal ≤
+      (G.grid.Cmult1 : ℝ) ^ p.toReal * ∑ Q ∈ S, a Q ^ p.toReal
+    rw [hS]
+    simp [Real.zero_rpow (lt_of_lt_of_le zero_lt_one hp_one).ne']
+  · have hSpos_nat : 1 ≤ S.card := Nat.succ_le_of_lt (Nat.pos_of_ne_zero hSempty)
+    have hSpos : (1 : ℝ) ≤ (S.card : ℝ) := by exact_mod_cast hSpos_nat
+    have hcard_pow_le_C :
+        (S.card : ℝ) ^ (p.toReal - 1) ≤ (G.grid.Cmult1 : ℝ) ^ p.toReal := by
+      calc
+        (S.card : ℝ) ^ (p.toReal - 1)
+            ≤ (S.card : ℝ) ^ p.toReal :=
+              Real.rpow_le_rpow_of_exponent_le hSpos (by linarith)
+        _ ≤ (G.grid.Cmult1 : ℝ) ^ p.toReal :=
+              Real.rpow_le_rpow (by positivity) hcardC hp_nonneg
+    exact hpow_sum.trans
+      (mul_le_mul_of_nonneg_right hcard_pow_le_C
+        (Finset.sum_nonneg fun Q hQ => Real.rpow_nonneg (ha_nonneg Q (by simpa [S] using hQ)) _))
+
+/-- Fixed-source-level estimate after applying the multiplicity bound to each
+target cell and exchanging the finite sums. -/
+lemma transmutation_fixed_i_power_bound
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (i j : ℕ) (hp_ne_top : p ≠ ∞) :
+    (∑ P : LevelCell W j,
+        (∑ Q ∈ ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1),
+          ‖c i Q * ((R i Q).block j).coeff P‖) ^ p.toReal) ≤
+      (G.grid.Cmult1 : ℝ) ^ p.toReal *
+        ∑ Q : LevelCell G i,
+          ‖c i Q‖ ^ p.toReal * (R i Q).levelCoeffPower j := by
+  classical
+  have hCnonneg : 0 ≤ (G.grid.Cmult1 : ℝ) := by exact_mod_cast Nat.zero_le G.grid.Cmult1
+  have hpoint : ∀ P : LevelCell W j,
+      (∑ Q ∈ ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1),
+        ‖c i Q * ((R i Q).block j).coeff P‖) ^ p.toReal ≤
+      (G.grid.Cmult1 : ℝ) ^ p.toReal *
+        ∑ Q ∈ ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1),
+          ‖c i Q * ((R i Q).block j).coeff P‖ ^ p.toReal := by
+    intro P
+    exact containing_cells_sum_rpow_le_Cmult1 (p := p) G W i j P
+      (fun Q => ‖c i Q * ((R i Q).block j).coeff P‖) hp_ne_top
+      (fun Q hQ => norm_nonneg _)
+  calc
+    (∑ P : LevelCell W j,
+        (∑ Q ∈ ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1),
+          ‖c i Q * ((R i Q).block j).coeff P‖) ^ p.toReal)
+        ≤ ∑ P : LevelCell W j,
+            (G.grid.Cmult1 : ℝ) ^ p.toReal *
+              ∑ Q ∈ ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1),
+                ‖c i Q * ((R i Q).block j).coeff P‖ ^ p.toReal := by
+          exact Finset.sum_le_sum fun P _ => hpoint P
+    _ = (G.grid.Cmult1 : ℝ) ^ p.toReal *
+          ∑ P : LevelCell W j,
+            ∑ Q ∈ ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1),
+              ‖c i Q * ((R i Q).block j).coeff P‖ ^ p.toReal := by
+          rw [Finset.mul_sum]
+    _ = (G.grid.Cmult1 : ℝ) ^ p.toReal *
+          ∑ Q : LevelCell G i,
+            ∑ P : LevelCell W j,
+              if P.1 ⊆ Q.1 then
+                ‖c i Q * ((R i Q).block j).coeff P‖ ^ p.toReal else 0 := by
+          congr 1
+          rw [Finset.sum_comm]
+          simp [Finset.sum_filter]
+    _ ≤ (G.grid.Cmult1 : ℝ) ^ p.toReal *
+          ∑ Q : LevelCell G i,
+            ∑ P : LevelCell W j,
+              ‖c i Q * ((R i Q).block j).coeff P‖ ^ p.toReal := by
+          exact mul_le_mul_of_nonneg_left
+            (Finset.sum_le_sum fun Q _ =>
+              Finset.sum_le_sum fun P _ => by
+              by_cases hPQ : P.1 ⊆ Q.1
+              · simp [hPQ]
+              · simp [hPQ, Real.rpow_nonneg
+                  (mul_nonneg (norm_nonneg _) (norm_nonneg _)) _])
+            (Real.rpow_nonneg hCnonneg _)
+    _ = (G.grid.Cmult1 : ℝ) ^ p.toReal *
+          ∑ Q : LevelCell G i,
+            ‖c i Q‖ ^ p.toReal * (R i Q).levelCoeffPower j := by
+          congr 1
+          refine Finset.sum_congr rfl ?_
+          intro Q hQ
+          rw [LpGridRepresentation.levelCoeffPower, Finset.mul_sum]
+          refine Finset.sum_congr rfl ?_
+          intro P hP
+          rw [norm_mul, Real.mul_rpow (norm_nonneg _) (norm_nonneg _)]
+
+/-- Fixed-source-level root estimate, after inserting the representation decay
+bound `levelCoeffPower j ≤ C * lam^(j-k i)`. -/
+lemma transmutation_fixed_i_root_bound
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ) (hk : AlmostLinearSequence k)
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k hk lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (i j : ℕ) (hp_ne_top : p ≠ ∞) (hki : k i ≤ j) :
+    (∑ P : LevelCell W j,
+        (∑ Q ∈ ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1),
+          ‖c i Q * ((R i Q).block j).coeff P‖) ^ p.toReal) ^ (1 / p.toReal) ≤
+      (G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
+        lam ^ ((↑(j - k i) : ℝ) / p.toReal) *
+          (CoeffPLevel (p := p) G c i) ^ (1 / p.toReal) := by
+  classical
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos
+      (fun h0 => absurd (h0 ▸ (Fact.out : (1 : ℝ≥0∞) ≤ p)) (by norm_num))
+      hp_ne_top
+  have hp_inv_nonneg : 0 ≤ 1 / p.toReal := by positivity
+  have hCmult_nonneg : 0 ≤ (G.grid.Cmult1 : ℝ) := by exact_mod_cast Nat.zero_le G.grid.Cmult1
+  have hlam_nonneg : 0 ≤ lam ^ ((↑(j - k i) : ℝ) / p.toReal) :=
+    Real.rpow_nonneg hlam_pos.le _
+  have hcoeff_nonneg : 0 ≤ CoeffPLevel (p := p) G c i :=
+    Finset.sum_nonneg fun Q _ => Real.rpow_nonneg (norm_nonneg _) _
+  have hfixed := transmutation_fixed_i_power_bound
+    (p := p) G W AW h R c i j hp_ne_top
+  have hdecay_sum :
+      ∑ Q : LevelCell G i,
+          ‖c i Q‖ ^ p.toReal * (R i Q).levelCoeffPower j
+        ≤
+      (C * lam ^ (j - k i)) * CoeffPLevel (p := p) G c i := by
+    calc
+      ∑ Q : LevelCell G i,
+          ‖c i Q‖ ^ p.toReal * (R i Q).levelCoeffPower j
+          ≤ ∑ Q : LevelCell G i,
+              ‖c i Q‖ ^ p.toReal * (C * lam ^ (j - k i)) := by
+            exact Finset.sum_le_sum fun Q _ =>
+              mul_le_mul_of_nonneg_left ((hR i Q).2.2 j hki)
+                (Real.rpow_nonneg (norm_nonneg _) _)
+      _ = (C * lam ^ (j - k i)) * CoeffPLevel (p := p) G c i := by
+            simp only [CoeffPLevel]
+            rw [← Finset.sum_mul]
+            ring_nf
+  have hpower :
+      ∑ P : LevelCell W j,
+        (∑ Q ∈ ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1),
+          ‖c i Q * ((R i Q).block j).coeff P‖) ^ p.toReal
+        ≤
+      ((G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
+        lam ^ ((↑(j - k i) : ℝ) / p.toReal) *
+          (CoeffPLevel (p := p) G c i) ^ (1 / p.toReal)) ^ p.toReal := by
+    have h1 :
+        ∑ P : LevelCell W j,
+          (∑ Q ∈ ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1),
+            ‖c i Q * ((R i Q).block j).coeff P‖) ^ p.toReal
+          ≤
+        (G.grid.Cmult1 : ℝ) ^ p.toReal *
+          ((C * lam ^ (j - k i)) * CoeffPLevel (p := p) G c i) := by
+      exact hfixed.trans
+        (mul_le_mul_of_nonneg_left hdecay_sum
+          (Real.rpow_nonneg hCmult_nonneg _))
+    have hfactor_nonneg : 0 ≤ C * lam ^ (j - k i) :=
+      mul_nonneg hC (pow_nonneg hlam_pos.le _)
+    have htarget_eq :
+        ((G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
+          lam ^ ((↑(j - k i) : ℝ) / p.toReal) *
+            (CoeffPLevel (p := p) G c i) ^ (1 / p.toReal)) ^ p.toReal =
+        (G.grid.Cmult1 : ℝ) ^ p.toReal *
+          ((C * lam ^ (j - k i)) * CoeffPLevel (p := p) G c i) := by
+      calc
+        ((G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
+          lam ^ ((↑(j - k i) : ℝ) / p.toReal) *
+            (CoeffPLevel (p := p) G c i) ^ (1 / p.toReal)) ^ p.toReal
+            =
+          (G.grid.Cmult1 : ℝ) ^ p.toReal *
+            (C ^ (1 / p.toReal)) ^ p.toReal *
+            (lam ^ ((↑(j - k i) : ℝ) / p.toReal)) ^ p.toReal *
+            ((CoeffPLevel (p := p) G c i) ^ (1 / p.toReal)) ^ p.toReal := by
+              rw [Real.mul_rpow
+                    (mul_nonneg (mul_nonneg hCmult_nonneg (Real.rpow_nonneg hC _))
+                      hlam_nonneg)
+                    (Real.rpow_nonneg hcoeff_nonneg _),
+                  Real.mul_rpow
+                    (mul_nonneg hCmult_nonneg (Real.rpow_nonneg hC _))
+                    hlam_nonneg,
+                  Real.mul_rpow hCmult_nonneg (Real.rpow_nonneg hC _)]
+        _ = (G.grid.Cmult1 : ℝ) ^ p.toReal *
+            C *
+            lam ^ (j - k i) *
+            CoeffPLevel (p := p) G c i := by
+              rw [← Real.rpow_mul hC, ← Real.rpow_mul hlam_pos.le,
+                ← Real.rpow_mul hcoeff_nonneg]
+              field_simp [hp_pos.ne']
+              simp
+        _ = (G.grid.Cmult1 : ℝ) ^ p.toReal *
+          ((C * lam ^ (j - k i)) * CoeffPLevel (p := p) G c i) := by ring
+    simpa [← htarget_eq] using h1
+  have hleft_nonneg :
+      0 ≤ ∑ P : LevelCell W j,
+        (∑ Q ∈ ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1),
+          ‖c i Q * ((R i Q).block j).coeff P‖) ^ p.toReal :=
+    Finset.sum_nonneg fun P _ => Real.rpow_nonneg
+      (Finset.sum_nonneg fun Q _ => norm_nonneg _) _
+  have htarget_nonneg :
+      0 ≤ (G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
+        lam ^ ((↑(j - k i) : ℝ) / p.toReal) *
+          (CoeffPLevel (p := p) G c i) ^ (1 / p.toReal) :=
+    mul_nonneg
+      (mul_nonneg
+        (mul_nonneg hCmult_nonneg (Real.rpow_nonneg hC _))
+        hlam_nonneg)
+      (Real.rpow_nonneg hcoeff_nonneg _)
+  have hroot := Real.rpow_le_rpow hleft_nonneg hpower hp_inv_nonneg
+  calc
+    (∑ P : LevelCell W j,
+        (∑ Q ∈ ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1),
+          ‖c i Q * ((R i Q).block j).coeff P‖) ^ p.toReal) ^ (1 / p.toReal)
+        ≤
+      (((G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
+        lam ^ ((↑(j - k i) : ℝ) / p.toReal) *
+          (CoeffPLevel (p := p) G c i) ^ (1 / p.toReal)) ^ p.toReal) ^
+        (1 / p.toReal) := hroot
+    _ = (G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
+        lam ^ ((↑(j - k i) : ℝ) / p.toReal) *
+          (CoeffPLevel (p := p) G c i) ^ (1 / p.toReal) := by
+          rw [← Real.rpow_mul htarget_nonneg]
+          field_simp [hp_pos.ne']
+          rw [Real.rpow_one]
+
+/-- Finite Minkowski inequality for nonnegative arrays. -/
+lemma finset_Lp_sum_le_sum_Lp
+    {ι κ : Type*} (S : Finset ι) (T : Finset κ) (a : ι → κ → ℝ)
+    (hp_ne_top : p ≠ ∞)
+    (ha_nonneg : ∀ i ∈ S, ∀ k ∈ T, 0 ≤ a i k) :
+    (∑ k ∈ T, (∑ i ∈ S, a i k) ^ p.toReal) ^ (1 / p.toReal) ≤
+      ∑ i ∈ S, (∑ k ∈ T, (a i k) ^ p.toReal) ^ (1 / p.toReal) := by
+  classical
+  have hp_one : (1 : ℝ) ≤ p.toReal := by
+    have h := ENNReal.toReal_mono hp_ne_top (Fact.out : (1 : ℝ≥0∞) ≤ p)
+    simpa using h
+  have hp_pos : 0 < p.toReal := lt_of_lt_of_le zero_lt_one hp_one
+  revert ha_nonneg
+  refine Finset.induction_on S ?base ?step
+  · intro ha_nonneg
+    simp only [Finset.sum_empty]
+    rw [Real.zero_rpow hp_pos.ne']
+    simp only [Finset.sum_const_zero]
+    rw [Real.zero_rpow (one_div_pos.mpr hp_pos).ne']
+    exact le_rfl
+  · intro i S hi ih ha_nonneg
+    have hi_nonneg : ∀ k ∈ T, 0 ≤ a i k := by
+      intro k hk
+      exact ha_nonneg i (Finset.mem_insert_self i S) k hk
+    have hS_nonneg : ∀ i' ∈ S, ∀ k ∈ T, 0 ≤ a i' k := by
+      intro i' hi' k hk
+      exact ha_nonneg i' (Finset.mem_insert_of_mem hi') k hk
+    have hsumS_nonneg : ∀ k ∈ T, 0 ≤ ∑ i' ∈ S, a i' k := by
+      intro k hk
+      exact Finset.sum_nonneg fun i' hi' => hS_nonneg i' hi' k hk
+    calc
+      (∑ k ∈ T, (∑ i' ∈ insert i S, a i' k) ^ p.toReal) ^ (1 / p.toReal)
+          =
+        (∑ k ∈ T, (a i k + ∑ i' ∈ S, a i' k) ^ p.toReal) ^ (1 / p.toReal) := by
+          congr 2
+          ext k
+          rw [Finset.sum_insert hi]
+      _ ≤
+        (∑ k ∈ T, (a i k) ^ p.toReal) ^ (1 / p.toReal) +
+          (∑ k ∈ T, (∑ i' ∈ S, a i' k) ^ p.toReal) ^ (1 / p.toReal) := by
+          exact Real.Lp_add_le_of_nonneg
+            (s := T) (p := p.toReal)
+            (f := fun k => a i k)
+            (g := fun k => ∑ i' ∈ S, a i' k)
+            hp_one hi_nonneg hsumS_nonneg
+      _ ≤
+        (∑ k ∈ T, (a i k) ^ p.toReal) ^ (1 / p.toReal) +
+          ∑ i' ∈ S, (∑ k ∈ T, (a i' k) ^ p.toReal) ^ (1 / p.toReal) := by
+          exact add_le_add_right (ih hS_nonneg)
+            ((∑ k ∈ T, (a i k) ^ p.toReal) ^ (1 / p.toReal))
+      _ =
+        ∑ i' ∈ insert i S, (∑ k ∈ T, (a i' k) ^ p.toReal) ^ (1 / p.toReal) := by
+          rw [Finset.sum_insert hi]
+
 /-- The per-level estimate in Claim II, corresponding to the chain ending at
 equation `(for)` in the paper.
 
@@ -473,7 +837,7 @@ lemma transmutation_level_bound
     (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
     (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k hk lam hlam_pos hlam_lt C hC h R)
     (c : (i : ℕ) → LevelCell G i → ℂ)
-    (N j : ℕ) :
+    (N j : ℕ) (hp_ne_top : p ≠ ∞) :
     (CoeffPLevel (p := p) W
         (fun _ P => (TransmutationCoeff G W AW h R c N P : ℂ)) j) ^ (1 / p.toReal) ≤
       (G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
@@ -524,7 +888,7 @@ lemma transmutationBlock_abstractFinitePQCost
     (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k hk lam hlam_pos hlam_lt C hC h R)
     (c : (i : ℕ) → LevelCell G i → ℂ)
     (hc : CoeffFinitePQCost (p := p) (q := q) G c)
-    (N : ℕ) (hq_ne_top : q ≠ ∞) :
+    (N : ℕ) (hp_ne_top : p ≠ ∞) (hq_ne_top : q ≠ ∞) :
     AbstractFinitePQCost (q := q) (TransmutationBlock G W AW h R c N) := by
   have hq_pos : (0 : ℝ) < q.toReal :=
     ENNReal.toReal_pos (fun h0 => absurd (h0 ▸ (Fact.out : 1 ≤ q)) (by norm_num)) hq_ne_top
@@ -553,7 +917,7 @@ lemma transmutationBlock_abstractFinitePQCost
     intro j
     simpa [uL, vL, convL] using
       transmutation_level_bound
-        G W AW k hk0 lam hlam_pos hlam_lt C hC h R hR c N j
+        G W AW k hk0 lam hlam_pos hlam_lt C hC h R hR c N j hp_ne_top
   have hk_upper : ∀ i : ℕ, (k i : NNReal) ≤ r_als * (i : NNReal) + B_als :=
     fun i => (hk_bound i).1
   have hConv :
@@ -660,7 +1024,7 @@ theorem ClaimII
     -- which follows from Part 2's bound (CoeffPQCost W ≤ K · CoeffPQCost G c) + hc.
     have hfin : AbstractFinitePQCost (q := q) (TransmutationBlock G W AW h R c N) := by
       exact transmutationBlock_abstractFinitePQCost
-        G W AW k hk lam hlam_pos hlam_lt C hC h R hR c hc N hq_ne_top
+        G W AW k hk lam hlam_pos hlam_lt C hC h R hR c hc N hp_ne_top hq_ne_top
     -- (b) Summable via formalBlockSeq_summable (no atom convergence needed!)
     have hsum : Summable (fun j => (TransmutationBlock G W AW h R c N j).toLp AW) :=
       formalBlockSeq_summable (G := W) (A := AW) hG2_W hp_ne_top hs_pos Fact.out
@@ -731,7 +1095,7 @@ theorem ClaimII
       intro j
       simpa [uL, vL, convL] using
         transmutation_level_bound
-          G W AW k hk0 lam hlam_pos hlam_lt C hC h R hR c N j
+          G W AW k hk0 lam hlam_pos hlam_lt C hC h R hR c N j hp_ne_top
     -- STEP D: Convolution + ALS bound (paper Prop 4.2, Case A)
     -- Uses k i ≤ r · i + B (ALS upper bound):
     --   lam^{j - k i} ≤ lam^{j - r·i - B} = lam^{-B} · lam^{j - r·i}
