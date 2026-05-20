@@ -1171,6 +1171,230 @@ end LpGridRepresentation
 noncomputable def transmutationKernelZ (lam A r : ℝ) : ℤ → ℝ :=
   fun n => if A / r - 1 < (n : ℝ) then lam ^ (r * (n : ℝ)) else 0
 
+/-- The truncated integer kernel has summable `1/p`-root.
+
+The positive side is geometric.  The negative side is finite because the
+paper's cutoff `n > A / r - 1` excludes all sufficiently negative integers. -/
+lemma transmutationKernelZ_root_summable
+    (lam A r : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1) (hr : 0 < r)
+    (hp_pos : 0 < p.toReal) :
+    Summable fun n : ℤ => (transmutationKernelZ lam A r n) ^ (1 / p.toReal) := by
+  classical
+  let bZ : ℤ → ℝ := transmutationKernelZ lam A r
+  let rho : ℝ := lam ^ (r / p.toReal)
+  have hrho_nonneg : 0 ≤ rho := by
+    dsimp [rho]
+    exact Real.rpow_nonneg hlam_pos.le _
+  have hrho_lt_one : rho < 1 := by
+    dsimp [rho]
+    refine Real.rpow_lt_one hlam_pos.le hlam_lt ?_
+    positivity
+  have hpos_le : (fun n : ℕ => (bZ n) ^ (1 / p.toReal)) ≤ fun n : ℕ => rho ^ n := by
+    intro n
+    dsimp [bZ, transmutationKernelZ, rho]
+    by_cases hn : A / r - 1 < (n : ℝ)
+    · simp [hn]
+      rw [← Real.rpow_mul hlam_pos.le]
+      have hexp : r * (n : ℝ) * p.toReal⁻¹ = (r / p.toReal) * n := by
+        ring
+      rw [hexp, Real.rpow_mul hlam_pos.le, Real.rpow_natCast]
+    · simp [hn]
+      rw [Real.zero_rpow (inv_pos.mpr hp_pos).ne']
+      exact pow_nonneg hrho_nonneg n
+  have hpos_sum : Summable fun n : ℕ => (bZ n) ^ (1 / p.toReal) := by
+    exact Summable.of_nonneg_of_le
+      (fun n => by
+        dsimp [bZ, transmutationKernelZ]
+        split_ifs
+        · exact Real.rpow_nonneg (Real.rpow_nonneg hlam_pos.le _) _
+        · exact Real.rpow_nonneg le_rfl _)
+      hpos_le
+      (summable_geometric_of_lt_one hrho_nonneg hrho_lt_one)
+  let M : ℕ := Nat.ceil (max (0 : ℝ) (-A / r))
+  have hneg_support : Function.support (fun n : ℕ => (bZ (-(n + 1 : ℤ))) ^ (1 / p.toReal)) ⊆
+      {n : ℕ | n < M} := by
+    intro n hn
+    simp only [Function.mem_support, ne_eq, Set.mem_setOf_eq] at hn ⊢
+    by_contra hM
+    have hMle : M ≤ n := Nat.le_of_not_gt hM
+    have hMle_real : (M : ℝ) ≤ (n : ℝ) := by exact_mod_cast hMle
+    have hceil_ge : max (0 : ℝ) (-A / r) ≤ (M : ℝ) := by
+      dsimp [M]
+      exact Nat.le_ceil _
+    have hneg_le : -A / r ≤ (n : ℝ) := by
+      exact (le_max_right (0 : ℝ) (-A / r)).trans (hceil_ge.trans hMle_real)
+    have hcut_not : ¬ A / r - 1 < (-(n + 1 : ℤ) : ℝ) := by
+      have hcast : (-(n + 1 : ℤ) : ℝ) = -((n : ℝ) + 1) := by norm_num
+      intro hlt
+      rw [hcast] at hlt
+      have hneg_le' : -(A / r) ≤ (n : ℝ) := by
+        rwa [neg_div] at hneg_le
+      have hlt' : (n : ℝ) < -(A / r) := by linarith
+      exact (not_lt_of_ge hneg_le') hlt'
+    have hzero : (bZ (-(n + 1 : ℤ))) ^ (1 / p.toReal) = 0 := by
+      dsimp [bZ, transmutationKernelZ]
+      rw [if_neg]
+      exact Real.zero_rpow (one_div_pos.mpr hp_pos).ne'
+      intro hlt
+      have hcast : ((-(↑n + 1) : ℤ) : ℝ) = -((n : ℝ) + 1) := by norm_num
+      rw [hcast] at hlt
+      have hneg_le' : -(A / r) ≤ (n : ℝ) := by
+        rwa [neg_div] at hneg_le
+      have hlt' : (n : ℝ) < -(A / r) := by linarith
+      exact (not_lt_of_ge hneg_le') hlt'
+    exact hn hzero
+  have hneg_sum : Summable fun n : ℕ => (bZ (-(n + 1 : ℤ))) ^ (1 / p.toReal) :=
+    summable_of_hasFiniteSupport ((Set.finite_lt_nat M).subset hneg_support)
+  exact Summable.of_nat_of_neg_add_one hpos_sum hneg_sum
+
+/-- Extend a natural-indexed real sequence to integers by zero on negative
+indices. -/
+noncomputable def extendNatToInt (f : ℕ → ℝ) : ℤ → ℝ :=
+  fun z => if hz : 0 ≤ z then f z.toNat else 0
+
+lemma extendNatToInt_ofNat (f : ℕ → ℝ) (n : ℕ) :
+    extendNatToInt f n = f n := by
+  simp [extendNatToInt]
+
+lemma extendNatToInt_negSucc (f : ℕ → ℝ) (n : ℕ) :
+    extendNatToInt f (-(n + 1 : ℤ)) = 0 := by
+  dsimp [extendNatToInt]
+  rw [if_neg]
+  omega
+
+lemma extendNatToInt_nonneg {f : ℕ → ℝ} (hf : ∀ n, 0 ≤ f n) :
+    ∀ z : ℤ, 0 ≤ extendNatToInt f z := by
+  intro z
+  dsimp [extendNatToInt]
+  split_ifs with hz
+  · exact hf z.toNat
+  · exact le_rfl
+
+lemma summable_extendNatToInt {f : ℕ → ℝ} (hf : Summable f) :
+    Summable (extendNatToInt f) := by
+  have hpos : Summable fun n : ℕ => extendNatToInt f n := by
+    simpa [extendNatToInt_ofNat] using hf
+  have hneg : Summable fun n : ℕ => extendNatToInt f (-(n + 1 : ℤ)) := by
+    have hzero : (fun n : ℕ => extendNatToInt f (-(n + 1 : ℤ))) = fun _ => 0 := by
+      funext n
+      exact extendNatToInt_negSucc f n
+    rw [hzero]
+    simp
+  exact Summable.of_nat_of_neg_add_one hpos hneg
+
+lemma tsum_extendNatToInt {f : ℕ → ℝ} (hf : Summable f) :
+    (∑' z : ℤ, extendNatToInt f z) = ∑' n : ℕ, f n := by
+  have hpos : Summable fun n : ℕ => extendNatToInt f n := by
+    simpa [extendNatToInt_ofNat] using hf
+  have hneg : Summable fun n : ℕ => extendNatToInt f (-(n + 1 : ℤ)) := by
+    have hzero : (fun n : ℕ => extendNatToInt f (-(n + 1 : ℤ))) = fun _ => 0 := by
+      funext n
+      exact extendNatToInt_negSucc f n
+    rw [hzero]
+    simp
+  have hpos_tsum :
+      (∑' n : ℕ, extendNatToInt f n) = ∑' n : ℕ, f n :=
+    tsum_congr fun n => extendNatToInt_ofNat f n
+  have hneg_tsum :
+      (∑' n : ℕ, extendNatToInt f (-(n + 1 : ℤ))) = 0 := by
+    have hzero : (fun n : ℕ => extendNatToInt f (-(n + 1 : ℤ))) = fun _ => 0 := by
+      funext n
+      exact extendNatToInt_negSucc f n
+    rw [hzero]
+    simp
+  calc
+    (∑' z : ℤ, extendNatToInt f z)
+        = (∑' n : ℕ, extendNatToInt f n) +
+            ∑' n : ℕ, extendNatToInt f (-(n + 1 : ℤ)) :=
+          tsum_of_nat_of_neg_add_one hpos hneg
+    _ = (∑' n : ℕ, f n) + 0 := by rw [hpos_tsum, hneg_tsum]
+    _ = ∑' n : ℕ, f n := by ring
+
+/-- Output block index in the paper's decomposition of a level `k`. -/
+noncomputable def outputClassJ (r : ℝ) (k : ℕ) : ℕ :=
+  Nat.floor ((k : ℝ) / r)
+
+/-- Output residue/class in the paper's decomposition of a level `k`. -/
+noncomputable def outputClassEll (r : ℝ) (k : ℕ) : ℕ :=
+  Nat.floor ((k : ℝ) - r * (outputClassJ r k : ℝ))
+
+lemma outputClassJ_lower (r : ℝ) (hr : 0 < r) (k : ℕ) :
+    r * (outputClassJ r k : ℝ) ≤ (k : ℝ) := by
+  have hdiv_nonneg : 0 ≤ (k : ℝ) / r := div_nonneg (Nat.cast_nonneg k) hr.le
+  have hj_le : (outputClassJ r k : ℝ) ≤ (k : ℝ) / r := by
+    simpa [outputClassJ] using Nat.floor_le hdiv_nonneg
+  have hmul := mul_le_mul_of_nonneg_left hj_le hr.le
+  calc
+    r * (outputClassJ r k : ℝ) ≤ r * ((k : ℝ) / r) := by
+      simpa [mul_comm, mul_left_comm, mul_assoc] using hmul
+    _ = (k : ℝ) := by
+      field_simp [hr.ne']
+
+lemma outputClassJ_upper (r : ℝ) (hr : 0 < r) (k : ℕ) :
+    (k : ℝ) < r * (((outputClassJ r k) + 1 : ℕ) : ℝ) := by
+  have hj_lt : (k : ℝ) / r < (outputClassJ r k : ℝ) + 1 := by
+    simpa [outputClassJ] using Nat.lt_floor_add_one ((k : ℝ) / r)
+  have hmul := mul_lt_mul_of_pos_left hj_lt hr
+  calc
+    (k : ℝ) = r * ((k : ℝ) / r) := by
+      field_simp [hr.ne']
+    _ < r * ((outputClassJ r k : ℝ) + 1) := by
+      simpa [mul_comm, mul_left_comm, mul_assoc] using hmul
+    _ = r * (((outputClassJ r k) + 1 : ℕ) : ℝ) := by
+      norm_num
+
+/-- The paper's class decomposition: every output level `k` is hit by the
+candidate `kout ell j = ceil (r*j + ell)` for its canonical class `ell` and
+block index `j`, and the class is one of the `ceil r` classes. -/
+lemma outputClass_spec (r : ℝ) (hr : 0 < r) (k : ℕ) :
+    outputClassEll r k < Nat.ceil r ∧
+      Nat.ceil (r * (outputClassJ r k : ℝ) + (outputClassEll r k : ℝ)) = k ∧
+      (k : ℝ) < r * (((outputClassJ r k) + 1 : ℕ) : ℝ) := by
+  let j : ℕ := outputClassJ r k
+  let ell : ℕ := outputClassEll r k
+  let x : ℝ := (k : ℝ) - r * (j : ℝ)
+  have hj_lower : r * (j : ℝ) ≤ (k : ℝ) := by
+    simpa [j] using outputClassJ_lower r hr k
+  have hj_upper : (k : ℝ) < r * (((j + 1 : ℕ) : ℝ)) := by
+    simpa [j] using outputClassJ_upper r hr k
+  have hx_nonneg : 0 ≤ x := by
+    dsimp [x]
+    linarith
+  have hx_lt_r : x < r := by
+    dsimp [x]
+    have hstep : ((j + 1 : ℕ) : ℝ) = (j : ℝ) + 1 := by norm_num
+    rw [hstep] at hj_upper
+    linarith
+  have hell_le_x : (ell : ℝ) ≤ x := by
+    dsimp [ell, outputClassEll, x, j]
+    exact Nat.floor_le hx_nonneg
+  have hx_lt_ell_add_one : x < (ell : ℝ) + 1 := by
+    dsimp [ell, outputClassEll, x, j]
+    exact Nat.lt_floor_add_one x
+  have hell_lt_alpha : ell < Nat.ceil r := by
+    have hell_lt_r : (ell : ℝ) < r := lt_of_le_of_lt hell_le_x hx_lt_r
+    have hr_le_alpha : r ≤ (Nat.ceil r : ℝ) := Nat.le_ceil r
+    exact_mod_cast lt_of_lt_of_le hell_lt_r hr_le_alpha
+  have ha_le_k : r * (j : ℝ) + (ell : ℝ) ≤ (k : ℝ) := by
+    dsimp [x] at hell_le_x
+    linarith
+  have hk_lt_a_add_one : (k : ℝ) < r * (j : ℝ) + (ell : ℝ) + 1 := by
+    dsimp [x] at hx_lt_ell_add_one
+    linarith
+  have hceil_eq : Nat.ceil (r * (j : ℝ) + (ell : ℝ)) = k := by
+    apply le_antisymm
+    · exact (Nat.ceil_le).2 ha_le_k
+    · have hceil_ge : r * (j : ℝ) + (ell : ℝ) ≤
+          (Nat.ceil (r * (j : ℝ) + (ell : ℝ)) : ℝ) :=
+        Nat.le_ceil _
+      have hk_lt_ceil_add_one : (k : ℝ) <
+          (Nat.ceil (r * (j : ℝ) + (ell : ℝ)) : ℝ) + 1 := by
+        linarith
+      exact Nat.lt_succ_iff.mp (by exact_mod_cast hk_lt_ceil_add_one)
+  exact ⟨by simpa [ell] using hell_lt_alpha,
+    by simpa [j, ell] using hceil_eq,
+    by simpa [j] using hj_upper⟩
+
 /-- The convolution/ALS estimate used in Claim II.
 
 This is the Lean statement of the paper's residue-class decomposition and
@@ -1289,11 +1513,256 @@ lemma transmutation_convolution_bound
         ((kout ell j : ℕ) : ℝ) < (r_als : ℝ) * ((j + 1 : ℕ) : ℝ) := by
     intro ell j hEx
     exact ⟨hkout_lower ell j, hEx⟩
-  -- The remaining proof follows the paper's residue-class decomposition with
-  -- `alpha = ceil r_als`, applied to `convL`, and then finite Minkowski over the
-  -- `alpha` residue classes. The local arithmetic and reindexing helpers are still
-  -- to be filled in.
-  sorry
+  let kclass : ℕ → Sigma fun _ell : Fin alpha => ℕ := fun j =>
+    ⟨⟨outputClassEll r_als j, by
+        have hspec := (outputClass_spec r_als hr_als j).1
+        simpa [alpha] using hspec⟩, outputClassJ r_als j⟩
+  have hkclass_kout : ∀ j : ℕ, kout (kclass j).1 (kclass j).2 = j := by
+    intro j
+    have hspec := (outputClass_spec r_als hr_als j).2.1
+    simpa [kclass, kout] using hspec
+  have hkclass_exists : ∀ j : ℕ, koutExists (kclass j).1 (kclass j).2 := by
+    intro j
+    have hspec := (outputClass_spec r_als hr_als j).2.2
+    dsimp [koutExists]
+    rw [hkclass_kout j]
+    simpa [kclass] using hspec
+  have hkclass_injective : Function.Injective kclass := by
+    intro j₁ j₂ hEq
+    calc
+      j₁ = kout (kclass j₁).1 (kclass j₁).2 := (hkclass_kout j₁).symm
+      _ = kout (kclass j₂).1 (kclass j₂).2 := by rw [hEq]
+      _ = j₂ := hkclass_kout j₂
+  let classConv : Fin alpha → ℕ → ℝ := fun ell j =>
+    if koutExists ell j then convL (kout ell j) else 0
+  have hclassConv_nonneg : ∀ ell : Fin alpha, ∀ j : ℕ, 0 ≤ classConv ell j := by
+    intro ell j
+    dsimp [classConv]
+    split_ifs
+    · exact hconvL_nn _
+    · exact le_rfl
+  have hclassConv_kclass : ∀ j : ℕ,
+      classConv (kclass j).1 (kclass j).2 = convL j := by
+    intro j
+    dsimp [classConv]
+    rw [if_pos (hkclass_exists j), hkclass_kout j]
+  have hkclass_of_exists : ∀ ell : Fin alpha, ∀ j : ℕ,
+      koutExists ell j → kclass (kout ell j) = ⟨ell, j⟩ := by
+    intro ell j hEx
+    have hJ_eq : outputClassJ r_als (kout ell j) = j := by
+      have hdiv_nonneg : 0 ≤ ((kout ell j : ℕ) : ℝ) / r_als :=
+        div_nonneg (Nat.cast_nonneg _) hr_als.le
+      refine (Nat.floor_eq_iff hdiv_nonneg).2 ⟨?_, ?_⟩
+      · rw [le_div_iff₀ hr_als]
+        have hlow := hkout_lower ell j
+        have hell_nonneg : 0 ≤ (ell.1 : ℝ) := by positivity
+        linarith
+      · rw [div_lt_iff₀ hr_als]
+        have hExReal : ((kout ell j : ℕ) : ℝ) < r_als * ((j : ℝ) + 1) := by
+          simpa [koutExists] using hEx
+        linarith
+    have hEll_eq : outputClassEll r_als (kout ell j) = ell.1 := by
+      have hlow := hkout_lower ell j
+      have hhi := hkout_lt_add_one ell j
+      have hx_nonneg :
+          0 ≤ ((kout ell j : ℕ) : ℝ) - r_als * (j : ℝ) := by
+        have hell_nonneg : 0 ≤ (ell.1 : ℝ) := by positivity
+        linarith
+      have hfloor : Nat.floor (((kout ell j : ℕ) : ℝ) - r_als * (j : ℝ)) = ell.1 := by
+        refine (Nat.floor_eq_iff hx_nonneg).2 ⟨?_, ?_⟩
+        · linarith
+        · linarith
+      simpa [outputClassEll, hJ_eq] using hfloor
+    apply Sigma.ext
+    · exact Fin.ext hEll_eq
+    · simp [kclass, hJ_eq]
+  let existingClass : Type := {x : Sigma fun _ell : Fin alpha => ℕ // koutExists x.1 x.2}
+  let kclassExisting : ℕ → existingClass := fun j => ⟨kclass j, hkclass_exists j⟩
+  have hkclassExisting_bijective : Function.Bijective kclassExisting := by
+    constructor
+    · intro j₁ j₂ hEq
+      exact hkclass_injective (congrArg Subtype.val hEq)
+    · intro x
+      rcases x with ⟨x, hx⟩
+      rcases x with ⟨ell, j⟩
+      refine ⟨kout ell j, ?_⟩
+      apply Subtype.ext
+      exact hkclass_of_exists ell j hx
+  have hclassConv_existing : ∀ x : existingClass,
+      classConv x.1.1 x.1.2 = convL (kout x.1.1 x.1.2) := by
+    intro x
+    dsimp [classConv]
+    exact if_pos x.2
+  let kclassEquiv : ℕ ≃ existingClass :=
+    Equiv.ofBijective kclassExisting hkclassExisting_bijective
+  have htsum_existing :
+      (∑' j : ℕ, convL j ^ q.toReal) =
+        ∑' x : existingClass, classConv x.1.1 x.1.2 ^ q.toReal := by
+    rw [← kclassEquiv.tsum_eq (fun x : existingClass =>
+      classConv x.1.1 x.1.2 ^ q.toReal)]
+    apply tsum_congr
+    intro j
+    simp [kclassEquiv, kclassExisting, hclassConv_kclass]
+  have htsum_le_classSigma :
+      Summable (fun x : (Sigma fun _ell : Fin alpha => ℕ) =>
+        classConv x.1 x.2 ^ q.toReal) →
+      (∑' j : ℕ, convL j ^ q.toReal) ≤
+        ∑' x : (Sigma fun _ell : Fin alpha => ℕ), classConv x.1 x.2 ^ q.toReal := by
+    intro hsClass
+    rw [htsum_existing]
+    exact tsum_comp_le_tsum_of_injective
+      (ι := existingClass) (κ := Sigma fun _ell : Fin alpha => ℕ)
+      (f := fun x => classConv x.1 x.2 ^ q.toReal)
+      hsClass
+      (fun x => Real.rpow_nonneg (hclassConv_nonneg x.1 x.2) _)
+      (phi := Subtype.val)
+      Subtype.val_injective
+  have hclassYoung :
+      Summable (fun x : (Sigma fun _ell : Fin alpha => ℕ) =>
+        classConv x.1 x.2 ^ q.toReal) ∧
+      (∑' x : (Sigma fun _ell : Fin alpha => ℕ), classConv x.1 x.2 ^ q.toReal) ^
+          (1 / q.toReal) ≤
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞ bZ *
+        (alpha : ℝ) ^ (1 / q.toReal) *
+        Csrc := by
+    let srcRoot : ℕ → ℝ := fun i => vL i ^ (1 / p.toReal)
+    let srcZ : ℤ → ℝ := extendNatToInt srcRoot
+    let convZ : ℤ → ℝ := fun j =>
+      ∑' n : ℤ, bZ n ^ (1 / p.toReal) * srcZ (j - n)
+    have hbRoot_summable : Summable fun n : ℤ => bZ n ^ (1 / p.toReal) := by
+      simpa [bZ] using
+        transmutationKernelZ_root_summable (p := p)
+          lam A_als r_als hlam_pos hlam_lt hr_als hp_pos
+    have hbRoot_nonneg : ∀ n : ℤ, 0 ≤ bZ n ^ (1 / p.toReal) := by
+      intro n
+      exact Real.rpow_nonneg (hbZ_nonneg n) _
+    have hsrcRoot_nonneg : ∀ i : ℕ, 0 ≤ srcRoot i := by
+      intro i
+      exact Real.rpow_nonneg (hvL_nn i) _
+    have hsrcZ_nonneg : ∀ z : ℤ, 0 ≤ srcZ z := by
+      simpa [srcZ] using extendNatToInt_nonneg hsrcRoot_nonneg
+    have hsrcRoot_q_summable : Summable fun i : ℕ => srcRoot i ^ q.toReal := by
+      have hpow_eq :
+          (fun i : ℕ => srcRoot i ^ q.toReal) =
+            fun i : ℕ => vL i ^ (q.toReal / p.toReal) := by
+        funext i
+        dsimp [srcRoot]
+        rw [← Real.rpow_mul (hvL_nn i)]
+        ring_nf
+      simpa [hpow_eq] using hsource
+    have hsrcZ_q_summable : Summable fun z : ℤ => srcZ z ^ q.toReal := by
+      have hpow_eq :
+          (fun z : ℤ => srcZ z ^ q.toReal) =
+            extendNatToInt (fun i : ℕ => srcRoot i ^ q.toReal) := by
+        funext z
+        by_cases hz : 0 ≤ z
+        · simp [srcZ, extendNatToInt, hz]
+        · simp [srcZ, extendNatToInt, hz, Real.zero_rpow hq_pos.ne']
+      simpa [hpow_eq] using summable_extendNatToInt hsrcRoot_q_summable
+    have hsrcZ_q_tsum :
+        (∑' z : ℤ, srcZ z ^ q.toReal) =
+          ∑' i : ℕ, vL i ^ (q.toReal / p.toReal) := by
+      calc
+        (∑' z : ℤ, srcZ z ^ q.toReal)
+            = ∑' i : ℕ, srcRoot i ^ q.toReal := by
+              have hpow_eq :
+                  (fun z : ℤ => srcZ z ^ q.toReal) =
+                    extendNatToInt (fun i : ℕ => srcRoot i ^ q.toReal) := by
+                funext z
+                by_cases hz : 0 ≤ z
+                · simp [srcZ, extendNatToInt, hz]
+                · simp [srcZ, extendNatToInt, hz, Real.zero_rpow hq_pos.ne']
+              simpa [hpow_eq] using tsum_extendNatToInt hsrcRoot_q_summable
+        _ = ∑' i : ℕ, vL i ^ (q.toReal / p.toReal) := by
+              apply tsum_congr
+              intro i
+              dsimp [srcRoot]
+              rw [← Real.rpow_mul (hvL_nn i)]
+              ring_nf
+    have hconvZ_nonneg : ∀ j : ℤ, 0 ≤ convZ j := by
+      intro j
+      dsimp [convZ]
+      exact tsum_nonneg fun n => mul_nonneg (hbRoot_nonneg n) (hsrcZ_nonneg (j - n))
+    let scale : ℝ := lam ^ (-(B_als : ℝ) / p.toReal)
+    have hscale_nonneg : 0 ≤ scale := by
+      dsimp [scale]
+      exact Real.rpow_nonneg hlam_pos.le _
+    have hclass_le_convZ : ∀ ell : Fin alpha, ∀ j : ℕ,
+        classConv ell j ≤ scale * convZ j := by
+      -- Pointwise comparison from the paper:
+      -- if `koutExists ell j`, then `kout ell j` lies in the output block
+      -- `[r*j+ell, r*(j+1))`.  The lower ALS bound gives the cutoff
+      -- `A/r - 1 < j-i`, while the upper ALS bound gives
+      -- `lam^((kout-k_i)/p) ≤ lam^(-B/p) * bZ(j-i)^(1/p)`.
+      -- If `koutExists ell j` is false, `classConv ell j = 0`.
+      sorry
+    have hYoungZ :
+        Summable (fun j : ℤ => convZ j ^ q.toReal) ∧
+        (∑' j : ℤ, convZ j ^ q.toReal) ^ (1 / q.toReal) ≤
+          LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc := by
+      -- Young on `ℤ` for the nonnegative convolution
+      -- `convZ = (bZ^(1/p)) * srcZ`, with
+      -- `‖srcZ‖_q = Csrc` by `hsrcZ_q_tsum` and
+      -- `‖bZ^(1/p)‖_1 = cCoefficientInt p ∞ bZ` by `hccoeff_eq`.
+      sorry
+    have hconvZ_nat_summable : Summable fun j : ℕ => convZ j ^ q.toReal := by
+      exact hYoungZ.1.comp_injective (by
+        intro a b h
+        exact_mod_cast h)
+    have hscaled_convZ_nat_summable :
+        Summable fun j : ℕ => (scale * convZ j) ^ q.toReal := by
+      have hmul : Summable fun j : ℕ => scale ^ q.toReal * convZ j ^ q.toReal :=
+        hconvZ_nat_summable.mul_left (scale ^ q.toReal)
+      convert hmul using 1
+      ext j
+      rw [Real.mul_rpow hscale_nonneg (hconvZ_nonneg j)]
+    have hclass_summable : ∀ ell : Fin alpha,
+        Summable fun j : ℕ => classConv ell j ^ q.toReal := by
+      intro ell
+      refine Summable.of_nonneg_of_le
+        (fun j => Real.rpow_nonneg (hclassConv_nonneg ell j) _)
+        ?_
+        hscaled_convZ_nat_summable
+      intro j
+      exact Real.rpow_le_rpow
+        (hclassConv_nonneg ell j)
+        (hclass_le_convZ ell j)
+        hq_pos.le
+    have hsigma_summable :
+        Summable (fun x : (Sigma fun _ell : Fin alpha => ℕ) =>
+          classConv x.1 x.2 ^ q.toReal) := by
+      refine (summable_sigma_of_nonneg
+        (f := fun x : (Sigma fun _ell : Fin alpha => ℕ) =>
+          classConv x.1 x.2 ^ q.toReal)
+        (fun x => Real.rpow_nonneg (hclassConv_nonneg x.1 x.2) _)).2 ?_
+      constructor
+      · exact hclass_summable
+      · exact summable_of_hasFiniteSupport
+          (Set.finite_univ.subset (by intro x hx; simp))
+    refine ⟨hsigma_summable, ?_⟩
+    -- The remaining bookkeeping rewrites `∑' (ell,j)` as a finite sum over
+    -- `ell`, applies the previous two estimates to each class, and uses
+    -- `finset_Lq_le_card_rpow_mul_bound` to produce `alpha^(1/q)`.
+    sorry
+  have hconv_summable : Summable (fun j : ℕ => convL j ^ q.toReal) := by
+    have hsComp :
+        Summable (fun j : ℕ =>
+          (fun x : (Sigma fun _ell : Fin alpha => ℕ) =>
+            classConv x.1 x.2 ^ q.toReal) (kclass j)) :=
+      hclassYoung.1.comp_injective hkclass_injective
+    simpa [hclassConv_kclass] using hsComp
+  have hsum_root_le :
+      (∑' j : ℕ, convL j ^ q.toReal) ^ (1 / q.toReal) ≤
+        (∑' x : (Sigma fun _ell : Fin alpha => ℕ),
+          classConv x.1 x.2 ^ q.toReal) ^ (1 / q.toReal) := by
+    exact Real.rpow_le_rpow
+      (tsum_nonneg fun j => Real.rpow_nonneg (hconvL_nn j) _)
+      (htsum_le_classSigma hclassYoung.1)
+      (div_nonneg zero_le_one hq_pos.le)
+  constructor
+  · exact hconv_summable
+  · simpa [Csrc, bZ, alpha, convL, one_div] using hsum_root_le.trans hclassYoung.2
 
 /-- Finite abstract cost for the transmutation blocks.
 
