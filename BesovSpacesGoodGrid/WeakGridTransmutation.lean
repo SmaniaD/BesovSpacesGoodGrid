@@ -1690,22 +1690,412 @@ lemma transmutation_convolution_bound
       exact Real.rpow_nonneg hlam_pos.le _
     have hclass_le_convZ : ∀ ell : Fin alpha, ∀ j : ℕ,
         classConv ell j ≤ scale * convZ j := by
-      -- Pointwise comparison from the paper:
-      -- if `koutExists ell j`, then `kout ell j` lies in the output block
-      -- `[r*j+ell, r*(j+1))`.  The lower ALS bound gives the cutoff
-      -- `A/r - 1 < j-i`, while the upper ALS bound gives
-      -- `lam^((kout-k_i)/p) ≤ lam^(-B/p) * bZ(j-i)^(1/p)`.
-      -- If `koutExists ell j` is false, `classConv ell j = 0`.
-      sorry
+      intro ell j
+      dsimp [classConv]
+      by_cases hEx : koutExists ell j
+      · rw [if_pos hEx]
+        let f : ℕ → ℝ := fun i =>
+          if k i ≤ kout ell j then
+            lam ^ ((↑(kout ell j - k i) : ℝ) / p.toReal) * srcRoot i
+          else 0
+        let sec : ℤ → ℝ := fun n =>
+          bZ n ^ (1 / p.toReal) * srcZ ((j : ℤ) - n)
+        have hf_nonneg : ∀ i, 0 ≤ f i := by
+          intro i
+          dsimp [f]
+          split_ifs with hik
+          · exact mul_nonneg (Real.rpow_nonneg hlam_pos.le _) (hsrcRoot_nonneg i)
+          · exact le_rfl
+        have hf_support : Function.support f ⊆ {i : ℕ | k i ≤ kout ell j} := by
+          intro i hi
+          by_contra hik
+          have hik' : ¬ k i ≤ kout ell j := by simpa using hik
+          have : f i = 0 := by simp [f, hik']
+          exact hi this
+        have hf_sum : Summable f :=
+          summable_of_hasFiniteSupport
+            ((almostLinearSequence_finite_le_level
+              ⟨A_als, B_als, r_als, hr_als, fun i => ⟨hk_upper i, hk_lower i⟩⟩
+              (kout ell j)).subset hf_support)
+        have hconv_eq : convL (kout ell j) = ∑' i, f i := by
+          simp [convL, f, srcRoot]
+        rw [hconv_eq]
+        have hsec_nonneg : ∀ n : ℤ, 0 ≤ sec n := by
+          intro n
+          dsimp [sec]
+          exact mul_nonneg (hbRoot_nonneg n) (hsrcZ_nonneg ((j : ℤ) - n))
+        let M : ℕ := Nat.ceil (max (0 : ℝ) (-A_als / r_als))
+        have hsec_support : Function.support sec ⊆ Set.Icc (-(M : ℤ)) j := by
+          intro n hn
+          simp only [Function.mem_support, ne_eq] at hn
+          constructor
+          · by_contra hnlow
+            have hsucc : n + 1 ≤ -(M : ℤ) := by omega
+            have hsucc_real : (n : ℝ) + 1 ≤ -((M : ℝ)) := by exact_mod_cast hsucc
+            have hceil_ge : max (0 : ℝ) (-A_als / r_als) ≤ (M : ℝ) := by
+              dsimp [M]
+              exact Nat.le_ceil _
+            have hneg_bound : -((M : ℝ)) ≤ A_als / r_als := by
+              have hA_bound : -A_als / r_als ≤ (M : ℝ) :=
+                (le_max_right (0 : ℝ) (-A_als / r_als)).trans hceil_ge
+              convert neg_le_neg hA_bound using 1 <;> ring
+            have hcut_not : ¬ A_als / r_als - 1 < (n : ℝ) := by
+              have hle : (n : ℝ) + 1 ≤ A_als / r_als := hsucc_real.trans hneg_bound
+              linarith
+            have hb_zero : bZ n = 0 := by
+              dsimp [bZ, transmutationKernelZ]
+              simp [hcut_not]
+            have hb_root_zero : bZ n ^ (1 / p.toReal) = 0 := by
+              rw [hb_zero, Real.zero_rpow (one_div_pos.mpr hp_pos).ne']
+            have hsec_zero : sec n = 0 := by
+              rw [show sec n = bZ n ^ (1 / p.toReal) * srcZ ((j : ℤ) - n) by rfl, hb_root_zero]
+              ring
+            exact hn hsec_zero
+          · by_contra hnj
+            have hneg : ¬ 0 ≤ (j : ℤ) - n := by omega
+            have hsrc_zero : srcZ ((j : ℤ) - n) = 0 := by
+              dsimp [srcZ, extendNatToInt]
+              rw [if_neg hneg]
+            have hsec_zero : sec n = 0 := by
+              rw [show sec n = bZ n ^ (1 / p.toReal) * srcZ ((j : ℤ) - n) by rfl, hsrc_zero]
+              ring
+            exact hn hsec_zero
+        have hsec_sum : Summable sec :=
+          summable_of_hasFiniteSupport ((Set.finite_Icc (-(M : ℤ)) j).subset hsec_support)
+        have hphi_inj : Function.Injective (fun i : ℕ => (j : ℤ) - i) := by
+          intro a b hab
+          have : (a : ℤ) = b := by linarith
+          exact_mod_cast this
+        have hterm_le : ∀ i : ℕ, f i ≤ scale * sec ((j : ℤ) - i) := by
+          intro i
+          by_cases hik : k i ≤ kout ell j
+          · have hk_upper_real : (k i : ℝ) ≤ r_als * (i : ℝ) + B_als := by
+              exact_mod_cast hk_upper i
+            have hk_le_real : (k i : ℝ) ≤ (kout ell j : ℝ) := by
+              exact_mod_cast hik
+            have hkout_ge_j : r_als * (j : ℝ) ≤ (kout ell j : ℝ) := by
+              have hell_nonneg : 0 ≤ (ell.1 : ℝ) := by positivity
+              linarith [hkout_lower ell j]
+            have hlag_cut_real : A_als / r_als - 1 < (j : ℝ) - (i : ℝ) := by
+              have hk_lower_real : r_als * (i : ℝ) + A_als ≤ (k i : ℝ) := by
+                exact_mod_cast hk_lower i
+              have hkout_lt : (kout ell j : ℝ) < r_als * ((j + 1 : ℕ) : ℝ) := by
+                simpa [koutExists] using hEx
+              have hklt : (k i : ℝ) < r_als * ((j + 1 : ℕ) : ℝ) :=
+                lt_of_le_of_lt hk_le_real hkout_lt
+              have hlt : A_als < r_als * (((j : ℝ) + 1) - (i : ℝ)) := by
+                have hmid : r_als * (i : ℝ) + A_als < r_als * ((j + 1 : ℕ) : ℝ) :=
+                  lt_of_le_of_lt hk_lower_real hklt
+                have hrew :
+                    r_als * (((j : ℝ) + 1) - (i : ℝ)) =
+                      r_als * ((j + 1 : ℕ) : ℝ) - r_als * (i : ℝ) := by
+                  calc
+                    r_als * (((j : ℝ) + 1) - (i : ℝ))
+                        = r_als * ((j : ℝ) + 1) - r_als * (i : ℝ) := by ring
+                    _ = r_als * ((j + 1 : ℕ) : ℝ) - r_als * (i : ℝ) := by
+                      norm_num [Nat.cast_add]
+                rw [hrew]
+                linarith
+              have hdiv : A_als / r_als < ((j : ℝ) + 1) - (i : ℝ) := by
+                rw [div_lt_iff₀ hr_als]
+                simpa [mul_comm, mul_left_comm, mul_assoc] using hlt
+              linarith
+            have hlag_cut : A_als / r_als - 1 < ((((j : ℤ) - i : ℤ) : ℝ)) := by
+              have hcast : ((((j : ℤ) - i : ℤ) : ℝ)) = (j : ℝ) - (i : ℝ) := by
+                norm_num
+              simpa [hcast] using hlag_cut_real
+            have hb_eq :
+                bZ ((j : ℤ) - i) = lam ^ (r_als * ((((j : ℤ) - i : ℤ) : ℝ))) := by
+              dsimp [bZ, transmutationKernelZ]
+              rw [if_pos hlag_cut]
+            have hb_root_eq :
+                bZ ((j : ℤ) - i) ^ (1 / p.toReal) =
+                  lam ^ ((r_als * ((((j : ℤ) - i : ℤ) : ℝ))) / p.toReal) := by
+              rw [hb_eq, ← Real.rpow_mul hlam_pos.le]
+              congr 1
+              ring
+            have hlag_exp :
+                (r_als * ((((j : ℤ) - i : ℤ) : ℝ)) - B_als) / p.toReal ≤
+                  ((↑(kout ell j - k i) : ℝ) / p.toReal) := by
+              rw [Nat.cast_sub hik]
+              have hcast : ((((j : ℤ) - i : ℤ) : ℝ)) = (j : ℝ) - (i : ℝ) := by
+                norm_num
+              rw [hcast]
+              field_simp [hp_pos.ne']
+              linarith
+            have hlam_le :
+                lam ^ ((↑(kout ell j - k i) : ℝ) / p.toReal) ≤
+                  scale * bZ ((j : ℤ) - i) ^ (1 / p.toReal) := by
+              calc
+                lam ^ ((↑(kout ell j - k i) : ℝ) / p.toReal)
+                    ≤ lam ^ ((r_als * ((((j : ℤ) - i : ℤ) : ℝ)) - B_als) / p.toReal) := by
+                      exact Real.rpow_le_rpow_of_exponent_ge hlam_pos hlam_lt.le hlag_exp
+                _ = scale * bZ ((j : ℤ) - i) ^ (1 / p.toReal) := by
+                    rw [hb_root_eq]
+                    have hexp :
+                        ((r_als * ((((j : ℤ) - i : ℤ) : ℝ)) - B_als) / p.toReal) =
+                          -(B_als : ℝ) / p.toReal +
+                            (r_als * ((((j : ℤ) - i : ℤ) : ℝ))) / p.toReal := by
+                      field_simp [hp_pos.ne']
+                      ring
+                    rw [hexp, ← Real.rpow_add hlam_pos]
+            have hsrc_eq : srcZ ((j : ℤ) - ((j : ℤ) - i)) = srcRoot i := by
+              have hsub : (j : ℤ) - ((j : ℤ) - i) = i := by ring
+              rw [hsub]
+              simpa [srcZ] using extendNatToInt_ofNat srcRoot i
+            calc
+              f i = lam ^ ((↑(kout ell j - k i) : ℝ) / p.toReal) * srcRoot i := by
+                simp [f, hik]
+              _ ≤ (scale * bZ ((j : ℤ) - i) ^ (1 / p.toReal)) * srcRoot i := by
+                exact mul_le_mul_of_nonneg_right hlam_le (hsrcRoot_nonneg i)
+              _ = scale * sec ((j : ℤ) - i) := by
+                rw [show sec ((j : ℤ) - i) =
+                    bZ ((j : ℤ) - i) ^ (1 / p.toReal) * srcZ ((j : ℤ) - ((j : ℤ) - i)) by rfl,
+                  hsrc_eq]
+                ring
+          · have hnonneg : 0 ≤ scale * sec ((j : ℤ) - i) := by
+              exact mul_nonneg hscale_nonneg (hsec_nonneg ((j : ℤ) - i))
+            simpa [f, hik] using hnonneg
+        have hsum_comp : Summable fun i : ℕ => scale * sec ((j : ℤ) - i) :=
+          (hsec_sum.mul_left scale).comp_injective hphi_inj
+        have hsum_le : (∑' i : ℕ, f i) ≤ ∑' i : ℕ, scale * sec ((j : ℤ) - i) :=
+          hf_sum.tsum_le_tsum hterm_le hsum_comp
+        have hsum_reindex :
+            (∑' i : ℕ, scale * sec ((j : ℤ) - i)) ≤ ∑' n : ℤ, scale * sec n := by
+          exact tsum_comp_le_tsum_of_injective
+            ((hsec_sum.mul_left scale))
+            (fun n => mul_nonneg hscale_nonneg (hsec_nonneg n))
+            hphi_inj
+        have htsum_scale : (∑' n : ℤ, scale * sec n) = scale * convZ j := by
+          calc
+            (∑' n : ℤ, scale * sec n) = scale * ∑' n : ℤ, sec n := by
+              simpa [sec, mul_assoc] using (hsec_sum.hasSum.mul_left scale).tsum_eq
+            _ = scale * convZ j := by rfl
+        exact (hsum_le.trans hsum_reindex).trans_eq htsum_scale
+      · have hnonneg : 0 ≤ scale * convZ j := mul_nonneg hscale_nonneg (hconvZ_nonneg j)
+        simpa [hEx] using hnonneg
     have hYoungZ :
         Summable (fun j : ℤ => convZ j ^ q.toReal) ∧
         (∑' j : ℤ, convZ j ^ q.toReal) ^ (1 / q.toReal) ≤
           LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc := by
-      -- Young on `ℤ` for the nonnegative convolution
-      -- `convZ = (bZ^(1/p)) * srcZ`, with
-      -- `‖srcZ‖_q = Csrc` by `hsrcZ_q_tsum` and
-      -- `‖bZ^(1/p)‖_1 = cCoefficientInt p ∞ bZ` by `hccoeff_eq`.
-      sorry
+      have hq_one : (1 : ℝ) ≤ q.toReal := by
+        have h := ENNReal.toReal_mono hq_ne_top (Fact.out : (1 : ℝ≥0∞) ≤ q)
+        simpa using h
+      let a : ℤ → ℝ := fun n => bZ n ^ (1 / p.toReal)
+      let e : ℕ ≃ ℤ := Equiv.intEquivNat.symm
+      let part : ℕ → ℤ → ℝ :=
+        fun N j => ∑ m ∈ Finset.range N, a (e m) * srcZ (j - e m)
+      have ha_nonneg : ∀ n : ℤ, 0 ≤ a n := by
+        intro n
+        exact hbRoot_nonneg n
+      have ha_sum_nat : Summable (fun m : ℕ => a (e m)) :=
+        hbRoot_summable.comp_injective e.injective
+      have ha_tsum_eq :
+          (∑' m : ℕ, a (e m)) = LpGridRepresentation.cCoefficientInt p ∞ bZ := by
+        calc
+          (∑' m : ℕ, a (e m)) = ∑' n : ℤ, a n := by
+            simpa [e] using (e.tsum_eq a)
+          _ = LpGridRepresentation.cCoefficientInt p ∞ bZ := by
+            simpa [a] using hccoeff_eq.symm
+      have hsrcZ_le_Csrc : ∀ z : ℤ, srcZ z ≤ Csrc := by
+        intro z
+        have hsingle : srcZ z ^ q.toReal ≤ ∑' j : ℤ, srcZ j ^ q.toReal := by
+          have hle := hsrcZ_q_summable.sum_le_tsum ({z} : Finset ℤ)
+            (fun j hj => Real.rpow_nonneg (hsrcZ_nonneg j) _)
+          simpa using hle
+        have hroot := Real.rpow_le_rpow
+          (Real.rpow_nonneg (hsrcZ_nonneg z) _)
+          hsingle
+          (div_nonneg zero_le_one hq_pos.le)
+        calc
+          srcZ z = (srcZ z ^ q.toReal) ^ (1 / q.toReal) := by
+            rw [← Real.rpow_mul (hsrcZ_nonneg z)]
+            field_simp [hq_pos.ne']
+            rw [Real.rpow_one]
+          _ ≤ (∑' j : ℤ, srcZ j ^ q.toReal) ^ (1 / q.toReal) := hroot
+          _ = Csrc := by simp [Csrc, hsrcZ_q_tsum]
+      have hterm_q_summable : ∀ z : ℤ,
+          Summable (fun j : ℤ => (a z * srcZ (j - z)) ^ q.toReal) := by
+        intro z
+        have hshift : Summable (fun j : ℤ => srcZ (j - z) ^ q.toReal) := by
+          simpa using hsrcZ_q_summable.comp_injective (Equiv.subRight z).injective
+        have hmul : Summable (fun j : ℤ => a z ^ q.toReal * (srcZ (j - z) ^ q.toReal)) :=
+          hshift.mul_left (a z ^ q.toReal)
+        convert hmul using 1
+        ext j
+        rw [Real.mul_rpow (ha_nonneg z) (hsrcZ_nonneg (j - z))]
+      have hterm_norm : ∀ z : ℤ,
+          (∑' j : ℤ, (a z * srcZ (j - z)) ^ q.toReal) ^ (1 / q.toReal) ≤ a z * Csrc := by
+        intro z
+        have hshift_tsum :
+            (∑' j : ℤ, srcZ (j - z) ^ q.toReal) = ∑' j : ℤ, srcZ j ^ q.toReal := by
+          simpa using (Equiv.subRight z).tsum_eq (fun j : ℤ => srcZ j ^ q.toReal)
+        have htsum_eq :
+            (∑' j : ℤ, (a z * srcZ (j - z)) ^ q.toReal) =
+              a z ^ q.toReal * ∑' j : ℤ, srcZ j ^ q.toReal := by
+          calc
+            (∑' j : ℤ, (a z * srcZ (j - z)) ^ q.toReal)
+                = ∑' j : ℤ, a z ^ q.toReal * (srcZ (j - z) ^ q.toReal) := by
+                    apply tsum_congr
+                    intro j
+                    rw [Real.mul_rpow (ha_nonneg z) (hsrcZ_nonneg (j - z))]
+            _ = a z ^ q.toReal * ∑' j : ℤ, srcZ (j - z) ^ q.toReal := by
+                  simpa [mul_assoc] using ((hsrcZ_q_summable.comp_injective (Equiv.subRight z).injective).hasSum.mul_left (a z ^ q.toReal)).tsum_eq
+            _ = a z ^ q.toReal * ∑' j : ℤ, srcZ j ^ q.toReal := by rw [hshift_tsum]
+        calc
+          (∑' j : ℤ, (a z * srcZ (j - z)) ^ q.toReal) ^ (1 / q.toReal)
+              = (a z ^ q.toReal * ∑' j : ℤ, srcZ j ^ q.toReal) ^ (1 / q.toReal) := by
+                  rw [htsum_eq]
+          _ = (a z ^ q.toReal) ^ (1 / q.toReal) * (∑' j : ℤ, srcZ j ^ q.toReal) ^ (1 / q.toReal) := by
+                rw [Real.mul_rpow (Real.rpow_nonneg (ha_nonneg z) _) (tsum_nonneg fun j => Real.rpow_nonneg (hsrcZ_nonneg j) _)]
+              _ ≤ a z * Csrc := by
+                apply le_of_eq
+                rw [← Real.rpow_mul (ha_nonneg z)]
+                field_simp [hq_pos.ne']
+                rw [Real.rpow_one]
+                simp [Csrc, hsrcZ_q_tsum]
+      have hpart_nonneg : ∀ N : ℕ, ∀ j : ℤ, 0 ≤ part N j := by
+        intro N j
+        exact Finset.sum_nonneg fun m hm => mul_nonneg (ha_nonneg _) (hsrcZ_nonneg _)
+      have hpart_bound : ∀ N : ℕ,
+          Summable (fun j : ℤ => part N j ^ q.toReal) ∧
+          (∑' j : ℤ, part N j ^ q.toReal) ^ (1 / q.toReal) ≤
+            (∑ m ∈ Finset.range N, a (e m)) * Csrc := by
+        intro N
+        induction' N with N ih
+        · constructor
+          · simp [part, Real.zero_rpow hq_pos.ne']
+          · have hzero : (∑' j : ℤ, part 0 j ^ q.toReal) = 0 := by
+                simp [part, Real.zero_rpow hq_pos.ne']
+            rw [hzero]
+            rw [Real.zero_rpow (one_div_ne_zero hq_pos.ne')]
+            simp
+        · rcases ih with ⟨ih_sum, ih_bound⟩
+          have hterm_nonneg : ∀ j : ℤ, 0 ≤ a (e N) * srcZ (j - e N) := by
+            intro j
+            exact mul_nonneg (ha_nonneg _) (hsrcZ_nonneg _)
+          have hsum_succ : Summable (fun j : ℤ => part (N + 1) j ^ q.toReal) := by
+            simpa [part, Finset.sum_range_succ, add_comm, add_left_comm, add_assoc] using
+              Real.summable_Lp_add_of_nonneg
+                hq_one
+                (fun j => hpart_nonneg N j)
+                hterm_nonneg
+                ih_sum
+                (hterm_q_summable (e N))
+          have hbound_succ :
+              (∑' j : ℤ, part (N + 1) j ^ q.toReal) ^ (1 / q.toReal) ≤
+                (∑ m ∈ Finset.range (N + 1), a (e m)) * Csrc := by
+            have hLp := Real.Lp_add_le_tsum_of_nonneg'
+              (ι := ℤ)
+              (p := q.toReal)
+              hq_one
+              (f := fun j : ℤ => part N j)
+              (g := fun j : ℤ => a (e N) * srcZ (j - e N))
+              (fun j => hpart_nonneg N j)
+              hterm_nonneg
+              ih_sum
+              (hterm_q_summable (e N))
+            have hrhs :
+                (∑' j : ℤ, part N j ^ q.toReal) ^ (1 / q.toReal) +
+                    (∑' j : ℤ, (a (e N) * srcZ (j - e N)) ^ q.toReal) ^ (1 / q.toReal)
+                  ≤ (∑ m ∈ Finset.range (N + 1), a (e m)) * Csrc := by
+              calc
+                (∑' j : ℤ, part N j ^ q.toReal) ^ (1 / q.toReal) +
+                    (∑' j : ℤ, (a (e N) * srcZ (j - e N)) ^ q.toReal) ^ (1 / q.toReal)
+                    ≤ (∑ m ∈ Finset.range N, a (e m)) * Csrc + a (e N) * Csrc :=
+                      add_le_add ih_bound (hterm_norm (e N))
+                _ = (∑ m ∈ Finset.range (N + 1), a (e m)) * Csrc := by
+                    rw [Finset.sum_range_succ]
+                    ring
+            exact (by
+              simpa [part, Finset.sum_range_succ, add_comm, add_left_comm, add_assoc] using
+                hLp.trans hrhs)
+          exact ⟨hsum_succ, hbound_succ⟩
+      have hpart_tendsto : ∀ j : ℤ, Tendsto (fun N : ℕ => part N j) atTop (𝓝 (convZ j)) := by
+        intro j
+        let termj : ℕ → ℝ := fun m => a (e m) * srcZ (j - e m)
+        have htermj_sum : Summable termj := by
+          refine Summable.of_nonneg_of_le
+            (fun m => mul_nonneg (ha_nonneg _) (hsrcZ_nonneg _))
+            (fun m => ?_)
+            (ha_sum_nat.mul_right Csrc)
+          exact mul_le_mul_of_nonneg_left (hsrcZ_le_Csrc _) (ha_nonneg _)
+        have htermj_tsum : (∑' m : ℕ, termj m) = convZ j := by
+          calc
+            (∑' m : ℕ, termj m) = ∑' n : ℤ, a n * srcZ (j - n) := by
+              simpa [termj, e] using (e.tsum_eq (fun n : ℤ => a n * srcZ (j - n)))
+            _ = convZ j := by rfl
+        have hsumj := htermj_sum.hasSum
+        rw [htermj_tsum] at hsumj
+        simpa [part, termj] using hsumj.tendsto_sum_nat
+      have hfinite_bound : ∀ T : Finset ℤ,
+          ∑ j ∈ T, convZ j ^ q.toReal ≤
+            ((LpGridRepresentation.cCoefficientInt p ∞ bZ) * Csrc) ^ q.toReal := by
+        intro T
+        let u : ℕ → ℝ := fun N => ∑ j ∈ T, part N j ^ q.toReal
+        have hu_tendsto : Tendsto u atTop (𝓝 (∑ j ∈ T, convZ j ^ q.toReal)) := by
+          refine tendsto_finsetSum T ?_
+          intro j hj
+          exact (Real.continuousAt_rpow_const (x := convZ j) (q := q.toReal) (Or.inr hq_pos.le)).tendsto.comp (hpart_tendsto j)
+        have hu_bound : ∀ N : ℕ,
+            u N ≤ ((LpGridRepresentation.cCoefficientInt p ∞ bZ) * Csrc) ^ q.toReal := by
+          intro N
+          rcases hpart_bound N with ⟨hsumN, hboundN⟩
+          have hsum_le : u N ≤ ∑' j : ℤ, part N j ^ q.toReal :=
+            hsumN.sum_le_tsum T (fun j hj => Real.rpow_nonneg (hpart_nonneg N j) _)
+          have hnorm_le :
+              (∑' j : ℤ, part N j ^ q.toReal) ^ (1 / q.toReal) ≤
+                (LpGridRepresentation.cCoefficientInt p ∞ bZ) * Csrc := by
+            calc
+              (∑' j : ℤ, part N j ^ q.toReal) ^ (1 / q.toReal)
+                  ≤ (∑ m ∈ Finset.range N, a (e m)) * Csrc := hboundN
+              _ ≤ (∑' m : ℕ, a (e m)) * Csrc := by
+                    exact mul_le_mul_of_nonneg_right
+                      (ha_sum_nat.sum_le_tsum (Finset.range N) (fun m hm => ha_nonneg _))
+                      hCsrc_nonneg
+              _ = (LpGridRepresentation.cCoefficientInt p ∞ bZ) * Csrc := by rw [ha_tsum_eq]
+          have hpow_le :
+              ∑' j : ℤ, part N j ^ q.toReal ≤
+                ((LpGridRepresentation.cCoefficientInt p ∞ bZ) * Csrc) ^ q.toReal := by
+            have hpow' :
+                ((∑' j : ℤ, part N j ^ q.toReal) ^ (1 / q.toReal)) ^ q.toReal ≤
+                  ((LpGridRepresentation.cCoefficientInt p ∞ bZ) * Csrc) ^ q.toReal :=
+              Real.rpow_le_rpow
+                (Real.rpow_nonneg (tsum_nonneg fun j => Real.rpow_nonneg (hpart_nonneg N j) _) _)
+                hnorm_le
+                hq_pos.le
+            calc
+              ∑' j : ℤ, part N j ^ q.toReal
+                  = ((∑' j : ℤ, part N j ^ q.toReal) ^ (1 / q.toReal)) ^ q.toReal := by
+                      symm
+                      rw [← Real.rpow_mul (tsum_nonneg fun j => Real.rpow_nonneg (hpart_nonneg N j) _)]
+                      field_simp [hq_pos.ne']
+                      rw [Real.rpow_one]
+              _ ≤ ((LpGridRepresentation.cCoefficientInt p ∞ bZ) * Csrc) ^ q.toReal := hpow'
+          exact hsum_le.trans hpow_le
+        exact le_of_tendsto' hu_tendsto hu_bound
+      have hconvZ_q_summable : Summable (fun j : ℤ => convZ j ^ q.toReal) :=
+        summable_of_sum_le
+          (fun j => Real.rpow_nonneg (hconvZ_nonneg j) _)
+          hfinite_bound
+      have htsum_le :
+          ∑' j : ℤ, convZ j ^ q.toReal ≤
+            ((LpGridRepresentation.cCoefficientInt p ∞ bZ) * Csrc) ^ q.toReal :=
+        Real.tsum_le_of_sum_le
+          (fun j => Real.rpow_nonneg (hconvZ_nonneg j) _)
+          hfinite_bound
+      refine ⟨hconvZ_q_summable, ?_⟩
+      have hroot := Real.rpow_le_rpow
+        (tsum_nonneg fun j => Real.rpow_nonneg (hconvZ_nonneg j) _)
+        htsum_le
+        (div_nonneg zero_le_one hq_pos.le)
+      calc
+        (∑' j : ℤ, convZ j ^ q.toReal) ^ (1 / q.toReal)
+            ≤ (((LpGridRepresentation.cCoefficientInt p ∞ bZ) * Csrc) ^ q.toReal) ^ (1 / q.toReal) := hroot
+        _ = LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc := by
+              rw [← Real.rpow_mul (mul_nonneg hccoeff_nonneg hCsrc_nonneg)]
+              field_simp [hq_pos.ne']
+              rw [Real.rpow_one]
     have hconvZ_nat_summable : Summable fun j : ℕ => convZ j ^ q.toReal := by
       exact hYoungZ.1.comp_injective (by
         intro a b h
@@ -1741,10 +2131,119 @@ lemma transmutation_convolution_bound
       · exact summable_of_hasFiniteSupport
           (Set.finite_univ.subset (by intro x hx; simp))
     refine ⟨hsigma_summable, ?_⟩
-    -- The remaining bookkeeping rewrites `∑' (ell,j)` as a finite sum over
-    -- `ell`, applies the previous two estimates to each class, and uses
-    -- `finset_Lq_le_card_rpow_mul_bound` to produce `alpha^(1/q)`.
-    sorry
+    have hconvZ_nat_le :
+        (∑' j : ℕ, convZ j ^ q.toReal) ^ (1 / q.toReal) ≤
+          (∑' j : ℤ, convZ j ^ q.toReal) ^ (1 / q.toReal) := by
+      have hsum_le :
+          (∑' j : ℕ, convZ j ^ q.toReal) ≤ ∑' j : ℤ, convZ j ^ q.toReal := by
+        exact tsum_comp_le_tsum_of_injective
+          hYoungZ.1
+          (fun z => Real.rpow_nonneg (hconvZ_nonneg z) _)
+          (phi := fun j : ℕ => (j : ℤ))
+          (by
+            intro a b h
+            exact Int.ofNat.inj h)
+      exact Real.rpow_le_rpow
+        (tsum_nonneg fun j => Real.rpow_nonneg (hconvZ_nonneg j) _)
+        hsum_le
+        (div_nonneg zero_le_one hq_pos.le)
+    have hscaled_convZ_norm_le :
+        (∑' j : ℕ, (scale * convZ j) ^ q.toReal) ^ (1 / q.toReal) ≤
+          scale * (LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc) := by
+      have hscaled_tsum :
+          (∑' j : ℕ, (scale * convZ j) ^ q.toReal) =
+            scale ^ q.toReal * ∑' j : ℕ, convZ j ^ q.toReal := by
+        calc
+          (∑' j : ℕ, (scale * convZ j) ^ q.toReal)
+              = ∑' j : ℕ, scale ^ q.toReal * convZ j ^ q.toReal := by
+                  apply tsum_congr
+                  intro j
+                  rw [Real.mul_rpow hscale_nonneg (hconvZ_nonneg j)]
+          _ = scale ^ q.toReal * ∑' j : ℕ, convZ j ^ q.toReal := by
+                simpa [mul_assoc] using
+                  (hconvZ_nat_summable.hasSum.mul_left (scale ^ q.toReal)).tsum_eq
+      calc
+        (∑' j : ℕ, (scale * convZ j) ^ q.toReal) ^ (1 / q.toReal)
+            = (scale ^ q.toReal * ∑' j : ℕ, convZ j ^ q.toReal) ^ (1 / q.toReal) := by
+                rw [hscaled_tsum]
+        _ = scale * (∑' j : ℕ, convZ j ^ q.toReal) ^ (1 / q.toReal) := by
+              have hmul_rpow :
+                  (scale ^ q.toReal * ∑' j : ℕ, convZ j ^ q.toReal) ^ (1 / q.toReal) =
+                    (scale ^ q.toReal) ^ (1 / q.toReal) *
+                      (∑' j : ℕ, convZ j ^ q.toReal) ^ (1 / q.toReal) := by
+                simpa [mul_comm, mul_left_comm, mul_assoc] using
+                  (Real.mul_rpow (Real.rpow_nonneg hscale_nonneg _)
+                    (tsum_nonneg fun j => Real.rpow_nonneg (hconvZ_nonneg j) _)
+                    (x := scale ^ q.toReal)
+                    (y := ∑' j : ℕ, convZ j ^ q.toReal)
+                    (z := 1 / q.toReal))
+              rw [hmul_rpow]
+              rw [← Real.rpow_mul hscale_nonneg]
+              field_simp [hq_pos.ne']
+              rw [Real.rpow_one, mul_comm]
+        _ ≤ scale * (∑' j : ℤ, convZ j ^ q.toReal) ^ (1 / q.toReal) := by
+              exact mul_le_mul_of_nonneg_left hconvZ_nat_le hscale_nonneg
+        _ ≤ scale * (LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc) := by
+              exact mul_le_mul_of_nonneg_left hYoungZ.2 hscale_nonneg
+    have hclass_norm_le : ∀ ell : Fin alpha,
+        (∑' j : ℕ, classConv ell j ^ q.toReal) ^ (1 / q.toReal) ≤
+          scale * (LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc) := by
+      intro ell
+      have hsum_le :
+          (∑' j : ℕ, classConv ell j ^ q.toReal) ≤
+            ∑' j : ℕ, (scale * convZ j) ^ q.toReal := by
+        exact (hclass_summable ell).tsum_le_tsum
+          (fun j =>
+            Real.rpow_le_rpow
+              (hclassConv_nonneg ell j)
+              (hclass_le_convZ ell j)
+              hq_pos.le)
+          hscaled_convZ_nat_summable
+      have hroot_le :
+          (∑' j : ℕ, classConv ell j ^ q.toReal) ^ (1 / q.toReal) ≤
+            (∑' j : ℕ, (scale * convZ j) ^ q.toReal) ^ (1 / q.toReal) := by
+        exact Real.rpow_le_rpow
+          (tsum_nonneg fun j => Real.rpow_nonneg (hclassConv_nonneg ell j) _)
+          hsum_le
+          (div_nonneg zero_le_one hq_pos.le)
+      exact hroot_le.trans hscaled_convZ_norm_le
+    have hclass_bound_nonneg :
+        0 ≤ scale * (LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc) := by
+      exact mul_nonneg hscale_nonneg (mul_nonneg hccoeff_nonneg hCsrc_nonneg)
+    have hsigma_eq :
+        (∑' x : (Sigma fun _ell : Fin alpha => ℕ), classConv x.1 x.2 ^ q.toReal) =
+          ∑ ell : Fin alpha, (((∑' j : ℕ, classConv ell j ^ q.toReal) ^ (1 / q.toReal)) ^ q.toReal) := by
+      rw [hsigma_summable.tsum_sigma, tsum_fintype]
+      refine Finset.sum_congr rfl ?_
+      intro ell hEll
+      symm
+      rw [← Real.rpow_mul
+        (tsum_nonneg fun j => Real.rpow_nonneg (hclassConv_nonneg ell j) _)]
+      field_simp [hq_pos.ne']
+      rw [Real.rpow_one]
+    calc
+      (∑' x : (Sigma fun _ell : Fin alpha => ℕ), classConv x.1 x.2 ^ q.toReal) ^
+          (1 / q.toReal)
+          = (∑ ell : Fin alpha,
+              (((∑' j : ℕ, classConv ell j ^ q.toReal) ^ (1 / q.toReal)) ^ q.toReal)) ^
+              (1 / q.toReal) := by
+                rw [hsigma_eq]
+      _ ≤ (alpha : ℝ) ^ (1 / q.toReal) *
+            (scale * (LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc)) := by
+            simpa using
+              finset_Lq_le_card_rpow_mul_bound (q := q)
+                (S := (Finset.univ : Finset (Fin alpha)))
+                (a := fun ell => (∑' j : ℕ, classConv ell j ^ q.toReal) ^ (1 / q.toReal))
+                (scale * (LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc))
+                (fun ell hEll =>
+                  Real.rpow_nonneg
+                    (tsum_nonneg fun j => Real.rpow_nonneg (hclassConv_nonneg ell j) _) _)
+                (fun ell hEll => hclass_norm_le ell)
+                hclass_bound_nonneg
+                hq_ne_top
+      _ = scale * LpGridRepresentation.cCoefficientInt p ∞ bZ *
+            (alpha : ℝ) ^ (1 / q.toReal) * Csrc := by
+            ring
   have hconv_summable : Summable (fun j : ℕ => convL j ^ q.toReal) := by
     have hsComp :
         Summable (fun j : ℕ =>
