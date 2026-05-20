@@ -63,11 +63,31 @@ def CoeffFinitePQCost
     Summable fun i =>
       (CoeffPLevel  (p := p) G c i) ^ (q.toReal / p.toReal)
 
+/-- A level selector `k : ℕ → ℕ` is almost linear if it stays between two affine
+functions with the same positive slope.
+
+Concretely, there are real constants `A`, `B`, and `r > 0` such that, for every
+source level `i`, the chosen output level `k i` lies between `r * i + A` and
+`r * i + B`.  In the paper this is the device that keeps the representation
+levels `k i` comparable to the source index `i` up to a bounded error.
+
+This condition is used in two places throughout the file:
+1. to show that only finitely many source levels can contribute to a fixed
+  output level;
+2. to replace sums indexed by `k i` with convolution estimates on arithmetic
+  progressions. -/
 def AlmostLinearSequence (k : ℕ → ℕ) : Prop :=
   ∃ (A B : ℝ) (r : ℝ), r > 0 ∧ ∀ i : ℕ,
     (k i : NNReal) ≤ r * (i : NNReal) + B ∧
     r * (i : NNReal) + A ≤ (k i : NNReal)
 
+/-- For an almost linear sequence, only finitely many indices can land below a
+fixed output level.
+
+This is the finiteness statement behind all later truncations: once `k i ≤ j`,
+the lower affine bound in `AlmostLinearSequence` forces `i` to lie below an
+explicit constant depending on `j`.  As a result, every sum over
+`{ i | k i ≤ j }` is automatically finite. -/
 lemma almostLinearSequence_finite_le_level
     {k : ℕ → ℕ} (hk : AlmostLinearSequence k) (j : ℕ) :
     {i : ℕ | k i ≤ j}.Finite := by
@@ -91,6 +111,47 @@ lemma almostLinearSequence_finite_le_level
     exact_mod_cast (hi_div.trans (Nat.le_ceil (((j : ℝ) - A) / r)))
   omega
 
+/-- For a fixed output level `j`, this is the first source index after which the
+almost-linear lower bound forces `k i > j`.
+
+It is the threshold used in Claim III to show that the transmutation data at
+level `j` become eventually constant in `N`. -/
+noncomputable def transmutationStabilizationIndex (A r : ℝ) (j : ℕ) : ℕ :=
+  Nat.ceil (((j : ℝ) - A) / r) + 1
+
+/-- Once the source index is beyond `transmutationStabilizationIndex A r j`, the
+almost-linear lower bound implies `j < k i`. -/
+lemma transmutation_lt_level_of_ge_stabilization
+    {k : ℕ → ℕ} {A B r : ℝ} (hr : 0 < r)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r * (i : NNReal) + B ∧
+      r * (i : NNReal) + A ≤ (k i : NNReal))
+    {j i : ℕ}
+    (hi : transmutationStabilizationIndex A r j ≤ i) :
+    j < k i := by
+  have hceil_lt : Nat.ceil (((j : ℝ) - A) / r) < i := by
+    have hsucc : Nat.ceil (((j : ℝ) - A) / r) + 1 ≤ i := hi
+    omega
+  have hdiv_lt : (((j : ℝ) - A) / r) < i := by
+    exact lt_of_le_of_lt (Nat.le_ceil (((j : ℝ) - A) / r)) (by exact_mod_cast hceil_lt)
+  have hri : (j : ℝ) - A < r * (i : ℝ) := by
+    rw [div_lt_iff₀ hr] at hdiv_lt
+    simpa [mul_comm, mul_left_comm, mul_assoc] using hdiv_lt
+  have hlower : r * (i : ℝ) + A ≤ (k i : ℝ) := by
+    simpa using (hk_bound i).2
+  have hj_lt : (j : ℝ) < (k i : ℝ) := by
+    linarith
+  exact_mod_cast hj_lt
+
+/-- The finite partial source expansion, grouped by source level.
+
+`PartialSumLevels G W h c N` is the sum of the first `N` source levels of the
+representation `∑ c i Q • h i Q`, viewed in the target `L^p` space over `W`.
+It is the object that Claim I and Claim II decompose into transmutation blocks.
+
+The definition is intentionally finite: all bookkeeping identities in the file
+are proved first for this truncated sum, and only later are infinite limits
+handled through summability results. -/
 def PartialSumLevels
     (G W : WeakGridSpace (α := α))
     (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
@@ -101,6 +162,18 @@ def PartialSumLevels
 
 
 
+/-- Structural hypothesis saying that each source atom admits a representation on
+the target grid with the localization and decay required for transmutation.
+
+For every source cell `Q` at level `i`, the representation `R i Q` must satisfy
+three properties:
+1. its coefficient family on the target grid has finite `(p,q)` cost;
+2. coefficients vanish outside cells contained in `Q`, and also vanish below the
+  cutoff level `k i`;
+3. above level `k i`, the block cost decays geometrically like `C * lam^(j-k i)`.
+
+This package is the exact input used in Claim II.  The almost-linear sequence
+`k` controls where the decay starts, while `lam` and `C` control its size. -/
 def RepresentationWsubGandALS
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
@@ -130,6 +203,134 @@ noncomputable def TransmutationCoeff
   ∑ i ∈ Finset.range N,
     ∑ Q ∈ (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1),
       ‖c i Q * ((R i Q).block j).coeff P‖
+
+/-- For a fixed target cell `P ∈ W^j`, the transmutation coefficients `m_{P,N}`
+stop changing once `N` passes the stabilization threshold determined by the
+almost-linear lower bound for `k`. -/
+lemma TransmutationCoeff_stabilizes
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    {j : ℕ} (P : LevelCell W j) :
+    ∀ N : ℕ,
+      TransmutationCoeff G W AW h R c
+          (transmutationStabilizationIndex A_als r_als j + N) P =
+        TransmutationCoeff G W AW h R c
+          (transmutationStabilizationIndex A_als r_als j) P := by
+  intro N
+  induction' N with N ih
+  · rfl
+  · let M := transmutationStabilizationIndex A_als r_als j
+    have hk_large : j < k (M + N) := by
+      apply transmutation_lt_level_of_ge_stabilization (B := B_als) hr_als hk_bound
+      dsimp [M]
+      omega
+    have hinner_zero :
+        ∑ Q ∈ (G.grid.partitions (M + N)).attach.filter (fun Q => P.1 ⊆ Q.1),
+          ‖c (M + N) Q * ((R (M + N) Q).block j).coeff P‖ = 0 := by
+      apply Finset.sum_eq_zero
+      intro Q hQ
+      have hcoeff_zero : ((R (M + N) Q).block j).coeff P = 0 :=
+        ((hR (M + N) Q).2.1 j P).2 hk_large
+      simp [hcoeff_zero]
+    calc
+      TransmutationCoeff G W AW h R c (transmutationStabilizationIndex A_als r_als j + (N + 1)) P
+          = TransmutationCoeff G W AW h R c (M + N) P +
+              ∑ Q ∈ (G.grid.partitions (M + N)).attach.filter (fun Q => P.1 ⊆ Q.1),
+                ‖c (M + N) Q * ((R (M + N) Q).block j).coeff P‖ := by
+            dsimp [TransmutationCoeff]
+            have hMN : transmutationStabilizationIndex A_als r_als j + (N + 1) = (M + N) + 1 := by
+              simp [M, add_assoc, add_left_comm, add_comm]
+            rw [hMN, Finset.sum_range_succ]
+      _ = TransmutationCoeff G W AW h R c M P + 0 := by rw [ih, hinner_zero]
+      _ = TransmutationCoeff G W AW h R c (transmutationStabilizationIndex A_als r_als j) P := by
+            simp [M]
+
+/-- The stable value of the transmutation coefficients at a fixed target cell.
+This is the formal `m_{P,∞}` used in Claim III. -/
+noncomputable def TransmutationCoeffLimit
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (A_als r_als : ℝ)
+    {j : ℕ} (P : LevelCell W j) : ℝ :=
+  TransmutationCoeff G W AW h R c (transmutationStabilizationIndex A_als r_als j) P
+
+/-- Beyond the stabilization threshold, the coefficients equal their stable
+limit value `m_{P,∞}`. -/
+lemma TransmutationCoeff_eq_limit_of_ge
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    {j : ℕ} (P : LevelCell W j)
+    {N : ℕ}
+    (hN : transmutationStabilizationIndex A_als r_als j ≤ N) :
+    TransmutationCoeff G W AW h R c N P =
+      TransmutationCoeffLimit G W AW h R c A_als r_als P := by
+  let M := transmutationStabilizationIndex A_als r_als j
+  have hNM : N = M + (N - M) := by
+    dsimp [M]
+    omega
+  rw [hNM, TransmutationCoeffLimit]
+  exact TransmutationCoeff_stabilizes G W AW k A_als B_als r_als hr_als hk_bound
+    lam hlam_pos hlam_lt C hC h R hR c P (N - M)
+
+/-- The coefficient sequence `N ↦ m_{P,N}` converges because it is eventually
+constant. -/
+lemma TransmutationCoeff_tendsto_limit
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    {j : ℕ} (P : LevelCell W j) :
+    Tendsto (fun N => TransmutationCoeff G W AW h R c N P) atTop
+      (𝓝 (TransmutationCoeffLimit G W AW h R c A_als r_als P)) := by
+  let M := transmutationStabilizationIndex A_als r_als j
+  have heq :
+      (fun N => TransmutationCoeff G W AW h R c N P) =ᶠ[atTop]
+        (fun _ => TransmutationCoeffLimit G W AW h R c A_als r_als P) := by
+    refine eventually_atTop.2 ⟨M, ?_⟩
+    intro N hN
+    exact TransmutationCoeff_eq_limit_of_ge G W AW k A_als B_als r_als hr_als hk_bound
+      lam hlam_pos hlam_lt C hC h R hR c P hN
+  exact tendsto_const_nhds.congr' heq.symm
 
 /-- Transmutation atom `d_{P,N}` for `P ∈ W^j`: the normalised convex combination
     of the atoms `b_{P,Q}` weighted by `c_Q · s_{P,Q}`.
@@ -179,6 +380,173 @@ noncomputable def TransmutationAtomLocal
       (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P) •
         ((R iQ.1 iQ.2).block j).atom P
   if m = 0 then 0 else (m : ℂ)⁻¹ • num
+
+/-- For a fixed target cell `P ∈ W^j`, the normalized local atoms `d_{P,N}`
+also stabilize once no new source levels can contribute to level `j`. -/
+lemma TransmutationAtomLocal_stabilizes
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    {j : ℕ} (P : LevelCell W j) :
+    ∀ N : ℕ,
+      TransmutationAtomLocal G W AW h R c
+          (transmutationStabilizationIndex A_als r_als j + N) P =
+        TransmutationAtomLocal G W AW h R c
+          (transmutationStabilizationIndex A_als r_als j) P := by
+  intro N
+  induction' N with N ih
+  · rfl
+  · let M := transmutationStabilizationIndex A_als r_als j
+    have hk_large : j < k (M + N) := by
+      apply transmutation_lt_level_of_ge_stabilization (B := B_als) hr_als hk_bound
+      dsimp [M]
+      omega
+    have hcoeff_step :
+        TransmutationCoeff G W AW h R c ((M + N) + 1) P =
+          TransmutationCoeff G W AW h R c (M + N) P := by
+      calc
+        TransmutationCoeff G W AW h R c ((M + N) + 1) P
+            = TransmutationCoeff G W AW h R c M P := by
+              simpa [M, add_assoc, add_left_comm, add_comm] using
+                TransmutationCoeff_stabilizes G W AW k A_als B_als r_als hr_als hk_bound
+                  lam hlam_pos hlam_lt C hC h R hR c P (N + 1)
+        _ = TransmutationCoeff G W AW h R c (M + N) P := by
+              simpa [M] using
+                (TransmutationCoeff_stabilizes G W AW k A_als B_als r_als hr_als hk_bound
+                  lam hlam_pos hlam_lt C hC h R hR c P N).symm
+    have htail_zero :
+        ∑ Q ∈ (G.grid.partitions (M + N)).attach.filter (fun Q => P.1 ⊆ Q.1),
+          (c (M + N) Q * ((R (M + N) Q).block j).coeff P) •
+            ((R (M + N) Q).block j).atom P = 0 := by
+      apply Finset.sum_eq_zero
+      intro Q hQ
+      have hcoeff_zero : ((R (M + N) Q).block j).coeff P = 0 :=
+        ((hR (M + N) Q).2.1 j P).2 hk_large
+      simp [hcoeff_zero]
+    have hnum_step :
+        (∑ iQ ∈ ((Finset.range ((M + N) + 1)).sigma
+            (fun i => (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1))),
+          (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P) •
+            ((R iQ.1 iQ.2).block j).atom P) =
+        (∑ iQ ∈ ((Finset.range (M + N)).sigma
+            (fun i => (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1))),
+          (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P) •
+            ((R iQ.1 iQ.2).block j).atom P) := by
+      rw [Finset.sum_sigma, Finset.sum_sigma, Finset.sum_range_succ, htail_zero, add_zero]
+    calc
+      TransmutationAtomLocal G W AW h R c (transmutationStabilizationIndex A_als r_als j + (N + 1)) P
+          = TransmutationAtomLocal G W AW h R c (M + N) P := by
+            have hMN : transmutationStabilizationIndex A_als r_als j + (N + 1) = (M + N) + 1 := by
+              simp [M, add_assoc, add_left_comm, add_comm]
+            dsimp [TransmutationAtomLocal]
+            rw [hMN, hcoeff_step, hnum_step]
+          _ = TransmutationAtomLocal G W AW h R c (transmutationStabilizationIndex A_als r_als j) P := by
+            simpa [M] using ih
+
+/-- The stable local atom attached to a target cell. This is the formal
+`d_{P,∞}` used in Claim III before applying `atomLp`. -/
+noncomputable def TransmutationAtomLocalLimit
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (A_als r_als : ℝ)
+    {j : ℕ} (P : LevelCell W j) :
+    (AW.localSpace (levelCellToWeakGridCell W j P)).carrier :=
+  TransmutationAtomLocal G W AW h R c (transmutationStabilizationIndex A_als r_als j) P
+
+/-- Beyond the stabilization threshold, the local atoms equal their stable
+limit value `d_{P,∞}`. -/
+lemma TransmutationAtomLocal_eq_limit_of_ge
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    {j : ℕ} (P : LevelCell W j)
+    {N : ℕ}
+    (hN : transmutationStabilizationIndex A_als r_als j ≤ N) :
+    TransmutationAtomLocal G W AW h R c N P =
+      TransmutationAtomLocalLimit G W AW h R c A_als r_als P := by
+  let M := transmutationStabilizationIndex A_als r_als j
+  have hNM : N = M + (N - M) := by
+    dsimp [M]
+    omega
+  rw [hNM, TransmutationAtomLocalLimit]
+  exact TransmutationAtomLocal_stabilizes G W AW k A_als B_als r_als hr_als hk_bound
+    lam hlam_pos hlam_lt C hC h R hR c P (N - M)
+
+/-- The stable `L^p` atom attached to a target cell. This is the paper's
+`d_{P,∞}` as an actual element of `L^p`. -/
+noncomputable def TransmutationAtomLimit
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (A_als r_als : ℝ)
+    {j : ℕ} (P : LevelCell W j) : Lp ℂ p W.measure :=
+  atomLp AW (levelCellToWeakGridCell W j P)
+    (TransmutationAtomLocalLimit G W AW h R c A_als r_als P)
+
+/-- The `L^p` atoms in the transmutation representation converge because they
+are eventually constant cellwise. -/
+lemma TransmutationAtom_tendsto_limit
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    {j : ℕ} (P : LevelCell W j) :
+    Tendsto
+      (fun N => atomLp AW (levelCellToWeakGridCell W j P)
+        (TransmutationAtomLocal G W AW h R c N P))
+      atTop
+      (𝓝 (TransmutationAtomLimit G W AW h R c A_als r_als P)) := by
+  let M := transmutationStabilizationIndex A_als r_als j
+  have heq :
+      (fun N => atomLp AW (levelCellToWeakGridCell W j P)
+        (TransmutationAtomLocal G W AW h R c N P)) =ᶠ[atTop]
+        (fun _ => TransmutationAtomLimit G W AW h R c A_als r_als P) := by
+    refine eventually_atTop.2 ⟨M, ?_⟩
+    intro N hN
+    simp [TransmutationAtomLimit,
+      TransmutationAtomLocal_eq_limit_of_ge G W AW k A_als B_als r_als hr_als hk_bound
+        lam hlam_pos hlam_lt C hC h R hR c P hN]
+  exact tendsto_const_nhds.congr' heq.symm
 
 /-- `TransmutationAtomLocal G W AW h R c N P` is an atom of `AW` on cell `P`.
     **Proof**: when `m = 0` the element is `0`, which is an atom
@@ -459,7 +827,6 @@ lemma transmutationBlock_toLp_eq
     rw [smul_smul, mul_inv_cancel₀ hmC, one_smul]
     rw [← hnum_sigma]
     apply Lp.ext
-    -- The finite sum of external terms has the expected pointwise representative.
     have hsum_ae :
         ⇑(∑ iQ ∈ FS, c iQ.1 iQ.2 • ((R iQ.1 iQ.2).block j).term AW P)
           =ᵐ[W.measure]
@@ -685,8 +1052,19 @@ lemma transmutation_fixed_i_power_bound
           intro P hP
           rw [norm_mul, Real.mul_rpow (norm_nonneg _) (norm_nonneg _)]
 
-/-- Fixed-source-level root estimate, after inserting the representation decay
-bound `levelCoeffPower j ≤ C * lam^(j-k i)`. -/
+/-- Root form of the single-source-level estimate used in Claim II.
+
+This lemma combines the geometric overlap bound from
+`transmutation_fixed_i_power_bound` with the decay information supplied by the
+representation hypothesis `hR`.  For a fixed source level `i` and output level
+`j ≥ k i`, it shows that the contribution of level `i` to the target level `j`
+is controlled by three factors:
+1. the overlap multiplicity `G.grid.Cmult1`;
+2. the decay term `lam^((j-k i)/p)` coming from the representation;
+3. the source coefficient size at level `i`, measured by `CoeffPLevel`.
+
+This is the local estimate that later gets summed in `i` by Minkowski and then
+reorganized into the convolution bound. -/
 lemma transmutation_fixed_i_root_bound
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
@@ -820,7 +1198,13 @@ lemma transmutation_fixed_i_root_bound
           field_simp [hp_pos.ne']
           rw [Real.rpow_one]
 
-/-- Finite Minkowski inequality for nonnegative arrays. -/
+/-- Finite Minkowski inequality for a nonnegative family.
+
+The statement is the discrete finite version of the estimate
+"the `ℓ^p` norm of a sum is bounded by the sum of the `ℓ^p` norms".
+It is used repeatedly when the transmutation coefficients are written as finite
+sums over source levels and one wants to separate the contribution of each
+level before passing to infinite sums. -/
 lemma finset_Lp_sum_le_sum_Lp
     {ι κ : Type*} (S : Finset ι) (T : Finset κ) (a : ι → κ → ℝ)
     (hp_ne_top : p ≠ ∞)
@@ -873,7 +1257,7 @@ lemma finset_Lp_sum_le_sum_Lp
         ∑ i' ∈ insert i S, (∑ k ∈ T, (a i' k) ^ p.toReal) ^ (1 / p.toReal) := by
           rw [Finset.sum_insert hi]
 
-/-- The arithmetic progression `n ↦ b + a * n` is injective when `a > 0`. -/
+/-- A positive-step arithmetic progression never repeats values. -/
 lemma arithProg_injective {a b : ℕ} (ha : 0 < a) :
     Function.Injective (fun n : ℕ => b + a * n) := by
   intro n m hnm
@@ -881,12 +1265,21 @@ lemma arithProg_injective {a b : ℕ} (ha : 0 < a) :
     exact Nat.add_left_cancel hnm
   exact Nat.mul_left_cancel ha hmul
 
-/-- A summable sequence remains summable when restricted to an arithmetic progression. -/
+/-- Restricting a summable sequence to one arithmetic progression preserves
+summability.
+
+This is the basic reindexing fact needed when source levels are split into
+residue classes modulo `alpha = ceil r`. -/
 lemma summable_arithProg_comp {f : ℕ → ℝ} (hf : Summable f) {a b : ℕ} (ha : 0 < a) :
     Summable (fun n => f (b + a * n)) := by
   exact hf.comp_injective (arithProg_injective ha)
 
-/-- The sum over an arithmetic progression is bounded by the total sum for nonnegative terms. -/
+/-- For a nonnegative summable sequence, the sum over one arithmetic progression
+is bounded by the full sum.
+
+This is the monotonicity input used after decomposing indices into residue
+classes: each class captures only part of the original sequence, so its total
+mass cannot exceed the whole mass. -/
 lemma tsum_arithProg_le {f : ℕ → ℝ} (hf : Summable f) (hf_nonneg : ∀ n, 0 ≤ f n)
     {a b : ℕ} (ha : 0 < a) :
     (∑' n, f (b + a * n)) ≤ ∑' n, f n := by
@@ -914,7 +1307,11 @@ lemma tsum_arithProg_le {f : ℕ → ℝ} (hf : Summable f) (hf_nonneg : ∀ n, 
       · simp [Set.indicator, hn]
       · simp [Set.indicator, hn, hf_nonneg]) hf
 
-/-- An injective reindexing cannot increase the sum of a nonnegative summable family. -/
+/-- Injectively reindexing a nonnegative summable family can only decrease its
+total sum.
+
+This abstract form is used several times to compare a sum over a subset or over
+a reindexed copy with the original ambient sum. -/
 lemma tsum_comp_le_tsum_of_injective
     {ι κ : Type*} [Encodable ι] [Encodable κ]
     {f : κ → ℝ} (hf : Summable f) (hf_nonneg : ∀ x, 0 ≤ f x)
@@ -942,8 +1339,12 @@ lemma tsum_comp_le_tsum_of_injective
       · simp [Set.indicator, hx]
       · simp [Set.indicator, hx, hf_nonneg]) hf
 
-/-- A finite family of nonnegative terms bounded above by `C` has `ℓ^q` norm at most
-`card^(1/q) * C`. -/
+/-- Uniform bound for the `ℓ^q` norm of a finite family.
+
+If every term in a finite family is between `0` and `C`, then its `ℓ^q` norm is
+at most `card^(1/q) * C`.  In this file the lemma is used to pay for the finite
+number of residue classes appearing in the almost-linear decomposition, which is
+why the factor `(Nat.ceil r)^(1/q)` appears in the final estimates. -/
 lemma finset_Lq_le_card_rpow_mul_bound {ι : Type*} (S : Finset ι) (a : ι → ℝ) (C : ℝ)
     (ha_nonneg : ∀ i ∈ S, 0 ≤ a i) (ha_le : ∀ i ∈ S, a i ≤ C)
     (hC_nonneg : 0 ≤ C) (hq_ne_top : q ≠ ∞) :
@@ -973,12 +1374,21 @@ lemma finset_Lq_le_card_rpow_mul_bound {ι : Type*} (S : Finset ι) (a : ι → 
       field_simp [hq_pos.ne']
       rw [Real.rpow_one]
 
-/-- The per-level estimate in Claim II, corresponding to the chain ending at
-equation `(for)` in the paper.
+/-- The level-by-level transmutation estimate in Claim II.
 
-It packages Minkowski, the same-level multiplicity bound, localization
-`P ⊆ Q`, and the representation decay
-`levelCoeffPower j ≤ C * lam^(j-k i)`. -/
+For a fixed target level `j`, this lemma bounds the `p`-cost of the
+transmutation coefficients at level `j` by a weighted sum over source levels.
+It is the place where all local ingredients are assembled:
+1. Minkowski separates the finite sum over source levels `i < N`;
+2. the geometric overlap bound controls how many source cells may contain a
+  given target cell;
+3. localization forces only cells with `P ⊆ Q` to appear;
+4. the representation hypothesis contributes the decay factor beginning at
+  level `k i`.
+
+The output is already in the form needed for the later convolution argument:
+each source level contributes a term weighted by
+`lam^((j-k i)/p) * CoeffPLevel(G,c,i)^(1/p)`. -/
 lemma transmutation_level_bound
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
@@ -1247,21 +1657,29 @@ lemma transmutationKernelZ_root_summable
     summable_of_hasFiniteSupport ((Set.finite_lt_nat M).subset hneg_support)
   exact Summable.of_nat_of_neg_add_one hpos_sum hneg_sum
 
-/-- Extend a natural-indexed real sequence to integers by zero on negative
-indices. -/
+/-- Extend a sequence on `ℕ` to a sequence on `ℤ` by declaring all negative
+indices to be zero.
+
+This is a bookkeeping device used to rewrite the source sequence as a genuine
+integer-indexed sequence before applying the convolution argument on `ℤ`.  The
+extension does not change the positive part and adds no extra mass on the
+negative side. -/
 noncomputable def extendNatToInt (f : ℕ → ℝ) : ℤ → ℝ :=
   fun z => if hz : 0 ≤ z then f z.toNat else 0
 
+/-- On nonnegative integers, `extendNatToInt` agrees with the original sequence. -/
 lemma extendNatToInt_ofNat (f : ℕ → ℝ) (n : ℕ) :
     extendNatToInt f n = f n := by
   simp [extendNatToInt]
 
+/-- On strictly negative integers, `extendNatToInt` is zero. -/
 lemma extendNatToInt_negSucc (f : ℕ → ℝ) (n : ℕ) :
     extendNatToInt f (-(n + 1 : ℤ)) = 0 := by
   dsimp [extendNatToInt]
   rw [if_neg]
   omega
 
+/-- Nonnegativity is preserved by the extension from `ℕ` to `ℤ`. -/
 lemma extendNatToInt_nonneg {f : ℕ → ℝ} (hf : ∀ n, 0 ≤ f n) :
     ∀ z : ℤ, 0 ≤ extendNatToInt f z := by
   intro z
@@ -1270,6 +1688,7 @@ lemma extendNatToInt_nonneg {f : ℕ → ℝ} (hf : ∀ n, 0 ≤ f n) :
   · exact hf z.toNat
   · exact le_rfl
 
+/-- A summable sequence on `ℕ` remains summable after zero-extension to `ℤ`. -/
 lemma summable_extendNatToInt {f : ℕ → ℝ} (hf : Summable f) :
     Summable (extendNatToInt f) := by
   have hpos : Summable fun n : ℕ => extendNatToInt f n := by
@@ -1282,6 +1701,8 @@ lemma summable_extendNatToInt {f : ℕ → ℝ} (hf : Summable f) :
     simp
   exact Summable.of_nat_of_neg_add_one hpos hneg
 
+/-- The total sum of the zero-extension to `ℤ` is the same as the original sum
+on `ℕ`. -/
 lemma tsum_extendNatToInt {f : ℕ → ℝ} (hf : Summable f) :
     (∑' z : ℤ, extendNatToInt f z) = ∑' n : ℕ, f n := by
   have hpos : Summable fun n : ℕ => extendNatToInt f n := by
@@ -1310,14 +1731,22 @@ lemma tsum_extendNatToInt {f : ℕ → ℝ} (hf : Summable f) :
     _ = (∑' n : ℕ, f n) + 0 := by rw [hpos_tsum, hneg_tsum]
     _ = ∑' n : ℕ, f n := by ring
 
-/-- Output block index in the paper's decomposition of a level `k`. -/
+/-- Quotient index in the residue-class decomposition of an output level.
+
+For a given slope `r > 0`, `outputClassJ r k` is the coarse block index of the
+paper's decomposition of `k` into something like `r * j + ell`. -/
 noncomputable def outputClassJ (r : ℝ) (k : ℕ) : ℕ :=
   Nat.floor ((k : ℝ) / r)
 
-/-- Output residue/class in the paper's decomposition of a level `k`. -/
+/-- Residue-class index in the decomposition of an output level.
+
+Together with `outputClassJ`, this records the bounded remainder when `k` is
+written relative to the slope `r`.  The remainder always lives in one of the
+finitely many classes indexed by `0, ..., ceil r - 1`. -/
 noncomputable def outputClassEll (r : ℝ) (k : ℕ) : ℕ :=
   Nat.floor ((k : ℝ) - r * (outputClassJ r k : ℝ))
 
+/-- Lower bound saying that `outputClassJ r k` does not overshoot `k / r`. -/
 lemma outputClassJ_lower (r : ℝ) (hr : 0 < r) (k : ℕ) :
     r * (outputClassJ r k : ℝ) ≤ (k : ℝ) := by
   have hdiv_nonneg : 0 ≤ (k : ℝ) / r := div_nonneg (Nat.cast_nonneg k) hr.le
@@ -1330,6 +1759,7 @@ lemma outputClassJ_lower (r : ℝ) (hr : 0 < r) (k : ℕ) :
     _ = (k : ℝ) := by
       field_simp [hr.ne']
 
+/-- Upper bound saying that `outputClassJ r k` is the largest integer below `k / r`. -/
 lemma outputClassJ_upper (r : ℝ) (hr : 0 < r) (k : ℕ) :
     (k : ℝ) < r * (((outputClassJ r k) + 1 : ℕ) : ℝ) := by
   have hj_lt : (k : ℝ) / r < (outputClassJ r k : ℝ) + 1 := by
@@ -1395,11 +1825,23 @@ lemma outputClass_spec (r : ℝ) (hr : 0 < r) (k : ℕ) :
     by simpa [j, ell] using hceil_eq,
     by simpa [j] using hj_upper⟩
 
-/-- The convolution/ALS estimate used in Claim II.
+/-- The convolution estimate produced by the almost-linear structure.
 
-This is the Lean statement of the paper's residue-class decomposition and
-Young convolution trick with the truncated integer kernel
-`b_n = lam^(r*n)` if `n > A/r - 1`, and `0` otherwise. -/
+This is the technical heart of Claim II.  Starting from a sequence of source
+sizes `vL`, it studies the target-side quantity obtained by summing over all
+source levels `i` with `k i ≤ j`, weighted by the geometric factor coming from
+the representation decay.
+
+The proof follows the paper's strategy closely:
+1. split the indices `i` into finitely many residue classes modulo `ceil r`;
+2. on each class, rewrite the sum as a genuine convolution on `ℤ`;
+3. bound that convolution by the truncated kernel coming from the almost-linear
+  lower and upper bounds on `k`;
+4. recombine the finitely many classes and pay the factor `ceil r`.
+
+The conclusion has two parts: summability of the target sequence, and the final
+norm estimate with the explicit convolution constant
+`LpGridRepresentation.cCoefficientInt p ∞ (transmutationKernelZ lam A_als r_als)`. -/
 lemma transmutation_convolution_bound
     (k : ℕ → ℕ)
     (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
@@ -2263,10 +2705,18 @@ lemma transmutation_convolution_bound
   · exact hconv_summable
   · simpa [Csrc, bZ, alpha, convL, one_div] using hsum_root_le.trans hclassYoung.2
 
-/-- Finite abstract cost for the transmutation blocks.
+/-- The transmutation blocks have finite abstract `(p,q)` cost.
 
-This is obtained from the per-level estimate and the convolution/ALS estimate:
-the transmuted coefficients are dominated by a summable sequence. -/
+This lemma is the bridge from the coefficient estimates of Claim II to the
+abstract summability machinery for block sequences.  It says that the level
+blocks produced by transmutation are controlled by a summable majorant, hence
+form an admissible block family in the target Besov-type space.
+
+Conceptually, the proof has only two inputs:
+1. `transmutation_level_bound`, which controls one target level in terms of the
+  convolution sequence;
+2. `transmutation_convolution_bound`, which proves that this convolution
+  sequence has finite `(p,q)` cost. -/
 lemma transmutationBlock_abstractFinitePQCost
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
@@ -2370,20 +2820,39 @@ lemma transmutationBlock_abstractFinitePQCost
     truncated integer kernel `b_n = lam ^ (r * n)` when `n > A / r - 1`,
     and `Cm1 = Nat.ceil r` accounts for the `⌈r⌉` residue classes.
 
-    The ALS lower-offset `A`, upper-offset `B`, and slope `r` are exactly the
-    witnesses unpacked from `hk : AlmostLinearSequence k`:
-    `AlmostLinearSequence k` gives `∃ A B r, r > 0 ∧ ∀ i, k(i) ≤ r*i + B ∧ r*i+A ≤ k(i)`,
-    and Part 2 states that the coefficient inequality holds for every choice of
-    ALS witnesses for `k`. -/
+    This theorem is the final transmutation statement for a fixed truncation
+    level `N`.
+
+    Part 1 is the exact reconstruction statement: the target block sequence
+    obtained from the transmutation coefficients and atoms sums back to the
+    truncated source expansion `PartialSumLevels`.
+
+    Part 2 is the quantitative statement: the target coefficient cost is bounded
+    by the source coefficient cost times three kinds of constants:
+    1. geometric constants of the grids, such as the overlap multiplicity;
+    2. decay constants `C` and `lam` coming from the representation `R`;
+    3. the convolution constants coming from the explicit almost-linear witness
+       data `A_als`, `B_als`, `r_als`.
+
+    The theorem is stated with those witness parameters already explicit in the
+    hypotheses, so the meaning of the final bound is transparent at the point of
+    use: once one has chosen concrete almost-linear bounds for `k`, the same
+    data appear directly in the output estimate. -/
 theorem ClaimII
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
-    (k : ℕ → ℕ) (hk : AlmostLinearSequence k)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
     (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
     (C : ℝ) (hC : 0 ≤ C)
     (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
     (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
-    (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k hk lam hlam_pos hlam_lt C hC h R)
+    (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
     (c : (i : ℕ) → LevelCell G i → ℂ)
     (hc : CoeffFinitePQCost (p := p) (q := q) G c)
     (N : ℕ)
@@ -2395,24 +2864,20 @@ theorem ClaimII
     /- Part 1: the transmutation level blocks sum to `PartialSumLevels` in Lp. -/
     HasSum (fun j => (TransmutationBlock G W AW h R c N j).toLp AW)
            (PartialSumLevels G W h c N) ∧
-    /- Part 2: for every triple `A_als`, `B_als`, `r_als` witnessing
-       `AlmostLinearSequence k`, the same `(p,q)`-cost estimate holds. -/
-    ∀ (A_als B_als r_als : ℝ), 0 < r_als →
-      (∀ i : ℕ,
-        (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
-        r_als * (i : NNReal) + A_als ≤ (k i : NNReal)) →
-      CoeffPQCost (p := p) (q := q) W (fun _ P => (TransmutationCoeff G W AW h R c N P : ℂ)) ≤
-        (G.grid.Cmult1 : ℝ) *
-        C ^ (1 / p.toReal) *
-        lam ^ (-(B_als : ℝ) / p.toReal) *
-        LpGridRepresentation.cCoefficientInt p ∞
-          (transmutationKernelZ lam A_als r_als) *
-        (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
-        CoeffPQCost (p := p) (q := q) G c := by
+    /- Part 2: with those explicit ALS hypotheses, the `(p,q)`-cost satisfies: -/
+    CoeffPQCost (p := p) (q := q) W (fun _ P => (TransmutationCoeff G W AW h R c N P : ℂ)) ≤
+      (G.grid.Cmult1 : ℝ) *
+      C ^ (1 / p.toReal) *
+      lam ^ (-(B_als : ℝ) / p.toReal) *
+      LpGridRepresentation.cCoefficientInt p ∞
+        (transmutationKernelZ lam A_als r_als) *
+      (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
+      CoeffPQCost (p := p) (q := q) G c := by
   have hq_pos : (0 : ℝ) < q.toReal :=
     ENNReal.toReal_pos (fun h => absurd (h ▸ (Fact.out : 1 ≤ q)) (by norm_num)) hq_ne_top
   have hp_pos : (0 : ℝ) < p.toReal :=
     ENNReal.toReal_pos (fun h => absurd (h ▸ AW.one_le_p) (by norm_num)) AW.p_ne_top
+  have hk0 : AlmostLinearSequence k := ⟨A_als, B_als, r_als, hr_als, hk_bound⟩
   constructor
   · -- Part 1: HasSum
     -- Strategy: (a) AbstractFinitePQCost (TransmutationBlock) from coefficient bound + hc;
@@ -2425,7 +2890,7 @@ theorem ClaimII
     -- which follows from Part 2's bound (CoeffPQCost W ≤ K · CoeffPQCost G c) + hc.
     have hfin : AbstractFinitePQCost (q := q) (TransmutationBlock G W AW h R c N) := by
       exact transmutationBlock_abstractFinitePQCost
-        G W AW k hk lam hlam_pos hlam_lt C hC h R hR c hc N hp_ne_top hq_ne_top
+        G W AW k hk0 lam hlam_pos hlam_lt C hC h R hR c hc N hp_ne_top hq_ne_top
     -- (b) Summable via formalBlockSeq_summable (no atom convergence needed!)
     have hsum : Summable (fun j => (TransmutationBlock G W AW h R c N j).toLp AW) :=
       formalBlockSeq_summable (G := W) (A := AW) hG2_W hp_ne_top hs_pos Fact.out
@@ -2442,13 +2907,11 @@ theorem ClaimII
     have htsum_eq : ∑' j, (TransmutationBlock G W AW h R c N j).toLp AW =
         PartialSumLevels G W h c N := by
       simp_rw [hblock_eq]
-      exact ClaimI G W AW k hk lam hlam_pos hlam_lt C hC h R hR c hc N
+      exact ClaimI G W AW k hk0 lam hlam_pos hlam_lt C hC h R hR c hc N
     -- Conclude: HasSum from Summable + sum identity
     rw [← htsum_eq]
     exact hsum.hasSum
   · -- Part 2: Coefficient bound (paper Prop 8.1)
-    intro A_als B_als r_als hr_als hk_bound
-    have hk0 : AlmostLinearSequence k := ⟨A_als, B_als, r_als, hr_als, hk_bound⟩
     -- Since q ≠ ∞, unpack CoeffPQCost on both sides as (∑' ...)^{1/q}
     have hLHS_eq :
         CoeffPQCost (p := p) (q := q) W
@@ -2630,6 +3093,159 @@ theorem ClaimII
             (transmutationKernelZ lam A_als r_als) *
           (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
           (∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by ring
+
+/-- The `N = ∞` block of the transmuted representation.  At level `j`, its
+coefficients are the stable values `m_{P,∞}` and its atoms are the stable local
+atoms `d_{P,∞}`. -/
+noncomputable def TransmutationBlockLimit
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (A_als r_als : ℝ)
+    (j : ℕ) : LevelBlock AW j where
+  coeff P := (TransmutationCoeffLimit G W AW h R c A_als r_als P : ℂ)
+  atom P := TransmutationAtomLocalLimit G W AW h R c A_als r_als P
+  atom_mem P := by
+    simpa [TransmutationAtomLocalLimit] using
+      TransmutationAtomLocal_isAtom G W AW h R c
+        (transmutationStabilizationIndex A_als r_als j) P
+
+/-- Real `pqCost` bounds for a finite-cost representation imply the same bound
+for the extended `ENNReal` coefficient cost.  This is the public local version
+of the conversion used by the completeness machinery. -/
+lemma pqCostENNReal_le_of_finitePQCost_pqCost_le
+  (W : WeakGridSpace (α := α))
+  {A : AtomFamily W s p u} {g : Lp ℂ p W.measure} {C : ℝ}
+    (R : LpGridRepresentation A g)
+    (hRfin : LpGridRepresentation.FinitePQCost (q := q) R)
+    (hcost : LpGridRepresentation.pqCost (q := q) R ≤ C) :
+    LpGridRepresentation.pqCostENNReal (q := q) R ≤ ENNReal.ofReal C := by
+  by_cases hq : q = ∞
+  · simp only [LpGridRepresentation.pqCostENNReal, hq, ↓reduceIte]
+    simp only [LpGridRepresentation.pqCost, hq, ↓reduceIte] at hcost
+    simp only [LpGridRepresentation.FinitePQCost, hq, ↓reduceIte] at hRfin
+    apply sSup_le
+    rintro x ⟨k, rfl⟩
+    exact ENNReal.ofReal_le_ofReal ((le_csSup hRfin ⟨k, rfl⟩).trans hcost)
+  · simp only [LpGridRepresentation.pqCostENNReal, hq, ↓reduceIte]
+    simp only [LpGridRepresentation.pqCost, hq, ↓reduceIte] at hcost
+    simp only [LpGridRepresentation.FinitePQCost, hq, ↓reduceIte] at hRfin
+    have hq_pos : 0 < q.toReal :=
+      ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ q)).ne' hq
+    have h_nonneg : ∀ k, 0 ≤ R.levelCoeffPower k ^ (q.toReal / p.toReal) :=
+      fun k => Real.rpow_nonneg (R.levelCoeffPower_nonneg k) _
+    rw [← ENNReal.ofReal_tsum_of_nonneg h_nonneg hRfin,
+        ENNReal.ofReal_rpow_of_nonneg (tsum_nonneg h_nonneg)
+          (div_nonneg zero_le_one hq_pos.le)]
+    exact ENNReal.ofReal_le_ofReal hcost
+
+/-- **Claim III**: the finite transmutation representations converge strongly in
+`L^p` to the representation obtained from the stable coefficients `m_{P,∞}` and
+stable atoms `d_{P,∞}`.
+
+Formally, the limit block sequence is `TransmutationBlockLimit`; the theorem
+states that its block sum converges in `L^p`, defines a Besov-ish element, and
+that the truncated source sums `PartialSumLevels ... N` converge strongly to the
+same limit. -/
+theorem ClaimIII
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (hc : CoeffFinitePQCost (p := p) (q := q) G c)
+    (hq_ne_top : q ≠ ∞)
+    (hG2_W : AssumptionG2 W s p u q)
+    (hp_ne_top : p ≠ ∞)
+    (hs_pos : 0 < s) :
+    ∃ gLim : Lp ℂ p W.measure,
+      HasSum (fun j => (TransmutationBlockLimit G W AW h R c A_als r_als j).toLp AW) gLim ∧
+      MemBesovishCoeffCost AW q gLim ∧
+      Tendsto (fun N => PartialSumLevels G W h c N) atTop (𝓝 gLim) := by
+  let K : ℝ :=
+    (G.grid.Cmult1 : ℝ) *
+    C ^ (1 / p.toReal) *
+    lam ^ (-(B_als : ℝ) / p.toReal) *
+    LpGridRepresentation.cCoefficientInt p ∞ (transmutationKernelZ lam A_als r_als) *
+    (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
+    CoeffPQCost (p := p) (q := q) G c
+  have hCoeffP_nonneg : ∀ i : ℕ, 0 ≤ CoeffPLevel (p := p) G c i := by
+    intro i
+    exact Finset.sum_nonneg fun Q hQ => Real.rpow_nonneg (norm_nonneg _) _
+  have hCoeffPQ_nonneg : 0 ≤ CoeffPQCost (p := p) (q := q) G c := by
+    simp [CoeffPQCost, hq_ne_top]
+    exact Real.rpow_nonneg (tsum_nonneg fun i => Real.rpow_nonneg (hCoeffP_nonneg i) _) _
+  have hkernel_nonneg : ∀ n : ℤ, 0 ≤ transmutationKernelZ lam A_als r_als n := by
+    intro n
+    by_cases hn : A_als / r_als - 1 < (n : ℝ)
+    · simp [transmutationKernelZ, hn, Real.rpow_nonneg (le_of_lt hlam_pos)]
+    · simp [transmutationKernelZ, hn]
+  have hccoef_nonneg : 0 ≤
+      LpGridRepresentation.cCoefficientInt p ∞ (transmutationKernelZ lam A_als r_als) :=
+    LpGridRepresentation.cCoefficientInt_nonneg p ∞ _ hkernel_nonneg
+  have hK_nonneg : 0 ≤ K := by
+    dsimp [K]
+    repeat' apply mul_nonneg
+    · exact by exact_mod_cast Nat.zero_le G.grid.Cmult1
+    · exact Real.rpow_nonneg hC _
+    · exact Real.rpow_nonneg (le_of_lt hlam_pos) _
+    · exact hccoef_nonneg
+    · exact Real.rpow_nonneg (show 0 ≤ (Nat.ceil r_als : ℝ) by exact_mod_cast Nat.zero_le (Nat.ceil r_als)) _
+    · exact hCoeffPQ_nonneg
+  let gseq : ℕ → Lp ℂ p W.measure := fun N => PartialSumLevels G W h c N
+  let Rseq : ∀ N, LpGridRepresentation AW (gseq N) := fun N =>
+    { block := TransmutationBlock G W AW h R c N
+      hasSum := (ClaimII G W AW k A_als B_als r_als hr_als hk_bound lam hlam_pos hlam_lt
+        C hC h R hR c hc N hq_ne_top hG2_W hp_ne_top hs_pos).1 }
+  let Rlim : (j : ℕ) → LevelBlock AW j :=
+    fun j => TransmutationBlockLimit G W AW h R c A_als r_als j
+  have huniform : ∀ N,
+      LpGridRepresentation.pqCostENNReal (q := q) (Rseq N) ≤ ENNReal.ofReal K := by
+    intro N
+    have hfin : LpGridRepresentation.FinitePQCost (q := q) (Rseq N) := by
+      simpa [LpGridRepresentation.FinitePQCost, AbstractFinitePQCost,
+        blockLvlCoeff_eq_levelCoeffPower] using
+        (transmutationBlock_abstractFinitePQCost
+          (p := p) (q := q) G W AW k ⟨A_als, B_als, r_als, hr_als, hk_bound⟩
+          lam hlam_pos hlam_lt C hC h R hR c hc N hp_ne_top hq_ne_top)
+    have hcost : LpGridRepresentation.pqCost (q := q) (Rseq N) ≤ K := by
+      simpa [K, Rseq, LpGridRepresentation.pqCost, CoeffPQCost, TransmutationBlock] using
+        (ClaimII G W AW k A_als B_als r_als hr_als hk_bound lam hlam_pos hlam_lt
+          C hC h R hR c hc N hq_ne_top hG2_W hp_ne_top hs_pos).2
+    exact pqCostENNReal_le_of_finitePQCost_pqCost_le (q := q) W (Rseq N) hfin hcost
+  have hcoeff_tendsto : ∀ (j : ℕ) (P : LevelCell W j),
+      Tendsto (fun N => ((Rseq N).block j).coeff P) atTop
+        (𝓝 ((Rlim j).coeff P)) := by
+    intro j P
+    exact (Complex.continuous_ofReal.tendsto (TransmutationCoeffLimit G W AW h R c A_als r_als P)).comp
+      (TransmutationCoeff_tendsto_limit G W AW k A_als B_als r_als hr_als hk_bound
+        lam hlam_pos hlam_lt C hC h R hR c P)
+  have hatom_tendsto : ∀ (j : ℕ) (P : LevelCell W j),
+      Tendsto
+        (fun N => atomLp AW (levelCellToWeakGridCell W j P) (((Rseq N).block j).atom P))
+        atTop
+        (𝓝 (atomLp AW (levelCellToWeakGridCell W j P) ((Rlim j).atom P))) := by
+    intro j P
+    simpa [Rseq, Rlim, TransmutationBlockLimit, TransmutationAtomLimit] using
+      TransmutationAtom_tendsto_limit G W AW k A_als B_als r_als hr_als hk_bound
+        lam hlam_pos hlam_lt C hC h R hR c P
+  rcases representation_limit_strong_existence (G := W) (p := p) (u := u) (q := q)
+      hp_ne_top hs_pos Fact.out AW hG2_W Rseq hK_nonneg huniform Rlim
+      hcoeff_tendsto hatom_tendsto with
+    ⟨gLim, hRlim, hmem, hfin, hcost, hg_tendsto⟩
+  exact ⟨gLim, hRlim, hmem, hg_tendsto⟩
 
 
 end -- closes noncomputable section
