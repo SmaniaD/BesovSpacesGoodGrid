@@ -371,14 +371,15 @@ noncomputable def TransmutationBlock
     where `Cmult1 = G.grid.Cmult1` (multiplicity of G), `C` and `lam` are the
     decay constants from `hR`, `B` is the ALS upper-offset witnessing `k(i) ≤ r*i + B`,
     and `Cco2(p,q) = LpGridRepresentation.cCoefficient p q` applied to the
-    level measure weight sequence of `W`. -/
+    level measure weight sequence of `W`.
+
+    The ALS upper-offset `B` in `lam^(-B/p)` is obtained from `hk` itself:
+    `AlmostLinearSequence k` gives `∃ A B r, r > 0 ∧ ∀ i, k(i) ≤ r*i + B`, so the
+    existential in Part 2 is witnessed by that `B`. -/
 theorem ClaimII
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ) (hk : AlmostLinearSequence k)
-    /- ALS upper-offset: ∃ r > 0 such that k(i) ≤ r·i + B for all i. -/
-    (B_als : NNReal) (r_als : NNReal) (hr_als : 0 < r_als)
-    (hk_upper : ∀ i : ℕ, (k i : NNReal) ≤ r_als * (i : NNReal) + B_als)
     (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
     (C : ℝ) (hC : 0 ≤ C)
     (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
@@ -387,40 +388,41 @@ theorem ClaimII
     (c : (i : ℕ) → LevelCell G i → ℂ)
     (hc : CoeffFinitePQCost (p := p) (q := q) G c)
     (N : ℕ)
-    /- Finiteness of q (the q = ∞ case is analogous). -/
     (hq_ne_top : q ≠ ∞)
-    /- Finiteness of the level-measure weight coefficient cost for W. -/
     (hCco_fin : LpGridRepresentation.cCoefficientFinite p q
-        (fun j => LpGridRepresentation.levelMeasureWeight W s p p j ^ p.toReal))
-    /- Convergence of the geometric series: λ^{q/p} < 1. -/
-    (hlam_qp : lam ^ (q.toReal / p.toReal) < 1) :
+        (fun j => LpGridRepresentation.levelMeasureWeight W s p p j ^ p.toReal)) :
     /- Part 1: the transmutation level blocks sum to `PartialSumLevels` in Lp. -/
     HasSum (fun j => (TransmutationBlock G W AW h R c N j).toLp AW)
            (PartialSumLevels G W h c N) ∧
-    /- Part 2: the (p,q)-cost of the transmutation coefficient sequence `(m_{P,N})` obeys -/
-    CoeffPQCost (p := p) (q := q) W (fun _ P => (TransmutationCoeff G W AW h R c N P : ℂ)) ≤
-      (G.grid.Cmult1 : ℝ) *
-      C ^ (1 / p.toReal) *
-      lam ^ (-(B_als : ℝ) / p.toReal) *
-      LpGridRepresentation.cCoefficient p q (fun j => LpGridRepresentation.levelMeasureWeight W s p p j ^ p.toReal) *
-      (1 - lam ^ (q.toReal / p.toReal)) ^ (-(1 / q.toReal)) *
-      CoeffPQCost (p := p) (q := q) G c := by
+    /- Part 2: ∃ an ALS upper-offset B (from `hk`) such that the (p,q)-cost satisfies -/
+    ∃ B_als : NNReal,
+      CoeffPQCost (p := p) (q := q) W (fun _ P => (TransmutationCoeff G W AW h R c N P : ℂ)) ≤
+        (G.grid.Cmult1 : ℝ) *
+        C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficient p q
+          (fun j => LpGridRepresentation.levelMeasureWeight W s p p j ^ p.toReal) *
+        (1 - lam ^ (q.toReal / p.toReal)) ^ (-(1 / q.toReal)) *
+        CoeffPQCost (p := p) (q := q) G c := by
+  obtain ⟨_, B_als, _r, _hr, hk_bound⟩ := hk
+  -- lam^(q/p) < 1 because 0 < lam < 1 and q/p > 0
+  -- (q > 0 from [Fact (1 ≤ q)] + hq_ne_top; p > 0 from AW.one_le_p + AW.p_ne_top)
+  have hq_pos : (0 : ℝ) < q.toReal :=
+    ENNReal.toReal_pos (fun h => absurd (h ▸ (Fact.out : 1 ≤ q)) (by norm_num)) hq_ne_top
+  have hp_pos : (0 : ℝ) < p.toReal :=
+    ENNReal.toReal_pos (fun h => absurd (h ▸ AW.one_le_p) (by norm_num)) AW.p_ne_top
+  have hlam_qp : lam ^ (q.toReal / p.toReal) < 1 :=
+    Real.rpow_lt_one hlam_pos.le hlam_lt (div_pos hq_pos hp_pos)
   constructor
   · -- Part 1: HasSum
     -- The key identity is (TransmutationBlock k).toLp = ∑_{P ∈ W^k} m_{P,N} · d_{P,N} in Lp,
-    -- and then ∑' k, (∑_{P ∈ W^k} m_{P,N} · d_{P,N}) = PartialSumLevels by ClaimI
-    -- (reversing the role of the two grids in the sum-exchange argument).
+    -- and then ∑' k, (∑_{P ∈ W^k} m_{P,N} · d_{P,N}) = PartialSumLevels by ClaimI.
     sorry
-  · -- Part 2: coefficient cost bound
-    -- Proof sketch:
-    -- 1. Minkowski/triangle in ℓ^p: m_{P,N} ≤ ∑_i ∑_{Q ⊇ P, Q ∈ G^i} |c_Q| |s_{P,Q}|
-    -- 2. Bound |s_{P,Q}| = |coeff (R i Q) P| using hR: |s_{P,Q}| ≤ √(C · λ^{j-k(i)})^{1/p}
-    --    (via levelCoeffPower ≤ C · λ^{j - k(i)})
-    -- 3. Use the multiplicity bound G.grid.Cmult1 to control ∑_{Q ⊇ P}
-    -- 4. Use hk_upper (k(i) ≤ r·i + B) to get λ^{-B} factor
-    -- 5. Sum over P ∈ W^k, then over k, using cCoefficient for the weight sequence
-    --    and geometric series for the λ decay
-    sorry
+  · -- Part 2: B_als is the upper-offset from hk; the bound follows from:
+    -- 1. Triangle: m_{P,N} ≤ ∑_i ∑_{Q ⊇ P, Q ∈ G^i} |c_Q| |s_{P,Q}|
+    -- 2. Decay: |s_{P,Q}|^p ≤ C · lam^{j - k(i)} (from hR)
+    -- 3. Multiplicity of G, ALS offset lam^{-B}, cCoefficient, geometric series
+    exact ⟨B_als, by sorry⟩
 
 
 end -- closes noncomputable section
