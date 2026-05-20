@@ -378,7 +378,84 @@ lemma transmutationBlock_toLp_eq
       ∑ P ∈ (W.grid.partitions j).attach,
         (TransmutationCoeff G W AW h R c N P : ℂ) •
           TransmutationAtom G W AW h R c N P := by
-  sorry
+  unfold LevelBlock.toLp
+  apply Finset.sum_congr rfl
+  intro P hP
+  set m := TransmutationCoeff G W AW h R c N P with hm_def
+  set Pg := levelCellToWeakGridCell W j P
+  set FS : Finset (Σ i : ℕ, LevelCell G i) :=
+    (Finset.range N).sigma
+      (fun i => (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1))
+  subst Pg
+  have hnum_sigma :
+      (∑ iQ ∈ FS, c iQ.1 iQ.2 • ((R iQ.1 iQ.2).block j).term AW P) =
+        ∑ i ∈ Finset.range N,
+          ∑ Q ∈ (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1),
+            c i Q • ((R i Q).block j).term AW P := by
+    rw [Finset.sum_sigma]
+  by_cases hm : m = 0
+  · have hcoeffR : TransmutationCoeff G W AW h R c N P = 0 := by
+      rw [← hm_def, hm]
+    simp [LevelBlock.term, TransmutationBlock, hcoeffR]
+    rw [hm]
+    exact (zero_smul ℂ (TransmutationAtom G W AW h R c N P)).symm
+  · have hmC : (m : ℂ) ≠ 0 := by exact_mod_cast hm
+    simp only [LevelBlock.term, TransmutationBlock]
+    rw [show TransmutationCoeff G W AW h R c N P = m by rw [hm_def]]
+    simp only [TransmutationAtom, TransmutationAtomLocal, ← hm_def, hm, ↓reduceIte]
+    rw [smul_smul, mul_inv_cancel₀ hmC, one_smul]
+    rw [← hnum_sigma]
+    apply Lp.ext
+    -- The finite sum of external terms has the expected pointwise representative.
+    have hsum_ae :
+        ⇑(∑ iQ ∈ FS, c iQ.1 iQ.2 • ((R iQ.1 iQ.2).block j).term AW P)
+          =ᵐ[W.measure]
+        fun x => ∑ iQ ∈ FS,
+          (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P) *
+            AW.toFunction (levelCellToWeakGridCell W j P)
+              (((R iQ.1 iQ.2).block j).atom P) x := by
+      induction FS using Finset.induction_on with
+      | empty =>
+          exact (Lp.coeFn_zero ℂ p W.measure).trans
+            (Filter.Eventually.of_forall (fun x => by simp))
+      | insert iQ S hiQ ih =>
+          simp only [Finset.sum_insert hiQ]
+          refine (Lp.coeFn_add _ _).trans ?_
+          have hhead :
+              ⇑(c iQ.1 iQ.2 • ((R iQ.1 iQ.2).block j).term AW P)
+                =ᵐ[W.measure]
+              fun x => (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P) *
+                AW.toFunction (levelCellToWeakGridCell W j P)
+                  (((R iQ.1 iQ.2).block j).atom P) x :=
+            ((Lp.coeFn_smul _ _).trans
+              ((LevelBlock.coeFn_term AW ((R iQ.1 iQ.2).block j) P).fun_const_smul _)).trans
+              (Filter.Eventually.of_forall (fun x => by
+                simp only [Pi.smul_apply, smul_eq_mul]
+                ring))
+          exact (hhead.add ih).trans
+            (Filter.Eventually.of_forall (fun x => by
+              simp only [Pi.add_apply, Finset.sum_insert hiQ]))
+    filter_upwards
+      [Lp.coeFn_smul (m : ℂ)
+        (MemLp.toLp
+          (AW.toFunction (levelCellToWeakGridCell W j P)
+            ((m : ℂ)⁻¹ •
+              ∑ iQ ∈ FS,
+                (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P) •
+                  ((R iQ.1 iQ.2).block j).atom P))
+          (AW.local_memLp_p (levelCellToWeakGridCell W j P) _)),
+       MemLp.coeFn_toLp
+          (AW.local_memLp_p (levelCellToWeakGridCell W j P)
+            ((m : ℂ)⁻¹ •
+              ∑ iQ ∈ FS,
+                (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P) •
+                  ((R iQ.1 iQ.2).block j).atom P)),
+       hsum_ae] with x hsmul htoLp hsum
+    simp only [Pi.smul_apply, smul_eq_mul] at hsmul ⊢
+    rw [hsmul, htoLp, hsum]
+    simp only [AtomFamily.toFunction, map_smul, map_sum, Pi.smul_apply, smul_eq_mul]
+    rw [← mul_assoc, mul_inv_cancel₀ hmC, one_mul]
+    simp only [Finset.sum_apply, Pi.smul_apply, smul_eq_mul]
 
 /-- The per-level estimate in Claim II, corresponding to the chain ending at
 equation `(for)` in the paper.
