@@ -204,6 +204,7 @@ noncomputable def TransmutationCoeff
     ∑ Q ∈ (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1),
       ‖c i Q * ((R i Q).block j).coeff P‖
 
+omit [Fact (1 ≤ u)] [Fact (1 ≤ q)] in
 /-- For a fixed target cell `P ∈ W^j`, the transmutation coefficients `m_{P,N}`
 stop changing once `N` passes the stabilization threshold determined by the
 almost-linear lower bound for `k`. -/
@@ -765,6 +766,30 @@ theorem ClaimI
     apply hasSum_sum; intro Q _
     exact ((R i Q).hasSum.const_smul (c i Q))
   rw [hasSum_iQ.tsum_eq]
+
+/-- Endpoint `q = ∞` version of **Claim I**.  This is the same bookkeeping
+identity as `ClaimI`, with all coefficient-cost hypotheses specialized to the
+supremum endpoint. -/
+theorem ClaimI_top
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ) (hk : AlmostLinearSequence k)
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := ∞) G W AW k hk
+      lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (hc : CoeffFinitePQCost (p := p) (q := ∞) G c)
+    (N : ℕ) :
+    ∑' j : ℕ, ∑ P ∈ (W.grid.partitions j).attach,
+        (↑(TransmutationCoeff G W AW h R c N P) : ℂ) •
+          TransmutationAtom G W AW h R c N P =
+    PartialSumLevels G W h c N := by
+  haveI : Fact ((1 : ℝ≥0∞) ≤ (∞ : ℝ≥0∞)) := ⟨by simp⟩
+  exact ClaimI (p := p) (u := u) (q := ∞) G W AW k hk
+    lam hlam_pos hlam_lt C hC h R hR c hc N
 
 
 /-- The level-`k` block of the transmutation atomic decomposition with respect to
@@ -2705,6 +2730,381 @@ lemma transmutation_convolution_bound
   · exact hconv_summable
   · simpa [Csrc, bZ, alpha, convL, one_div] using hsum_root_le.trans hclassYoung.2
 
+/-- Endpoint `q = ∞` version of the convolution estimate used in Claim II.
+
+The source sequence is controlled in `ℓ∞`, while the integer kernel is used in
+`ℓ¹`; hence the target convolution is uniformly bounded. -/
+lemma transmutation_convolution_bound_top
+    (k : ℕ → ℕ)
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (A_als B_als r_als : ℝ) (hr_als : 0 < r_als)
+    (hk_upper : ∀ i : ℕ, (k i : NNReal) ≤ r_als * (i : NNReal) + B_als)
+    (hk_lower : ∀ i : ℕ, r_als * (i : NNReal) + A_als ≤ k i)
+    (vL : ℕ → ℝ)
+    (hvL_nn : ∀ i, 0 ≤ vL i)
+    (hsource : BddAbove (Set.range fun i => vL i ^ (1 / p.toReal)))
+    (hp_ne_top : p ≠ ∞) :
+    BddAbove (Set.range fun j =>
+      ∑' i, if k i ≤ j then
+        lam ^ ((↑(j - k i) : ℝ) / p.toReal) *
+          (vL i) ^ (1 / p.toReal) else 0) ∧
+    sSup (Set.range fun j =>
+      ∑' i, if k i ≤ j then
+        lam ^ ((↑(j - k i) : ℝ) / p.toReal) *
+          (vL i) ^ (1 / p.toReal) else 0) ≤
+      lam ^ (-(B_als : ℝ) / p.toReal) *
+      LpGridRepresentation.cCoefficientInt p ∞
+        (transmutationKernelZ lam A_als r_als) *
+      sSup (Set.range fun i => vL i ^ (1 / p.toReal)) := by
+  classical
+  let alpha : ℕ := Nat.ceil (r_als : ℝ)
+  let bZ : ℤ → ℝ := transmutationKernelZ lam A_als r_als
+  let convL : ℕ → ℝ := fun j =>
+    ∑' i, if k i ≤ j then
+      lam ^ ((↑(j - k i) : ℝ) / p.toReal) * (vL i) ^ (1 / p.toReal) else 0
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos
+      (fun h0 => absurd (h0 ▸ (Fact.out : (1 : ℝ≥0∞) ≤ p)) (by norm_num))
+      hp_ne_top
+  have halpha_pos : 0 < alpha := by
+    have hr_pos_real : 0 < (r_als : ℝ) := by exact_mod_cast hr_als
+    exact Nat.ceil_pos.mpr hr_pos_real
+  have hbZ_nonneg : ∀ n, 0 ≤ bZ n := by
+    intro n
+    dsimp [bZ, transmutationKernelZ]
+    split_ifs
+    · exact Real.rpow_nonneg hlam_pos.le _
+    · exact le_rfl
+  have hconvL_nn : ∀ j, 0 ≤ convL j := by
+    intro j
+    exact tsum_nonneg fun i => by
+      split_ifs with hij
+      · exact mul_nonneg (Real.rpow_nonneg hlam_pos.le _) (Real.rpow_nonneg (hvL_nn i) _)
+      · exact le_rfl
+  have hccoeff_nonneg : 0 ≤ LpGridRepresentation.cCoefficientInt p ∞ bZ :=
+    LpGridRepresentation.cCoefficientInt_nonneg p ∞ bZ hbZ_nonneg
+  have hccoeff_eq :
+      LpGridRepresentation.cCoefficientInt p ∞ bZ =
+        ∑' n : ℤ, bZ n ^ (1 / p.toReal) := by
+    simp [LpGridRepresentation.cCoefficientInt, bZ]
+  let srcRoot : ℕ → ℝ := fun i => vL i ^ (1 / p.toReal)
+  let Csrc : ℝ := sSup (Set.range srcRoot)
+  have hCsrc_nonneg : 0 ≤ Csrc := by
+    exact Real.sSup_nonneg' ⟨_, ⟨0, rfl⟩, Real.rpow_nonneg (hvL_nn 0) _⟩
+  have hsrcRoot_le_Csrc : ∀ i, srcRoot i ≤ Csrc := by
+    intro i
+    exact le_csSup (by simpa [srcRoot] using hsource) ⟨i, rfl⟩
+  let srcZ : ℤ → ℝ := extendNatToInt srcRoot
+  let convZ : ℤ → ℝ := fun j =>
+    ∑' n : ℤ, bZ n ^ (1 / p.toReal) * srcZ (j - n)
+  have hbRoot_summable : Summable fun n : ℤ => bZ n ^ (1 / p.toReal) := by
+    simpa [bZ] using
+      transmutationKernelZ_root_summable (p := p)
+        lam A_als r_als hlam_pos hlam_lt hr_als hp_pos
+  have hbRoot_nonneg : ∀ n : ℤ, 0 ≤ bZ n ^ (1 / p.toReal) := by
+    intro n
+    exact Real.rpow_nonneg (hbZ_nonneg n) _
+  have hsrcRoot_nonneg : ∀ i : ℕ, 0 ≤ srcRoot i := by
+    intro i
+    exact Real.rpow_nonneg (hvL_nn i) _
+  have hsrcZ_nonneg : ∀ z : ℤ, 0 ≤ srcZ z := by
+    simpa [srcZ] using extendNatToInt_nonneg hsrcRoot_nonneg
+  have hsrcZ_le_Csrc : ∀ z : ℤ, srcZ z ≤ Csrc := by
+    intro z
+    by_cases hz : 0 ≤ z
+    · dsimp [srcZ, extendNatToInt]
+      rw [if_pos hz]
+      exact hsrcRoot_le_Csrc z.toNat
+    · dsimp [srcZ, extendNatToInt]
+      rw [if_neg hz]
+      exact hCsrc_nonneg
+  have hconvZ_nonneg : ∀ j : ℤ, 0 ≤ convZ j := by
+    intro j
+    dsimp [convZ]
+    exact tsum_nonneg fun n => mul_nonneg (hbRoot_nonneg n) (hsrcZ_nonneg (j - n))
+  have hconvZ_le : ∀ j : ℤ,
+      convZ j ≤ LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc := by
+    intro j
+    let a : ℤ → ℝ := fun n => bZ n ^ (1 / p.toReal)
+    let term : ℤ → ℝ := fun n => a n * srcZ (j - n)
+    have ha_nonneg : ∀ n, 0 ≤ a n := by
+      intro n
+      exact hbRoot_nonneg n
+    have hterm_nonneg : ∀ n, 0 ≤ term n := by
+      intro n
+      exact mul_nonneg (ha_nonneg n) (hsrcZ_nonneg (j - n))
+    have hterm_le : ∀ n, term n ≤ a n * Csrc := by
+      intro n
+      exact mul_le_mul_of_nonneg_left (hsrcZ_le_Csrc (j - n)) (ha_nonneg n)
+    have hterm_sum : Summable term := by
+      refine Summable.of_nonneg_of_le hterm_nonneg hterm_le ?_
+      exact (by simpa [a, term, mul_comm, mul_left_comm, mul_assoc] using
+        (hbRoot_summable.mul_right Csrc))
+    have hscaled_sum : Summable (fun n : ℤ => a n * Csrc) := by
+      simpa [a] using hbRoot_summable.mul_right Csrc
+    have hscaled_tsum :
+        (∑' n : ℤ, a n * Csrc) =
+          LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc := by
+      have ha_summable : Summable a := by
+        simpa [a] using hbRoot_summable
+      calc
+        (∑' n : ℤ, a n * Csrc) = (∑' n : ℤ, a n) * Csrc := by
+          simpa using (ha_summable.hasSum.mul_right Csrc).tsum_eq
+        _ = LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc := by
+          rw [hccoeff_eq]
+    calc
+      convZ j = ∑' n : ℤ, term n := by rfl
+      _ ≤ ∑' n : ℤ, a n * Csrc := hterm_sum.tsum_le_tsum hterm_le hscaled_sum
+      _ = LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc := hscaled_tsum
+  let scale : ℝ := lam ^ (-(B_als : ℝ) / p.toReal)
+  have hscale_nonneg : 0 ≤ scale := by
+    dsimp [scale]
+    exact Real.rpow_nonneg hlam_pos.le _
+  let kout : Fin alpha → ℕ → ℕ :=
+    fun ell j => Nat.ceil ((r_als : ℝ) * (j : ℝ) + (ell.1 : ℝ))
+  let koutExists : Fin alpha → ℕ → Prop :=
+    fun ell j => ((kout ell j : ℕ) : ℝ) < (r_als : ℝ) * ((j + 1 : ℕ) : ℝ)
+  have hkout_lower : ∀ ell : Fin alpha, ∀ j : ℕ,
+      (r_als : ℝ) * (j : ℝ) + (ell.1 : ℝ) ≤ (kout ell j : ℕ) := by
+    intro ell j
+    exact Nat.le_ceil _
+  have hkout_lt_add_one : ∀ ell : Fin alpha, ∀ j : ℕ,
+      ((kout ell j : ℕ) : ℝ) < (r_als : ℝ) * (j : ℝ) + (ell.1 : ℝ) + 1 := by
+    intro ell j
+    apply Nat.ceil_lt_add_one
+    positivity
+  let kclass : ℕ → Sigma fun _ell : Fin alpha => ℕ := fun j =>
+    ⟨⟨outputClassEll r_als j, by
+        have hspec := (outputClass_spec r_als hr_als j).1
+        simpa [alpha] using hspec⟩, outputClassJ r_als j⟩
+  have hkclass_kout : ∀ j : ℕ, kout (kclass j).1 (kclass j).2 = j := by
+    intro j
+    have hspec := (outputClass_spec r_als hr_als j).2.1
+    simpa [kclass, kout] using hspec
+  have hkclass_exists : ∀ j : ℕ, koutExists (kclass j).1 (kclass j).2 := by
+    intro j
+    have hspec := (outputClass_spec r_als hr_als j).2.2
+    dsimp [koutExists]
+    rw [hkclass_kout j]
+    simpa [kclass] using hspec
+  let classConv : Fin alpha → ℕ → ℝ := fun ell j =>
+    if koutExists ell j then convL (kout ell j) else 0
+  have hclassConv_kclass : ∀ j : ℕ,
+      classConv (kclass j).1 (kclass j).2 = convL j := by
+    intro j
+    dsimp [classConv]
+    rw [if_pos (hkclass_exists j), hkclass_kout j]
+  have hclass_le_convZ : ∀ ell : Fin alpha, ∀ j : ℕ,
+      classConv ell j ≤ scale * convZ j := by
+    intro ell j
+    dsimp [classConv]
+    by_cases hEx : koutExists ell j
+    · rw [if_pos hEx]
+      let f : ℕ → ℝ := fun i =>
+        if k i ≤ kout ell j then
+          lam ^ ((↑(kout ell j - k i) : ℝ) / p.toReal) * srcRoot i
+        else 0
+      let sec : ℤ → ℝ := fun n =>
+        bZ n ^ (1 / p.toReal) * srcZ ((j : ℤ) - n)
+      have hf_nonneg : ∀ i, 0 ≤ f i := by
+        intro i
+        dsimp [f]
+        split_ifs with hik
+        · exact mul_nonneg (Real.rpow_nonneg hlam_pos.le _) (hsrcRoot_nonneg i)
+        · exact le_rfl
+      have hf_support : Function.support f ⊆ {i : ℕ | k i ≤ kout ell j} := by
+        intro i hi
+        by_contra hik
+        have hik' : ¬ k i ≤ kout ell j := by simpa using hik
+        have : f i = 0 := by simp [f, hik']
+        exact hi this
+      have hf_sum : Summable f :=
+        summable_of_hasFiniteSupport
+          ((almostLinearSequence_finite_le_level
+            ⟨A_als, B_als, r_als, hr_als, fun i => ⟨hk_upper i, hk_lower i⟩⟩
+            (kout ell j)).subset hf_support)
+      have hconv_eq : convL (kout ell j) = ∑' i, f i := by
+        simp [convL, f, srcRoot]
+      rw [hconv_eq]
+      have hsec_nonneg : ∀ n : ℤ, 0 ≤ sec n := by
+        intro n
+        dsimp [sec]
+        exact mul_nonneg (hbRoot_nonneg n) (hsrcZ_nonneg ((j : ℤ) - n))
+      let M : ℕ := Nat.ceil (max (0 : ℝ) (-A_als / r_als))
+      have hsec_support : Function.support sec ⊆ Set.Icc (-(M : ℤ)) j := by
+        intro n hn
+        simp only [Function.mem_support, ne_eq] at hn
+        constructor
+        · by_contra hnlow
+          have hsucc : n + 1 ≤ -(M : ℤ) := by omega
+          have hsucc_real : (n : ℝ) + 1 ≤ -((M : ℝ)) := by exact_mod_cast hsucc
+          have hceil_ge : max (0 : ℝ) (-A_als / r_als) ≤ (M : ℝ) := by
+            dsimp [M]
+            exact Nat.le_ceil _
+          have hneg_bound : -((M : ℝ)) ≤ A_als / r_als := by
+            have hA_bound : -A_als / r_als ≤ (M : ℝ) :=
+              (le_max_right (0 : ℝ) (-A_als / r_als)).trans hceil_ge
+            convert neg_le_neg hA_bound using 1 <;> ring
+          have hcut_not : ¬ A_als / r_als - 1 < (n : ℝ) := by
+            have hle : (n : ℝ) + 1 ≤ A_als / r_als := hsucc_real.trans hneg_bound
+            linarith
+          have hb_zero : bZ n = 0 := by
+            dsimp [bZ, transmutationKernelZ]
+            simp [hcut_not]
+          have hb_root_zero : bZ n ^ (1 / p.toReal) = 0 := by
+            rw [hb_zero, Real.zero_rpow (one_div_pos.mpr hp_pos).ne']
+          have hsec_zero : sec n = 0 := by
+            rw [show sec n = bZ n ^ (1 / p.toReal) * srcZ ((j : ℤ) - n) by rfl,
+              hb_root_zero]
+            ring
+          exact hn hsec_zero
+        · by_contra hnj
+          have hneg : ¬ 0 ≤ (j : ℤ) - n := by omega
+          have hsrc_zero : srcZ ((j : ℤ) - n) = 0 := by
+            dsimp [srcZ, extendNatToInt]
+            rw [if_neg hneg]
+          have hsec_zero : sec n = 0 := by
+            rw [show sec n = bZ n ^ (1 / p.toReal) * srcZ ((j : ℤ) - n) by rfl,
+              hsrc_zero]
+            ring
+          exact hn hsec_zero
+      have hsec_sum : Summable sec :=
+        summable_of_hasFiniteSupport ((Set.finite_Icc (-(M : ℤ)) j).subset hsec_support)
+      have hphi_inj : Function.Injective (fun i : ℕ => (j : ℤ) - i) := by
+        intro a b hab
+        have : (a : ℤ) = b := by linarith
+        exact_mod_cast this
+      have hterm_le : ∀ i : ℕ, f i ≤ scale * sec ((j : ℤ) - i) := by
+        intro i
+        by_cases hik : k i ≤ kout ell j
+        · have hk_upper_real : (k i : ℝ) ≤ r_als * (i : ℝ) + B_als := by
+            exact_mod_cast hk_upper i
+          have hk_le_real : (k i : ℝ) ≤ (kout ell j : ℝ) := by
+            exact_mod_cast hik
+          have hkout_ge_j : r_als * (j : ℝ) ≤ (kout ell j : ℝ) := by
+            have hell_nonneg : 0 ≤ (ell.1 : ℝ) := by positivity
+            linarith [hkout_lower ell j]
+          have hlag_cut_real : A_als / r_als - 1 < (j : ℝ) - (i : ℝ) := by
+            have hk_lower_real : r_als * (i : ℝ) + A_als ≤ (k i : ℝ) := by
+              exact_mod_cast hk_lower i
+            have hkout_lt : (kout ell j : ℝ) < r_als * ((j + 1 : ℕ) : ℝ) := by
+              simpa [koutExists] using hEx
+            have hklt : (k i : ℝ) < r_als * ((j + 1 : ℕ) : ℝ) :=
+              lt_of_le_of_lt hk_le_real hkout_lt
+            have hlt : A_als < r_als * (((j : ℝ) + 1) - (i : ℝ)) := by
+              have hmid : r_als * (i : ℝ) + A_als < r_als * ((j + 1 : ℕ) : ℝ) :=
+                lt_of_le_of_lt hk_lower_real hklt
+              have hrew :
+                  r_als * (((j : ℝ) + 1) - (i : ℝ)) =
+                    r_als * ((j + 1 : ℕ) : ℝ) - r_als * (i : ℝ) := by
+                calc
+                  r_als * (((j : ℝ) + 1) - (i : ℝ))
+                      = r_als * ((j : ℝ) + 1) - r_als * (i : ℝ) := by ring
+                  _ = r_als * ((j + 1 : ℕ) : ℝ) - r_als * (i : ℝ) := by
+                    norm_num [Nat.cast_add]
+              rw [hrew]
+              linarith
+            have hdiv : A_als / r_als < ((j : ℝ) + 1) - (i : ℝ) := by
+              rw [div_lt_iff₀ hr_als]
+              simpa [mul_comm, mul_left_comm, mul_assoc] using hlt
+            linarith
+          have hlag_cut : A_als / r_als - 1 < ((((j : ℤ) - i : ℤ) : ℝ)) := by
+            have hcast : ((((j : ℤ) - i : ℤ) : ℝ)) = (j : ℝ) - (i : ℝ) := by
+              norm_num
+            simpa [hcast] using hlag_cut_real
+          have hb_eq :
+              bZ ((j : ℤ) - i) = lam ^ (r_als * ((((j : ℤ) - i : ℤ) : ℝ))) := by
+            dsimp [bZ, transmutationKernelZ]
+            rw [if_pos hlag_cut]
+          have hb_root_eq :
+              bZ ((j : ℤ) - i) ^ (1 / p.toReal) =
+                lam ^ ((r_als * ((((j : ℤ) - i : ℤ) : ℝ))) / p.toReal) := by
+            rw [hb_eq, ← Real.rpow_mul hlam_pos.le]
+            congr 1
+            ring
+          have hlag_exp :
+              (r_als * ((((j : ℤ) - i : ℤ) : ℝ)) - B_als) / p.toReal ≤
+                ((↑(kout ell j - k i) : ℝ) / p.toReal) := by
+            rw [Nat.cast_sub hik]
+            have hcast : ((((j : ℤ) - i : ℤ) : ℝ)) = (j : ℝ) - (i : ℝ) := by
+              norm_num
+            rw [hcast]
+            field_simp [hp_pos.ne']
+            linarith
+          have hlam_le :
+              lam ^ ((↑(kout ell j - k i) : ℝ) / p.toReal) ≤
+                scale * bZ ((j : ℤ) - i) ^ (1 / p.toReal) := by
+            calc
+              lam ^ ((↑(kout ell j - k i) : ℝ) / p.toReal)
+                  ≤ lam ^ ((r_als * ((((j : ℤ) - i : ℤ) : ℝ)) - B_als) / p.toReal) := by
+                    exact Real.rpow_le_rpow_of_exponent_ge hlam_pos hlam_lt.le hlag_exp
+              _ = scale * bZ ((j : ℤ) - i) ^ (1 / p.toReal) := by
+                  rw [hb_root_eq]
+                  have hexp :
+                      ((r_als * ((((j : ℤ) - i : ℤ) : ℝ)) - B_als) / p.toReal) =
+                        -(B_als : ℝ) / p.toReal +
+                          (r_als * ((((j : ℤ) - i : ℤ) : ℝ)) / p.toReal) := by
+                    field_simp [hp_pos.ne']
+                    ring
+                  rw [hexp, ← Real.rpow_add hlam_pos]
+          have hsrc_eq : srcZ ((j : ℤ) - ((j : ℤ) - i)) = srcRoot i := by
+            have hsub : (j : ℤ) - ((j : ℤ) - i) = i := by ring
+            rw [hsub]
+            simpa [srcZ] using extendNatToInt_ofNat srcRoot i
+          calc
+            f i = lam ^ ((↑(kout ell j - k i) : ℝ) / p.toReal) * srcRoot i := by
+              simp [f, hik]
+            _ ≤ (scale * bZ ((j : ℤ) - i) ^ (1 / p.toReal)) * srcRoot i := by
+              exact mul_le_mul_of_nonneg_right hlam_le (hsrcRoot_nonneg i)
+            _ = scale * sec ((j : ℤ) - i) := by
+              rw [show sec ((j : ℤ) - i) =
+                  bZ ((j : ℤ) - i) ^ (1 / p.toReal) *
+                    srcZ ((j : ℤ) - ((j : ℤ) - i)) by rfl,
+                hsrc_eq]
+              ring
+        · have hnonneg : 0 ≤ scale * sec ((j : ℤ) - i) := by
+            exact mul_nonneg hscale_nonneg (hsec_nonneg ((j : ℤ) - i))
+          simpa [f, hik] using hnonneg
+      have hsum_comp : Summable fun i : ℕ => scale * sec ((j : ℤ) - i) :=
+        (hsec_sum.mul_left scale).comp_injective hphi_inj
+      have hsum_le : (∑' i : ℕ, f i) ≤ ∑' i : ℕ, scale * sec ((j : ℤ) - i) :=
+        hf_sum.tsum_le_tsum hterm_le hsum_comp
+      have hsum_reindex :
+          (∑' i : ℕ, scale * sec ((j : ℤ) - i)) ≤ ∑' n : ℤ, scale * sec n := by
+        exact tsum_comp_le_tsum_of_injective
+          ((hsec_sum.mul_left scale))
+          (fun n => mul_nonneg hscale_nonneg (hsec_nonneg n))
+          hphi_inj
+      have htsum_scale : (∑' n : ℤ, scale * sec n) = scale * convZ j := by
+        calc
+          (∑' n : ℤ, scale * sec n) = scale * ∑' n : ℤ, sec n := by
+            simpa [sec, mul_assoc] using (hsec_sum.hasSum.mul_left scale).tsum_eq
+          _ = scale * convZ j := by rfl
+      exact (hsum_le.trans hsum_reindex).trans_eq htsum_scale
+    · have hnonneg : 0 ≤ scale * convZ j := mul_nonneg hscale_nonneg (hconvZ_nonneg j)
+      simpa [hEx] using hnonneg
+  have hconv_bound : ∀ j : ℕ,
+      convL j ≤
+        scale * (LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc) := by
+    intro j
+    have hclass := hclass_le_convZ (kclass j).1 (kclass j).2
+    rw [hclassConv_kclass j] at hclass
+    exact hclass.trans
+      (mul_le_mul_of_nonneg_left (hconvZ_le (kclass j).2) hscale_nonneg)
+  have hbdd : BddAbove (Set.range convL) := by
+    refine ⟨scale * (LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc), ?_⟩
+    rintro x ⟨j, rfl⟩
+    exact hconv_bound j
+  constructor
+  · simpa [convL] using hbdd
+  · have hsup_le :
+        sSup (Set.range convL) ≤
+          scale * (LpGridRepresentation.cCoefficientInt p ∞ bZ * Csrc) := by
+      apply csSup_le (Set.range_nonempty _)
+      rintro x ⟨j, rfl⟩
+      exact hconv_bound j
+    simpa [scale, Csrc, srcRoot, bZ, convL, mul_assoc] using hsup_le
+
 /-- The transmutation blocks have finite abstract `(p,q)` cost.
 
 This lemma is the bridge from the coefficient estimates of Claim II to the
@@ -3094,6 +3494,260 @@ theorem ClaimII
           (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
           (∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by ring
 
+/-- Endpoint `q = ∞` version of **Claim II**, not stated explicitly in the text.
+
+For every `N`, the transmutation blocks form a representation of the truncated
+source expansion, and their `ℓ∞` coefficient cost is controlled by the source
+`ℓ∞` coefficient cost and the same integer-kernel constant as in the finite
+`q` case. -/
+theorem ClaimII_top
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := ∞) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (hc : CoeffFinitePQCost (p := p) (q := ∞) G c)
+    (N : ℕ)
+    (hG2_W : AssumptionG2 W s p u ∞)
+    (hp_ne_top : p ≠ ∞)
+    (hs_pos : 0 < s) :
+    HasSum (fun j => (TransmutationBlock G W AW h R c N j).toLp AW)
+           (PartialSumLevels G W h c N) ∧
+    CoeffPQCost (p := p) (q := ∞) W
+      (fun _ P => (TransmutationCoeff G W AW h R c N P : ℂ)) ≤
+      (G.grid.Cmult1 : ℝ) *
+      C ^ (1 / p.toReal) *
+      lam ^ (-(B_als : ℝ) / p.toReal) *
+      LpGridRepresentation.cCoefficientInt p ∞
+        (transmutationKernelZ lam A_als r_als) *
+      CoeffPQCost (p := p) (q := ∞) G c := by
+  haveI : Fact ((1 : ℝ≥0∞) ≤ (∞ : ℝ≥0∞)) := ⟨by simp⟩
+  have hk0 : AlmostLinearSequence k := ⟨A_als, B_als, r_als, hr_als, hk_bound⟩
+  let uL : ℕ → ℝ :=
+    fun j => CoeffPLevel (p := p) W
+      (fun _ P => (TransmutationCoeff G W AW h R c N P : ℂ)) j
+  let vL : ℕ → ℝ := fun i => CoeffPLevel (p := p) G c i
+  let convL : ℕ → ℝ :=
+    fun j => ∑' i, if k i ≤ j then
+      lam ^ ((↑(j - k i) : ℝ) / p.toReal) * (vL i) ^ (1 / p.toReal) else 0
+  have huL_nn : ∀ j, 0 ≤ uL j := fun j =>
+    Finset.sum_nonneg fun P _ => Real.rpow_nonneg (norm_nonneg _) _
+  have hvL_nn : ∀ i, 0 ≤ vL i := fun i =>
+    Finset.sum_nonneg fun Q _ => Real.rpow_nonneg (norm_nonneg _) _
+  have hsource_bdd : BddAbove (Set.range fun i => vL i ^ (1 / p.toReal)) := by
+    simpa [CoeffFinitePQCost, vL] using hc
+  have hLevelBound : ∀ j, uL j ^ (1 / p.toReal) ≤
+      (G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) * convL j := by
+    intro j
+    simpa [uL, vL, convL] using
+      transmutation_level_bound
+        (p := p) (q := ∞)
+        G W AW k hk0 lam hlam_pos hlam_lt C hC h R hR c N j hp_ne_top
+  have hk_upper : ∀ i : ℕ, (k i : NNReal) ≤ r_als * (i : NNReal) + B_als :=
+    fun i => (hk_bound i).1
+  have hk_lower : ∀ i : ℕ, r_als * (i : NNReal) + A_als ≤ k i := by
+    intro i
+    exact_mod_cast (hk_bound i).2
+  have hConv :
+      BddAbove (Set.range convL) ∧
+      sSup (Set.range convL) ≤
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        sSup (Set.range fun i => vL i ^ (1 / p.toReal)) := by
+    simpa [convL] using
+      transmutation_convolution_bound_top
+        (p := p) k lam hlam_pos hlam_lt A_als B_als r_als hr_als
+        hk_upper hk_lower vL hvL_nn hsource_bdd hp_ne_top
+  have hconv_point : ∀ j,
+      convL j ≤
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        sSup (Set.range fun i => vL i ^ (1 / p.toReal)) := by
+    intro j
+    exact (le_csSup hConv.1 ⟨j, rfl⟩).trans hConv.2
+  let K0 : ℝ := (G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal)
+  have hK0_nonneg : 0 ≤ K0 := by
+    dsimp [K0]
+    exact mul_nonneg (Nat.cast_nonneg _) (Real.rpow_nonneg hC _)
+  have hroot_bound : ∀ j,
+      uL j ^ (1 / p.toReal) ≤
+        (G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        sSup (Set.range fun i => vL i ^ (1 / p.toReal)) := by
+    intro j
+    calc
+      uL j ^ (1 / p.toReal) ≤ K0 * convL j := by
+        simpa [K0, mul_assoc] using hLevelBound j
+      _ ≤ K0 *
+          (lam ^ (-(B_als : ℝ) / p.toReal) *
+            LpGridRepresentation.cCoefficientInt p ∞
+              (transmutationKernelZ lam A_als r_als) *
+            sSup (Set.range fun i => vL i ^ (1 / p.toReal))) := by
+        exact mul_le_mul_of_nonneg_left (hconv_point j) hK0_nonneg
+      _ =
+        (G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        sSup (Set.range fun i => vL i ^ (1 / p.toReal)) := by
+        simp [K0, mul_assoc]
+  have hroot_bdd : BddAbove (Set.range fun j => uL j ^ (1 / p.toReal)) := by
+    refine ⟨(G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        sSup (Set.range fun i => vL i ^ (1 / p.toReal)), ?_⟩
+    rintro x ⟨j, rfl⟩
+    exact hroot_bound j
+  have hfin : AbstractFinitePQCost (q := ∞) (TransmutationBlock G W AW h R c N) := by
+    simpa [AbstractFinitePQCost, uL, blockLvlCoeff, CoeffPLevel, TransmutationBlock] using hroot_bdd
+  constructor
+  · have hsum : Summable (fun j => (TransmutationBlock G W AW h R c N j).toLp AW) :=
+      formalBlockSeq_summable (G := W) (A := AW) hG2_W hp_ne_top hs_pos Fact.out
+        (TransmutationBlock G W AW h R c N) hfin
+    have hblock_eq : ∀ j, (TransmutationBlock G W AW h R c N j).toLp AW =
+        ∑ P ∈ (W.grid.partitions j).attach,
+          (TransmutationCoeff G W AW h R c N P : ℂ) •
+            TransmutationAtom G W AW h R c N P := by
+      intro j
+      exact transmutationBlock_toLp_eq G W AW h R c N j
+    have htsum_eq : ∑' j, (TransmutationBlock G W AW h R c N j).toLp AW =
+        PartialSumLevels G W h c N := by
+      simp_rw [hblock_eq]
+      exact ClaimI_top G W AW k hk0 lam hlam_pos hlam_lt C hC h R hR c hc N
+    rw [← htsum_eq]
+    exact hsum.hasSum
+  · have hLHS_eq :
+        CoeffPQCost (p := p) (q := ∞) W
+          (fun _ P => (TransmutationCoeff G W AW h R c N P : ℂ)) =
+        sSup (Set.range fun j => uL j ^ (1 / p.toReal)) := by
+      simp [CoeffPQCost, uL]
+    have hRHS_eq :
+        CoeffPQCost (p := p) (q := ∞) G c =
+        sSup (Set.range fun i => vL i ^ (1 / p.toReal)) := by
+      simp [CoeffPQCost, vL]
+    rw [hLHS_eq, hRHS_eq]
+    apply csSup_le (Set.range_nonempty _)
+    rintro x ⟨j, rfl⟩
+    exact hroot_bound j
+
+/-- Endpoint `q = ∞` finite-cost statement for the transmutation blocks. -/
+lemma transmutationBlock_abstractFinitePQCost_top
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := ∞) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (hc : CoeffFinitePQCost (p := p) (q := ∞) G c)
+    (N : ℕ)
+    (hp_ne_top : p ≠ ∞) :
+    AbstractFinitePQCost (q := ∞) (TransmutationBlock G W AW h R c N) := by
+  haveI : Fact ((1 : ℝ≥0∞) ≤ (∞ : ℝ≥0∞)) := ⟨by simp⟩
+  have hk0 : AlmostLinearSequence k := ⟨A_als, B_als, r_als, hr_als, hk_bound⟩
+  let uL : ℕ → ℝ :=
+    fun j => CoeffPLevel (p := p) W
+      (fun _ P => (TransmutationCoeff G W AW h R c N P : ℂ)) j
+  let vL : ℕ → ℝ := fun i => CoeffPLevel (p := p) G c i
+  let convL : ℕ → ℝ :=
+    fun j => ∑' i, if k i ≤ j then
+      lam ^ ((↑(j - k i) : ℝ) / p.toReal) * (vL i) ^ (1 / p.toReal) else 0
+  have hvL_nn : ∀ i, 0 ≤ vL i := fun i =>
+    Finset.sum_nonneg fun Q _ => Real.rpow_nonneg (norm_nonneg _) _
+  have hsource_bdd : BddAbove (Set.range fun i => vL i ^ (1 / p.toReal)) := by
+    simpa [CoeffFinitePQCost, vL] using hc
+  have hLevelBound : ∀ j, uL j ^ (1 / p.toReal) ≤
+      (G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) * convL j := by
+    intro j
+    simpa [uL, vL, convL] using
+      transmutation_level_bound
+        (p := p) (q := ∞)
+        G W AW k hk0 lam hlam_pos hlam_lt C hC h R hR c N j hp_ne_top
+  have hk_upper : ∀ i : ℕ, (k i : NNReal) ≤ r_als * (i : NNReal) + B_als :=
+    fun i => (hk_bound i).1
+  have hk_lower : ∀ i : ℕ, r_als * (i : NNReal) + A_als ≤ k i := by
+    intro i
+    exact_mod_cast (hk_bound i).2
+  have hConv :
+      BddAbove (Set.range convL) ∧
+      sSup (Set.range convL) ≤
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        sSup (Set.range fun i => vL i ^ (1 / p.toReal)) := by
+    simpa [convL] using
+      transmutation_convolution_bound_top
+        (p := p) k lam hlam_pos hlam_lt A_als B_als r_als hr_als
+        hk_upper hk_lower vL hvL_nn hsource_bdd hp_ne_top
+  have hconv_point : ∀ j,
+      convL j ≤
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        sSup (Set.range fun i => vL i ^ (1 / p.toReal)) := by
+    intro j
+    exact (le_csSup hConv.1 ⟨j, rfl⟩).trans hConv.2
+  let K0 : ℝ := (G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal)
+  have hK0_nonneg : 0 ≤ K0 := by
+    dsimp [K0]
+    exact mul_nonneg (Nat.cast_nonneg _) (Real.rpow_nonneg hC _)
+  have hroot_bound : ∀ j,
+      uL j ^ (1 / p.toReal) ≤
+        (G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        sSup (Set.range fun i => vL i ^ (1 / p.toReal)) := by
+    intro j
+    calc
+      uL j ^ (1 / p.toReal) ≤ K0 * convL j := by
+        simpa [K0, mul_assoc] using hLevelBound j
+      _ ≤ K0 *
+          (lam ^ (-(B_als : ℝ) / p.toReal) *
+            LpGridRepresentation.cCoefficientInt p ∞
+              (transmutationKernelZ lam A_als r_als) *
+            sSup (Set.range fun i => vL i ^ (1 / p.toReal))) := by
+        exact mul_le_mul_of_nonneg_left (hconv_point j) hK0_nonneg
+      _ =
+        (G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        sSup (Set.range fun i => vL i ^ (1 / p.toReal)) := by
+        simp [K0, mul_assoc]
+  have hroot_bdd : BddAbove (Set.range fun j => uL j ^ (1 / p.toReal)) := by
+    refine ⟨(G.grid.Cmult1 : ℝ) * C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        sSup (Set.range fun i => vL i ^ (1 / p.toReal)), ?_⟩
+    rintro x ⟨j, rfl⟩
+    exact hroot_bound j
+  simpa [AbstractFinitePQCost, uL, blockLvlCoeff, CoeffPLevel, TransmutationBlock] using hroot_bdd
+
 /-- The `N = ∞` block of the transmuted representation.  At level `j`, its
 coefficients are the stable values `m_{P,∞}` and its atoms are the stable local
 atoms `d_{P,∞}`. -/
@@ -3242,6 +3896,103 @@ theorem ClaimIII
       TransmutationAtom_tendsto_limit G W AW k A_als B_als r_als hr_als hk_bound
         lam hlam_pos hlam_lt C hC h R hR c P
   rcases representation_limit_strong_existence (G := W) (p := p) (u := u) (q := q)
+      hp_ne_top hs_pos Fact.out AW hG2_W Rseq hK_nonneg huniform Rlim
+      hcoeff_tendsto hatom_tendsto with
+    ⟨gLim, hRlim, hmem, hfin, hcost, hg_tendsto⟩
+  exact ⟨gLim, hRlim, hmem, hg_tendsto⟩
+
+/-- Endpoint `q = ∞` version of **Claim III**. -/
+theorem ClaimIII_top
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := ∞) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (hc : CoeffFinitePQCost (p := p) (q := ∞) G c)
+    (hG2_W : AssumptionG2 W s p u ∞)
+    (hp_ne_top : p ≠ ∞)
+    (hs_pos : 0 < s) :
+    ∃ gLim : Lp ℂ p W.measure,
+      HasSum (fun j => (TransmutationBlockLimit G W AW h R c A_als r_als j).toLp AW) gLim ∧
+      MemBesovishCoeffCost AW ∞ gLim ∧
+      Tendsto (fun N => PartialSumLevels G W h c N) atTop (𝓝 gLim) := by
+  haveI : Fact ((1 : ℝ≥0∞) ≤ (∞ : ℝ≥0∞)) := ⟨by simp⟩
+  let K : ℝ :=
+    (G.grid.Cmult1 : ℝ) *
+    C ^ (1 / p.toReal) *
+    lam ^ (-(B_als : ℝ) / p.toReal) *
+    LpGridRepresentation.cCoefficientInt p ∞ (transmutationKernelZ lam A_als r_als) *
+    CoeffPQCost (p := p) (q := ∞) G c
+  have hCoeffP_nonneg : ∀ i : ℕ, 0 ≤ CoeffPLevel (p := p) G c i := by
+    intro i
+    exact Finset.sum_nonneg fun Q hQ => Real.rpow_nonneg (norm_nonneg _) _
+  have hCoeffPQ_nonneg : 0 ≤ CoeffPQCost (p := p) (q := ∞) G c := by
+    simp [CoeffPQCost]
+    exact Real.sSup_nonneg' ⟨_, ⟨0, rfl⟩, Real.rpow_nonneg (hCoeffP_nonneg 0) _⟩
+  have hkernel_nonneg : ∀ n : ℤ, 0 ≤ transmutationKernelZ lam A_als r_als n := by
+    intro n
+    by_cases hn : A_als / r_als - 1 < (n : ℝ)
+    · simp [transmutationKernelZ, hn, Real.rpow_nonneg (le_of_lt hlam_pos)]
+    · simp [transmutationKernelZ, hn]
+  have hccoef_nonneg : 0 ≤
+      LpGridRepresentation.cCoefficientInt p ∞ (transmutationKernelZ lam A_als r_als) :=
+    LpGridRepresentation.cCoefficientInt_nonneg p ∞ _ hkernel_nonneg
+  have hK_nonneg : 0 ≤ K := by
+    dsimp [K]
+    repeat' apply mul_nonneg
+    · exact by exact_mod_cast Nat.zero_le G.grid.Cmult1
+    · exact Real.rpow_nonneg hC _
+    · exact Real.rpow_nonneg (le_of_lt hlam_pos) _
+    · exact hccoef_nonneg
+    · exact hCoeffPQ_nonneg
+  let gseq : ℕ → Lp ℂ p W.measure := fun N => PartialSumLevels G W h c N
+  let Rseq : ∀ N, LpGridRepresentation AW (gseq N) := fun N =>
+    { block := TransmutationBlock G W AW h R c N
+      hasSum := (ClaimII_top G W AW k A_als B_als r_als hr_als hk_bound
+        lam hlam_pos hlam_lt C hC h R hR c hc N hG2_W hp_ne_top hs_pos).1 }
+  let Rlim : (j : ℕ) → LevelBlock AW j :=
+    fun j => TransmutationBlockLimit G W AW h R c A_als r_als j
+  have huniform : ∀ N,
+      LpGridRepresentation.pqCostENNReal (q := ∞) (Rseq N) ≤ ENNReal.ofReal K := by
+    intro N
+    have hfin : LpGridRepresentation.FinitePQCost (q := ∞) (Rseq N) := by
+      simpa [LpGridRepresentation.FinitePQCost, AbstractFinitePQCost,
+        blockLvlCoeff_eq_levelCoeffPower] using
+        (transmutationBlock_abstractFinitePQCost_top
+          (p := p) G W AW k A_als B_als r_als hr_als hk_bound
+          lam hlam_pos hlam_lt C hC h R hR c hc N hp_ne_top)
+    have hcost : LpGridRepresentation.pqCost (q := ∞) (Rseq N) ≤ K := by
+      simpa [K, Rseq, LpGridRepresentation.pqCost, CoeffPQCost, TransmutationBlock] using
+        (ClaimII_top G W AW k A_als B_als r_als hr_als hk_bound
+          lam hlam_pos hlam_lt C hC h R hR c hc N hG2_W hp_ne_top hs_pos).2
+    exact pqCostENNReal_le_of_finitePQCost_pqCost_le (q := ∞) W (Rseq N) hfin hcost
+  have hcoeff_tendsto : ∀ (j : ℕ) (P : LevelCell W j),
+      Tendsto (fun N => ((Rseq N).block j).coeff P) atTop
+        (𝓝 ((Rlim j).coeff P)) := by
+    intro j P
+    exact (Complex.continuous_ofReal.tendsto (TransmutationCoeffLimit G W AW h R c A_als r_als P)).comp
+      (TransmutationCoeff_tendsto_limit G W AW k A_als B_als r_als hr_als hk_bound
+        lam hlam_pos hlam_lt C hC h R hR c P)
+  have hatom_tendsto : ∀ (j : ℕ) (P : LevelCell W j),
+      Tendsto
+        (fun N => atomLp AW (levelCellToWeakGridCell W j P) (((Rseq N).block j).atom P))
+        atTop
+        (𝓝 (atomLp AW (levelCellToWeakGridCell W j P) ((Rlim j).atom P))) := by
+    intro j P
+    simpa [Rseq, Rlim, TransmutationBlockLimit, TransmutationAtomLimit] using
+      TransmutationAtom_tendsto_limit G W AW k A_als B_als r_als hr_als hk_bound
+        lam hlam_pos hlam_lt C hC h R hR c P
+  rcases representation_limit_strong_existence (G := W) (p := p) (u := u) (q := ∞)
       hp_ne_top hs_pos Fact.out AW hG2_W Rseq hK_nonneg huniform Rlim
       hcoeff_tendsto hatom_tendsto with
     ⟨gLim, hRlim, hmem, hfin, hcost, hg_tendsto⟩
