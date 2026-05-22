@@ -18,12 +18,12 @@ rev = "v0.1.0"
 [[require]]
 name = "UnconditionalSchauderBasis"
 git = "https://github.com/SmaniaD/UnconditionalSchauderBasis.git"
-rev = "v0.1.0"
+rev = "v0.1.3"
 
 [[require]]
 name = "UnbalancedHaarWavelet"
 git = "https://github.com/SmaniaD/UnbalancedHaarWavelet.git"
-rev = "v0.1.2"
+rev = "v0.1.3"
 
 
 [[lean_lib]]
