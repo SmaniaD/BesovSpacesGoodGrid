@@ -1999,7 +1999,7 @@ theorem weighted_sum_le_cCoefficient_mul_pqCost
       intro hreal
       apply hq1
       have hqeq : (1 : ℝ≥0∞) = q := by
-        exact (ENNReal.toReal_eq_toReal ENNReal.one_ne_top hq_ne_top).mp (by simpa [hreal])
+        exact (ENNReal.toReal_eq_toReal_iff' ENNReal.one_ne_top hq_ne_top).mp (by simpa [hreal])
       exact hqeq.symm
     have hq_toReal_one : 1 < q.toReal :=
       lt_of_le_of_ne hq_toReal_le (Ne.symm hq_toReal_ne_one)
@@ -2458,7 +2458,7 @@ theorem lp_embedding_adapted_statement
           intro hreal
           apply hq1
           have hqeq : (1 : ℝ≥0∞) = q := by
-            exact (ENNReal.toReal_eq_toReal ENNReal.one_ne_top hq_top).mp (by simpa [hreal])
+            exact (ENNReal.toReal_eq_toReal_iff' ENNReal.one_ne_top hq_top).mp (by simpa [hreal])
           exact hqeq.symm
         have hq_toReal_one : 1 < q.toReal :=
           lt_of_le_of_ne hq_toReal_le (Ne.symm hq_toReal_ne_one)
