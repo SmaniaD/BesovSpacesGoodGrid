@@ -72,6 +72,7 @@ private theorem overlapFinset_eq_singleton (G : GoodGridSpace (α := α))
     subst R
     exact ⟨hQ, by simpa using (G.grid.partition_nonempty k Q hQ)⟩
 
+set_option linter.dupNamespace false in
 /--
 The `WeakGrid` induced by a `GoodGridSpace`.
 
@@ -91,6 +92,7 @@ def GoodGridSpace.toWeakGrid (G : GoodGridSpace (α := α)) :
   overlap_card_le  := fun k Q hQ => by
     rw [overlapFinset_eq_singleton G k Q hQ]; simp
 
+set_option linter.dupNamespace false in
 /-- The `WeakGridSpace` induced by a `GoodGridSpace`. -/
 def GoodGridSpace.toWeakGridSpace (G : GoodGridSpace (α := α)) :
     WeakGridSpace.WeakGridSpace (α := α) :=
@@ -99,7 +101,7 @@ def GoodGridSpace.toWeakGridSpace (G : GoodGridSpace (α := α)) :
 /-- Every `GoodGridCell` gives a `WeakGridCell` in the induced `WeakGridSpace`. -/
 def GoodGridCell.toWeakGridCell {G : GoodGridSpace (α := α)} (Q : GoodGridCell G) :
     WeakGridSpace.WeakGridCell G.toWeakGridSpace :=
-  { level := Q.level, cell := Q.cell, mem := Q.mem }
+  { level := Q.level, cell := Q.cell, mem := by exact Q.mem }
 
 -- ============================================================
 -- §2. Quantitative mesh estimate
@@ -135,8 +137,8 @@ theorem cell_measure_le_lambda2_pow_mul_univ
       calc
         G.grid.μ Q ≤ ENNReal.ofReal G.grid.lambda2 * G.grid.μ P := hstep
         _ ≤ ENNReal.ofReal G.grid.lambda2 *
-              ((ENNReal.ofReal G.grid.lambda2) ^ n * G.grid.μ Set.univ) :=
-            mul_le_mul_left' hind _
+              ((ENNReal.ofReal G.grid.lambda2) ^ n * G.grid.μ Set.univ) := by
+            gcongr
         _ = (ENNReal.ofReal G.grid.lambda2) ^ (n + 1) * G.grid.μ Set.univ := by
             simp [pow_succ, mul_assoc, mul_comm]
 
