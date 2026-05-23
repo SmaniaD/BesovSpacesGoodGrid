@@ -63,7 +63,7 @@ noncomputable def blockTsum
     [TopologicalSpace E]
     (F : ℕ → Finset (Set α))
     (c : BlockIndex F → E) : E :=
-  ∑' k : ℕ, ∑ P in (F k).attach, c ⟨k, P.1, P.2⟩
+  ∑' k : ℕ, (F k).attach.sum fun P => c ⟨k, P.1, P.2⟩
 
 
 /--
@@ -119,9 +119,6 @@ global block index.
 def toBlockIndex (Q : ChildIndex F P) : BlockIndex F :=
   ⟨Q.level, Q.val, Q.mem⟩
 
-instance : Coe (ChildIndex F P) (BlockIndex F) where
-  coe := toBlockIndex
-
 end ChildIndex
 
 
@@ -161,9 +158,6 @@ global block index.
 -/
 def toBlockIndex (Q : ParentIndex F P) : BlockIndex F :=
   ⟨Q.level, Q.val, Q.mem⟩
-
-instance : Coe (ParentIndex F P) (BlockIndex F) where
-  coe := toBlockIndex
 
 end ParentIndex
 
@@ -324,20 +318,20 @@ macro_rules
   /- Descendant factor: `d P⁺`. -/
   | `(blockTensorTail%($F:term, $acc:term, $d:ident $P:ident⁺)) =>
       `(∑⁺ Qchild ∈ᵇ $F below $P,
-        $acc * ($d Qchild))
+        $acc * ($d (ChildIndex.toBlockIndex Qchild)))
 
   | `(blockTensorTail%($F:term, $acc:term, $d:ident $P:ident⁺ ⊗ $rest:blockTensorFactors)) =>
       `(∑⁺ Qchild ∈ᵇ $F below $P,
-        blockTensorTail%($F, ($acc * ($d Qchild)), $rest))
+        blockTensorTail%($F, ($acc * ($d (ChildIndex.toBlockIndex Qchild))), $rest))
 
   /- Ancestor factor: `d P⁻`. -/
   | `(blockTensorTail%($F:term, $acc:term, $d:ident $P:ident⁻)) =>
       `(∑⁻ Qparent ∈ᵇ $F above $P,
-        $acc * ($d Qparent))
+        $acc * ($d (ParentIndex.toBlockIndex Qparent)))
 
   | `(blockTensorTail%($F:term, $acc:term, $d:ident $P:ident⁻ ⊗ $rest:blockTensorFactors)) =>
       `(∑⁻ Qparent ∈ᵇ $F above $P,
-        blockTensorTail%($F, ($acc * ($d Qparent)), $rest))
+        blockTensorTail%($F, ($acc * ($d (ParentIndex.toBlockIndex Qparent))), $rest))
 
 
 section Examples
@@ -368,7 +362,7 @@ example
     (c : BlockIndex F → E) :
     (∑ᵇ P ∈ᵇ F, c P)
       =
-    (∑' k : ℕ, ∑ P in (F k).attach, c ⟨k, P.1, P.2⟩) := by
+    (∑' k : ℕ, (F k).attach.sum fun P => c ⟨k, P.1, P.2⟩) := by
   rfl
 
 /--
@@ -378,9 +372,9 @@ example
     (F : ℕ → Finset (Set α))
     (P : BlockIndex F)
     (d : BlockIndex F → E) :
-    (∑⁺ Q ∈ᵇ F below P, d Q)
+    (∑⁺ Q ∈ᵇ F below P, d (ChildIndex.toBlockIndex Q))
       =
-    (∑' Q : ChildIndex F P, d Q) := by
+    (∑' Q : ChildIndex F P, d (ChildIndex.toBlockIndex Q)) := by
   rfl
 
 /--
@@ -390,9 +384,9 @@ example
     (F : ℕ → Finset (Set α))
     (P : BlockIndex F)
     (d : BlockIndex F → E) :
-    (∑⁻ Q ∈ᵇ F above P, d Q)
+    (∑⁻ Q ∈ᵇ F above P, d (ParentIndex.toBlockIndex Q))
       =
-    (∑' Q : ParentIndex F P, d Q) := by
+    (∑' Q : ParentIndex F P, d (ParentIndex.toBlockIndex Q)) := by
   rfl
 
 /--
@@ -434,7 +428,7 @@ example
       =
     (∑ᵇ P ∈ᵇ F,
       ∑⁺ Q ∈ᵇ F below P,
-      c P * d Q) := by
+      c P * d (ChildIndex.toBlockIndex Q)) := by
   rfl
 
 /--
@@ -449,7 +443,7 @@ example
       =
     (∑ᵇ P ∈ᵇ F,
       ∑⁻ Q ∈ᵇ F above P,
-      c P * d Q) := by
+      c P * d (ParentIndex.toBlockIndex Q)) := by
   rfl
 
 /--
@@ -463,7 +457,8 @@ example
     (∑ᵇ P ∈ᵇ F,
       ∑⁺ Qchild ∈ᵇ F below P,
       ∑⁻ Qparent ∈ᵇ F above P,
-      (c P * d Qchild) * e Qparent) := by
+      (c P * d (ChildIndex.toBlockIndex Qchild)) *
+        e (ParentIndex.toBlockIndex Qparent)) := by
   rfl
 
 /--
@@ -477,7 +472,7 @@ example
     (∑ᵇ P ∈ᵇ F,
       ∑ᵇ Q ∈ᵇ F,
       ∑⁺ Qchild ∈ᵇ F below Q,
-      (c P * d Q) * e Qchild) := by
+      (c P * d Q) * e (ChildIndex.toBlockIndex Qchild)) := by
   rfl
 
 end Examples

@@ -1,0 +1,704 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+
+\geometry{margin=1in}
+\emergencystretch=3em
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{remark}{Remark}[section]
+
+\newcommand{\Nat}{\mathbb{N}}
+\newcommand{\Real}{\mathbb{R}}
+\newcommand{\Complex}{\mathbb{C}}
+\newcommand{\Lp}{L^p}
+\newcommand{\norm}[1]{\left\|#1\right\|}
+\newcommand{\tsum}{\sum\nolimits'}
+\newcommand{\Finset}{\operatorname{Finset}}
+\newcommand{\HasSum}{\operatorname{HasSum}}
+\newcommand{\atTop}{\operatorname{atTop}}
+\newcommand{\Cost}{\operatorname{Norm\_Costpq}}
+
+\title{\textbf{Besov Spaces over Good Grids}\\
+  \large Current Lean 4 Formalization}
+\author{Daniel Smania}
+\date{May 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This document describes the current Lean 4 formalization in the
+\texttt{BesovSpacesGoodGrid} repository.  The project develops a reusable
+weak-grid framework for atomic Besov-ish spaces, proves scale inclusions,
+representation-limit and compactness theorems, proves completeness for the
+coefficient-cost norm, and formalizes a substantial weak-grid transmutation
+pipeline.  It also contains a good-grid specialization based on Souza atoms.
+The principal public results are summarized in
+Section~\ref{sec:main-theorems}.
+\end{abstract}
+
+\tableofcontents
+
+\newpage
+
+\section{Introduction}
+
+\subsection{Purpose of the Project}
+
+The project formalizes part of the atomic decomposition theory from
+\begin{center}
+Daniel Smania, \emph{Besov-ish spaces through atomic decomposition},
+Analysis \& PDE 15 (2022), no. 1, 123--174.
+\end{center}
+The emphasis is on a Lean library that can be reused in later developments:
+the basic theory is first stated for weak grids and abstract atom families,
+and good-grid/Souza spaces are then obtained as a specialization.
+
+\subsection{Current Pipeline}
+
+The root Lean file \verb|BesovSpacesGoodGrid.lean| currently imports the
+following pipeline:
+
+\begin{enumerate}
+  \item define quantitative good grids and general weak grids;
+  \item package weak-grid cells and local Banach spaces;
+  \item define atom families with support, convexity, phase invariance, and
+    atom-size estimates;
+  \item build levelwise atomic blocks and infinite \(\Lp\) representations;
+  \item define the Besov-ish space and the coefficient-cost gauge
+    \verb|Norm_Costpq|;
+  \item prove scale constructions and a smoothness-scale inclusion;
+  \item prove representation-limit theorems, compactness statements, and
+    completeness of the Besov-ish space for the cost norm;
+  \item prove transmutation claims moving atomic representations from one weak
+    grid to another.
+\end{enumerate}
+
+The repository also contains good-grid Souza-space results and auxiliary
+block-sum notation.  Those files are documented here because they are part of
+the current repository state, even though not all of them are imported by the
+root module yet.
+
+\newpage
+
+\section{Grid Structures}
+
+\subsection{Good Grids}
+
+\begin{definition}[Good grid]
+The Lean structure
+\begin{center}
+\verb|GoodGridSpace.GoodGrid|
+\end{center}
+extends the grid structure from the \verb|UnbalancedHaarWavelet| dependency.
+It adds constants \(\lambda_1,\lambda_2 : \Real\) with
+\[
+  0 < \lambda_1 \le \lambda_2 < 1
+\]
+and lower and upper measure-ratio estimates for a child cell \(s\) inside a
+parent cell \(t\):
+\[
+  \lambda_1\,\mu(t) \le \mu(s),
+  \qquad
+  \mu(s) \le \lambda_2\,\mu(t).
+\]
+\end{definition}
+
+\begin{definition}[Good-grid space]
+The structure
+\begin{center}
+\verb|GoodGridSpace.GoodGridSpace|
+\end{center}
+is the ambient object used by good-grid files.  It consists of a measurable
+space with a fixed good grid.  The associated measure is exposed as
+\verb|GoodGridSpace.measure|.
+\end{definition}
+
+\subsection{Weak Grids}
+
+\begin{definition}[Weak grid]
+The Lean structure
+\begin{center}
+\verb|WeakGridSpace.WeakGrid|
+\end{center}
+is a measure together with a sequence of finite cell families
+\(\mathcal{P}^k\).  Each cell is measurable and has positive measure; the
+whole measure is finite; at least one level is nonempty; and there is a
+uniform same-level overlap bound \verb|Cmult1|.
+\end{definition}
+
+The term ``partition'' appears in field names because of the mathematical
+source, but a weak grid does not require disjointness or covering.  The
+important primitive is the overlap neighborhood
+\[
+  \Omega_Q^k = \{P \in \mathcal{P}^k : P \cap Q \ne \varnothing\},
+\]
+implemented as \verb|overlapFinset|.
+
+\begin{lemma}[Overlap double counting]
+The theorem
+\begin{center}
+\verb|WeakGridSpace.WeakGrid.overlap_double_sum_le|
+\end{center}
+states that if \(f\) is nonnegative on the level-\(k\) cells, then summing
+\(f\) over all overlap neighborhoods costs at most the multiplicity constant:
+\[
+  \sum_{Q\in\mathcal{P}^k}\sum_{P\in\Omega_Q^k} f(P)
+  \le
+  C_{\mathrm{mult1}}\sum_{P\in\mathcal{P}^k} f(P).
+\]
+\end{lemma}
+
+\newpage
+
+\section{Atoms}
+
+\subsection{Cells and Local Spaces}
+
+\begin{definition}[Weak-grid cell]
+The structure
+\begin{center}
+\verb|WeakGridSpace.WeakGridCell|
+\end{center}
+bundles a level \(k\), a set \(Q\), and the proof that
+\(Q\in\mathcal{P}^k\).  The theorem \verb|measurable| records that every such
+cell is measurable.
+\end{definition}
+
+\begin{definition}[Local Banach space]
+The structure
+\begin{center}
+\verb|WeakGridSpace.LocalBanachSpace|
+\end{center}
+packages a complex normed complete vector space together with an injective
+linear realization map into functions \(\alpha \to \Complex\).  This lets
+different cells carry different local model spaces.
+\end{definition}
+
+\subsection{Atom Families}
+
+\begin{definition}[Atom family]
+The Lean structure
+\begin{center}
+\verb|WeakGridSpace.AtomFamily|
+\end{center}
+is the central abstraction for atomic decompositions.  For parameters
+\(s,p,u\), it records:
+\begin{enumerate}[label=(\roman*)]
+  \item the Holder conjugate \(u'\);
+  \item assumptions \(s>0\), \(1\le p<\infty\), and \(1\le u\le\infty\);
+  \item a local Banach space \(B(Q)\) for every weak-grid cell \(Q\);
+  \item a nonempty atom set \(A(Q)\subset B(Q)\);
+  \item membership of local functions in \(L^{pu}\);
+  \item support inside \(Q\);
+  \item convexity and phase invariance of the atom set;
+  \item the atom-size estimate
+    \[
+      \|a\|_{L^{pu}}
+      \le
+      \mu(Q)^{s - 1/(u'p)}.
+    \]
+\end{enumerate}
+\end{definition}
+
+The namespace \verb|AtomFamily| exposes convenience definitions and lemmas:
+\verb|toFunction|, \verb|IsAtom|, \verb|AtomsOn|, \verb|allAtoms|,
+\verb|atom_memLp|, \verb|local_memLp_p|, \verb|atom_support|, and
+\verb|atom_norm_bound|.  It also records optional compactness and
+finite-dimensional hypotheses:
+\verb|StronglyCompactAtoms|, \verb|WeaklySequentiallyCompactAtoms|, and
+\verb|FiniteDimensionalAtoms|.
+
+\newpage
+
+\section{Besov-ish Spaces}
+
+\subsection{Level Blocks}
+
+\begin{definition}[Level block]
+For an atom family \(A\), the structure
+\begin{center}
+\verb|WeakGridSpace.LevelBlock A k|
+\end{center}
+chooses one coefficient and one atom for each cell of the level \(k\).  Its
+value in \(L^p\) is the finite sum over that level:
+\[
+  \sum_{Q\in\mathcal{P}^k} c_Q a_Q.
+\]
+Lean names this value \verb|LevelBlock.toLp|.
+\end{definition}
+
+The file proves that zero and scalar multiples of level blocks behave as
+expected.  It also proves basic closure properties of the set
+\verb|LevelBlockSet A k|.
+
+\subsection{Representations and Costs}
+
+\begin{definition}[Atomic representation]
+The structure
+\begin{center}
+\verb|WeakGridSpace.LpGridRepresentation A g|
+\end{center}
+is a sequence of level blocks whose infinite sum is \(g\) in \(L^p\):
+\[
+  \HasSum\left(k\mapsto \operatorname{toLp}(B_k)\right)(g).
+\]
+\end{definition}
+
+\begin{definition}[Coefficient cost]
+For a representation \(R\), Lean defines \verb|levelCoeffPower|,
+\verb|lpCost|, \verb|pqCost|, and \verb|pqCostENNReal|.  The finite-cost
+predicate is
+\begin{center}
+\verb|LpGridRepresentation.FinitePQCost|.
+\end{center}
+It is the formal version of the usual \((p,q)\)-coefficient summability
+condition, with the endpoint \(q=\infty\) represented by a supremum bound.
+\end{definition}
+
+\subsection{Besov-ish Space and Cost Gauge}
+
+\begin{definition}[Besov-ish membership]
+The predicates
+\begin{center}
+\verb|MemBesovish|,\qquad \verb|MemBesovishCoeffCost|
+\end{center}
+say that an \(L^p\) function admits an atomic representation, respectively an
+atomic representation with finite \((p,q)\)-coefficient cost.
+\end{definition}
+
+\begin{definition}[Besov-ish space]
+The Lean definition
+\begin{center}
+\verb|WeakGridSpace.BesovishSpace A q|
+\end{center}
+is the complex submodule of \(L^p\) consisting of elements satisfying
+\verb|MemBesovishCoeffCost A q|.
+\end{definition}
+
+\begin{definition}[Coefficient-cost gauge]
+For \(g\in \verb|BesovishSpace A q|\), the gauge
+\begin{center}
+\verb|BesovishSpace.Norm_Costpq A q g|
+\end{center}
+is the infimum of the \(\operatorname{pqCost}\) over all finite-cost
+representations of \(g\).
+\end{definition}
+
+\begin{theorem}[Normed-space summary]
+The theorem
+\begin{center}
+\verb|BesovishSpace.normedSpace_and_lp_embedding|
+\end{center}
+packages the main structural facts about \verb|Norm_Costpq|: nonnegativity,
+triangle inequality, homogeneity, a named cost-normed group/space structure,
+and an explicit \(L^t\) embedding estimate for exponents
+\[
+  p \le t \le p u.
+\]
+\end{theorem}
+
+\newpage
+
+\section{Scale Inclusions}
+
+\begin{definition}[Smoothness scaling]
+The file \verb|WeakGridScalesBesovSpaces.lean| defines
+\begin{center}
+\verb|smoothnessScaleFactor|,\quad
+\verb|smoothnessScaleAtoms|,\quad
+\verb|smoothnessScaleAtomFamily|.
+\end{center}
+These rescale atoms cell by cell by the deterministic factor
+\[
+  \mu(Q)^{\tilde{s}-s}.
+\]
+\end{definition}
+
+\begin{definition}[Smoothness-integrability scaling]
+When \(u=\infty\), the file also defines the two-parameter scaling
+\begin{center}
+\verb|smoothnessIntegrabilityScaleAtomFamily|.
+\end{center}
+The scale factor is
+\[
+  \mu(Q)^{\tilde{s}-s + 1/p - 1/\tilde{p}}.
+\]
+\end{definition}
+
+\begin{theorem}[Smoothness-scale inclusion]
+The theorem
+\begin{center}
+\verb|smoothnessScaleBesovishSpace_subset|
+\end{center}
+shows that, under the deterministic summability hypothesis
+\verb|scaleCoefficientFinite| and the monotonicity assumption
+\(s\le \tilde{s}\), the Besov-ish space for the smoothness-scaled atom family
+is contained in the original Besov-ish space.
+\end{theorem}
+
+\begin{theorem}[Linear inclusion and cost bound]
+The definition
+\begin{center}
+\verb|smoothnessScaleBesovishSpaceInclusion|
+\end{center}
+packages the preceding set inclusion as a linear map.  The theorem
+\begin{center}
+\verb|smoothnessScaleBesovishSpaceInclusion_Norm_Costpq_le|
+\end{center}
+gives the corresponding explicit bound for the cost gauge.
+\end{theorem}
+
+\newpage
+
+\section{Representation Limits and Completeness}
+
+\subsection{Analytic Grid Hypothesis}
+
+\begin{definition}[Assumption G2]
+The predicate
+\begin{center}
+\verb|WeakGridSpace.AssumptionG2 G s p u q|
+\end{center}
+combines two requirements:
+\begin{enumerate}[label=(\roman*)]
+  \item the coefficient-weight series needed for the \(t=p\) embedding is
+    finite;
+  \item the maximal measure of cells at level \(k\) tends to zero as
+    \(k\to\infty\).
+\end{enumerate}
+\end{definition}
+
+This hypothesis is used to control tails of atomic representations uniformly.
+
+\subsection{Limit Theorems}
+
+\begin{theorem}[Representation limit]
+The theorem
+\begin{center}
+\verb|representation_limit|
+\end{center}
+formalizes the weak \(L^p\) version of Proposition \verb|compa2| from the
+development.  If representations have uniformly bounded coefficient cost,
+their coefficients converge cellwise, and their atoms converge weakly, then
+the limiting blocks define a Besov-ish function with the same cost bound and
+the represented functions converge weakly.
+\end{theorem}
+
+\begin{theorem}[Strong representation limit]
+The theorem
+\begin{center}
+\verb|representation_limit_strong|
+\end{center}
+is the strong \(L^p\) version: strong convergence of the atoms gives strong
+convergence of the represented functions.
+\end{theorem}
+
+The existence theorems
+\verb|representation_limit_strong_existence| and
+\verb|representation_limit_weak_existence| start from a bare limit block
+sequence, prove it is summable, and package the resulting limit as a genuine
+representation.
+
+\subsection{Compactness and Completeness}
+
+\begin{theorem}[Formal block summability]
+The theorem
+\begin{center}
+\verb|formalBlockSeq_summable|
+\end{center}
+says that under \verb|AssumptionG2|, any formal block sequence with finite
+abstract \((p,q)\)-cost is summable in \(L^p\).
+\end{theorem}
+
+\begin{theorem}[Closed cost balls]
+The theorem
+\begin{center}
+\verb|closed_Norm_Costpq_ball_strongly_seqCompact|
+\end{center}
+proves sequential compactness of closed coefficient-cost balls in the ambient
+strong \(L^p\) topology, assuming the compactness hypothesis
+\verb|AssumptionA5|.
+\end{theorem}
+
+\begin{theorem}[Completeness]
+The theorem
+\begin{center}
+\verb|besovishSpace_costNorm_completeSpace|
+\end{center}
+states that \verb|BesovishSpace A q|, endowed with the local
+\verb|costNormedAddCommGroup| structure associated to \verb|Norm_Costpq|, is
+complete.
+\end{theorem}
+
+\newpage
+
+\section{Weak-Grid Transmutation}
+
+\subsection{Setup}
+
+The file \verb|WeakGridTransmutation.lean| formalizes the transfer of an
+atomic representation from a source weak grid \(G\) to a target weak grid
+\(W\).  The source coefficients are measured by
+\verb|CoeffPLevel|, \verb|CoeffPQCost|, and \verb|CoeffFinitePQCost|.
+
+\begin{definition}[Almost linear level selector]
+The predicate
+\begin{center}
+\verb|AlmostLinearSequence k|
+\end{center}
+says that the target level \(k(i)\) attached to a source level \(i\) stays
+between two affine functions with the same positive slope:
+\[
+  r i + A \le k(i) \le r i + B.
+\]
+It is used to prove finiteness of certain level interactions and to reduce
+coefficient estimates to convolution bounds.
+\end{definition}
+
+\begin{definition}[Representation hypothesis]
+The predicate
+\begin{center}
+\verb|RepresentationWsubGandALS|
+\end{center}
+records the structural hypothesis that every source atom has a target-grid
+atomic representation with localization, decay, and almost-linear level
+control.
+\end{definition}
+
+\subsection{Transmutation Objects}
+
+For each truncation level \(N\), the file defines:
+\begin{itemize}
+  \item \verb|PartialSumLevels|: the source partial expansion;
+  \item \verb|TransmutationCoeff|: the target coefficient \(m_{P,N}\);
+  \item \verb|TransmutationAtom| and \verb|TransmutationAtomLocal|: the
+    normalized target atoms \(d_{P,N}\);
+  \item \verb|TransmutationBlock|: the target level block at level \(j\).
+\end{itemize}
+
+It also defines stable limiting objects:
+\verb|TransmutationCoeffLimit|, \verb|TransmutationAtomLimit|, and
+\verb|TransmutationBlockLimit|.
+
+\subsection{Claims}
+
+\begin{theorem}[Claim I]
+The theorem
+\begin{center}
+\verb|ClaimI|
+\end{center}
+is the exact bookkeeping identity.  The transmuted target representation at
+truncation \(N\) sums to the source partial expansion
+\verb|PartialSumLevels ... N|.  The theorem \verb|ClaimI_top| is the endpoint
+\(q=\infty\) version.
+\end{theorem}
+
+\begin{theorem}[Claim II]
+The theorem
+\begin{center}
+\verb|ClaimII|
+\end{center}
+states that each finite transmutation block sequence is a genuine Besov-ish
+representation of the source partial expansion and that its \((p,q)\)-cost is
+bounded by the source coefficient cost times explicit geometric, decay, and
+convolution constants.  The theorem \verb|ClaimII_top| treats the endpoint
+\(q=\infty\).
+\end{theorem}
+
+\begin{theorem}[Claim III]
+The theorem
+\begin{center}
+\verb|ClaimIII|
+\end{center}
+passes to the stable limiting transmutation data.  It produces an
+\(L^p\)-limit \(g_{\infty}\), proves that the stable blocks form a Besov-ish
+representation of \(g_{\infty}\), and proves strong convergence of the
+truncated source sums to that limit.  The theorem \verb|ClaimIII_top| is the
+endpoint version.
+\end{theorem}
+
+\newpage
+
+\section{Good-Grid Souza Spaces}
+
+The file \verb|GoodGridBesovSpace.lean| specializes the weak-grid theory to
+good grids and Souza atoms.
+
+\begin{definition}[Induced weak grid]
+The definition
+\begin{center}
+\verb|GoodGridSpace.toWeakGrid|
+\end{center}
+turns a good grid into a weak grid.  Since good-grid partitions are disjoint,
+the same-level overlap multiplicity is \(1\).  The induced weak-grid space is
+\verb|GoodGridSpace.toWeakGridSpace|.
+\end{definition}
+
+\begin{definition}[Souza atoms]
+The predicate
+\begin{center}
+\verb|GoodGridSpace.IsSouzaAtom|
+\end{center}
+says that an atom is supported on a good-grid cell, is constant on that cell,
+and has size at most
+\[
+  \mu(Q)^{s - 1/p}.
+\]
+The definitions \verb|canonicalSouzaAtom|, \verb|souzaLocalBanachSpace|,
+\verb|souzaAtomsSet|, and \verb|souzaAtomFamily| package these atoms as an
+\verb|AtomFamily| with \(u=\infty\).
+\end{definition}
+
+\begin{definition}[Souza Besov space]
+The definition
+\begin{center}
+\verb|GoodGridSpace.SouzaBesovSpace|
+\end{center}
+is the Besov-ish space associated to the Souza atom family on the weak grid
+induced by the good grid.
+\end{definition}
+
+\begin{theorem}[Good-grid completeness]
+The theorem
+\begin{center}
+\verb|souzaBesovSpace_costNorm_completeSpace|
+\end{center}
+specializes the weak-grid completeness theorem to Souza atoms on a good grid.
+\end{theorem}
+
+\begin{theorem}[Compact balls]
+Theorems
+\begin{center}
+\verb|souza_closedCostBallInLp_isSeqCompact|,\quad
+\verb|souza_closedCostBallInLp_isCompact|,\quad
+\verb|souza_closedCostBallInL1_isCompact|
+\end{center}
+state compactness of closed cost balls in the ambient \(L^p\) topology and,
+after the finite-measure inclusion, in \(L^1\).
+\end{theorem}
+
+\begin{theorem}[Density]
+Theorems
+\begin{center}
+\verb|souzaBesovSpace_dense|,\qquad
+\verb|souzaBesovSpace_dense_inL1|
+\end{center}
+prove density of the Souza Besov space in the ambient \(L^p\) space and density
+of its image in \(L^1\).
+\end{theorem}
+
+\newpage
+
+\section{Auxiliary Files}
+
+\subsection{Distributions}
+
+The file \verb|GoodGridDistributionDefinition.lean| defines:
+\begin{itemize}
+  \item \verb|atomIndicator|: a simple-function indicator attached to a good-grid
+    cell;
+  \item \verb|atomIndicators|: the set of all such indicators;
+  \item \verb|TestFunctions|: the real submodule spanned by the indicators;
+  \item \verb|Distributions|: the algebraic dual of the test-function module.
+\end{itemize}
+
+\subsection{Block-Sum Notation}
+
+The file \verb|Sums.lean| provides reusable indexing types and notation for
+block sums:
+\begin{itemize}
+  \item \verb|BlockIndex| for global pairs \((k,Q)\);
+  \item \verb|ChildIndex| and \verb|ParentIndex| for strict descendants and
+    ancestors;
+  \item \verb|blockTsum|, \verb|childTsum|, and \verb|parentTsum|;
+  \item notation such as \verb|sum^b|, \verb|sum^+|, and \verb|sum^-| in the
+    source file.
+\end{itemize}
+
+\subsection{Repository Status}
+
+At this snapshot, a text search over the Lean files finds no \verb|sorry|,
+no \verb|admit|, and no project-local \verb|axiom| declarations.  The file
+\verb|Basic.lean| currently contains only the placeholder definition
+\verb|hello|.
+
+\newpage
+
+\section{Main Theorems}
+\label{sec:main-theorems}
+
+The most important public results currently include:
+
+\begin{itemize}
+  \item \verb|BesovishSpace.normedSpace_and_lp_embedding|:
+    structural summary for the coefficient-cost gauge and the \(L^t\)
+    embedding estimate.
+  \item \verb|smoothnessScaleBesovishSpace_subset| and
+    \verb|smoothnessScaleBesovishSpaceInclusion_Norm_Costpq_le|:
+    inclusion and norm bound for smoothness-scaled Besov-ish spaces.
+  \item \verb|representation_limit| and \verb|representation_limit_strong|:
+    weak and strong representation-limit theorems.
+  \item \verb|representation_limit_weak_existence| and
+    \verb|representation_limit_strong_existence|:
+    existence-packaged forms of the representation-limit statements.
+  \item \verb|closed_Norm_Costpq_ball_strongly_seqCompact|:
+    sequential compactness of closed cost balls in the strong \(L^p\) topology.
+  \item \verb|besovishSpace_costNorm_completeSpace|:
+    completeness of the Besov-ish space for \verb|Norm_Costpq|.
+  \item \verb|ClaimI|, \verb|ClaimII|, and \verb|ClaimIII|, plus the
+    \verb|_top| endpoint versions:
+    the weak-grid transmutation pipeline.
+  \item \verb|souzaBesovSpace_costNorm_completeSpace|,
+    \verb|souza_closedCostBallInLp_isCompact|,
+    \verb|souza_closedCostBallInL1_isCompact|,
+    \verb|souzaBesovSpace_dense|, and
+    \verb|souzaBesovSpace_dense_inL1|:
+    good-grid/Souza consequences.
+\end{itemize}
+
+\section{File Guide}
+
+\begin{itemize}
+  \item \verb|BesovSpacesGoodGrid.lean|: main library entry point.
+  \item \verb|GoodGridDefinition.lean|: good-grid structures.
+  \item \verb|WeakGridDefinition.lean|: weak-grid structures and overlap
+    estimates.
+  \item \verb|WeakGridAtomsDefinition.lean|: cells, local spaces, and atom
+    families.
+  \item \verb|WeakGridBesovishSpaces.lean|: level blocks, representations,
+    costs, Besov-ish spaces, and the cost gauge.
+  \item \verb|WeakGridScalesBesovSpaces.lean|: scaled atom families and
+    inclusions.
+  \item \verb|WeakGridCompletenessBesovishSpaces.lean|: limit, compactness, and
+    completeness theorems.
+  \item \verb|WeakGridTransmutation.lean|: transmutation objects and Claims I,
+    II, III.
+  \item \verb|GoodGridBesovSpace.lean|: Souza atoms and good-grid Besov spaces.
+  \item \verb|GoodGridDistributionDefinition.lean|: test functions and
+    distributions.
+  \item \verb|Sums.lean|: block-index and block-sum infrastructure.
+\end{itemize}
+
+\section{Conclusion}
+
+The repository now contains a substantial weak-grid atomic-decomposition
+library: it defines Besov-ish spaces, develops their coefficient-cost norm,
+proves scale, compactness, completeness, and transmutation statements, and
+specializes the theory to Souza atoms on good grids.  The most reusable API is
+currently the weak-grid layer; the good-grid files show how the abstract
+machinery is intended to specialize to concrete Besov spaces.
+
+\end{document}
