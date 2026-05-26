@@ -88,7 +88,7 @@ This is the finiteness statement behind all later truncations: once `k i ≤ j`,
 the lower affine bound in `AlmostLinearSequence` forces `i` to lie below an
 explicit constant depending on `j`.  As a result, every sum over
 `{ i | k i ≤ j }` is automatically finite. -/
-lemma almostLinearSequence_finite_le_level
+private lemma almostLinearSequence_finite_le_level
     {k : ℕ → ℕ} (hk : AlmostLinearSequence k) (j : ℕ) :
     {i : ℕ | k i ≤ j}.Finite := by
   classical
@@ -121,7 +121,7 @@ noncomputable def transmutationStabilizationIndex (A r : ℝ) (j : ℕ) : ℕ :=
 
 /-- Once the source index is beyond `transmutationStabilizationIndex A r j`, the
 almost-linear lower bound implies `j < k i`. -/
-lemma transmutation_lt_level_of_ge_stabilization
+private lemma transmutation_lt_level_of_ge_stabilization
     {k : ℕ → ℕ} {A B r : ℝ} (hr : 0 < r)
     (hk_bound : ∀ i : ℕ,
       (k i : NNReal) ≤ r * (i : NNReal) + B ∧
@@ -208,7 +208,7 @@ omit [Fact (1 ≤ u)] [Fact (1 ≤ q)] in
 /-- For a fixed target cell `P ∈ W^j`, the transmutation coefficients `m_{P,N}`
 stop changing once `N` passes the stabilization threshold determined by the
 almost-linear lower bound for `k`. -/
-lemma TransmutationCoeff_stabilizes
+private lemma TransmutationCoeff_stabilizes
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ)
@@ -304,7 +304,7 @@ lemma TransmutationCoeff_eq_limit_of_ge
 
 /-- The coefficient sequence `N ↦ m_{P,N}` converges because it is eventually
 constant. -/
-lemma TransmutationCoeff_tendsto_limit
+private lemma TransmutationCoeff_tendsto_limit
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ)
@@ -384,7 +384,7 @@ noncomputable def TransmutationAtomLocal
 
 /-- For a fixed target cell `P ∈ W^j`, the normalized local atoms `d_{P,N}`
 also stabilize once no new source levels can contribute to level `j`. -/
-lemma TransmutationAtomLocal_stabilizes
+private lemma TransmutationAtomLocal_stabilizes
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ)
@@ -471,7 +471,7 @@ noncomputable def TransmutationAtomLocalLimit
 
 /-- Beyond the stabilization threshold, the local atoms equal their stable
 limit value `d_{P,∞}`. -/
-lemma TransmutationAtomLocal_eq_limit_of_ge
+private lemma TransmutationAtomLocal_eq_limit_of_ge
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ)
@@ -515,7 +515,7 @@ noncomputable def TransmutationAtomLimit
 
 /-- The `L^p` atoms in the transmutation representation converge because they
 are eventually constant cellwise. -/
-lemma TransmutationAtom_tendsto_limit
+private lemma TransmutationAtom_tendsto_limit
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ)
@@ -556,7 +556,7 @@ lemma TransmutationAtom_tendsto_limit
     a weighted sum of AW-atoms with coefficient-norms summing to `1`;
     convexity of `AW.atoms P` (together with phase-invariance used inside
     `atom_finsum_mem`) shows the sum is still an atom. -/
-theorem TransmutationAtomLocal_isAtom
+private theorem TransmutationAtomLocal_isAtom
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
@@ -657,7 +657,7 @@ theorem TransmutationAtomLocal_isAtom
 /-- **Claim I**: `∑_j ∑_{P∈W^j} m_{P,N} · d_{P,N} = ∑_{i<N} ∑_{Q∈G^i} c_Q · h_Q` in Lp.
     Proof: exchange summation order using `h_Q = ∑_j ∑_{P⊆Q} s_{P,Q}·b_{P,Q}` (from `hR`)
     and the identity `m_{P,N} · d_{P,N} = ∑_{i<N} ∑_{Q∈G^i,P⊆Q} c_Q·s_{P,Q}·b_{P,Q}`. -/
-theorem ClaimI
+private theorem ClaimI
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ) (hk : AlmostLinearSequence k)
@@ -770,7 +770,7 @@ theorem ClaimI
 /-- Endpoint `q = ∞` version of **Claim I**.  This is the same bookkeeping
 identity as `ClaimI`, with all coefficient-cost hypotheses specialized to the
 supremum endpoint. -/
-theorem ClaimI_top
+private theorem ClaimI_top
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ) (hk : AlmostLinearSequence k)
@@ -813,7 +813,7 @@ external formula using `TransmutationAtom`.
 
 This is the bookkeeping identity
 `∑_P m_{P,N} d_{P,N}` at a fixed level. -/
-lemma transmutationBlock_toLp_eq
+private lemma transmutationBlock_toLp_eq
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
@@ -908,7 +908,7 @@ then those `Q`s form an overlap family. Hence their number is bounded by
 
 This is the geometric multiplicity used in Claim II at the step
 `(∑_{Q:P⊆Q} a_Q)^p ≤ Cmult1^p ∑_{Q:P⊆Q} a_Q^p`. -/
-lemma containing_cells_card_le_Cmult1
+private lemma containing_cells_card_le_Cmult1
     (G W : WeakGridSpace (α := α)) (i j : ℕ) (P : LevelCell W j) :
     ((G.grid.partitions i).attach.filter fun Q : LevelCell G i => P.1 ⊆ Q.1).card
       ≤ G.grid.Cmult1 := by
@@ -957,7 +957,7 @@ target cell.
 
 This is the formal version of the Claim II step
 `(∑_{Q:P⊆Q} a_Q)^p ≤ Cmult1^p ∑_{Q:P⊆Q} a_Q^p`. -/
-lemma containing_cells_sum_rpow_le_Cmult1
+private lemma containing_cells_sum_rpow_le_Cmult1
     (G W : WeakGridSpace (α := α)) (i j : ℕ) (P : LevelCell W j)
     (a : LevelCell G i → ℝ)
     (hp_ne_top : p ≠ ∞)
@@ -1007,7 +1007,7 @@ lemma containing_cells_sum_rpow_le_Cmult1
 
 /-- Fixed-source-level estimate after applying the multiplicity bound to each
 target cell and exchanging the finite sums. -/
-lemma transmutation_fixed_i_power_bound
+private  lemma transmutation_fixed_i_power_bound
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
@@ -1090,7 +1090,7 @@ is controlled by three factors:
 
 This is the local estimate that later gets summed in `i` by Minkowski and then
 reorganized into the convolution bound. -/
-lemma transmutation_fixed_i_root_bound
+private lemma transmutation_fixed_i_root_bound
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ) (hk : AlmostLinearSequence k)
@@ -1230,7 +1230,7 @@ The statement is the discrete finite version of the estimate
 It is used repeatedly when the transmutation coefficients are written as finite
 sums over source levels and one wants to separate the contribution of each
 level before passing to infinite sums. -/
-lemma finset_Lp_sum_le_sum_Lp
+private lemma finset_Lp_sum_le_sum_Lp
     {ι κ : Type*} (S : Finset ι) (T : Finset κ) (a : ι → κ → ℝ)
     (hp_ne_top : p ≠ ∞)
     (ha_nonneg : ∀ i ∈ S, ∀ k ∈ T, 0 ≤ a i k) :
@@ -1295,7 +1295,7 @@ summability.
 
 This is the basic reindexing fact needed when source levels are split into
 residue classes modulo `alpha = ceil r`. -/
-lemma summable_arithProg_comp {f : ℕ → ℝ} (hf : Summable f) {a b : ℕ} (ha : 0 < a) :
+private lemma summable_arithProg_comp {f : ℕ → ℝ} (hf : Summable f) {a b : ℕ} (ha : 0 < a) :
     Summable (fun n => f (b + a * n)) := by
   exact hf.comp_injective (arithProg_injective ha)
 
@@ -1305,7 +1305,7 @@ is bounded by the full sum.
 This is the monotonicity input used after decomposing indices into residue
 classes: each class captures only part of the original sequence, so its total
 mass cannot exceed the whole mass. -/
-lemma tsum_arithProg_le {f : ℕ → ℝ} (hf : Summable f) (hf_nonneg : ∀ n, 0 ≤ f n)
+private  lemma tsum_arithProg_le {f : ℕ → ℝ} (hf : Summable f) (hf_nonneg : ∀ n, 0 ≤ f n)
     {a b : ℕ} (ha : 0 < a) :
     (∑' n, f (b + a * n)) ≤ ∑' n, f n := by
   let phi : ℕ → ℕ := fun n => b + a * n
@@ -1337,7 +1337,7 @@ total sum.
 
 This abstract form is used several times to compare a sum over a subset or over
 a reindexed copy with the original ambient sum. -/
-lemma tsum_comp_le_tsum_of_injective
+private lemma tsum_comp_le_tsum_of_injective
     {ι κ : Type*} [Encodable ι] [Encodable κ]
     {f : κ → ℝ} (hf : Summable f) (hf_nonneg : ∀ x, 0 ≤ f x)
     {phi : ι → κ} (hphi : Function.Injective phi) :
@@ -1370,7 +1370,7 @@ If every term in a finite family is between `0` and `C`, then its `ℓ^q` norm i
 at most `card^(1/q) * C`.  In this file the lemma is used to pay for the finite
 number of residue classes appearing in the almost-linear decomposition, which is
 why the factor `(Nat.ceil r)^(1/q)` appears in the final estimates. -/
-lemma finset_Lq_le_card_rpow_mul_bound {ι : Type*} (S : Finset ι) (a : ι → ℝ) (C : ℝ)
+private lemma finset_Lq_le_card_rpow_mul_bound {ι : Type*} (S : Finset ι) (a : ι → ℝ) (C : ℝ)
     (ha_nonneg : ∀ i ∈ S, 0 ≤ a i) (ha_le : ∀ i ∈ S, a i ≤ C)
     (hC_nonneg : 0 ≤ C) (hq_ne_top : q ≠ ∞) :
     (∑ i ∈ S, a i ^ q.toReal) ^ (1 / q.toReal) ≤ (S.card : ℝ) ^ (1 / q.toReal) * C := by
@@ -1414,7 +1414,7 @@ It is the place where all local ingredients are assembled:
 The output is already in the form needed for the later convolution argument:
 each source level contributes a term weighted by
 `lam^((j-k i)/p) * CoeffPLevel(G,c,i)^(1/p)`. -/
-lemma transmutation_level_bound
+private lemma transmutation_level_bound
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ) (hk : AlmostLinearSequence k)
@@ -1587,7 +1587,7 @@ noncomputable def cCoefficientInt (t q : ℝ≥0∞) (b : ℤ → ℝ) : ℝ :=
     (∑' k : ℤ, b k ^ (q'.toReal / t.toReal)) ^ (1 / q'.toReal)
 
 /-- Nonnegativity of the integer-indexed coefficient-cost function. -/
-theorem cCoefficientInt_nonneg (t q : ℝ≥0∞) (b : ℤ → ℝ)
+private theorem cCoefficientInt_nonneg (t q : ℝ≥0∞) (b : ℤ → ℝ)
     (hb_nonneg : ∀ k, 0 ≤ b k) :
     0 ≤ cCoefficientInt t q b := by
   unfold cCoefficientInt
@@ -1610,7 +1610,7 @@ noncomputable def transmutationKernelZ (lam A r : ℝ) : ℤ → ℝ :=
 
 The positive side is geometric.  The negative side is finite because the
 paper's cutoff `n > A / r - 1` excludes all sufficiently negative integers. -/
-lemma transmutationKernelZ_root_summable
+private lemma transmutationKernelZ_root_summable
     (lam A r : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1) (hr : 0 < r)
     (hp_pos : 0 < p.toReal) :
     Summable fun n : ℤ => (transmutationKernelZ lam A r n) ^ (1 / p.toReal) := by
@@ -1693,19 +1693,19 @@ noncomputable def extendNatToInt (f : ℕ → ℝ) : ℤ → ℝ :=
   fun z => if hz : 0 ≤ z then f z.toNat else 0
 
 /-- On nonnegative integers, `extendNatToInt` agrees with the original sequence. -/
-lemma extendNatToInt_ofNat (f : ℕ → ℝ) (n : ℕ) :
+private lemma extendNatToInt_ofNat (f : ℕ → ℝ) (n : ℕ) :
     extendNatToInt f n = f n := by
   simp [extendNatToInt]
 
 /-- On strictly negative integers, `extendNatToInt` is zero. -/
-lemma extendNatToInt_negSucc (f : ℕ → ℝ) (n : ℕ) :
+private lemma extendNatToInt_negSucc (f : ℕ → ℝ) (n : ℕ) :
     extendNatToInt f (-(n + 1 : ℤ)) = 0 := by
   dsimp [extendNatToInt]
   rw [if_neg]
   omega
 
 /-- Nonnegativity is preserved by the extension from `ℕ` to `ℤ`. -/
-lemma extendNatToInt_nonneg {f : ℕ → ℝ} (hf : ∀ n, 0 ≤ f n) :
+private lemma extendNatToInt_nonneg {f : ℕ → ℝ} (hf : ∀ n, 0 ≤ f n) :
     ∀ z : ℤ, 0 ≤ extendNatToInt f z := by
   intro z
   dsimp [extendNatToInt]
@@ -1714,7 +1714,7 @@ lemma extendNatToInt_nonneg {f : ℕ → ℝ} (hf : ∀ n, 0 ≤ f n) :
   · exact le_rfl
 
 /-- A summable sequence on `ℕ` remains summable after zero-extension to `ℤ`. -/
-lemma summable_extendNatToInt {f : ℕ → ℝ} (hf : Summable f) :
+private lemma summable_extendNatToInt {f : ℕ → ℝ} (hf : Summable f) :
     Summable (extendNatToInt f) := by
   have hpos : Summable fun n : ℕ => extendNatToInt f n := by
     simpa [extendNatToInt_ofNat] using hf
@@ -1728,7 +1728,7 @@ lemma summable_extendNatToInt {f : ℕ → ℝ} (hf : Summable f) :
 
 /-- The total sum of the zero-extension to `ℤ` is the same as the original sum
 on `ℕ`. -/
-lemma tsum_extendNatToInt {f : ℕ → ℝ} (hf : Summable f) :
+private lemma tsum_extendNatToInt {f : ℕ → ℝ} (hf : Summable f) :
     (∑' z : ℤ, extendNatToInt f z) = ∑' n : ℕ, f n := by
   have hpos : Summable fun n : ℕ => extendNatToInt f n := by
     simpa [extendNatToInt_ofNat] using hf
@@ -1772,7 +1772,7 @@ noncomputable def outputClassEll (r : ℝ) (k : ℕ) : ℕ :=
   Nat.floor ((k : ℝ) - r * (outputClassJ r k : ℝ))
 
 /-- Lower bound saying that `outputClassJ r k` does not overshoot `k / r`. -/
-lemma outputClassJ_lower (r : ℝ) (hr : 0 < r) (k : ℕ) :
+private lemma outputClassJ_lower (r : ℝ) (hr : 0 < r) (k : ℕ) :
     r * (outputClassJ r k : ℝ) ≤ (k : ℝ) := by
   have hdiv_nonneg : 0 ≤ (k : ℝ) / r := div_nonneg (Nat.cast_nonneg k) hr.le
   have hj_le : (outputClassJ r k : ℝ) ≤ (k : ℝ) / r := by
@@ -1785,7 +1785,7 @@ lemma outputClassJ_lower (r : ℝ) (hr : 0 < r) (k : ℕ) :
       field_simp [hr.ne']
 
 /-- Upper bound saying that `outputClassJ r k` is the largest integer below `k / r`. -/
-lemma outputClassJ_upper (r : ℝ) (hr : 0 < r) (k : ℕ) :
+private lemma outputClassJ_upper (r : ℝ) (hr : 0 < r) (k : ℕ) :
     (k : ℝ) < r * (((outputClassJ r k) + 1 : ℕ) : ℝ) := by
   have hj_lt : (k : ℝ) / r < (outputClassJ r k : ℝ) + 1 := by
     simpa [outputClassJ] using Nat.lt_floor_add_one ((k : ℝ) / r)
@@ -1801,7 +1801,7 @@ lemma outputClassJ_upper (r : ℝ) (hr : 0 < r) (k : ℕ) :
 /-- The paper's class decomposition: every output level `k` is hit by the
 candidate `kout ell j = ceil (r*j + ell)` for its canonical class `ell` and
 block index `j`, and the class is one of the `ceil r` classes. -/
-lemma outputClass_spec (r : ℝ) (hr : 0 < r) (k : ℕ) :
+private lemma outputClass_spec (r : ℝ) (hr : 0 < r) (k : ℕ) :
     outputClassEll r k < Nat.ceil r ∧
       Nat.ceil (r * (outputClassJ r k : ℝ) + (outputClassEll r k : ℝ)) = k ∧
       (k : ℝ) < r * (((outputClassJ r k) + 1 : ℕ) : ℝ) := by
@@ -1867,7 +1867,7 @@ The proof follows the paper's strategy closely:
 The conclusion has two parts: summability of the target sequence, and the final
 norm estimate with the explicit convolution constant
 `LpGridRepresentation.cCoefficientInt p ∞ (transmutationKernelZ lam A_als r_als)`. -/
-lemma transmutation_convolution_bound
+private lemma transmutation_convolution_bound
     (k : ℕ → ℕ)
     (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
   (A_als B_als r_als : ℝ ) (hr_als : 0 < r_als)
@@ -3117,7 +3117,7 @@ Conceptually, the proof has only two inputs:
   convolution sequence;
 2. `transmutation_convolution_bound`, which proves that this convolution
   sequence has finite `(p,q)` cost. -/
-lemma transmutationBlock_abstractFinitePQCost
+private lemma transmutationBlock_abstractFinitePQCost
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ) (hk : AlmostLinearSequence k)
@@ -3238,7 +3238,7 @@ lemma transmutationBlock_abstractFinitePQCost
     hypotheses, so the meaning of the final bound is transparent at the point of
     use: once one has chosen concrete almost-linear bounds for `k`, the same
     data appear directly in the output estimate. -/
-theorem ClaimII
+private theorem ClaimII
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ)
@@ -3500,7 +3500,7 @@ For every `N`, the transmutation blocks form a representation of the truncated
 source expansion, and their `ℓ∞` coefficient cost is controlled by the source
 `ℓ∞` coefficient cost and the same integer-kernel constant as in the finite
 `q` case. -/
-theorem ClaimII_top
+private theorem ClaimII_top
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ)
@@ -3769,7 +3769,7 @@ noncomputable def TransmutationBlockLimit
 /-- Real `pqCost` bounds for a finite-cost representation imply the same bound
 for the extended `ENNReal` coefficient cost.  This is the public local version
 of the conversion used by the completeness machinery. -/
-lemma pqCostENNReal_le_of_finitePQCost_pqCost_le
+private lemma pqCostENNReal_le_of_finitePQCost_pqCost_le
   (W : WeakGridSpace (α := α))
   {A : AtomFamily W s p u} {g : Lp ℂ p W.measure} {C : ℝ}
     (R : LpGridRepresentation A g)
@@ -3803,7 +3803,8 @@ Formally, the limit block sequence is `TransmutationBlockLimit`; the theorem
 states that its block sum converges in `L^p`, defines a Besov-ish element, and
 that the truncated source sums `PartialSumLevels ... N` converge strongly to the
 same limit. -/
-theorem ClaimIII
+
+theorem Transmutation_of_Atoms_Claim_A
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ)
@@ -3902,7 +3903,7 @@ theorem ClaimIII
   exact ⟨gLim, hRlim, hmem, hg_tendsto⟩
 
 /-- Endpoint `q = ∞` version of **Claim III**. -/
-theorem ClaimIII_top
+theorem Transmutation_of_Atoms_Claim_A_top
     (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ)
