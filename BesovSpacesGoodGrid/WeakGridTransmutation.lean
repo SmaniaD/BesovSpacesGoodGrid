@@ -1,6 +1,7 @@
 import BesovSpacesGoodGrid.WeakGridAtomsDefinition
 import BesovSpacesGoodGrid.WeakGridBesovishSpaces
 import BesovSpacesGoodGrid.WeakGridCompletenessBesovishSpaces
+import Mathlib.MeasureTheory.Function.ConvergenceInMeasure
 import Mathlib.MeasureTheory.Function.LpSpace.Basic
 import Mathlib.Analysis.Normed.Group.InfiniteSum
 import Mathlib.Analysis.Convex.Combination
@@ -4146,6 +4147,318 @@ theorem transmutationCoeff_support_witness
       exact hnot ⟨hc, r, hr_pos, hr_coeff⟩
     simp [hr_coeff, hr_zero]
 
+omit [Fact (1 ≤ u)] [Fact (1 ≤ q)] in
+/-- Under the positive representation hypothesis, every single pointwise block
+term is a nonnegative real number. -/
+private lemma positiveRepresentation_term_eq_nnreal
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS_pos (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    {i n : ℕ} (Q : LevelCell G i) (S : LevelCell W n) (x : α) :
+    ∃ a : NNReal,
+      ((R i Q).block n).coeff S *
+        AW.toFunction (levelCellToWeakGridCell W n S) (((R i Q).block n).atom S) x =
+          (a : ℂ) := by
+  rcases ((hR i Q).2.1 n S).2.2 with ⟨r, hr_coeff, hatom_pos⟩
+  by_cases hxS : x ∈ S.1
+  · rcases hatom_pos x hxS with ⟨a, _ha_pos, ha_atom⟩
+    refine ⟨r * a, ?_⟩
+    simp [hr_coeff, ha_atom]
+  · refine ⟨0, ?_⟩
+    have hatom_zero :
+        AW.toFunction (levelCellToWeakGridCell W n S) (((R i Q).block n).atom S) x = 0 := by
+      simpa [levelCellToWeakGridCell] using
+        AW.local_support (levelCellToWeakGridCell W n S) (((R i Q).block n).atom S) x hxS
+    simp [hatom_zero]
+
+omit [Fact (1 ≤ u)] [Fact (1 ≤ q)] in
+/-- The distinguished positive coefficient gives a strictly positive pointwise
+term on its target cell. -/
+private lemma positiveRepresentation_distinguished_term_pos
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS_pos (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    {i j : ℕ} {Q : LevelCell G i} {P : LevelCell W j}
+    (hcoeff_pos : ∃ r : NNReal, 0 < r ∧ ((R i Q).block j).coeff P = (r : ℂ))
+    {x : α} (hxP : x ∈ P.1) :
+    ∃ a : NNReal, 0 < a ∧
+      ((R i Q).block j).coeff P *
+        AW.toFunction (levelCellToWeakGridCell W j P) (((R i Q).block j).atom P) x =
+          (a : ℂ) := by
+  rcases hcoeff_pos with ⟨r, hr_pos, hr_coeff⟩
+  rcases ((hR i Q).2.1 j P).2.2 with ⟨r', hr'_coeff, hatom_pos⟩
+  rcases hatom_pos x hxP with ⟨a, ha_pos, ha_atom⟩
+  have hr_eq : r' = r := by
+    have hcast : (r' : ℂ) = (r : ℂ) := hr'_coeff.symm.trans hr_coeff
+    exact_mod_cast hcast
+  subst r'
+  refine ⟨r * a, mul_pos hr_pos ha_pos, ?_⟩
+  simp [hr_coeff, ha_atom]
+
+omit [Fact (1 ≤ u)] [Fact (1 ≤ q)] in
+/-- Under the positive representation hypothesis, every pointwise level-block
+sum is a nonnegative real number. -/
+private lemma positiveRepresentation_block_toFunLt_eq_nnreal
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS_pos (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    {i n : ℕ} (Q : LevelCell G i) (x : α) :
+    ∃ a : NNReal, ((R i Q).block n).toFunLt AW x = (a : ℂ) := by
+  classical
+  have hterm :
+      ∀ S : LevelCell W n, ∃ a : NNReal,
+        ((R i Q).block n).coeff S *
+          AW.toFunction (levelCellToWeakGridCell W n S) (((R i Q).block n).atom S) x =
+            (a : ℂ) := by
+    intro S
+    exact positiveRepresentation_term_eq_nnreal
+      G W AW k A_als B_als r_als hr_als hk_bound lam hlam_pos hlam_lt C hC h R hR Q S x
+  choose a ha using hterm
+  refine ⟨∑ S : LevelCell W n, a S, ?_⟩
+  simp [LevelBlock.toFunLt, ha]
+
+omit [Fact (1 ≤ u)] [Fact (1 ≤ q)] in
+/-- On the target cell of a strictly positive coefficient, the corresponding
+level-block value is a nonnegative real bounded below by a positive real. -/
+private lemma positiveRepresentation_distinguished_block_lower
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS_pos (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    {i j : ℕ} {Q : LevelCell G i} {P : LevelCell W j}
+    (hcoeff_pos : ∃ r : NNReal, 0 < r ∧ ((R i Q).block j).coeff P = (r : ℂ))
+    {x : α} (hxP : x ∈ P.1) :
+    ∃ a b : NNReal, 0 < b ∧ b ≤ a ∧ ((R i Q).block j).toFunLt AW x = (a : ℂ) := by
+  classical
+  rcases positiveRepresentation_distinguished_term_pos
+      G W AW k A_als B_als r_als hr_als hk_bound lam hlam_pos hlam_lt C hC h R hR
+      hcoeff_pos hxP with
+    ⟨b, hb_pos, hb_term⟩
+  have hterm :
+      ∀ S : LevelCell W j, ∃ a : NNReal,
+        ((R i Q).block j).coeff S *
+          AW.toFunction (levelCellToWeakGridCell W j S) (((R i Q).block j).atom S) x =
+            (a : ℂ) := by
+    intro S
+    exact positiveRepresentation_term_eq_nnreal
+      G W AW k A_als B_als r_als hr_als hk_bound lam hlam_pos hlam_lt C hC h R hR Q S x
+  choose a ha using hterm
+  have haP : a P = b := by
+    have hcast : (a P : ℂ) = (b : ℂ) := (ha P).symm.trans hb_term
+    exact_mod_cast hcast
+  refine ⟨∑ S : LevelCell W j, a S, b, hb_pos, ?_, ?_⟩
+  · rw [← haP]
+    exact Finset.single_le_sum (fun S _ => bot_le) (Finset.mem_univ P)
+  · simp [LevelBlock.toFunLt, ha]
+
+omit [Fact (1 ≤ u)] [Fact (1 ≤ q)] in
+/-- Once the finite partial block sum contains the distinguished level, its
+pointwise value on the target cell is bounded below by one fixed positive real. -/
+private lemma positiveRepresentation_partial_toFun_lower
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS_pos (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    {i j : ℕ} {Q : LevelCell G i} {P : LevelCell W j}
+    (hcoeff_pos : ∃ r : NNReal, 0 < r ∧ ((R i Q).block j).coeff P = (r : ℂ))
+    {x : α} (hxP : x ∈ P.1) :
+    ∃ b : NNReal, 0 < b ∧ ∀ N, j < N →
+      ∃ a : NNReal, b ≤ a ∧
+        (∑ n ∈ Finset.range N, ((R i Q).block n).toFunLt AW x) = (a : ℂ) := by
+  classical
+  have hblock :
+      ∀ n : ℕ, ∃ a : NNReal, ((R i Q).block n).toFunLt AW x = (a : ℂ) := by
+    intro n
+    exact positiveRepresentation_block_toFunLt_eq_nnreal
+      G W AW k A_als B_als r_als hr_als hk_bound lam hlam_pos hlam_lt C hC h R hR Q x
+  choose a ha using hblock
+  rcases positiveRepresentation_distinguished_block_lower
+      G W AW k A_als B_als r_als hr_als hk_bound lam hlam_pos hlam_lt C hC h R hR
+      hcoeff_pos hxP with
+    ⟨aj, b, hb_pos, hb_le_aj, haj⟩
+  have haj_eq : a j = aj := by
+    have hcast : (a j : ℂ) = (aj : ℂ) := (ha j).symm.trans haj
+    exact_mod_cast hcast
+  refine ⟨b, hb_pos, ?_⟩
+  intro N hN
+  refine ⟨∑ n ∈ Finset.range N, a n, ?_, ?_⟩
+  · have hj_mem : j ∈ Finset.range N := Finset.mem_range.mpr hN
+    exact hb_le_aj.trans (by
+      rw [← haj_eq]
+      exact Finset.single_le_sum (fun n _ => bot_le) hj_mem)
+  · simp [ha]
+
+/-- A positive block representation gives a positive representative a.e. on any
+target cell whose coefficient is strictly positive.
+
+This is the analytic bridge needed by Claim B: the positive representation
+hypothesis is stated at the level of block atoms, while Claim B wants positivity
+for the represented `Lp` function. -/
+private lemma positiveRepresentation_source_ae_pos_of_pos_coeff
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS_pos (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    {i j : ℕ} {Q : LevelCell G i} {P : LevelCell W j}
+    (hcoeff_pos : ∃ r : NNReal, 0 < r ∧ ((R i Q).block j).coeff P = (r : ℂ)) :
+    ∀ᵐ x ∂ W.measure.restrict P.1,
+      ∃ r : NNReal, 0 < r ∧ h i Q x = (r : ℂ) := by
+  classical
+  let partialSum : ℕ → Lp ℂ p W.measure :=
+    fun N => ∑ n ∈ Finset.range N, ((R i Q).block n).toLp AW
+  have hpartial_tendsto : Tendsto partialSum atTop (𝓝 (h i Q)) := by
+    simpa [partialSum] using (R i Q).hasSum.tendsto_sum_nat
+  have hpartial_coe : ∀ N : ℕ,
+      (partialSum N : α → ℂ) =ᵐ[W.measure]
+        fun x => ∑ n ∈ Finset.range N, ((R i Q).block n).toFunLt AW x := by
+    intro N
+    induction' N with N ih
+    · simpa [partialSum] using (Lp.coeFn_zero ℂ p W.measure)
+    · have hblock :
+          (((R i Q).block N).toLp AW : α → ℂ) =ᵐ[W.measure]
+            fun x => ((R i Q).block N).toFunLt AW x :=
+        LevelBlock.coeFn_toLp AW ((R i Q).block N)
+      have hsum := ih.add hblock
+      have hLp :
+          partialSum (N + 1) =
+            partialSum N + ((R i Q).block N).toLp AW := by
+        simp [partialSum, Finset.sum_range_succ]
+      rw [hLp]
+      refine (Lp.coeFn_add _ _).trans ?_
+      refine hsum.trans ?_
+      filter_upwards with x
+      simp [Finset.sum_range_succ, add_comm]
+  have htendsto_measure :
+      TendstoInMeasure W.measure (fun N => partialSum N) atTop (h i Q) :=
+    tendstoInMeasure_of_tendsto_Lp hpartial_tendsto
+  rcases htendsto_measure.exists_seq_tendsto_ae with ⟨φ, hφ_mono, hφ_tendsto_ae⟩
+  have hφ_tendsto_restrict :
+      ∀ᵐ x ∂ W.measure.restrict P.1,
+        Tendsto (fun m => partialSum (φ m) x) atTop (𝓝 (h i Q x)) :=
+    ae_restrict_of_ae hφ_tendsto_ae
+  have hcoe_restrict :
+      ∀ᵐ x ∂ W.measure.restrict P.1, ∀ m : ℕ,
+        partialSum (φ m) x =
+          ∑ n ∈ Finset.range (φ m), ((R i Q).block n).toFunLt AW x := by
+    have hsets :
+        (⋂ m : ℕ, {x : α |
+          partialSum (φ m) x =
+            ∑ n ∈ Finset.range (φ m), ((R i Q).block n).toFunLt AW x}) ∈
+          ae (W.measure.restrict P.1) := by
+      exact countable_iInter_mem.mpr fun m => ae_restrict_of_ae (hpartial_coe (φ m))
+    filter_upwards [hsets] with x hx m
+    exact Set.mem_iInter.mp hx m
+  have hP_meas : MeasurableSet P.1 := W.grid.measurable j P.1 P.2
+  filter_upwards [ae_restrict_mem hP_meas, hφ_tendsto_restrict, hcoe_restrict] with
+    x hxP hxlim hxcoe
+  rcases positiveRepresentation_partial_toFun_lower
+      G W AW k A_als B_als r_als hr_als hk_bound lam hlam_pos hlam_lt C hC h R hR
+      hcoeff_pos hxP with
+    ⟨b, hb_pos, hb_lower⟩
+  have hφ_large : ∀ᶠ m in atTop, j < φ m := by
+    exact (hφ_mono.tendsto_atTop.eventually (eventually_gt_atTop j))
+  have hre_eventually :
+      ∀ᶠ m in atTop, (b : ℝ) ≤ (partialSum (φ m) x).re := by
+    filter_upwards [hφ_large] with m hm
+    rcases hb_lower (φ m) hm with ⟨a, hba, hsum_eq⟩
+    have hpartial_eq : partialSum (φ m) x = (a : ℂ) := by
+      rw [hxcoe m, hsum_eq]
+    rw [hpartial_eq]
+    exact_mod_cast hba
+  have him_eventually :
+      (fun m => (partialSum (φ m) x).im) =ᶠ[atTop] fun _ => (0 : ℝ) := by
+    filter_upwards [hφ_large] with m hm
+    rcases hb_lower (φ m) hm with ⟨a, _hba, hsum_eq⟩
+    have hpartial_eq : partialSum (φ m) x = (a : ℂ) := by
+      rw [hxcoe m, hsum_eq]
+    simp [hpartial_eq]
+  have hre_lim : (b : ℝ) ≤ (h i Q x).re := by
+    have hre_tendsto :
+        Tendsto (fun m => (partialSum (φ m) x).re) atTop (𝓝 ((h i Q x).re)) :=
+      (Complex.continuous_re.tendsto (h i Q x)).comp hxlim
+    exact ge_of_tendsto hre_tendsto hre_eventually
+  have him_lim : (h i Q x).im = 0 := by
+    have him_tendsto_zero :
+        Tendsto (fun m => (partialSum (φ m) x).im) atTop (𝓝 (0 : ℝ)) :=
+      him_eventually.tendsto
+    have him_tendsto :
+        Tendsto (fun m => (partialSum (φ m) x).im) atTop (𝓝 ((h i Q x).im)) :=
+      (Complex.continuous_im.tendsto (h i Q x)).comp hxlim
+    exact tendsto_nhds_unique him_tendsto him_tendsto_zero
+  have hb_nonneg : (0 : ℝ) ≤ (b : ℝ) := by
+    exact_mod_cast hb_pos.le
+  have hb_real_pos : (0 : ℝ) < (b : ℝ) := by
+    exact_mod_cast hb_pos
+  refine ⟨⟨(h i Q x).re, ?_⟩, ?_, ?_⟩
+  · exact le_trans hb_nonneg hre_lim
+  · exact lt_of_lt_of_le hb_real_pos hre_lim
+  · apply Complex.ext
+    · rfl
+    · simp [him_lim]
+
 /-- **Claim B** from the transmutation proposition.
 
 Besides the limiting transmutation statement, this formulation records the
@@ -4169,7 +4482,6 @@ theorem Transmutation_of_Atoms_Claim_B (G W : WeakGridSpace (α := α))
       ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
     (c : (i : ℕ) → LevelCell G i → ℂ)
     (hc : CoeffFinitePQCost (p := p) (q := q) G c)
-    (hq_ne_top : q ≠ ∞)
     (hG2_W : AssumptionG2 W s p u q)
     (hp_ne_top : p ≠ ∞)
     (hs_pos : 0 < s) :
@@ -4179,14 +4491,549 @@ theorem Transmutation_of_Atoms_Claim_B (G W : WeakGridSpace (α := α))
       Tendsto (fun N => PartialSumLevels G W h c N) atTop (𝓝 gLim)) ∧
     (∀ j : ℕ, ∀ P : LevelCell W j,
       TransmutationCoeffLimit G W AW h R c A_als r_als P ≠ 0 →
-      (∀ x, x ∈ P.1 →
+      (∃ x, x ∈ P.1 →
         AW.toFunction (levelCellToWeakGridCell W j P)
           (TransmutationAtomLocalLimit G W AW h R c A_als r_als P) x ≠ 0) →
         ∃ i ∈ Finset.range (transmutationStabilizationIndex A_als r_als j),
           ∃ Q ∈ (G.grid.partitions i).attach,
           P.1 ⊆ Q.1 ∧ c i Q ≠ 0 ∧
-            ∃ r : NNReal, 0 < r ∧ ((R i Q).block j).coeff P = (r : ℂ)) := by
-  let K : ℝ :=
+            ∃ r : NNReal, 0 < r ∧ ((R i Q).block j).coeff P = (r : ℂ) ∧
+              ∀ᵐ x ∂ W.measure.restrict P.1,
+                ∃ r : NNReal, 0 < r ∧ h i Q x = (r : ℂ)) := by
+  have hR_plain : RepresentationWsubGandALS (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R := by
+    intro i Q
+    rcases hR i Q with ⟨hfin, hloc, hdecay⟩
+    refine ⟨hfin, ?_, hdecay⟩
+    intro j S
+    exact ⟨(hloc j S).1, (hloc j S).2.1⟩
+  constructor
+  · by_cases hq_top : q = ∞
+    · subst q
+      exact Transmutation_of_Atoms_Claim_A_top G W AW k A_als B_als r_als hr_als hk_bound
+        lam hlam_pos hlam_lt C hC h R hR_plain c hc hG2_W hp_ne_top hs_pos
+    · exact Transmutation_of_Atoms_Claim_A G W AW k A_als B_als r_als hr_als hk_bound
+        lam hlam_pos hlam_lt C hC h R hR_plain c hc hq_top hG2_W hp_ne_top hs_pos
+  · intro j P hm _hd_nonzero
+    rcases transmutationCoeff_support_witness G W AW k A_als B_als r_als hr_als hk_bound
+      lam hlam_pos hlam_lt C hC h R hR c
+      (transmutationStabilizationIndex A_als r_als j) P
+      (by simpa [TransmutationCoeffLimit] using hm) with
+      ⟨i, hi, Q, hQ, hPQ, hcQ, r, hr_pos, hr_coeff⟩
+    refine ⟨i, hi, Q, hQ, hPQ, hcQ, r, hr_pos, hr_coeff, ?_⟩
+    exact positiveRepresentation_source_ae_pos_of_pos_coeff
+      G W AW k A_als B_als r_als hr_als hk_bound lam hlam_pos hlam_lt C hC h R hR
+      ⟨r, hr_pos, hr_coeff⟩
+
+omit [Fact (1 ≤ u)] [Fact (1 ≤ q)] in
+/-- Under nonnegative source coefficients, a nonzero limiting mass gives a
+pointwise nonzero limiting atom on the target cell. -/
+private lemma TransmutationAtomLocalLimit_ne_zero_of_coeff_ne_zero
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS_pos (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (hc_nonneg : ∀ i : ℕ, ∀ Q : LevelCell G i, ∃ r : NNReal, c i Q = (r : ℂ))
+    {j : ℕ} (P : LevelCell W j)
+    (hm : TransmutationCoeffLimit G W AW h R c A_als r_als P ≠ 0)
+    {x : α} (hxP : x ∈ P.1) :
+    AW.toFunction (levelCellToWeakGridCell W j P)
+      (TransmutationAtomLocalLimit G W AW h R c A_als r_als P) x ≠ 0 := by
+  classical
+  let N := transmutationStabilizationIndex A_als r_als j
+  let m := TransmutationCoeff G W AW h R c N P
+  let Pg := levelCellToWeakGridCell W j P
+  let FS : Finset (Σ i : ℕ, LevelCell G i) :=
+    (Finset.range N).sigma
+      (fun i => (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1))
+  have hmN : m ≠ 0 := by
+    simpa [m, N, TransmutationCoeffLimit] using hm
+  rcases transmutationCoeff_support_witness
+      G W AW k A_als B_als r_als hr_als hk_bound lam hlam_pos hlam_lt C hC h R hR c
+      N P (by simpa [N, TransmutationCoeffLimit] using hm) with
+    ⟨i₀, hi₀, Q₀, hQ₀, hP_sub_Q₀, hcQ₀_ne, r₀, hr₀_pos, hr₀_coeff⟩
+  let iQ₀ : Σ i : ℕ, LevelCell G i := ⟨i₀, Q₀⟩
+  have hiQ₀_mem : iQ₀ ∈ FS := by
+    simp [FS, iQ₀, hi₀, hQ₀, hP_sub_Q₀]
+  have hterm :
+      ∀ iQ : Σ i : ℕ, LevelCell G i, ∃ a : NNReal,
+        (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P) *
+          AW.toFunction Pg (((R iQ.1 iQ.2).block j).atom P) x = (a : ℂ) := by
+    intro iQ
+    rcases hc_nonneg iQ.1 iQ.2 with ⟨rc, hrc_eq⟩
+    rcases ((hR iQ.1 iQ.2).2.1 j P).2.2 with ⟨rs, hrs_eq, hatom_pos⟩
+    rcases hatom_pos x hxP with ⟨a, _ha_pos, ha_eq⟩
+    refine ⟨rc * rs * a, ?_⟩
+    simp [Pg, hrc_eq, hrs_eq, ha_eq, mul_assoc]
+  choose a ha using hterm
+  have hdist :
+      ∃ b : NNReal, 0 < b ∧
+        (c i₀ Q₀ * ((R i₀ Q₀).block j).coeff P) *
+          AW.toFunction Pg (((R i₀ Q₀).block j).atom P) x = (b : ℂ) := by
+    rcases hc_nonneg i₀ Q₀ with ⟨rc, hrc_eq⟩
+    have hrc_pos : 0 < rc := by
+      have hrc_ne : rc ≠ 0 := by
+        intro hrc_zero
+        apply hcQ₀_ne
+        simp [hrc_eq, hrc_zero]
+      exact lt_of_le_of_ne bot_le (Ne.symm hrc_ne)
+    rcases ((hR i₀ Q₀).2.1 j P).2.2 with ⟨rs, hrs_eq, hatom_pos⟩
+    have hrs_eq_r₀ : rs = r₀ := by
+      have hcast : (rs : ℂ) = (r₀ : ℂ) := hrs_eq.symm.trans hr₀_coeff
+      exact_mod_cast hcast
+    rcases hatom_pos x hxP with ⟨b, hb_pos, hb_eq⟩
+    refine ⟨rc * r₀ * b, mul_pos (mul_pos hrc_pos hr₀_pos) hb_pos, ?_⟩
+    subst rs
+    simp [Pg, hrc_eq, hr₀_coeff, hb_eq, mul_assoc]
+  rcases hdist with ⟨b, hb_pos, hb_eq⟩
+  have ha_iQ₀_pos : 0 < a iQ₀ := by
+    have hcast : (a iQ₀ : ℂ) = (b : ℂ) := by
+      simpa [iQ₀] using (ha iQ₀).symm.trans hb_eq
+    have hab : a iQ₀ = b := by
+      exact_mod_cast hcast
+    simpa [hab] using hb_pos
+  have hsum_pos : 0 < ∑ iQ ∈ FS, a iQ :=
+    Finset.sum_pos' (fun iQ _ => bot_le) ⟨iQ₀, hiQ₀_mem, ha_iQ₀_pos⟩
+  have hsum_eq :
+      (∑ iQ ∈ FS,
+        (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P) *
+          AW.toFunction Pg (((R iQ.1 iQ.2).block j).atom P) x) =
+        ((∑ iQ ∈ FS, a iQ : NNReal) : ℂ) := by
+    simp [ha]
+  have hfun :
+      AW.toFunction Pg (TransmutationAtomLocalLimit G W AW h R c A_als r_als P) x =
+        (m : ℂ)⁻¹ *
+          ∑ iQ ∈ FS,
+            (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P) *
+              AW.toFunction Pg (((R iQ.1 iQ.2).block j).atom P) x := by
+    simp [TransmutationAtomLocalLimit, TransmutationAtomLocal, N, m, Pg, FS, hmN,
+      AtomFamily.toFunction, map_smul, map_sum, Finset.sum_apply, smul_eq_mul]
+  rw [hfun, hsum_eq]
+  exact mul_ne_zero (inv_ne_zero (by exact_mod_cast hmN)) (by exact_mod_cast hsum_pos.ne')
+
+/-- A sharper Claim B under nonnegative source coefficients.
+
+The extra source-coefficient hypothesis says every `c i Q` is a nonnegative
+real number, embedded in `ℂ`.  For the source cell selected by Claim B, the
+nonzero condition then upgrades to strict positivity. -/
+theorem Transmutation_of_Atoms_Claim_B_sharp (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS_pos (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (hc_nonneg : ∀ i : ℕ, ∀ Q : LevelCell G i, ∃ r : NNReal, c i Q = (r : ℂ))
+    (hc : CoeffFinitePQCost (p := p) (q := q) G c)
+    (hG2_W : AssumptionG2 W s p u q)
+    (hp_ne_top : p ≠ ∞)
+    (hs_pos : 0 < s) :
+    (∃ gLim : Lp ℂ p W.measure,
+      HasSum (fun j => (TransmutationBlockLimit G W AW h R c A_als r_als j).toLp AW) gLim ∧
+      MemBesovishCoeffCost AW q gLim ∧
+      Tendsto (fun N => PartialSumLevels G W h c N) atTop (𝓝 gLim)) ∧
+    (∀ j : ℕ, ∀ P : LevelCell W j,
+      TransmutationCoeffLimit G W AW h R c A_als r_als P ≠ 0 →
+      (∀ᵐ x ∂ W.measure.restrict P.1,
+        AW.toFunction (levelCellToWeakGridCell W j P)
+          (TransmutationAtomLocalLimit G W AW h R c A_als r_als P) x ≠ 0) ∧
+        ∃ i ∈ Finset.range (transmutationStabilizationIndex A_als r_als j),
+          ∃ Q ∈ (G.grid.partitions i).attach,
+          P.1 ⊆ Q.1 ∧
+            (∃ rc : NNReal, 0 < rc ∧ c i Q = (rc : ℂ)) ∧
+            ∃ r : NNReal, 0 < r ∧ ((R i Q).block j).coeff P = (r : ℂ) ∧
+              ∀ᵐ x ∂ W.measure.restrict P.1,
+                ∃ r : NNReal, 0 < r ∧ h i Q x = (r : ℂ)) := by
+  rcases Transmutation_of_Atoms_Claim_B G W AW k A_als B_als r_als hr_als hk_bound
+      lam hlam_pos hlam_lt C hC h R hR c hc hG2_W hp_ne_top hs_pos with
+    ⟨hlimit, hwitness⟩
+  refine ⟨hlimit, ?_⟩
+  intro j P hm
+  have hP_meas : MeasurableSet P.1 := W.grid.measurable j P.1 P.2
+  have hatom_ae :
+      ∀ᵐ x ∂ W.measure.restrict P.1,
+        AW.toFunction (levelCellToWeakGridCell W j P)
+          (TransmutationAtomLocalLimit G W AW h R c A_als r_als P) x ≠ 0 := by
+    filter_upwards [ae_restrict_mem hP_meas] with x hxP
+    exact TransmutationAtomLocalLimit_ne_zero_of_coeff_ne_zero
+      G W AW k A_als B_als r_als hr_als hk_bound lam hlam_pos hlam_lt C hC h R hR
+      c hc_nonneg P hm hxP
+  rcases transmutationCoeff_support_witness G W AW k A_als B_als r_als hr_als hk_bound
+      lam hlam_pos hlam_lt C hC h R hR c
+      (transmutationStabilizationIndex A_als r_als j) P
+      (by simpa [TransmutationCoeffLimit] using hm) with
+    ⟨i, hi, Q, hQ, hPQ, hcQ_ne, r, hr_pos, hr_coeff⟩
+  rcases hc_nonneg i Q with ⟨rc, hrc_eq⟩
+  have hrc_pos : 0 < rc := by
+    have hrc_ne : rc ≠ 0 := by
+      intro hrc_zero
+      apply hcQ_ne
+      simp [hrc_eq, hrc_zero]
+    exact lt_of_le_of_ne bot_le (Ne.symm hrc_ne)
+  refine ⟨hatom_ae, i, hi, Q, hQ, hPQ, ⟨rc, hrc_pos, hrc_eq⟩, r, hr_pos, hr_coeff, ?_⟩
+  exact positiveRepresentation_source_ae_pos_of_pos_coeff
+    G W AW k A_als B_als r_als hr_als hk_bound lam hlam_pos hlam_lt C hC h R hR
+    ⟨r, hr_pos, hr_coeff⟩
+
+private lemma id_almostLinear_bound :
+    ∀ i : ℕ,
+      ((fun i : ℕ => i) i : NNReal) ≤ (1 : ℝ) * (i : NNReal) + 0 ∧
+      (1 : ℝ) * (i : NNReal) + 0 ≤ ((fun i : ℕ => i) i : NNReal) := by
+  intro i
+  constructor <;> norm_num
+
+private lemma id_almostLinearSequence : AlmostLinearSequence (fun i : ℕ => i) :=
+  ⟨0, 0, 1, by norm_num, id_almostLinear_bound⟩
+
+/-- Claim C: if every `AG1` atom admits a uniformly controlled `AG2`
+representation centered at the same level, then any `AG1` atomic expansion
+transmutes into an `AG2` expansion.
+
+The constants `lam` and `C` are outside the universal quantifier over atoms, so
+they are uniform: they do not depend on the particular atom being represented. -/
+theorem Transmutation_of_Atoms_Claim_C
+    (G : WeakGridSpace (α := α))
+    (u1 u2 : ℝ≥0∞)
+    [Fact (1 ≤ u2)]
+    (AG1 : AtomFamily G s p u1)
+    (AG2 : AtomFamily G s p u2)
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (hAG1_to_AG2 : ∀ i : ℕ, ∀ Q : LevelCell G i,
+      ∀ g : Lp ℂ p G.measure,
+        (∃ φ : (AG1.localSpace (levelCellToWeakGridCell G i Q)).carrier,
+          AG1.IsAtom (levelCellToWeakGridCell G i Q) φ ∧
+            g = atomLp AG1 (levelCellToWeakGridCell G i Q) φ) →
+          ∃ Rg : LpGridRepresentation AG2 g,
+            CoeffFinitePQCost (p := p) (q := q) G
+              (fun j S => (Rg.block j).coeff S) ∧
+            (∀ j : ℕ, ∀ S : LevelCell G j,
+              (¬ S.1 ⊆ Q.1 → (Rg.block j).coeff S = 0) ∧
+              (j < i → (Rg.block j).coeff S = 0)) ∧
+            ∀ j : ℕ, i ≤ j → Rg.levelCoeffPower j ≤ C * lam ^ (j - i)) :
+    ∃ C_cont_embedding : ℝ, 0 ≤ C_cont_embedding ∧
+      ∀ (h : (i : ℕ) → LevelCell G i → Lp ℂ p G.measure),
+      (∀ i : ℕ, ∀ Q : LevelCell G i,
+        ∃ φ : (AG1.localSpace (levelCellToWeakGridCell G i Q)).carrier,
+          AG1.IsAtom (levelCellToWeakGridCell G i Q) φ ∧
+            h i Q = atomLp AG1 (levelCellToWeakGridCell G i Q) φ) →
+      ∀ (c : (i : ℕ) → LevelCell G i → ℂ),
+      CoeffFinitePQCost (p := p) (q := q) G c →
+      AssumptionG2 G s p u2 q →
+      p ≠ ∞ →
+      0 < s →
+      ∃ R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AG2 (h i Q),
+        RepresentationWsubGandALS (p := p) (q := q) G G AG2 (fun i : ℕ => i)
+          id_almostLinearSequence lam hlam_pos hlam_lt C hC h R ∧
+        ∃ gLim : Lp ℂ p G.measure,
+          Tendsto (fun N => PartialSumLevels G G h c N) atTop (𝓝 gLim) ∧
+          ∃ hsum_AG2 :
+            HasSum (fun j => (TransmutationBlockLimit G G AG2 h R c 0 1 j).toLp AG2) gLim,
+            let RlimAG2 : LpGridRepresentation AG2 gLim :=
+              { block := TransmutationBlockLimit G G AG2 h R c 0 1
+                hasSum := hsum_AG2 }
+            LpGridRepresentation.FinitePQCost (q := q) RlimAG2 ∧
+            MemBesovishCoeffCost AG2 q gLim ∧
+              LpGridRepresentation.pqCost (q := q) RlimAG2 ≤
+                C_cont_embedding * CoeffPQCost (p := p) (q := q) G c := by
+  classical
+  let C_cont_embedding : ℝ :=
+    (G.grid.Cmult1 : ℝ) *
+    C ^ (1 / p.toReal) *
+    lam ^ (-(0 : ℝ) / p.toReal) *
+    LpGridRepresentation.cCoefficientInt p ∞ (transmutationKernelZ lam 0 1) *
+    (Nat.ceil (1 : ℝ) : ℝ) ^ (1 / q.toReal)
+  have hkernel_nonneg : ∀ n : ℤ, 0 ≤ transmutationKernelZ lam 0 1 n := by
+    intro n
+    dsimp [transmutationKernelZ]
+    split_ifs
+    · exact Real.rpow_nonneg (le_of_lt hlam_pos) _
+    · rfl
+  have hccoef_nonneg : 0 ≤
+      LpGridRepresentation.cCoefficientInt p ∞ (transmutationKernelZ lam 0 1) :=
+    LpGridRepresentation.cCoefficientInt_nonneg p ∞ _ hkernel_nonneg
+  have hCcont_nonneg : 0 ≤ C_cont_embedding := by
+    dsimp [C_cont_embedding]
+    repeat' apply mul_nonneg
+    · exact by exact_mod_cast Nat.zero_le G.grid.Cmult1
+    · exact Real.rpow_nonneg hC _
+    · exact Real.rpow_nonneg (le_of_lt hlam_pos) _
+    · exact hccoef_nonneg
+    · exact Real.rpow_nonneg
+        (show 0 ≤ (Nat.ceil (1 : ℝ) : ℝ) by exact_mod_cast Nat.zero_le (Nat.ceil (1 : ℝ))) _
+  refine ⟨C_cont_embedding, hCcont_nonneg, ?_⟩
+  intro h h_atom c hc hG2_G hp_ne_top hs_pos
+  have hrepr : ∀ i : ℕ, ∀ Q : LevelCell G i,
+      ∃ Rg : LpGridRepresentation AG2 (h i Q),
+        CoeffFinitePQCost (p := p) (q := q) G
+          (fun j S => (Rg.block j).coeff S) ∧
+        (∀ j : ℕ, ∀ S : LevelCell G j,
+          (¬ S.1 ⊆ Q.1 → (Rg.block j).coeff S = 0) ∧
+          (j < i → (Rg.block j).coeff S = 0)) ∧
+        ∀ j : ℕ, i ≤ j → Rg.levelCoeffPower j ≤ C * lam ^ (j - i) := by
+    intro i Q
+    exact hAG1_to_AG2 i Q (h i Q) (h_atom i Q)
+  choose R0 hR0 using hrepr
+  let R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AG2 (h i Q) :=
+    fun i Q => R0 i Q
+  have hR : RepresentationWsubGandALS (p := p) (q := q) G G AG2 (fun i : ℕ => i)
+      id_almostLinearSequence lam hlam_pos hlam_lt C hC h R := by
+    intro i Q
+    simpa [R] using hR0 i Q
+  refine ⟨R, hR, ?_⟩
+  let K : ℝ := C_cont_embedding * CoeffPQCost (p := p) (q := q) G c
+  have hCoeffP_nonneg : ∀ i : ℕ, 0 ≤ CoeffPLevel (p := p) G c i := by
+    intro i
+    exact Finset.sum_nonneg fun Q hQ => Real.rpow_nonneg (norm_nonneg _) _
+  have hCoeffPQ_nonneg : 0 ≤ CoeffPQCost (p := p) (q := q) G c := by
+    by_cases hq_top : q = ∞
+    · have hbdd : BddAbove
+          (Set.range fun i => CoeffPLevel (p := p) G c i ^ (1 / p.toReal)) := by
+        simpa [CoeffFinitePQCost, hq_top] using hc
+      have hzero_le :
+          0 ≤ CoeffPLevel (p := p) G c 0 ^ (1 / p.toReal) :=
+        Real.rpow_nonneg (hCoeffP_nonneg 0) _
+      simpa [CoeffPQCost, hq_top] using
+        hzero_le.trans
+          (le_csSup hbdd ⟨0, rfl⟩)
+    · simp [CoeffPQCost, hq_top]
+      exact Real.rpow_nonneg (tsum_nonneg fun i => Real.rpow_nonneg (hCoeffP_nonneg i) _) _
+  have hK_nonneg : 0 ≤ K := mul_nonneg hCcont_nonneg hCoeffPQ_nonneg
+  let gseq : ℕ → Lp ℂ p G.measure := fun N => PartialSumLevels G G h c N
+  let Rseq : ∀ N, LpGridRepresentation AG2 (gseq N) := fun N =>
+    { block := TransmutationBlock G G AG2 h R c N
+      hasSum := by
+        by_cases hq_top : q = ∞
+        · subst q
+          exact (ClaimII_top G G AG2 (fun i : ℕ => i) 0 0 1 (by norm_num)
+            id_almostLinear_bound lam hlam_pos hlam_lt C hC h R hR c hc N
+            hG2_G hp_ne_top hs_pos).1
+        · exact (ClaimII G G AG2 (fun i : ℕ => i) 0 0 1 (by norm_num)
+            id_almostLinear_bound lam hlam_pos hlam_lt C hC h R hR c hc N
+            hq_top hG2_G hp_ne_top hs_pos).1 }
+  let Rlim : (j : ℕ) → LevelBlock AG2 j :=
+    fun j => TransmutationBlockLimit G G AG2 h R c 0 1 j
+  have huniform : ∀ N,
+      LpGridRepresentation.pqCostENNReal (q := q) (Rseq N) ≤ ENNReal.ofReal K := by
+    intro N
+    have hfin : LpGridRepresentation.FinitePQCost (q := q) (Rseq N) := by
+      by_cases hq_top : q = ∞
+      · subst q
+        simpa [Rseq, LpGridRepresentation.FinitePQCost, AbstractFinitePQCost,
+          blockLvlCoeff_eq_levelCoeffPower] using
+          (transmutationBlock_abstractFinitePQCost_top
+            (p := p) G G AG2 (fun i : ℕ => i) 0 0 1 (by norm_num)
+            id_almostLinear_bound lam hlam_pos hlam_lt C hC h R hR c hc N hp_ne_top)
+      · simpa [Rseq, LpGridRepresentation.FinitePQCost, AbstractFinitePQCost,
+          blockLvlCoeff_eq_levelCoeffPower] using
+          (transmutationBlock_abstractFinitePQCost
+            (p := p) (q := q) G G AG2 (fun i : ℕ => i) id_almostLinearSequence
+            lam hlam_pos hlam_lt C hC h R hR c hc N hp_ne_top hq_top)
+    have hcost : LpGridRepresentation.pqCost (q := q) (Rseq N) ≤ K := by
+      by_cases hq_top : q = ∞
+      · subst q
+        simpa [K, C_cont_embedding, Rseq, LpGridRepresentation.pqCost, CoeffPQCost,
+          TransmutationBlock] using
+          (ClaimII_top G G AG2 (fun i : ℕ => i) 0 0 1 (by norm_num)
+            id_almostLinear_bound lam hlam_pos hlam_lt C hC h R hR c hc N
+            hG2_G hp_ne_top hs_pos).2
+      · simpa [K, C_cont_embedding, Rseq, LpGridRepresentation.pqCost, CoeffPQCost,
+          TransmutationBlock] using
+          (ClaimII G G AG2 (fun i : ℕ => i) 0 0 1 (by norm_num)
+            id_almostLinear_bound lam hlam_pos hlam_lt C hC h R hR c hc N
+            hq_top hG2_G hp_ne_top hs_pos).2
+    exact pqCostENNReal_le_of_finitePQCost_pqCost_le (q := q) G (Rseq N) hfin hcost
+  have hcoeff_tendsto : ∀ (j : ℕ) (P : LevelCell G j),
+      Tendsto (fun N => ((Rseq N).block j).coeff P) atTop
+        (𝓝 ((Rlim j).coeff P)) := by
+    intro j P
+    exact (Complex.continuous_ofReal.tendsto
+      (TransmutationCoeffLimit G G AG2 h R c 0 1 P)).comp
+        (TransmutationCoeff_tendsto_limit G G AG2 (fun i : ℕ => i) 0 0 1
+          (by norm_num) id_almostLinear_bound lam hlam_pos hlam_lt C hC h R hR c P)
+  have hatom_tendsto : ∀ (j : ℕ) (P : LevelCell G j),
+      Tendsto
+        (fun N => atomLp AG2 (levelCellToWeakGridCell G j P) (((Rseq N).block j).atom P))
+        atTop
+        (𝓝 (atomLp AG2 (levelCellToWeakGridCell G j P) ((Rlim j).atom P))) := by
+    intro j P
+    simpa [Rseq, Rlim, TransmutationBlockLimit, TransmutationAtomLimit] using
+      TransmutationAtom_tendsto_limit G G AG2 (fun i : ℕ => i) 0 0 1
+        (by norm_num) id_almostLinear_bound lam hlam_pos hlam_lt C hC h R hR c P
+  rcases representation_limit_strong_existence (G := G) (p := p) (u := u2) (q := q)
+      hp_ne_top hs_pos Fact.out AG2 hG2_G Rseq hK_nonneg huniform Rlim
+      hcoeff_tendsto hatom_tendsto with
+    ⟨gLim, hRlim, hmem, _hfin, hcost, hg_tendsto⟩
+  refine ⟨gLim, hg_tendsto, hRlim, ?_⟩
+  exact ⟨_hfin, hmem, by simpa [K] using hcost⟩
+
+/-- Continuous embedding induced by Claim C.
+
+If every `AG1` atom admits a uniformly controlled representation by `AG2`
+atoms, then every element represented with finite `(p,q)` cost in `AG1` is also
+represented with finite `(p,q)` cost in `AG2`.  Moreover the `AG2` cost gauge is
+bounded by a uniform constant times the `AG1` cost gauge. -/
+theorem Transmutation_of_Atoms_continuous_embedding
+    (G : WeakGridSpace (α := α))
+    (u1 u2 : ℝ≥0∞)
+    [Fact (1 ≤ u2)]
+    (AG1 : AtomFamily G s p u1)
+    (AG2 : AtomFamily G s p u2)
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (hAG1_to_AG2 : ∀ i : ℕ, ∀ Q : LevelCell G i,
+      ∀ g : Lp ℂ p G.measure,
+        (∃ φ : (AG1.localSpace (levelCellToWeakGridCell G i Q)).carrier,
+          AG1.IsAtom (levelCellToWeakGridCell G i Q) φ ∧
+            g = atomLp AG1 (levelCellToWeakGridCell G i Q) φ) →
+          ∃ Rg : LpGridRepresentation AG2 g,
+            CoeffFinitePQCost (p := p) (q := q) G
+              (fun j S => (Rg.block j).coeff S) ∧
+            (∀ j : ℕ, ∀ S : LevelCell G j,
+              (¬ S.1 ⊆ Q.1 → (Rg.block j).coeff S = 0) ∧
+              (j < i → (Rg.block j).coeff S = 0)) ∧
+            ∀ j : ℕ, i ≤ j → Rg.levelCoeffPower j ≤ C * lam ^ (j - i))
+    (hG2_G : AssumptionG2 G s p u2 q)
+    (hp_ne_top : p ≠ ∞)
+    (hs_pos : 0 < s) :
+    ∃ C_cont_embedding : ℝ, 0 ≤ C_cont_embedding ∧
+      ∀ g : BesovishSpace AG1 q,
+        ∃ hg2 : MemBesovishCoeffCost AG2 q (g : Lp ℂ p G.measure),
+          BesovishSpace.Norm_Costpq AG2 q
+              (⟨(g : Lp ℂ p G.measure), hg2⟩ : BesovishSpace AG2 q) ≤
+            C_cont_embedding * BesovishSpace.Norm_Costpq AG1 q g := by
+  classical
+  rcases Transmutation_of_Atoms_Claim_C G u1 u2 AG1 AG2 lam hlam_pos hlam_lt C hC
+      hAG1_to_AG2 with
+    ⟨C_cont_embedding, hCcont_nonneg, hclaim⟩
+  refine ⟨C_cont_embedding, hCcont_nonneg, ?_⟩
+  have hAG1_finite : BesovishSpace.HasFiniteCostRepresentations (A := AG1) q :=
+    BesovishSpace.hasFiniteCostRepresentations (A := AG1) (q := q)
+  have transmute_rep :
+      ∀ {gLp : Lp ℂ p G.measure} (Rg : LpGridRepresentation AG1 gLp),
+        LpGridRepresentation.FinitePQCost (q := q) Rg →
+        ∃ hg2 : MemBesovishCoeffCost AG2 q gLp,
+          BesovishSpace.Norm_Costpq AG2 q
+              (⟨gLp, hg2⟩ : BesovishSpace AG2 q) ≤
+            C_cont_embedding * LpGridRepresentation.pqCost (q := q) Rg := by
+    intro gLp Rg hRgfin
+    let h : (i : ℕ) → LevelCell G i → Lp ℂ p G.measure :=
+      fun i Q => atomLp AG1 (levelCellToWeakGridCell G i Q) ((Rg.block i).atom Q)
+    let c : (i : ℕ) → LevelCell G i → ℂ :=
+      fun i Q => (Rg.block i).coeff Q
+    have h_atom : ∀ i : ℕ, ∀ Q : LevelCell G i,
+        ∃ φ : (AG1.localSpace (levelCellToWeakGridCell G i Q)).carrier,
+          AG1.IsAtom (levelCellToWeakGridCell G i Q) φ ∧
+            h i Q = atomLp AG1 (levelCellToWeakGridCell G i Q) φ := by
+      intro i Q
+      exact ⟨(Rg.block i).atom Q, (Rg.block i).atom_mem Q, rfl⟩
+    have hc : CoeffFinitePQCost (p := p) (q := q) G c := by
+      simpa [CoeffFinitePQCost, LpGridRepresentation.FinitePQCost, c,
+        CoeffPLevel, LpGridRepresentation.levelCoeffPower] using hRgfin
+    rcases hclaim h h_atom c hc hG2_G hp_ne_top hs_pos with
+      ⟨R, _hR, gLim, hgLim_tendsto, hsum_AG2, hRlim_fin, hmem, hcost⟩
+    have hpartial_eq : ∀ N,
+        PartialSumLevels G G h c N =
+          ∑ i ∈ Finset.range N, (Rg.block i).toLp AG1 := by
+      intro N
+      simp [PartialSumLevels, h, c, LevelBlock.toLp, LevelBlock.term, atomLp]
+    have hpartial_tendsto_g :
+        Tendsto (fun N => PartialSumLevels G G h c N) atTop (𝓝 gLp) := by
+      simpa [hpartial_eq] using Rg.hasSum.tendsto_sum_nat
+    have hgLim_eq : gLim = gLp :=
+      tendsto_nhds_unique hgLim_tendsto hpartial_tendsto_g
+    subst gLim
+    let RlimAG2 : LpGridRepresentation AG2 gLp :=
+      { block := TransmutationBlockLimit G G AG2 h R c 0 1
+        hasSum := hsum_AG2 }
+    have hnorm_le :
+        BesovishSpace.Norm_Costpq AG2 q
+            (⟨gLp, hmem⟩ : BesovishSpace AG2 q) ≤
+          LpGridRepresentation.pqCost (q := q) RlimAG2 :=
+      BesovishSpace.Norm_Costpq_le_cost (A := AG2) (q := q)
+        (g := (⟨gLp, hmem⟩ : BesovishSpace AG2 q)) RlimAG2 hRlim_fin
+    have hcoeff_cost_eq :
+        CoeffPQCost (p := p) (q := q) G c =
+          LpGridRepresentation.pqCost (q := q) Rg := by
+      simp [CoeffPQCost, LpGridRepresentation.pqCost, c,
+        CoeffPLevel, LpGridRepresentation.levelCoeffPower]
+    refine ⟨hmem, ?_⟩
+    calc
+      BesovishSpace.Norm_Costpq AG2 q
+          (⟨gLp, hmem⟩ : BesovishSpace AG2 q)
+          ≤ LpGridRepresentation.pqCost (q := q) RlimAG2 := hnorm_le
+      _ ≤ C_cont_embedding * CoeffPQCost (p := p) (q := q) G c := hcost
+      _ = C_cont_embedding * LpGridRepresentation.pqCost (q := q) Rg := by
+        rw [hcoeff_cost_eq]
+  intro g
+  rcases g.property with ⟨Rg0, hRg0fin⟩
+  rcases transmute_rep Rg0 hRg0fin with ⟨hg2, _hbound0⟩
+  refine ⟨hg2, ?_⟩
+  refine le_iff_forall_pos_le_add.mpr ?_
+  intro ε hε
+  have hden_pos : 0 < C_cont_embedding + 1 := by
+    linarith
+  have hδ_pos : 0 < ε / (C_cont_embedding + 1) := by
+    positivity
+  rcases BesovishSpace.exists_cost_lt_Norm_Costpq_add (A := AG1) (q := q)
+      hAG1_finite g hδ_pos with
+    ⟨Rg, hRgfin, hRglt⟩
+  rcases transmute_rep Rg hRgfin with ⟨hg2ε, hnormε⟩
+  have hcost_to_norm :
+      C_cont_embedding * LpGridRepresentation.pqCost (q := q) Rg ≤
+        C_cont_embedding *
+          (BesovishSpace.Norm_Costpq AG1 q g + ε / (C_cont_embedding + 1)) :=
+    mul_le_mul_of_nonneg_left (le_of_lt hRglt) hCcont_nonneg
+  have hsmall : C_cont_embedding * (ε / (C_cont_embedding + 1)) ≤ ε := by
+    have hfrac : C_cont_embedding / (C_cont_embedding + 1) ≤ (1 : ℝ) :=
+      (div_le_one hden_pos).2 (by linarith)
+    have hε_nonneg : 0 ≤ ε := le_of_lt hε
+    have hmul : (C_cont_embedding / (C_cont_embedding + 1)) * ε ≤ (1 : ℝ) * ε :=
+      mul_le_mul_of_nonneg_right hfrac hε_nonneg
+    calc
+      C_cont_embedding * (ε / (C_cont_embedding + 1)) =
+          (C_cont_embedding / (C_cont_embedding + 1)) * ε := by ring
+      _ ≤ (1 : ℝ) * ε := hmul
+      _ = ε := by ring
+  have hboundε :
+      BesovishSpace.Norm_Costpq AG2 q
+          (⟨(g : Lp ℂ p G.measure), hg2ε⟩ : BesovishSpace AG2 q) ≤
+        C_cont_embedding * BesovishSpace.Norm_Costpq AG1 q g + ε := by
+    calc
+      BesovishSpace.Norm_Costpq AG2 q
+          (⟨(g : Lp ℂ p G.measure), hg2ε⟩ : BesovishSpace AG2 q)
+          ≤ C_cont_embedding * LpGridRepresentation.pqCost (q := q) Rg := hnormε
+      _ ≤ C_cont_embedding *
+          (BesovishSpace.Norm_Costpq AG1 q g + ε / (C_cont_embedding + 1)) :=
+            hcost_to_norm
+      _ = C_cont_embedding * BesovishSpace.Norm_Costpq AG1 q g +
+          C_cont_embedding * (ε / (C_cont_embedding + 1)) := by ring
+      _ ≤ C_cont_embedding * BesovishSpace.Norm_Costpq AG1 q g + ε := by
+        exact add_le_add_right hsmall _
+  have hsame :
+      (⟨(g : Lp ℂ p G.measure), hg2ε⟩ : BesovishSpace AG2 q) =
+        ⟨(g : Lp ℂ p G.measure), hg2⟩ :=
+    Subtype.ext rfl
+  simpa [hsame] using hboundε
 
 end -- closes noncomputable section
 
