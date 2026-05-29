@@ -2,6 +2,8 @@ import BesovSpacesGoodGrid.WeakGridDefinition
 import Mathlib.MeasureTheory.Measure.MeasureSpace
 import Mathlib.MeasureTheory.Function.LpSeminorm.Basic
 import Mathlib.MeasureTheory.Function.LpSeminorm.CompareExp
+import Mathlib.MeasureTheory.Function.LpSpace.Basic
+import Mathlib.MeasureTheory.Integral.Bochner.Set
 import Mathlib.Data.ENNReal.Holder
 import Mathlib.Analysis.Complex.Basic
 import Mathlib.Analysis.Convex.Basic
@@ -216,6 +218,213 @@ def FiniteDimensionalAtoms (A : AtomFamily G s p u) : Prop :=
 
 
 end AtomFamily
+
+/--
+An a.e. local Banach space over a weak grid.
+
+Unlike `LocalBanachSpace`, this realizes local elements directly as vectors in
+`L^p`.  This is the foundational API for atom families whose support and
+linearity are meant modulo null sets rather than through chosen pointwise
+representatives.
+-/
+structure AELocalBanachSpace
+    (G : WeakGridSpace (α := α)) (p : ℝ≥0∞) where
+  carrier : Type u
+  [normedAddCommGroup : NormedAddCommGroup carrier]
+  [normedSpace : NormedSpace ℂ carrier]
+  [completeSpace : CompleteSpace carrier]
+  toLp : carrier →ₗ[ℂ] MeasureTheory.Lp ℂ p G.measure
+  injective_toLp : Function.Injective toLp
+
+attribute [instance] AELocalBanachSpace.normedAddCommGroup
+attribute [instance] AELocalBanachSpace.normedSpace
+attribute [instance] AELocalBanachSpace.completeSpace
+
+/-- A local `L^p` vector is supported in `Q`, modulo null sets. -/
+def AESupportedOn
+    (G : WeakGridSpace (α := α)) (p : ℝ≥0∞)
+    (Q : WeakGridCell G) (f : MeasureTheory.Lp ℂ p G.measure) : Prop :=
+  (f : α → ℂ) =ᵐ[G.measure.restrict Q.cellᶜ] 0
+
+/--
+An atom family formulated directly in `L^p`.
+
+This mirrors `AtomFamily`, but the realization map lands in `L^p`, support is
+an a.e. statement, and the size estimate is expressed with the `Lp` norm.  It
+is intended as the reusable replacement target for atom classes whose natural
+objects are equivalence classes modulo null sets.
+-/
+structure AEAtomFamily
+    (G : WeakGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞) where
+  /-- The smoothness parameter is positive. -/
+  s_pos : 0 < s
+  /-- `p ∈ [1,∞)`. -/
+  one_le_p : 1 ≤ p
+  /-- `p < ∞`, expressed in `ℝ≥0∞` as `p ≠ ∞`. -/
+  p_ne_top : p ≠ ∞
+  /-- The local Banach space `B(Q)`, realized in ambient `L^p`. -/
+  localSpace : WeakGridCell G → AELocalBanachSpace G p
+  /-- The chosen atoms `A(Q)`, as elements of `B(Q)`. -/
+  atoms : ∀ Q, Set ((localSpace Q).carrier)
+  /-- Every cell has at least one atom. -/
+  atoms_nonempty : ∀ Q, (atoms Q).Nonempty
+  /-- Local vectors are supported on `Q`, modulo null sets. -/
+  local_support : ∀ Q φ, φ ∈ atoms Q →
+    AESupportedOn G p Q ((localSpace Q).toLp φ)
+  /-- `A(Q)` is convex in the local Banach space. -/
+  atoms_convex : ∀ Q, Convex ℝ (atoms Q)
+  /-- `A(Q)` is invariant under multiplication by complex scalars of modulus one. -/
+  atoms_phase_invariant :
+    ∀ Q φ (σ : ℂ), φ ∈ atoms Q → ‖σ‖ = (1 : ℝ) → σ • φ ∈ atoms Q
+  /-- The atom size estimate in ambient `L^p`. -/
+  atom_bound :
+    ∀ Q φ, φ ∈ atoms Q →
+      ‖(localSpace Q).toLp φ‖ ≤ (G.measure Q.cell).toReal ^ s
+
+namespace AEAtomFamily
+
+/-- The `L^p` vector represented by a local element. -/
+def toLp {G : WeakGridSpace (α := α)} {s : ℝ} {p : ℝ≥0∞}
+    (A : AEAtomFamily G s p) (Q : WeakGridCell G)
+    (φ : (A.localSpace Q).carrier) : MeasureTheory.Lp ℂ p G.measure :=
+  (A.localSpace Q).toLp φ
+
+/-- Predicate saying that `φ` is an a.e. atom of the family supported on `Q`. -/
+def IsAtom {G : WeakGridSpace (α := α)} {s : ℝ} {p : ℝ≥0∞}
+    (A : AEAtomFamily G s p) (Q : WeakGridCell G)
+    (φ : (A.localSpace Q).carrier) : Prop :=
+  φ ∈ A.atoms Q
+
+/-- For every cell there exists at least one a.e. atom. -/
+theorem atoms_nonempty_on {G : WeakGridSpace (α := α)} {s : ℝ} {p : ℝ≥0∞}
+    (A : AEAtomFamily G s p) (Q : WeakGridCell G) :
+    ∃ φ : (A.localSpace Q).carrier, A.IsAtom Q φ :=
+  A.atoms_nonempty Q
+
+end AEAtomFamily
+
+/-- The ambient `L^p` space as an a.e. local Banach space. -/
+noncomputable def lpAELocalBanachSpace
+    (G : WeakGridSpace (α := α)) (p : ℝ≥0∞) [Fact (1 ≤ p)] :
+    AELocalBanachSpace G p where
+  carrier := MeasureTheory.Lp ℂ p G.measure
+  toLp := LinearMap.id
+  injective_toLp := by
+    intro x y h
+    simpa using h
+
+/-- The raw a.e. `(s,p,1)` atom condition in the `Lp` model. -/
+def IsAESpAtom
+    (G : WeakGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (Q : WeakGridCell G) (f : MeasureTheory.Lp ℂ p G.measure) : Prop :=
+  AESupportedOn G p Q f ∧ ‖f‖ ≤ (G.measure Q.cell).toReal ^ s
+
+private theorem aeSupportedOn_zero
+    (G : WeakGridSpace (α := α)) (p : ℝ≥0∞)
+    (Q : WeakGridCell G) :
+    AESupportedOn G p Q (0 : MeasureTheory.Lp ℂ p G.measure) := by
+  exact MeasureTheory.ae_restrict_of_ae (MeasureTheory.Lp.coeFn_zero ℂ p G.measure)
+
+private theorem aeSupportedOn_add
+    (G : WeakGridSpace (α := α)) (p : ℝ≥0∞)
+    [Fact (1 ≤ p)]
+    (Q : WeakGridCell G)
+    {f g : MeasureTheory.Lp ℂ p G.measure}
+    (hf : AESupportedOn G p Q f) (hg : AESupportedOn G p Q g) :
+    AESupportedOn G p Q (f + g) := by
+  filter_upwards [MeasureTheory.ae_restrict_of_ae (MeasureTheory.Lp.coeFn_add f g), hf, hg] with
+    x hfg hf0 hg0
+  rw [hfg, Pi.add_apply, hf0, hg0]
+  simp
+
+private theorem aeSupportedOn_smul
+    (G : WeakGridSpace (α := α)) (p : ℝ≥0∞)
+    [Fact (1 ≤ p)]
+    (Q : WeakGridCell G) (c : ℂ)
+    {f : MeasureTheory.Lp ℂ p G.measure}
+    (hf : AESupportedOn G p Q f) :
+    AESupportedOn G p Q (c • f) := by
+  filter_upwards [MeasureTheory.ae_restrict_of_ae (MeasureTheory.Lp.coeFn_smul c f), hf] with
+    x hcf hf0
+  simp [hcf, hf0]
+
+private theorem isAESpAtom_convex
+    (G : WeakGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    [Fact (1 ≤ p)]
+    (Q : WeakGridCell G) :
+    Convex ℝ {f : MeasureTheory.Lp ℂ p G.measure | IsAESpAtom G s p Q f} := by
+  intro f hf g hg a b ha hb hab
+  rcases hf with ⟨hf_supp, hf_norm⟩
+  rcases hg with ⟨hg_supp, hg_norm⟩
+  constructor
+  · exact aeSupportedOn_add G p Q
+      (aeSupportedOn_smul G p Q (a : ℂ) hf_supp)
+      (aeSupportedOn_smul G p Q (b : ℂ) hg_supp)
+  · calc
+      ‖a • f + b • g‖ ≤ ‖(a : ℂ) • f‖ + ‖(b : ℂ) • g‖ :=
+        norm_add_le ((a : ℂ) • f) ((b : ℂ) • g)
+      _ = ‖(a : ℂ)‖ * ‖f‖ + ‖(b : ℂ)‖ * ‖g‖ := by
+        rw [norm_smul, norm_smul]
+      _ ≤ ‖(a : ℂ)‖ * ((G.measure Q.cell).toReal ^ s) +
+          ‖(b : ℂ)‖ * ((G.measure Q.cell).toReal ^ s) := by
+            exact add_le_add
+              (mul_le_mul_of_nonneg_left hf_norm (norm_nonneg _))
+              (mul_le_mul_of_nonneg_left hg_norm (norm_nonneg _))
+      _ = (a + b) * ((G.measure Q.cell).toReal ^ s) := by
+            rw [Complex.norm_real, Complex.norm_real, Real.norm_eq_abs, Real.norm_eq_abs]
+            have ha_abs : |a| = a := abs_of_nonneg ha
+            have hb_abs : |b| = b := abs_of_nonneg hb
+            rw [ha_abs, hb_abs]
+            ring
+      _ = (G.measure Q.cell).toReal ^ s := by rw [hab, one_mul]
+
+/-- Raw a.e. `(s,p,1)` atoms are invariant under multiplication by a complex phase. -/
+theorem isAESpAtom_phase_invariant
+    (G : WeakGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    [Fact (1 ≤ p)]
+    (Q : WeakGridCell G) {f : MeasureTheory.Lp ℂ p G.measure} {σ : ℂ}
+    (hf : IsAESpAtom G s p Q f) (hσ : ‖σ‖ = (1 : ℝ)) :
+    IsAESpAtom G s p Q (σ • f) := by
+  rcases hf with ⟨hf_supp, hf_norm⟩
+  constructor
+  · exact aeSupportedOn_smul G p Q σ hf_supp
+  · calc
+      ‖σ • f‖ = ‖σ‖ * ‖f‖ := norm_smul σ f
+      _ = ‖f‖ := by rw [hσ, one_mul]
+      _ ≤ (G.measure Q.cell).toReal ^ s := hf_norm
+
+/--
+The a.e. atom family of all supported `L^p` vectors with the usual
+`μ(Q)^s` size bound.
+-/
+noncomputable def aeSpAtomFamily
+    (G : WeakGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) [Fact (1 ≤ p)] (hp_top : p ≠ ∞) :
+    AEAtomFamily G s p where
+  s_pos := hs
+  one_le_p := Fact.out
+  p_ne_top := hp_top
+  localSpace := fun _ => lpAELocalBanachSpace G p
+  atoms := fun Q => {f : MeasureTheory.Lp ℂ p G.measure | IsAESpAtom G s p Q f}
+  atoms_nonempty := by
+    intro Q
+    refine ⟨0, ?_⟩
+    refine ⟨aeSupportedOn_zero G p Q, ?_⟩
+    calc
+      ‖(0 : MeasureTheory.Lp ℂ p G.measure)‖ = 0 := norm_zero
+      _ ≤ (G.measure Q.cell).toReal ^ s := Real.rpow_nonneg ENNReal.toReal_nonneg s
+  local_support := by
+    intro Q φ hφ
+    exact hφ.1
+  atoms_convex := by
+    intro Q
+    exact isAESpAtom_convex G s p Q
+  atoms_phase_invariant := by
+    intro Q φ σ hφ hσ
+    exact isAESpAtom_phase_invariant G s p Q hφ hσ
+  atom_bound := by
+    intro Q φ hφ
+    exact hφ.2
 
 end
 

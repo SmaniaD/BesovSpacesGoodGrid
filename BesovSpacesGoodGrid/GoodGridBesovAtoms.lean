@@ -19,6 +19,7 @@ control in both directions.
 
 open scoped ENNReal BigOperators Topology
 open MeasureTheory
+open WeakGridSpace
 
 namespace GoodGridSpace
 
@@ -81,64 +82,118 @@ def IsBesovAtom
         ≤ (besovAtomConstant G β p qtilde)⁻¹ *
             (G.grid.μ Q.cell).toReal ^ (s - β)
 
+/-- Besov atoms are invariant under multiplication by a complex phase. -/
+theorem isBesovAtom_phase_invariant
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p qtilde : ℝ≥0∞)
+    (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ qtilde)]
+    (Q : GoodGridCell G) {a : Lp ℂ p G.toWeakGridSpace.measure} {σ : ℂ}
+    (ha : IsBesovAtom G s β p qtilde hβ hp hp_top Q a)
+    (hσ : ‖σ‖ = (1 : ℝ)) :
+    IsBesovAtom G s β p qtilde hβ hp hp_top Q (σ • a) := by
+  rcases ha with ⟨R, hRfin, hRcost⟩
+  refine ⟨WeakGridSpace.LpGridRepresentation.smul σ R, ?_, ?_⟩
+  · exact WeakGridSpace.LpGridRepresentation.smul_finitePQCost
+      (A := inducedSouzaAtomFamily G β p hβ hp hp_top Q) (q := qtilde) σ hRfin
+  · calc
+      WeakGridSpace.LpGridRepresentation.pqCost (q := qtilde)
+          (WeakGridSpace.LpGridRepresentation.smul σ R)
+          = ‖σ‖ *
+              WeakGridSpace.LpGridRepresentation.pqCost (q := qtilde) R :=
+            WeakGridSpace.LpGridRepresentation.pqCost_smul
+              (A := inducedSouzaAtomFamily G β p hβ hp hp_top Q)
+              (q := qtilde) σ R hp_top Fact.out hRfin
+      _ = WeakGridSpace.LpGridRepresentation.pqCost (q := qtilde) R := by
+            rw [hσ, one_mul]
+      _ ≤ (besovAtomConstant G β p qtilde)⁻¹ *
+          (G.grid.μ Q.cell).toReal ^ (s - β) := hRcost
+
 /--
-Experimental a.e. local Banach space.
+An a.e. Besov atom is a Besov atom, in the induced-Besov sense above, which
+also satisfies the ambient `(s,p,1)` size and support conditions in `Lp`.
 
-Unlike `LocalBanachSpace`, this realizes local elements directly in `L^p`.
-This is the small prototype for refactoring atom families away from pointwise
-representatives and toward equality almost everywhere.
+This is the version compatible with the experimental a.e. atom-family API.
 -/
-structure AELocalBanachSpace
-    (G : WeakGridSpace.WeakGridSpace (α := α)) (p : ℝ≥0∞) where
-  carrier : Type u
-  [normedAddCommGroup : NormedAddCommGroup carrier]
-  [normedSpace : NormedSpace ℂ carrier]
-  [completeSpace : CompleteSpace carrier]
-  toLp : carrier →ₗ[ℂ] Lp ℂ p G.measure
-  injective_toLp : Function.Injective toLp
+def IsAEBesovAtom
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p qtilde : ℝ≥0∞)
+    (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
+    (Q : GoodGridCell G) (f : Lp ℂ p G.toWeakGridSpace.measure) : Prop :=
+  IsBesovAtom G s β p qtilde hβ hp hp_top Q f ∧
+    IsAESpAtom G.toWeakGridSpace s p Q.toWeakGridCell f
 
-attribute [instance] AELocalBanachSpace.normedAddCommGroup
-attribute [instance] AELocalBanachSpace.normedSpace
-attribute [instance] AELocalBanachSpace.completeSpace
-
-/-- A local element is supported in `Q`, modulo null sets. -/
-def AESupportedOn
-    (G : WeakGridSpace.WeakGridSpace (α := α)) (p : ℝ≥0∞)
-    (Q : WeakGridSpace.WeakGridCell G) (f : Lp ℂ p G.measure) : Prop :=
-  (f : α → ℂ) =ᵐ[G.measure.restrict Q.cellᶜ] 0
+/-- A.e. Besov atoms are invariant under multiplication by a complex phase. -/
+theorem isAEBesovAtom_phase_invariant
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p qtilde : ℝ≥0∞)
+    (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ qtilde)]
+    (Q : GoodGridCell G) {f : Lp ℂ p G.toWeakGridSpace.measure} {σ : ℂ}
+    (hf : IsAEBesovAtom G s β p qtilde hβ hp hp_top Q f)
+    (hσ : ‖σ‖ = (1 : ℝ)) :
+    IsAEBesovAtom G s β p qtilde hβ hp hp_top Q (σ • f) := by
+  constructor
+  · exact isBesovAtom_phase_invariant G s β p qtilde hβ hp hp_top Q hf.1 hσ
+  · exact isAESpAtom_phase_invariant G.toWeakGridSpace s p Q.toWeakGridCell hf.2 hσ
 
 /--
-Experimental a.e. atom family.
+Structural hypotheses needed to package Besov atoms as an a.e. atom family.
 
-This deliberately mirrors the pointwise `AtomFamily`, but uses `toLp` and
-a.e. support.  It is not wired into the old representation API yet; it is the
-branch-local prototype for seeing how much of the theory can move to `Lp`
-without choosing pointwise representatives.
+The old pointwise API forced these facts to be hidden inside
+`besovAtomFamily`.  In the a.e. prototype they are explicit: nonemptiness,
+and convexity of the Besov-atom class are exactly the remaining mathematical
+work.  Phase invariance is proved separately from representation scaling.
 -/
-structure AEAtomFamily
-    (G : WeakGridSpace.WeakGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞) where
-  s_pos : 0 < s
-  one_le_p : 1 ≤ p
-  p_ne_top : p ≠ ∞
-  localSpace : WeakGridSpace.WeakGridCell G → AELocalBanachSpace G p
-  atoms : ∀ Q, Set ((localSpace Q).carrier)
-  atoms_nonempty : ∀ Q, (atoms Q).Nonempty
-  local_support : ∀ Q φ, φ ∈ atoms Q →
-    AESupportedOn G p Q ((localSpace Q).toLp φ)
-  atoms_convex : ∀ Q, Convex ℝ (atoms Q)
-  atoms_phase_invariant :
-    ∀ Q φ (σ : ℂ), φ ∈ atoms Q → ‖σ‖ = (1 : ℝ) → σ • φ ∈ atoms Q
-  atom_bound :
-    ∀ Q φ, φ ∈ atoms Q →
-      ‖(localSpace Q).toLp φ‖ ≤ (G.measure Q.cell).toReal ^ s
+structure AEBesovAtomFamilyAxioms
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p qtilde : ℝ≥0∞)
+    (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞) : Prop where
+  atoms_nonempty :
+    ∀ Q : GoodGridCell G,
+      ∃ f : Lp ℂ p G.toWeakGridSpace.measure,
+        IsAEBesovAtom G s β p qtilde hβ hp hp_top Q f
+  atoms_convex :
+    ∀ Q : GoodGridCell G,
+      Convex ℝ
+        {f : Lp ℂ p G.toWeakGridSpace.measure |
+          IsAEBesovAtom G s β p qtilde hβ hp hp_top Q f}
 
-/-- The ambient `L^p` space as an a.e. local Banach space. -/
-noncomputable def lpAELocalBanachSpace
-    (G : WeakGridSpace.WeakGridSpace (α := α)) (p : ℝ≥0∞) :
-    AELocalBanachSpace G p where
-  carrier := Lp ℂ p G.measure
-  toLp := LinearMap.id
-  injective_toLp := fun _ _ h => h
+/--
+The a.e. Besov atom family, assuming the structural closure properties of the
+Besov-atom class.
+
+This is the branch-local replacement for the pointwise `besovAtomFamily`.
+It keeps the hard mathematical facts as named assumptions and handles the
+`Lp`/a.e. packaging without any pointwise representatives.
+-/
+noncomputable def aeBesovAtomFamily
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p qtilde : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ qtilde)]
+    (hax : AEBesovAtomFamilyAxioms G s β p qtilde hβ hp hp_top) :
+    AEAtomFamily G.toWeakGridSpace s p where
+  s_pos := hs
+  one_le_p := hp.out
+  p_ne_top := hp_top
+  localSpace := fun _ => lpAELocalBanachSpace G.toWeakGridSpace p
+  atoms := fun Q =>
+    {f : Lp ℂ p G.toWeakGridSpace.measure |
+      IsAEBesovAtom G s β p qtilde hβ hp hp_top
+        ⟨Q.level, Q.cell, Q.mem⟩ f}
+  atoms_nonempty := by
+    intro Q
+    rcases hax.atoms_nonempty ⟨Q.level, Q.cell, Q.mem⟩ with ⟨f, hf⟩
+    exact ⟨f, hf⟩
+  local_support := by
+    intro Q φ hφ
+    exact hφ.2.1
+  atoms_convex := by
+    intro Q
+    simpa using hax.atoms_convex ⟨Q.level, Q.cell, Q.mem⟩
+  atoms_phase_invariant := by
+    intro Q φ σ hφ hσ
+    exact isAEBesovAtom_phase_invariant G s β p qtilde hβ hp hp_top
+      ⟨Q.level, Q.cell, Q.mem⟩ hφ hσ
+  atom_bound := by
+    intro Q φ hφ
+    exact hφ.2.2
 
 /--
 The family of Besov atoms as an `AtomFamily`.
