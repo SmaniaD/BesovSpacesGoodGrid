@@ -4040,8 +4040,110 @@ noncomputable def claimBAtom {σ τ β : Type*}
   let m := claimBMass source c s P
   fun x => if m = 0 then 0 else m⁻¹ * ∑ Q ∈ source, c Q * s P Q * b P Q x
 
-/-- **Claim B** from the transmutation proposition, in the finite pointwise
- -/
+/-- **Claim B, support witness.**
+
+If the Claim B mass `m_P` is nonzero and the scalar coefficients `s_{P,Q}`
+are nonnegative, then some source cell really contributes to `P`: its source
+coefficient is nonzero and its transmutation coefficient is positive.  The
+last hypothesis is the paper's support input, namely that every positive
+contribution forces `P` to lie in the support of the corresponding `h_Q`.
+
+The positivity of the normalised atom `d_P` is part of the surrounding paper
+argument, but the finite witness itself only needs `m_P ≠ 0`. -/
+theorem claimB_support_witness {σ τ β : Type*}
+    (source : Finset σ) (c : σ → ℝ) (s : τ → σ → ℝ)
+    (b : τ → σ → β → ℝ) (Pcell : τ → Set β) (h : σ → β → ℝ) (P : τ)
+    (hs_nonneg : ∀ Q ∈ source, 0 ≤ s P Q)
+    (_hb_pos : ∀ Q ∈ source, ∀ x ∈ Pcell P, 0 < b P Q x)
+    (_hd_nonzero : ∀ x ∈ Pcell P, claimBAtom source c s b P x ≠ 0)
+    (hsupport : ∀ Q ∈ source, 0 < s P Q → Pcell P ⊆ Function.support (h Q))
+    (hm : claimBMass source c s P ≠ 0) :
+    ∃ Q ∈ source, c Q ≠ 0 ∧ 0 < s P Q ∧ Pcell P ⊆ Function.support (h Q) := by
+  by_contra hnone
+  apply hm
+  simp only [claimBMass]
+  refine Finset.sum_eq_zero ?_
+  intro Q hQ
+  have hnot : ¬ (c Q ≠ 0 ∧ 0 < s P Q ∧ Pcell P ⊆ Function.support (h Q)) := by
+    intro hcontrib
+    exact hnone ⟨Q, hQ, hcontrib⟩
+  have hc_or_hs : c Q = 0 ∨ s P Q = 0 := by
+    by_cases hc : c Q = 0
+    · exact Or.inl hc
+    · right
+      have hnot_pos : ¬ 0 < s P Q := by
+        intro hs_pos
+        exact hnot ⟨hc, hs_pos, hsupport Q hQ hs_pos⟩
+      exact le_antisymm (not_lt.mp hnot_pos) (hs_nonneg Q hQ)
+  rcases hc_or_hs with hc | hs
+  · simp [hc]
+  · simp [hs]
+
+omit [Fact (1 ≤ u)] [Fact (1 ≤ q)] in
+/-- **Claim B, witness form with the transmutation hypotheses.**
+
+Under the positive representation hypothesis used by
+`Transmutation_of_Atoms_Claim_B`, a nonzero mass `m_P` at a finite stage comes
+from a genuine source cell.  More explicitly, some source coefficient is
+nonzero and the corresponding representation coefficient is a positive real
+number.  Since the finite mass only sums over cells containing `P`, the witness
+also satisfies `P ⊆ Q`.
+
+This is the project-level form of the paper's assertion that a nonzero `m_P`
+forces a nontrivial positive contribution from some `Q`. -/
+theorem transmutationCoeff_support_witness
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS_pos (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (N : ℕ) {j : ℕ} (P : LevelCell W j)
+    (hm : TransmutationCoeff G W AW h R c N P ≠ 0) :
+    ∃ i ∈ Finset.range N, ∃ Q ∈ (G.grid.partitions i).attach,
+      P.1 ⊆ Q.1 ∧ c i Q ≠ 0 ∧
+        ∃ r : NNReal, 0 < r ∧ ((R i Q).block j).coeff P = (r : ℂ) := by
+  by_contra hnone
+  apply hm
+  simp only [TransmutationCoeff]
+  refine Finset.sum_eq_zero ?_
+  intro i hi
+  refine Finset.sum_eq_zero ?_
+  intro Q hQ
+  simp only [Finset.mem_filter] at hQ
+  rcases hQ with ⟨hQ_mem, hP_sub_Q⟩
+  have hnot :
+      ¬ (c i Q ≠ 0 ∧ ∃ r : NNReal, 0 < r ∧
+        ((R i Q).block j).coeff P = (r : ℂ)) := by
+    intro hw
+    rcases hw with ⟨hc, r, hr_pos, hr_coeff⟩
+    exact hnone ⟨i, hi, Q, hQ_mem, hP_sub_Q, hc, r, hr_pos, hr_coeff⟩
+  have hcoeff_nonneg := ((hR i Q).2.1 j P).2.2
+  rcases hcoeff_nonneg with ⟨r, hr_coeff, _hatom_pos⟩
+  by_cases hc : c i Q = 0
+  · simp [hc]
+  · have hr_zero : r = 0 := by
+      by_contra hr_ne
+      have hr_pos : 0 < r := lt_of_le_of_ne bot_le (Ne.symm hr_ne)
+      exact hnot ⟨hc, r, hr_pos, hr_coeff⟩
+    simp [hr_coeff, hr_zero]
+
+/-- **Claim B** from the transmutation proposition.
+
+Besides the limiting transmutation statement, this formulation records the
+support witness used in the positive case: whenever the limiting mass attached
+to a target cell `P` is nonzero and the limiting atom `d_P` is nonzero on `P`,
+some source cell `Q` containing `P` contributes with nonzero source coefficient
+and positive real representation coefficient. -/
 theorem Transmutation_of_Atoms_Claim_B (G W : WeakGridSpace (α := α))
     (AW : AtomFamily W s p u)
     (k : ℕ → ℕ)
@@ -4062,10 +4164,19 @@ theorem Transmutation_of_Atoms_Claim_B (G W : WeakGridSpace (α := α))
     (hG2_W : AssumptionG2 W s p u q)
     (hp_ne_top : p ≠ ∞)
     (hs_pos : 0 < s) :
-    ∃ gLim : Lp ℂ p W.measure,
+    (∃ gLim : Lp ℂ p W.measure,
       HasSum (fun j => (TransmutationBlockLimit G W AW h R c A_als r_als j).toLp AW) gLim ∧
       MemBesovishCoeffCost AW q gLim ∧
-      Tendsto (fun N => PartialSumLevels G W h c N) atTop (𝓝 gLim) := by
+      Tendsto (fun N => PartialSumLevels G W h c N) atTop (𝓝 gLim)) ∧
+    (∀ j : ℕ, ∀ P : LevelCell W j,
+      TransmutationCoeffLimit G W AW h R c A_als r_als P ≠ 0 →
+      (∀ x, x ∈ P.1 →
+        AW.toFunction (levelCellToWeakGridCell W j P)
+          (TransmutationAtomLocalLimit G W AW h R c A_als r_als P) x ≠ 0) →
+        ∃ i ∈ Finset.range (transmutationStabilizationIndex A_als r_als j),
+          ∃ Q ∈ (G.grid.partitions i).attach,
+          P.1 ⊆ Q.1 ∧ c i Q ≠ 0 ∧
+            ∃ r : NNReal, 0 < r ∧ ((R i Q).block j).coeff P = (r : ℂ)) := by
   let K : ℝ :=
 
 end -- closes noncomputable section
