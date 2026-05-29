@@ -30,6 +30,15 @@ noncomputable section
 variable {G : WeakGridSpace (α := α)} {s : ℝ} {p u q : ℝ≥0∞}
 variable [Fact (1 ≤ p)] [Fact (1 ≤ u)] [Fact (1 ≤ q)]
 
+/-- The measure-theoretic, or essential, support of a function.
+
+This is the smallest measurable support expressed as an intersection: a point
+belongs to `measureSupport μ f` if it belongs to every measurable set outside
+which `f` vanishes almost everywhere.  Unlike `Function.support`, this ignores
+changes on null sets. -/
+def measureSupport {β : Type*} [Zero β] (μ : Measure α) (f : α → β) : Set α :=
+  ⋂₀ {S : Set α | MeasurableSet S ∧ ∀ᵐ x ∂ μ.restrict Sᶜ, f x = 0}
+
 
 
 /-- Source coefficient `p`-power for the source grid `GIn`. -/
