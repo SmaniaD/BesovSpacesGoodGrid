@@ -61,7 +61,7 @@ abbrev inducedSouzaAtomFamily
     WeakGridSpace.AtomFamily
       (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell) β p ∞ :=
   WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-    (souzaAtomFamily G β p hβ hp hp_top)
+    (souzaAtomFamily G β p hβ hp.out hp_top)
 
 /--
 An `(s, β, p, qtilde)` Besov atom supported on `Q`.
@@ -73,13 +73,72 @@ It requires an induced Besov representation of order `β` on the grid inside
 def IsBesovAtom
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p qtilde : ℝ≥0∞)
     (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
-    (Q : GoodGridCell G) (a : Lp ℂ p G.grid.μ) : Prop :=
+    (Q : GoodGridCell G) (a : Lp ℂ p G.toWeakGridSpace.measure) : Prop :=
   ∃ R : WeakGridSpace.LpGridRepresentation
       (inducedSouzaAtomFamily G β p hβ hp hp_top Q) a,
     WeakGridSpace.LpGridRepresentation.FinitePQCost (q := qtilde) R ∧
       WeakGridSpace.LpGridRepresentation.pqCost (q := qtilde) R
         ≤ (besovAtomConstant G β p qtilde)⁻¹ *
             (G.grid.μ Q.cell).toReal ^ (s - β)
+
+/--
+Experimental a.e. local Banach space.
+
+Unlike `LocalBanachSpace`, this realizes local elements directly in `L^p`.
+This is the small prototype for refactoring atom families away from pointwise
+representatives and toward equality almost everywhere.
+-/
+structure AELocalBanachSpace
+    (G : WeakGridSpace.WeakGridSpace (α := α)) (p : ℝ≥0∞) where
+  carrier : Type u
+  [normedAddCommGroup : NormedAddCommGroup carrier]
+  [normedSpace : NormedSpace ℂ carrier]
+  [completeSpace : CompleteSpace carrier]
+  toLp : carrier →ₗ[ℂ] Lp ℂ p G.measure
+  injective_toLp : Function.Injective toLp
+
+attribute [instance] AELocalBanachSpace.normedAddCommGroup
+attribute [instance] AELocalBanachSpace.normedSpace
+attribute [instance] AELocalBanachSpace.completeSpace
+
+/-- A local element is supported in `Q`, modulo null sets. -/
+def AESupportedOn
+    (G : WeakGridSpace.WeakGridSpace (α := α)) (p : ℝ≥0∞)
+    (Q : WeakGridSpace.WeakGridCell G) (f : Lp ℂ p G.measure) : Prop :=
+  (f : α → ℂ) =ᵐ[G.measure.restrict Q.cellᶜ] 0
+
+/--
+Experimental a.e. atom family.
+
+This deliberately mirrors the pointwise `AtomFamily`, but uses `toLp` and
+a.e. support.  It is not wired into the old representation API yet; it is the
+branch-local prototype for seeing how much of the theory can move to `Lp`
+without choosing pointwise representatives.
+-/
+structure AEAtomFamily
+    (G : WeakGridSpace.WeakGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞) where
+  s_pos : 0 < s
+  one_le_p : 1 ≤ p
+  p_ne_top : p ≠ ∞
+  localSpace : WeakGridSpace.WeakGridCell G → AELocalBanachSpace G p
+  atoms : ∀ Q, Set ((localSpace Q).carrier)
+  atoms_nonempty : ∀ Q, (atoms Q).Nonempty
+  local_support : ∀ Q φ, φ ∈ atoms Q →
+    AESupportedOn G p Q ((localSpace Q).toLp φ)
+  atoms_convex : ∀ Q, Convex ℝ (atoms Q)
+  atoms_phase_invariant :
+    ∀ Q φ (σ : ℂ), φ ∈ atoms Q → ‖σ‖ = (1 : ℝ) → σ • φ ∈ atoms Q
+  atom_bound :
+    ∀ Q φ, φ ∈ atoms Q →
+      ‖(localSpace Q).toLp φ‖ ≤ (G.measure Q.cell).toReal ^ s
+
+/-- The ambient `L^p` space as an a.e. local Banach space. -/
+noncomputable def lpAELocalBanachSpace
+    (G : WeakGridSpace.WeakGridSpace (α := α)) (p : ℝ≥0∞) :
+    AELocalBanachSpace G p where
+  carrier := Lp ℂ p G.measure
+  toLp := LinearMap.id
+  injective_toLp := fun _ _ h => h
 
 /--
 The family of Besov atoms as an `AtomFamily`.
@@ -108,7 +167,7 @@ Besov-atom normalization.
 -/
 theorem besovAtom_is_sp_one_atom
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p qtilde : ℝ≥0∞)
-    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β)
+    (hs : 0 < s) (hβ : 0 < β) (_hβs : s < β)
     (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
     (Q : GoodGridCell G) :
     ∀ φ,
@@ -117,7 +176,19 @@ theorem besovAtom_is_sp_one_atom
           ((besovAtomFamily G s β p qtilde hs hβ hp hp_top).toFunction
             Q.toWeakGridCell φ)
           p G.grid.μ ≤ (G.grid.μ Q.cell) ^ s := by
-  sorry
+  intro φ hφ
+  let B : WeakGridSpace.AtomFamily G.toWeakGridSpace s p 1 :=
+    besovAtomFamily G s β p qtilde hs hβ hp hp_top
+  have huConj : B.uConj = ∞ := by
+    have h := ENNReal.holderConjugate_iff.mp B.holder_conjugate
+    simpa using h
+  have hbound :
+      eLpNorm (B.toFunction Q.toWeakGridCell φ) (p * 1) G.toWeakGridSpace.measure ≤
+        WeakGridSpace.atomMeasureScale G.toWeakGridSpace s p B.uConj Q.toWeakGridCell :=
+    B.atom_bound Q.toWeakGridCell φ hφ
+  simpa [B, GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid,
+    WeakGridSpace.WeakGridSpace.measure, WeakGridSpace.atomMeasureScale,
+    WeakGridSpace.atomMeasureExponent, huConj] using hbound
 
 /--
 Hypothesis saying that an atom family lies between Souza atoms and Besov atoms,
@@ -132,18 +203,19 @@ def SouzaBesovSandwich
     (A : WeakGridSpace.AtomFamily G.toWeakGridSpace s p u)
     (C56 C566 : ℝ) : Prop :=
   (∀ Q φ,
-      (souzaAtomFamily G s p hs hp hp_top).IsAtom Q φ →
-        ∃ ψ, A.IsAtom Q ψ ∧
+      (souzaAtomFamily G s p hs hp.out hp_top).IsAtom Q φ →
+        ∃ ψ : (A.localSpace Q).carrier, A.IsAtom Q ψ ∧
           A.toFunction Q ψ =
             (C56⁻¹ : ℂ) •
-              (souzaAtomFamily G s p hs hp hp_top).toFunction Q φ) ∧
+              (souzaAtomFamily G s p hs hp.out hp_top).toFunction Q φ) ∧
   (∀ Q φ,
       A.IsAtom Q φ →
-        ∃ ψ,
-          (besovAtomFamily G s β p qtilde hs hβ hp hp_top).IsAtom Q ψ ∧
+        let B : WeakGridSpace.AtomFamily.{u, u} G.toWeakGridSpace s p 1 :=
+          besovAtomFamily.{u, u} G s β p qtilde hs hβ hp hp_top
+        ∃ ψ : (B.localSpace Q).carrier,
+          B.IsAtom Q ψ ∧
             A.toFunction Q φ =
-              (C566 : ℂ) •
-                (besovAtomFamily G s β p qtilde hs hβ hp hp_top).toFunction Q ψ)
+              (C566 : ℂ) • B.toFunction Q ψ)
 
 /--
 Besov-atom comparison theorem.
@@ -164,30 +236,30 @@ theorem souza_atoms_and_besov_atoms
     (hSandwich :
       SouzaBesovSandwich G s β p u qtilde hs hβ (inferInstance : Fact (1 ≤ p))
         hp_top A C56 C566) :
-    (WeakGridSpace.BesovishSpace (souzaAtomFamily G s p hs inferInstance hp_top) q =
+    (WeakGridSpace.BesovishSpace (souzaAtomFamily G s p hs Fact.out hp_top) q =
         WeakGridSpace.BesovishSpace A q) ∧
       (WeakGridSpace.BesovishSpace A q =
         WeakGridSpace.BesovishSpace
           (besovAtomFamily G s β p qtilde hs hβ inferInstance hp_top) q) ∧
       (∀ f : WeakGridSpace.BesovishSpace
-          (souzaAtomFamily G s p hs inferInstance hp_top) q,
+          (souzaAtomFamily G s p hs Fact.out hp_top) q,
         ∃ hfA : WeakGridSpace.MemBesovishCoeffCost A q
-            (f : Lp ℂ p G.grid.μ),
+            (f : Lp ℂ p G.toWeakGridSpace.measure),
           WeakGridSpace.BesovishSpace.Norm_Costpq A q
-              (⟨(f : Lp ℂ p G.grid.μ), hfA⟩ :
+              (⟨(f : Lp ℂ p G.toWeakGridSpace.measure), hfA⟩ :
                 WeakGridSpace.BesovishSpace A q)
             ≤ C56 *
               WeakGridSpace.BesovishSpace.Norm_Costpq
-                (souzaAtomFamily G s p hs inferInstance hp_top) q f) ∧
+                (souzaAtomFamily G s p hs Fact.out hp_top) q f) ∧
       (∀ f : WeakGridSpace.BesovishSpace A q,
         ∃ hfS : WeakGridSpace.MemBesovishCoeffCost
-            (souzaAtomFamily G s p hs inferInstance hp_top) q
-            (f : Lp ℂ p G.grid.μ),
+            (souzaAtomFamily G s p hs Fact.out hp_top) q
+            (f : Lp ℂ p G.toWeakGridSpace.measure),
           WeakGridSpace.BesovishSpace.Norm_Costpq
-              (souzaAtomFamily G s p hs inferInstance hp_top) q
-              (⟨(f : Lp ℂ p G.grid.μ), hfS⟩ :
+              (souzaAtomFamily G s p hs Fact.out hp_top) q
+              (⟨(f : Lp ℂ p G.toWeakGridSpace.measure), hfS⟩ :
                 WeakGridSpace.BesovishSpace
-                  (souzaAtomFamily G s p hs inferInstance hp_top) q)
+                  (souzaAtomFamily G s p hs Fact.out hp_top) q)
             ≤ (C566 / (1 - G.grid.lambda2 ^ (β - s))) *
               WeakGridSpace.BesovishSpace.Norm_Costpq A q f) := by
   -- The second embedding is exactly the transmutation argument: expand each
