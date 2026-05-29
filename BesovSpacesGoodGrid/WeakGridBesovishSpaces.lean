@@ -447,6 +447,513 @@ theorem chooseLevelBlock_toLp {A : AtomFamily G s p u} {k : ℕ}
   Classical.choose_spec hf
 
 /--
+An a.e. level-`k` atomic block.
+
+This is the `Lp`-native analogue of `LevelBlock`: each cell contributes one
+coefficient and one a.e. atom, and the block is evaluated by summing the
+corresponding vectors in ambient `L^p`.  No pointwise representative is chosen.
+-/
+structure AELevelBlock (A : AEAtomFamily G s p) (k : ℕ) where
+  coeff : LevelCell G k → ℂ
+  atom : ∀ Q : LevelCell G k, (A.localSpace (levelCellToWeakGridCell G k Q)).carrier
+  atom_mem : ∀ Q : LevelCell G k,
+    A.IsAtom (levelCellToWeakGridCell G k Q) (atom Q)
+
+namespace AELevelBlock
+
+/-- A zero-valued a.e. level block, obtained by choosing one atom on each cell. -/
+def zero (A : AEAtomFamily G s p) (k : ℕ) : AELevelBlock A k where
+  coeff := fun _ => 0
+  atom := fun Q =>
+    Classical.choose (A.atoms_nonempty_on (levelCellToWeakGridCell G k Q))
+  atom_mem := fun Q =>
+    Classical.choose_spec (A.atoms_nonempty_on (levelCellToWeakGridCell G k Q))
+
+/-- The `L^p` term attached to one cell in an a.e. level block. -/
+def term (A : AEAtomFamily G s p) {k : ℕ}
+    (B : AELevelBlock A k) (Q : LevelCell G k) : Lp ℂ p G.measure :=
+  B.coeff Q • A.toLp (levelCellToWeakGridCell G k Q) (B.atom Q)
+
+/--
+The value of an a.e. level block in `L^p`, namely the finite sum over the
+level-`k` partition.
+-/
+def toLp (A : AEAtomFamily G s p) {k : ℕ}
+    (B : AELevelBlock A k) : Lp ℂ p G.measure :=
+  (G.grid.partitions k).attach.sum fun Q => B.term A Q
+
+/-- The zero a.e. level block represents the zero element of `L^p`. -/
+@[simp]
+theorem zero_toLp (A : AEAtomFamily G s p) (k : ℕ) :
+    (zero A k).toLp A = 0 := by
+  simp [toLp, term, zero]
+
+/-- Scalar multiplication of an a.e. level block, keeping the same atom on each cell. -/
+def smul (A : AEAtomFamily G s p) {k : ℕ} (c : ℂ)
+    (B : AELevelBlock A k) : AELevelBlock A k where
+  coeff := fun Q => c * B.coeff Q
+  atom := B.atom
+  atom_mem := B.atom_mem
+
+/-- Evaluating a scaled a.e. level block in `L^p` agrees with scalar multiplication. -/
+@[simp]
+theorem smul_toLp (A : AEAtomFamily G s p) {k : ℕ} (c : ℂ)
+    (B : AELevelBlock A k) :
+    (smul A c B).toLp A = c • B.toLp A := by
+  simp [toLp, term, smul, Finset.smul_sum, mul_smul]
+
+end AELevelBlock
+
+/-- The set of all a.e. level-`k` atomic blocks, viewed as elements of `L^p`. -/
+def AELevelBlockSet (A : AEAtomFamily G s p) (k : ℕ) :
+    Set (Lp ℂ p G.measure) :=
+  { f | ∃ B : AELevelBlock A k, B.toLp A = f }
+
+/-- The zero element belongs to the set of a.e. level-`k` atomic blocks. -/
+theorem zero_mem_AELevelBlockSet (A : AEAtomFamily G s p) (k : ℕ) :
+    (0 : Lp ℂ p G.measure) ∈ AELevelBlockSet A k :=
+  ⟨AELevelBlock.zero A k, by simp⟩
+
+/-- A.e. level block sets are closed under scalar multiplication. -/
+theorem smul_mem_AELevelBlockSet (A : AEAtomFamily G s p) (k : ℕ)
+    (c : ℂ) {x : Lp ℂ p G.measure} (hx : x ∈ AELevelBlockSet A k) :
+    c • x ∈ AELevelBlockSet A k := by
+  rcases hx with ⟨B, rfl⟩
+  exact ⟨AELevelBlock.smul A c B, by simp⟩
+
+omit [Fact (1 ≤ p)] in
+/-- The zero vector is an a.e. atom on every weak grid cell. -/
+theorem aeAtom_zero_mem (A : AEAtomFamily G s p) (Q : WeakGridCell G) :
+    (0 : (A.localSpace Q).carrier) ∈ A.atoms Q := by
+  classical
+  rcases A.atoms_nonempty Q with ⟨φ, hφ⟩
+  have hneg : (-1 : ℂ) • φ ∈ A.atoms Q :=
+    A.atoms_phase_invariant Q φ (-1) hφ (by norm_num)
+  have hmid :
+      ((1 / 2 : ℝ) • φ + (1 / 2 : ℝ) • ((-1 : ℂ) • φ)) ∈ A.atoms Q := by
+    exact (convex_iff_add_mem.mp (A.atoms_convex Q)) hφ hneg
+      (by norm_num) (by norm_num) (by norm_num)
+  convert hmid using 1
+  simp
+
+omit [Fact (1 ≤ p)] in
+/-- A.e. atoms are stable under scalar multiplication by complex scalars of norm at most one. -/
+theorem aeAtom_smul_mem_of_norm_le_one (A : AEAtomFamily G s p) (Q : WeakGridCell G)
+    {c : ℂ} (hc : ‖c‖ ≤ (1 : ℝ))
+    {φ : (A.localSpace Q).carrier} (hφ : φ ∈ A.atoms Q) :
+    c • φ ∈ A.atoms Q := by
+  classical
+  by_cases hczero : c = 0
+  · subst hczero
+    simpa using aeAtom_zero_mem A Q
+  let σ : ℂ := (‖c‖ : ℂ)⁻¹ * c
+  have hnormσ : ‖σ‖ = (1 : ℝ) := by
+    have hnorm_pos : ‖c‖ ≠ 0 := by
+      exact norm_ne_zero_iff.mpr hczero
+    simp [σ, norm_inv, hnorm_pos]
+  have hσφ : σ • φ ∈ A.atoms Q :=
+    A.atoms_phase_invariant Q φ σ hφ hnormσ
+  have hcombo :
+      (‖c‖ : ℝ) • (σ • φ) + (1 - ‖c‖ : ℝ) •
+        (0 : (A.localSpace Q).carrier) ∈ A.atoms Q := by
+    exact (convex_iff_add_mem.mp (A.atoms_convex Q)) hσφ (aeAtom_zero_mem A Q)
+      (norm_nonneg c) (sub_nonneg.mpr hc) (by ring)
+  convert hcombo using 1
+  rw [RCLike.real_smul_eq_coe_smul (K := ℂ), smul_smul]
+  have hnorm_pos : (‖c‖ : ℂ) ≠ 0 := by
+    exact_mod_cast norm_ne_zero_iff.mpr hczero
+  simp [σ, hnorm_pos]
+
+omit [Fact (1 ≤ p)] in
+/-- Normalize a coefficient to a phase and apply it to an a.e. atom, using zero at coefficient zero. -/
+noncomputable def aePhaseAtom (A : AEAtomFamily G s p) (Q : WeakGridCell G)
+    (c : ℂ) (φ : (A.localSpace Q).carrier) : (A.localSpace Q).carrier :=
+  if c = 0 then 0 else ((‖c‖ : ℂ)⁻¹ * c) • φ
+
+omit [Fact (1 ≤ p)] in
+/-- The phase-normalized a.e. atom remains in the atom set. -/
+theorem aePhaseAtom_mem (A : AEAtomFamily G s p) (Q : WeakGridCell G)
+    (c : ℂ) {φ : (A.localSpace Q).carrier} (hφ : φ ∈ A.atoms Q) :
+    aePhaseAtom A Q c φ ∈ A.atoms Q := by
+  classical
+  by_cases hc : c = 0
+  · simp [aePhaseAtom, hc, aeAtom_zero_mem A Q]
+  · have hnorm_pos : ‖c‖ ≠ 0 := norm_ne_zero_iff.mpr hc
+    rw [aePhaseAtom, if_neg hc]
+    refine A.atoms_phase_invariant Q φ ((‖c‖ : ℂ)⁻¹ * c) hφ ?_
+    simp [norm_inv, hnorm_pos]
+
+omit [Fact (1 ≤ p)] in
+/-- Multiplying the phase-normalized a.e. atom by the coefficient norm recovers the original scalar multiple. -/
+theorem norm_smul_aePhaseAtom (A : AEAtomFamily G s p) (Q : WeakGridCell G)
+    (c : ℂ) (φ : (A.localSpace Q).carrier) :
+    (‖c‖ : ℝ) • aePhaseAtom A Q c φ = c • φ := by
+  classical
+  by_cases hc : c = 0
+  · simp [aePhaseAtom, hc]
+  · rw [aePhaseAtom, if_neg hc, RCLike.real_smul_eq_coe_smul (K := ℂ), smul_smul]
+    congr 1
+    have hnorm_pos : (‖c‖ : ℂ) ≠ 0 := by
+      exact_mod_cast norm_ne_zero_iff.mpr hc
+    simp [hnorm_pos]
+
+omit [Fact (1 ≤ p)] in
+/-- A convex combination with total coefficient norm at most one is again an a.e. atom. -/
+theorem aeAtom_add_combo_mem_of_norm_add_le_one
+    (A : AEAtomFamily G s p) (Q : WeakGridCell G)
+    {c d : ℂ} (hcd : ‖c‖ + ‖d‖ ≤ (1 : ℝ))
+    {φ ψ : (A.localSpace Q).carrier}
+    (hφ : φ ∈ A.atoms Q) (hψ : ψ ∈ A.atoms Q) :
+    c • φ + d • ψ ∈ A.atoms Q := by
+  classical
+  let w : Fin 3 → ℝ := fun i =>
+    if i = 0 then ‖c‖ else if i = 1 then ‖d‖ else 1 - ‖c‖ - ‖d‖
+  let z : Fin 3 → (A.localSpace Q).carrier := fun i =>
+    if i = 0 then aePhaseAtom A Q c φ
+    else if i = 1 then aePhaseAtom A Q d ψ
+    else 0
+  have hw_nonneg : ∀ i ∈ Finset.univ, 0 ≤ w i := by
+    intro i _
+    fin_cases i
+    · simp [w, norm_nonneg]
+    · simp [w, norm_nonneg]
+    · have hd_le : ‖d‖ ≤ 1 - ‖c‖ := by linarith
+      simp [w, sub_nonneg.mpr hd_le]
+  have hw_sum : ∑ i ∈ Finset.univ, w i = 1 := by
+    simp [w, Fin.sum_univ_three]
+  have hz_mem : ∀ i ∈ Finset.univ, z i ∈ A.atoms Q := by
+    intro i _
+    fin_cases i
+    · simp [z, aePhaseAtom_mem A Q c hφ]
+    · simp [z, aePhaseAtom_mem A Q d hψ]
+    · simp [z, aeAtom_zero_mem A Q]
+  have hsum := (A.atoms_convex Q).sum_mem hw_nonneg hw_sum hz_mem
+  convert hsum using 1
+  simp [w, z, Fin.sum_univ_three, norm_smul_aePhaseAtom A Q c φ,
+    norm_smul_aePhaseAtom A Q d ψ]
+
+omit [Fact (1 ≤ p)] in
+/--
+Repackage a sum of two coefficient-times-a.e.-atom terms as one nonnegative
+coefficient times a single a.e. atom on the same cell.
+-/
+theorem aeAtom_add_repackage (A : AEAtomFamily G s p) (Q : WeakGridCell G)
+    (c d : ℂ) {φ ψ : (A.localSpace Q).carrier}
+    (hφ : φ ∈ A.atoms Q) (hψ : ψ ∈ A.atoms Q) :
+    ∃ θ : (A.localSpace Q).carrier,
+      θ ∈ A.atoms Q ∧
+        ((‖c‖ + ‖d‖ : ℝ) : ℂ) • θ = c • φ + d • ψ := by
+  classical
+  let r : ℝ := ‖c‖ + ‖d‖
+  by_cases hr : r = 0
+  · have hc0 : c = 0 := by
+      have hc_norm : ‖c‖ = 0 := by nlinarith [norm_nonneg c, norm_nonneg d]
+      exact norm_eq_zero.mp hc_norm
+    have hd0 : d = 0 := by
+      have hd_norm : ‖d‖ = 0 := by nlinarith [norm_nonneg c, norm_nonneg d]
+      exact norm_eq_zero.mp hd_norm
+    refine ⟨0, aeAtom_zero_mem A Q, ?_⟩
+    simp [hc0, hd0]
+  · let c' : ℂ := (r : ℂ)⁻¹ * c
+    let d' : ℂ := (r : ℂ)⁻¹ * d
+    have hrpos : 0 < r := by
+      have hnonneg : 0 ≤ r := by positivity
+      exact lt_of_le_of_ne hnonneg (Ne.symm hr)
+    have hnorm_add : ‖c'‖ + ‖d'‖ ≤ (1 : ℝ) := by
+      have hrc : ‖c'‖ = ‖c‖ / r := by
+        simp [c', norm_inv, abs_of_pos hrpos, div_eq_inv_mul, mul_comm]
+      have hrd : ‖d'‖ = ‖d‖ / r := by
+        simp [d', norm_inv, abs_of_pos hrpos, div_eq_inv_mul, mul_comm]
+      rw [hrc, hrd]
+      field_simp [ne_of_gt hrpos]
+      rfl
+    have hθ_mem :
+        c' • φ + d' • ψ ∈ A.atoms Q :=
+      aeAtom_add_combo_mem_of_norm_add_le_one A Q hnorm_add hφ hψ
+    refine ⟨c' • φ + d' • ψ, hθ_mem, ?_⟩
+    rw [smul_add, smul_smul, smul_smul]
+    have hrc : ((r : ℂ) * c') = c := by
+      have hrc_ne : (r : ℂ) ≠ 0 := by exact_mod_cast ne_of_gt hrpos
+      simp [c', hrc_ne]
+    have hrd : ((r : ℂ) * d') = d := by
+      have hrc_ne : (r : ℂ) ≠ 0 := by exact_mod_cast ne_of_gt hrpos
+      simp [d', hrc_ne]
+    change ((r : ℂ) * c') • φ + ((r : ℂ) * d') • ψ = c • φ + d • ψ
+    rw [hrc, hrd]
+
+namespace AELevelBlock
+
+/-- Addition of a.e. level blocks, reusing one a.e. atom per cell. -/
+noncomputable def add (A : AEAtomFamily G s p) {k : ℕ}
+    (B C : AELevelBlock A k) : AELevelBlock A k where
+  coeff := fun Q => ((‖B.coeff Q‖ + ‖C.coeff Q‖ : ℝ) : ℂ)
+  atom := fun Q =>
+    Classical.choose
+      (aeAtom_add_repackage A (levelCellToWeakGridCell G k Q)
+        (B.coeff Q) (C.coeff Q) (B.atom_mem Q) (C.atom_mem Q))
+  atom_mem := fun Q =>
+    (Classical.choose_spec
+      (aeAtom_add_repackage A (levelCellToWeakGridCell G k Q)
+        (B.coeff Q) (C.coeff Q) (B.atom_mem Q) (C.atom_mem Q))).1
+
+omit [Fact (1 ≤ p)] in
+/-- The a.e. atom chosen for the sum block has the expected cellwise scalar identity. -/
+theorem add_atom_spec (A : AEAtomFamily G s p) {k : ℕ}
+    (B C : AELevelBlock A k) (Q : LevelCell G k) :
+    ((‖B.coeff Q‖ + ‖C.coeff Q‖ : ℝ) : ℂ) • (add A B C).atom Q =
+      B.coeff Q • B.atom Q + C.coeff Q • C.atom Q :=
+  (Classical.choose_spec
+    (aeAtom_add_repackage A (levelCellToWeakGridCell G k Q)
+      (B.coeff Q) (C.coeff Q) (B.atom_mem Q) (C.atom_mem Q))).2
+
+omit [Fact (1 ≤ p)] in
+/-- The `L^p` cell term of a sum a.e. block is the sum of the two original cell terms. -/
+theorem add_term (A : AEAtomFamily G s p) {k : ℕ}
+    (B C : AELevelBlock A k) (Q : LevelCell G k) :
+    (add A B C).term A Q = B.term A Q + C.term A Q := by
+  let Qg : WeakGridCell G := levelCellToWeakGridCell G k Q
+  let θ := (add A B C).atom Q
+  let a := B.atom Q
+  let b := C.atom Q
+  let lam : ℂ := ((‖B.coeff Q‖ + ‖C.coeff Q‖ : ℝ) : ℂ)
+  have hlocal : lam • θ = B.coeff Q • a + C.coeff Q • b := by
+    simpa [Qg, θ, a, b, lam] using add_atom_spec A B C Q
+  have hlp := congrArg (A.localSpace Qg).toLp hlocal
+  simpa [term, AEAtomFamily.toLp, add, map_add, map_smul, Qg, θ, a, b, lam] using hlp
+
+omit [Fact (1 ≤ p)] in
+/-- Evaluating the sum a.e. block in `L^p` gives the sum of the represented blocks. -/
+@[simp]
+theorem add_toLp (A : AEAtomFamily G s p) {k : ℕ}
+    (B C : AELevelBlock A k) :
+    (add A B C).toLp A = B.toLp A + C.toLp A := by
+  simp [toLp, add_term A B C, Finset.sum_add_distrib]
+
+end AELevelBlock
+
+omit [Fact (1 ≤ p)] in
+/-- A.e. level block sets are closed under addition. -/
+theorem add_mem_AELevelBlockSet (A : AEAtomFamily G s p) (k : ℕ)
+    {x y : Lp ℂ p G.measure} :
+    x ∈ AELevelBlockSet A k → y ∈ AELevelBlockSet A k →
+      x + y ∈ AELevelBlockSet A k := by
+  rintro ⟨B, rfl⟩ ⟨C, rfl⟩
+  exact ⟨AELevelBlock.add A B C, by simp⟩
+
+/-- Closure of a.e. level blocks under zero, addition, and scalar multiplication. -/
+def AELevelBlocksLinear (A : AEAtomFamily G s p) : Prop :=
+  (∀ k, (0 : Lp ℂ p G.measure) ∈ AELevelBlockSet A k) ∧
+  (∀ k x y, x ∈ AELevelBlockSet A k → y ∈ AELevelBlockSet A k →
+    x + y ∈ AELevelBlockSet A k) ∧
+  (∀ k (c : ℂ) x, x ∈ AELevelBlockSet A k →
+    c • x ∈ AELevelBlockSet A k)
+
+/-- A.e. level blocks form a linear family at each level. -/
+theorem aeLevelBlocksLinear (A : AEAtomFamily G s p) :
+    AELevelBlocksLinear A := by
+  refine ⟨?_, ?_, ?_⟩
+  · intro k
+    exact zero_mem_AELevelBlockSet A k
+  · intro k x y hx hy
+    exact add_mem_AELevelBlockSet A k hx hy
+  · intro k c x hx
+    exact smul_mem_AELevelBlockSet A k c hx
+
+/--
+An a.e. Besov-ish representation of `g`: a series of a.e. atomic level blocks
+whose sum is `g` in ambient `L^p`.
+
+This is the `Lp`-native counterpart of `LpGridRepresentation`.
+-/
+structure AELpGridRepresentation
+    (A : AEAtomFamily G s p) (g : Lp ℂ p G.measure) where
+  block : (k : ℕ) → AELevelBlock A k
+  hasSum : HasSum (fun k => (block k).toLp A) g
+
+namespace AELpGridRepresentation
+
+/--
+Level-`k` coefficient `ℓ^p` power sum for an a.e. representation:
+`∑_{Q ∈ P^k} |s_Q|^p`.
+-/
+def levelCoeffPower
+    {A : AEAtomFamily G s p} {g : Lp ℂ p G.measure}
+    (R : AELpGridRepresentation A g) (k : ℕ) : ℝ :=
+  ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ ^ p.toReal
+
+/-- The a.e. level coefficient power is nonnegative. -/
+theorem levelCoeffPower_nonneg
+    {A : AEAtomFamily G s p} {g : Lp ℂ p G.measure}
+    (R : AELpGridRepresentation A g) (k : ℕ) :
+    0 ≤ R.levelCoeffPower k := by
+  unfold levelCoeffPower
+  exact Finset.sum_nonneg fun _ _ => Real.rpow_nonneg (norm_nonneg _) _
+
+/-- The `(p,q)` coefficient gauge of an a.e. representation. -/
+def pqCost
+    {A : AEAtomFamily G s p} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
+    (R : AELpGridRepresentation A g) : ℝ :=
+  if q = ∞ then
+      sSup (Set.range fun k =>
+        (R.levelCoeffPower k) ^ (1 / p.toReal))
+    else
+      (∑' k, (R.levelCoeffPower k) ^ (q.toReal / p.toReal)) ^ (1 / q.toReal)
+
+/-- Finiteness condition for the `(p,q)` coefficient-cost data of an a.e. representation. -/
+def FinitePQCost
+    {A : AEAtomFamily G s p} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
+    (R : AELpGridRepresentation A g) : Prop :=
+  if q = ∞ then
+    BddAbove (Set.range fun k => (R.levelCoeffPower k) ^ (1 / p.toReal))
+  else
+    Summable (fun k => (R.levelCoeffPower k) ^ (q.toReal / p.toReal))
+
+/-- Representation-level scalar multiplication induced by a.e. block linearity. -/
+noncomputable def smul
+    {A : AEAtomFamily G s p} {g : Lp ℂ p G.measure}
+    (c : ℂ) (R : AELpGridRepresentation A g) :
+    AELpGridRepresentation A (c • g) where
+  block := fun k => AELevelBlock.smul A c (R.block k)
+  hasSum := by
+    simpa [AELevelBlock.smul_toLp] using R.hasSum.const_smul c
+
+/-- The block of a scaled a.e. representation evaluates levelwise to the scaled block. -/
+@[simp]
+theorem smul_block_toLp
+    {A : AEAtomFamily G s p} {g : Lp ℂ p G.measure}
+    (c : ℂ) (R : AELpGridRepresentation A g) (k : ℕ) :
+    ((smul c R).block k).toLp A = c • (R.block k).toLp A := by
+  simp [smul]
+
+/-- Representation-level addition induced by a.e. level-block linearity. -/
+noncomputable def add
+    {A : AEAtomFamily G s p} {g h : Lp ℂ p G.measure}
+    (R : AELpGridRepresentation A g)
+    (S : AELpGridRepresentation A h) :
+    AELpGridRepresentation A (g + h) where
+  block := fun k => AELevelBlock.add A (R.block k) (S.block k)
+  hasSum := by
+    simpa [AELevelBlock.add_toLp] using R.hasSum.add S.hasSum
+
+/-- The block of a sum a.e. representation evaluates levelwise to the sum of blocks. -/
+@[simp]
+theorem add_block_toLp
+    {A : AEAtomFamily G s p} {g h : Lp ℂ p G.measure}
+    (R : AELpGridRepresentation A g)
+    (S : AELpGridRepresentation A h) (k : ℕ) :
+    ((add R S).block k).toLp A = (R.block k).toLp A + (S.block k).toLp A := by
+  simp [add]
+
+/-- The zero a.e. representation. -/
+noncomputable def zero (A : AEAtomFamily G s p) :
+    AELpGridRepresentation A (0 : Lp ℂ p G.measure) where
+  block := fun k => AELevelBlock.zero A k
+  hasSum := by
+    simpa using (hasSum_zero : HasSum (fun _ : ℕ => (0 : Lp ℂ p G.measure)) 0)
+
+/-- The zero a.e. representation has finite `(p,q)` coefficient cost. -/
+theorem zero_finitePQCost (A : AEAtomFamily G s p) [Fact (1 ≤ q)] :
+    FinitePQCost (q := q) (zero A) := by
+  have hp_pos : 0 < p.toReal := (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+  have hzero : ∀ k, (zero A).levelCoeffPower k = 0 := by
+    intro k
+    unfold levelCoeffPower
+    simp [zero, AELevelBlock.zero, Real.zero_rpow hp_pos.ne']
+  by_cases hq : q = ∞
+  · rw [FinitePQCost, if_pos hq]
+    refine ⟨0, ?_⟩
+    rintro x ⟨k, rfl⟩
+    have hinv_pos : 0 < p.toReal⁻¹ := inv_pos.mpr hp_pos
+    simpa [hzero k, Real.zero_rpow hinv_pos.ne']
+  · have hq_pos : 0 < q.toReal := by
+      linarith [(ENNReal.dichotomy q).resolve_left hq]
+    have hpow_pos : 0 < q.toReal / p.toReal := div_pos hq_pos hp_pos
+    rw [FinitePQCost, if_neg hq]
+    simpa [hzero, Real.zero_rpow hpow_pos.ne'] using
+      (summable_zero : Summable (fun _ : ℕ => (0 : ℝ)))
+
+/-- Scaling an a.e. representation scales each level coefficient power by `‖c‖^p`. -/
+theorem levelCoeffPower_smul
+    {A : AEAtomFamily G s p} {g : Lp ℂ p G.measure}
+    (c : ℂ) (R : AELpGridRepresentation A g) (k : ℕ) :
+    (smul c R).levelCoeffPower k = ‖c‖ ^ p.toReal * R.levelCoeffPower k := by
+  unfold levelCoeffPower smul AELevelBlock.smul
+  calc
+    (∑ Q : LevelCell G k, ‖c * (R.block k).coeff Q‖ ^ p.toReal)
+        = ∑ Q : LevelCell G k, (‖c‖ * ‖(R.block k).coeff Q‖) ^ p.toReal := by
+            refine Finset.sum_congr rfl ?_
+            intro Q hQ
+            rw [norm_mul]
+    _ = ∑ Q : LevelCell G k, (‖c‖ ^ p.toReal) *
+        (‖(R.block k).coeff Q‖ ^ p.toReal) := by
+          refine Finset.sum_congr rfl ?_
+          intro Q hQ
+          rw [Real.mul_rpow (norm_nonneg c) (norm_nonneg _)]
+    _ = ‖c‖ ^ p.toReal *
+        ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ ^ p.toReal := by
+          rw [Finset.mul_sum]
+
+/-- Finite `(p,q)` coefficient cost is preserved under scalar multiplication of a.e. representations. -/
+theorem smul_finitePQCost
+    {A : AEAtomFamily G s p} {q : ℝ≥0∞} {g : Lp ℂ p G.measure}
+    (c : ℂ) {R : AELpGridRepresentation A g}
+    (hRfin : FinitePQCost (q := q) R) :
+    FinitePQCost (q := q) (smul c R) := by
+  by_cases hq : q = ∞
+  · have hRbdd : BddAbove (Set.range fun k => (R.levelCoeffPower k) ^ (1 / p.toReal)) := by
+      simpa [FinitePQCost, hq] using hRfin
+    rcases hRbdd with ⟨C, hC⟩
+    have hp_pos : 0 < p.toReal := (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+    have hBdd : BddAbove (Set.range fun k => ((smul c R).levelCoeffPower k) ^ (1 / p.toReal)) := by
+      refine ⟨‖c‖ * C, ?_⟩
+      rintro x ⟨k, rfl⟩
+      have hRnonneg : 0 ≤ R.levelCoeffPower k := R.levelCoeffPower_nonneg k
+      calc
+        ((smul c R).levelCoeffPower k) ^ (1 / p.toReal)
+            = (‖c‖ ^ p.toReal * R.levelCoeffPower k) ^ (1 / p.toReal) := by
+                rw [levelCoeffPower_smul]
+        _ = (‖c‖ ^ p.toReal) ^ (1 / p.toReal) *
+            (R.levelCoeffPower k) ^ (1 / p.toReal) := by
+              rw [Real.mul_rpow (by positivity) hRnonneg]
+        _ = ‖c‖ * (R.levelCoeffPower k) ^ (1 / p.toReal) := by
+              have hcp : (‖c‖ ^ p.toReal) ^ (1 / p.toReal) = ‖c‖ := by
+                simpa [one_div] using (Real.rpow_rpow_inv (norm_nonneg c) hp_pos.ne')
+              rw [hcp]
+        _ ≤ ‖c‖ * C := mul_le_mul_of_nonneg_left (hC ⟨k, rfl⟩) (norm_nonneg c)
+    simpa [FinitePQCost, hq] using hBdd
+  · have hp_pos : 0 < p.toReal := (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+    have hRsum : Summable (fun k => (R.levelCoeffPower k) ^ (q.toReal / p.toReal)) := by
+      simpa [FinitePQCost, hq] using hRfin
+    have hsum : Summable (fun k => ((smul c R).levelCoeffPower k) ^ (q.toReal / p.toReal)) := by
+      have hterm :
+          ∀ k,
+            ((smul c R).levelCoeffPower k) ^ (q.toReal / p.toReal)
+              = ‖c‖ ^ q.toReal * (R.levelCoeffPower k) ^ (q.toReal / p.toReal) := by
+        intro k
+        have hRnonneg : 0 ≤ R.levelCoeffPower k := R.levelCoeffPower_nonneg k
+        calc
+          ((smul c R).levelCoeffPower k) ^ (q.toReal / p.toReal)
+              = (‖c‖ ^ p.toReal * R.levelCoeffPower k) ^ (q.toReal / p.toReal) := by
+                  rw [levelCoeffPower_smul]
+          _ = (‖c‖ ^ p.toReal) ^ (q.toReal / p.toReal) *
+              (R.levelCoeffPower k) ^ (q.toReal / p.toReal) := by
+                rw [Real.mul_rpow (by positivity) hRnonneg]
+          _ = ‖c‖ ^ q.toReal * (R.levelCoeffPower k) ^ (q.toReal / p.toReal) := by
+                have hmul : q.toReal / p.toReal = (1 / p.toReal) * q.toReal := by
+                  field_simp [hp_pos.ne']
+                rw [hmul, Real.rpow_mul (by positivity)]
+                have hcp : (‖c‖ ^ p.toReal) ^ (1 / p.toReal) = ‖c‖ := by
+                  simpa [one_div] using (Real.rpow_rpow_inv (norm_nonneg c) hp_pos.ne')
+                rw [hcp]
+      refine (hRsum.mul_left (‖c‖ ^ q.toReal)).congr ?_
+      intro k
+      symm
+      exact hterm k
+    simpa [FinitePQCost, hq] using hsum
+
+end AELpGridRepresentation
+
+/--
 A Besov-ish representation of `g`: an absolutely summable series of atomic
 level blocks whose sum is `g` in `L^p`.
 
@@ -3080,6 +3587,48 @@ theorem smul_finitePQCost
     simpa [FinitePQCost, hq] using hsum
 
 end LpGridRepresentation
+
+/-- The a.e. Besov-ish predicate on `L^p`: `g` has an a.e. atomic representation. -/
+def AEMemBesovish (A : AEAtomFamily G s p) (q : ℝ≥0∞)
+    (g : Lp ℂ p G.measure) : Prop :=
+  let _ : ℝ≥0∞ := q
+  Nonempty (AELpGridRepresentation A g)
+
+/--
+Stronger a.e. Besov-ish predicate: an a.e. representation exists and has finite
+coefficient cost in the sense of equation `(rep2)` from the paper.
+-/
+def AEMemBesovishCoeffCost (A : AEAtomFamily G s p) (q : ℝ≥0∞)
+    (g : Lp ℂ p G.measure) : Prop :=
+  ∃ R : AELpGridRepresentation A g,
+    AELpGridRepresentation.FinitePQCost (q := q) R
+
+/-- The zero vector admits an a.e. Besov-ish atomic representation. -/
+theorem aeMemBesovish_zero (A : AEAtomFamily G s p) :
+    AEMemBesovish A q (0 : Lp ℂ p G.measure) := by
+  refine ⟨?_⟩
+  refine
+    { block := fun k => AELevelBlock.zero A k
+      hasSum := ?_ }
+  simpa using (hasSum_zero : HasSum (fun _ : ℕ => (0 : Lp ℂ p G.measure)) 0)
+
+/--
+The zero vector has finite a.e. `(p,q)` coefficient cost.
+
+The witness is the canonical zero a.e. representation.
+-/
+theorem aeMemBesovishCoeffCost_zero (A : AEAtomFamily G s p) [Fact (1 ≤ q)] :
+    AEMemBesovishCoeffCost A q (0 : Lp ℂ p G.measure) := by
+  exact ⟨AELpGridRepresentation.zero A, AELpGridRepresentation.zero_finitePQCost (A := A)⟩
+
+/-- Finite-cost a.e. Besov-ish representations are closed under scalar multiplication. -/
+theorem aeMemBesovishCoeffCost_smul {A : AEAtomFamily G s p}
+    (c : ℂ) {g : Lp ℂ p G.measure}
+    (hg : AEMemBesovishCoeffCost A q g) :
+    AEMemBesovishCoeffCost A q (c • g) := by
+  rcases hg with ⟨R, hRfin⟩
+  exact ⟨AELpGridRepresentation.smul c R,
+    AELpGridRepresentation.smul_finitePQCost (A := A) (q := q) c hRfin⟩
 
 
 /--
