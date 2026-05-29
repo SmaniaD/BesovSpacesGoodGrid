@@ -190,6 +190,28 @@ def RepresentationWsubGandALS
         (j < k i → ((R i Q).block j).coeff S = 0)) ∧
       ∀ j : ℕ, k i ≤ j → ((R i Q).levelCoeffPower j) ≤ C * lam ^ (j - k i)
 
+
+def RepresentationWsubGandALS_pos
+  (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ) (_hk : AlmostLinearSequence k)
+    (lam : ℝ) (_hlam_pos : 0 < lam) (_hlam_lt : lam < 1)
+    (C : ℝ) (_hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    : Prop :=
+  ∀ i : ℕ, ∀ Q : LevelCell G i,
+      CoeffFinitePQCost (p := p) (q := q) W (fun j S => ((R i Q).block j).coeff S) ∧
+      (∀ j : ℕ, ∀ S : LevelCell W j,
+        (¬ S.1 ⊆ Q.1 → ((R i Q).block j).coeff S = 0) ∧
+        (j < k i → ((R i Q).block j).coeff S = 0) ∧
+        ∃ r : NNReal, ((R i Q).block j).coeff S = (r : ℂ) ∧
+        ∀ x, x ∈ S.1 →
+          ∃ a : NNReal, 0 < a ∧
+            AW.toFunction (levelCellToWeakGridCell W j S) (((R i Q).block j).atom S) x =
+              (a : ℂ)) ∧
+      ∀ j : ℕ, k i ≤ j → ((R i Q).levelCoeffPower j) ≤ C * lam ^ (j - k i)
+
 /-- Transmutation coefficient for `P ∈ W^j`:
     `m_{P,N} = ∑_{i<N} ∑_{Q ∈ G^i, P ⊆ Q} |c_Q · s_{P,Q}|`
     where `s_{P,Q} = ((R i Q).block j).coeff P`. -/
@@ -3999,6 +4021,52 @@ theorem Transmutation_of_Atoms_Claim_A_top
     ⟨gLim, hRlim, hmem, hfin, hcost, hg_tendsto⟩
   exact ⟨gLim, hRlim, hmem, hg_tendsto⟩
 
+
+/-- The coefficient `m_P` from Claim B, for a fixed target cell `P`.
+
+The finite set `source` represents the source cells `Q` that are available in
+the finite sum coming from formula `(from)` in the paper. -/
+noncomputable def claimBMass {σ τ : Type*}
+    (source : Finset σ) (c : σ → ℝ) (s : τ → σ → ℝ) (P : τ) : ℝ :=
+  ∑ Q ∈ source, |c Q * s P Q|
+
+/-- The function `d_P` from Claim B, written pointwise from formula `(from)`.
+
+When `m_P = 0` the paper defines `d_P` to be zero; otherwise it is the
+normalised sum of the atoms `b_{P,Q}`. -/
+noncomputable def claimBAtom {σ τ β : Type*}
+    (source : Finset σ) (c : σ → ℝ) (s : τ → σ → ℝ)
+    (b : τ → σ → β → ℝ) (P : τ) : β → ℝ :=
+  let m := claimBMass source c s P
+  fun x => if m = 0 then 0 else m⁻¹ * ∑ Q ∈ source, c Q * s P Q * b P Q x
+
+/-- **Claim B** from the transmutation proposition, in the finite pointwise
+ -/
+theorem Transmutation_of_Atoms_Claim_B (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS_pos (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (hc : CoeffFinitePQCost (p := p) (q := q) G c)
+    (hq_ne_top : q ≠ ∞)
+    (hG2_W : AssumptionG2 W s p u q)
+    (hp_ne_top : p ≠ ∞)
+    (hs_pos : 0 < s) :
+    ∃ gLim : Lp ℂ p W.measure,
+      HasSum (fun j => (TransmutationBlockLimit G W AW h R c A_als r_als j).toLp AW) gLim ∧
+      MemBesovishCoeffCost AW q gLim ∧
+      Tendsto (fun N => PartialSumLevels G W h c N) atTop (𝓝 gLim) := by
+  let K : ℝ :=
 
 end -- closes noncomputable section
 
