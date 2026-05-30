@@ -951,6 +951,126 @@ theorem smul_finitePQCost
       exact hterm k
     simpa [FinitePQCost, hq] using hsum
 
+/-- Finite `(p,q)` coefficient cost is preserved under addition of a.e. representations. -/
+theorem add_finitePQCost
+    {A : AEAtomFamily G s p} {q : ℝ≥0∞} {g h : Lp ℂ p G.measure}
+    (R : AELpGridRepresentation A g)
+    (S : AELpGridRepresentation A h)
+    (hRfin : FinitePQCost (q := q) R)
+    (hSfin : FinitePQCost (q := q) S)
+    [Fact (1 ≤ q)] :
+    FinitePQCost (q := q) (add R S) := by
+  by_cases hq : q = ∞
+  · have hRbdd : BddAbove (Set.range fun k => (R.levelCoeffPower k) ^ (1 / p.toReal)) := by
+      simpa [FinitePQCost, hq] using hRfin
+    have hSbdd : BddAbove (Set.range fun k => (S.levelCoeffPower k) ^ (1 / p.toReal)) := by
+      simpa [FinitePQCost, hq] using hSfin
+    rcases hRbdd with ⟨CR, hCR⟩
+    rcases hSbdd with ⟨CS, hCS⟩
+    have hBdd :
+        BddAbove (Set.range fun k => ((add R S).levelCoeffPower k) ^ (1 / p.toReal)) := by
+      refine ⟨CR + CS, ?_⟩
+      rintro x ⟨k, rfl⟩
+      have hsum_add :
+          ∑ Q : LevelCell G k, ‖((add R S).block k).coeff Q‖ ^ p.toReal
+            = ∑ Q : LevelCell G k,
+              (‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖) ^ p.toReal := by
+        refine Finset.sum_congr rfl ?_
+        intro Q hQ
+        have hnn : 0 ≤ ‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖ :=
+          add_nonneg (norm_nonneg _) (norm_nonneg _)
+        change ‖((‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖ : ℝ) : ℂ)‖ ^ p.toReal =
+            (‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖) ^ p.toReal
+        rw [Complex.norm_real, Real.norm_of_nonneg hnn]
+      have hk :
+          ((add R S).levelCoeffPower k) ^ (1 / p.toReal)
+            ≤ (R.levelCoeffPower k) ^ (1 / p.toReal) +
+              (S.levelCoeffPower k) ^ (1 / p.toReal) := by
+        rw [AELpGridRepresentation.levelCoeffPower, hsum_add]
+        simpa [AELpGridRepresentation.levelCoeffPower] using
+          (Real.Lp_add_le_of_nonneg
+            (s := (Finset.univ : Finset (LevelCell G k)))
+            (p := p.toReal)
+            (f := fun Q => ‖(R.block k).coeff Q‖)
+            (g := fun Q => ‖(S.block k).coeff Q‖)
+            ((ENNReal.dichotomy p).resolve_left A.p_ne_top)
+            (by intro Q hQ; exact norm_nonneg _)
+            (by intro Q hQ; exact norm_nonneg _))
+      exact le_trans hk (add_le_add (hCR ⟨k, rfl⟩) (hCS ⟨k, rfl⟩))
+    simpa [FinitePQCost, hq] using hBdd
+  · have hsum :
+        Summable (fun k => ((add R S).levelCoeffPower k) ^ (q.toReal / p.toReal)) := by
+      have hRq : Summable (fun k => (R.levelCoeffPower k) ^ (q.toReal / p.toReal)) := by
+        simpa [FinitePQCost, hq] using hRfin
+      have hSq : Summable (fun k => (S.levelCoeffPower k) ^ (q.toReal / p.toReal)) := by
+        simpa [FinitePQCost, hq] using hSfin
+      let a : ℕ → ℝ := fun k => (R.levelCoeffPower k) ^ (1 / p.toReal)
+      let b : ℕ → ℝ := fun k => (S.levelCoeffPower k) ^ (1 / p.toReal)
+      let d : ℕ → ℝ := fun k => ((add R S).levelCoeffPower k) ^ (1 / p.toReal)
+      have hq1 : 1 ≤ q.toReal := (ENNReal.dichotomy q).resolve_left hq
+      have hp_pos : 0 < p.toReal := (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+      have ha_nonneg : ∀ k, 0 ≤ a k := by
+        intro k
+        dsimp [a]
+        exact Real.rpow_nonneg (R.levelCoeffPower_nonneg k) _
+      have hb_nonneg : ∀ k, 0 ≤ b k := by
+        intro k
+        dsimp [b]
+        exact Real.rpow_nonneg (S.levelCoeffPower_nonneg k) _
+      have hd_nonneg : ∀ k, 0 ≤ d k := by
+        intro k
+        dsimp [d]
+        exact Real.rpow_nonneg ((add R S).levelCoeffPower_nonneg k) _
+      have hRq' : Summable (fun k => (a k) ^ q.toReal) := by
+        refine hRq.congr ?_
+        intro k
+        rw [show q.toReal / p.toReal = (1 / p.toReal) * q.toReal by
+          field_simp [hp_pos.ne']]
+        rw [Real.rpow_mul (R.levelCoeffPower_nonneg k)]
+      have hSq' : Summable (fun k => (b k) ^ q.toReal) := by
+        refine hSq.congr ?_
+        intro k
+        rw [show q.toReal / p.toReal = (1 / p.toReal) * q.toReal by
+          field_simp [hp_pos.ne']]
+        rw [Real.rpow_mul (S.levelCoeffPower_nonneg k)]
+      have hsum_ab := Real.summable_Lp_add_of_nonneg hq1 ha_nonneg hb_nonneg hRq' hSq'
+      have hdk : ∀ k, d k ≤ a k + b k := by
+        intro k
+        have hsum_add :
+            ∑ Q : LevelCell G k, ‖((add R S).block k).coeff Q‖ ^ p.toReal
+              = ∑ Q : LevelCell G k,
+                (‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖) ^ p.toReal := by
+          refine Finset.sum_congr rfl ?_
+          intro Q hQ
+          have hnn : 0 ≤ ‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖ :=
+            add_nonneg (norm_nonneg _) (norm_nonneg _)
+          change ‖((‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖ : ℝ) : ℂ)‖ ^ p.toReal =
+              (‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖) ^ p.toReal
+          rw [Complex.norm_real, Real.norm_of_nonneg hnn]
+        dsimp [d, a, b]
+        rw [AELpGridRepresentation.levelCoeffPower, hsum_add]
+        simpa [AELpGridRepresentation.levelCoeffPower] using
+          (Real.Lp_add_le_of_nonneg
+            (s := (Finset.univ : Finset (LevelCell G k)))
+            (p := p.toReal)
+            (f := fun Q => ‖(R.block k).coeff Q‖)
+            (g := fun Q => ‖(S.block k).coeff Q‖)
+            ((ENNReal.dichotomy p).resolve_left A.p_ne_top)
+            (by intro Q hQ; exact norm_nonneg _)
+            (by intro Q hQ; exact norm_nonneg _))
+      have hdq_le : (fun k => (d k) ^ q.toReal) ≤ fun k => (a k + b k) ^ q.toReal := by
+        intro k
+        exact Real.rpow_le_rpow (hd_nonneg k) (hdk k) (by positivity)
+      have hsum_dq := Summable.of_nonneg_of_le
+        (by intro k; exact Real.rpow_nonneg (hd_nonneg k) _)
+        hdq_le hsum_ab
+      refine hsum_dq.congr ?_
+      intro k
+      rw [show q.toReal / p.toReal = (1 / p.toReal) * q.toReal by
+        field_simp [hp_pos.ne']]
+      rw [Real.rpow_mul ((add R S).levelCoeffPower_nonneg k)]
+    simpa [FinitePQCost, hq] using hsum
+
 end AELpGridRepresentation
 
 /--
@@ -3629,6 +3749,119 @@ theorem aeMemBesovishCoeffCost_smul {A : AEAtomFamily G s p}
   rcases hg with ⟨R, hRfin⟩
   exact ⟨AELpGridRepresentation.smul c R,
     AELpGridRepresentation.smul_finitePQCost (A := A) (q := q) c hRfin⟩
+
+/-- Finite-cost a.e. Besov-ish representations are closed under addition. -/
+theorem aeMemBesovishCoeffCost_add {A : AEAtomFamily G s p}
+    {g h : Lp ℂ p G.measure}
+    [Fact (1 ≤ q)]
+    (hg : AEMemBesovishCoeffCost A q g) (hh : AEMemBesovishCoeffCost A q h) :
+    AEMemBesovishCoeffCost A q (g + h) := by
+  rcases hg with ⟨Rg, hRgfin⟩
+  rcases hh with ⟨Rh, hRhfin⟩
+  exact ⟨AELpGridRepresentation.add Rg Rh,
+    AELpGridRepresentation.add_finitePQCost Rg Rh hRgfin hRhfin⟩
+
+/--
+The a.e. Besov-ish space as a complex linear subspace of ambient `L^p`.
+
+Its elements are `L^p` classes admitting an a.e. atomic representation with
+finite `(p,q)` coefficient cost.
+-/
+def AEBesovishSpace (A : AEAtomFamily G s p) (q : ℝ≥0∞)
+    [Fact (1 ≤ q)] :
+    Submodule ℂ (Lp ℂ p G.measure) where
+  carrier := { g | AEMemBesovishCoeffCost A q g }
+  zero_mem' := aeMemBesovishCoeffCost_zero (A := A) (q := q)
+  add_mem' := by
+    intro g h hg hh
+    exact aeMemBesovishCoeffCost_add (A := A) (q := q) hg hh
+  smul_mem' := by
+    intro c g hg
+    exact aeMemBesovishCoeffCost_smul (A := A) (q := q) c hg
+
+/-- The a.e. Besov-ish space is a linear subspace of ambient `L^p`. -/
+theorem aeBesovishSpace_is_linear_subspace
+    (A : AEAtomFamily G s p) (q : ℝ≥0∞) [Fact (1 ≤ q)] :
+    ∃ E : Submodule ℂ (Lp ℂ p G.measure), E = AEBesovishSpace A q :=
+  ⟨AEBesovishSpace A q, rfl⟩
+
+/--
+The a.e. Besov-ish subspace inherits Mathlib's ambient complex normed-space
+structure from `L^p`.
+-/
+theorem aeBesovishSpace_has_normedSpace
+    (A : AEAtomFamily G s p) (q : ℝ≥0∞) [Fact (1 ≤ q)] :
+    Nonempty (NormedSpace ℂ (AEBesovishSpace A q)) :=
+  ⟨inferInstance⟩
+
+/--
+A single a.e. level block is already a finite-cost a.e. Besov-ish element.
+
+The representation is concentrated at the block's level and is zero elsewhere,
+so its coefficient-cost sequence has finite support, or is bounded in the
+`q = ∞` case.
+-/
+theorem aeLevelBlock_toLp_mem_aebesovish
+    (A : AEAtomFamily G s p) {k : ℕ} (B : AELevelBlock A k) [Fact (1 ≤ q)] :
+    B.toLp A ∈ AEBesovishSpace A q := by
+  classical
+  let R : AELpGridRepresentation A (B.toLp A) :=
+    { block := fun n => if h : n = k then h.symm ▸ B else AELevelBlock.zero A n
+      hasSum := by
+        have hterm :
+            (fun n => ((if h : n = k then h.symm ▸ B else AELevelBlock.zero A n) :
+                AELevelBlock A n).toLp A)
+              = fun n => if n = k then B.toLp A else 0 := by
+          funext n
+          by_cases h : n = k
+          · subst n
+            simp
+          · simp [h]
+        simpa [hterm] using hasSum_ite_eq k (B.toLp A) }
+  refine ⟨R, ?_⟩
+  have hp_pos : 0 < p.toReal :=
+    (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+  have hzero_level : ∀ n, n ≠ k → R.levelCoeffPower n = 0 := by
+    intro n hn
+    unfold AELpGridRepresentation.levelCoeffPower
+    simp [R, hn, AELevelBlock.zero, Real.zero_rpow hp_pos.ne']
+  by_cases hq : q = ∞
+  · simp only [AELpGridRepresentation.FinitePQCost, hq, ↓reduceIte]
+    refine ⟨max 0 ((R.levelCoeffPower k) ^ (1 / p.toReal)), ?_⟩
+    rintro x ⟨n, rfl⟩
+    by_cases hn : n = k
+    · subst n
+      exact le_max_right _ _
+    · have hinv_pos : 0 < 1 / p.toReal := div_pos one_pos hp_pos
+      have hx : (R.levelCoeffPower n) ^ (1 / p.toReal) = 0 := by
+        rw [hzero_level n hn, Real.zero_rpow hinv_pos.ne']
+      change (R.levelCoeffPower n) ^ (1 / p.toReal) ≤
+        max 0 ((R.levelCoeffPower k) ^ (1 / p.toReal))
+      rw [hx]
+      exact le_max_left _ _
+  · simp only [AELpGridRepresentation.FinitePQCost, hq, ↓reduceIte]
+    refine summable_of_hasFiniteSupport ?_
+    rw [Function.HasFiniteSupport]
+    refine (Set.finite_singleton k).subset ?_
+    intro n hn
+    contrapose! hn
+    have hq_pos : 0 < q.toReal := by
+      linarith [(ENNReal.dichotomy q).resolve_left hq]
+    have hpow_pos : 0 < q.toReal / p.toReal := div_pos hq_pos hp_pos
+    rw [Function.mem_support]
+    simp only [ne_eq, not_not]
+    rw [hzero_level n (by simpa using hn), Real.zero_rpow hpow_pos.ne']
+
+/--
+Every vector represented by one a.e. level block belongs to the a.e.
+Besov-ish subspace.
+-/
+theorem aeLevelBlockSet_subset_aebesovish
+    (A : AEAtomFamily G s p) (q : ℝ≥0∞) [Fact (1 ≤ q)] (k : ℕ) :
+    AELevelBlockSet A k ⊆ AEBesovishSpace A q := by
+  intro f hf
+  rcases hf with ⟨B, rfl⟩
+  exact aeLevelBlock_toLp_mem_aebesovish (A := A) (q := q) B
 
 
 /--
