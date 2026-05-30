@@ -240,6 +240,36 @@ attribute [instance] AELocalBanachSpace.normedAddCommGroup
 attribute [instance] AELocalBanachSpace.normedSpace
 attribute [instance] AELocalBanachSpace.completeSpace
 
+namespace AELocalBanachSpace
+
+/--
+Package a complete linear subspace of ambient `L^p` as an a.e. local Banach
+space.
+
+This is the reusable constructor for atom classes whose local spaces are
+honest Banach subspaces of `L^p`, rather than pointwise spaces with a chosen
+representative map. The realization map is just the subtype inclusion.
+-/
+noncomputable def ofLpSubmodule
+    (G : WeakGridSpace (α := α)) (p : ℝ≥0∞) [Fact (1 ≤ p)]
+    (E : Submodule ℂ (MeasureTheory.Lp ℂ p G.measure)) [CompleteSpace E] :
+    AELocalBanachSpace G p where
+  carrier := E
+  toLp := E.subtype
+  injective_toLp := by
+    intro f g hfg
+    exact Subtype.ext hfg
+
+@[simp]
+theorem ofLpSubmodule_toLp
+    (G : WeakGridSpace (α := α)) (p : ℝ≥0∞) [Fact (1 ≤ p)]
+    (E : Submodule ℂ (MeasureTheory.Lp ℂ p G.measure)) [CompleteSpace E]
+    (f : E) :
+    (ofLpSubmodule G p E).toLp f = (f : MeasureTheory.Lp ℂ p G.measure) :=
+  rfl
+
+end AELocalBanachSpace
+
 /-- A local `L^p` vector is supported in `Q`, modulo null sets. -/
 def AESupportedOn
     (G : WeakGridSpace (α := α)) (p : ℝ≥0∞)
@@ -347,6 +377,56 @@ private theorem aeSupportedOn_smul
   filter_upwards [MeasureTheory.ae_restrict_of_ae (MeasureTheory.Lp.coeFn_smul c f), hf] with
     x hcf hf0
   simp [hcf, hf0]
+
+/--
+The ambient `L^p` subspace of functions supported on a cell `Q`, modulo null
+sets.
+
+This is the natural local space for atom theories built directly inside
+ambient `L^p`: elements already carry their support condition as part of the
+type, instead of repeating it in every atom predicate.
+-/
+def supportedLpSubmodule
+    (G : WeakGridSpace (α := α)) (p : ℝ≥0∞) [Fact (1 ≤ p)]
+    (Q : WeakGridCell G) : Submodule ℂ (MeasureTheory.Lp ℂ p G.measure) where
+  carrier := {f | AESupportedOn G p Q f}
+  zero_mem' := aeSupportedOn_zero G p Q
+  add_mem' := by
+    intro f g hf hg
+    exact aeSupportedOn_add G p Q hf hg
+  smul_mem' := by
+    intro c f hf
+    exact aeSupportedOn_smul G p Q c hf
+
+@[simp]
+theorem mem_supportedLpSubmodule
+    (G : WeakGridSpace (α := α)) (p : ℝ≥0∞) [Fact (1 ≤ p)]
+    (Q : WeakGridCell G) (f : MeasureTheory.Lp ℂ p G.measure) :
+    f ∈ supportedLpSubmodule G p Q ↔ AESupportedOn G p Q f :=
+  Iff.rfl
+
+/--
+The supported `L^p` subspace of a cell, packaged as an a.e. local Banach
+space.
+
+The explicit completeness assumption records the one analytic fact still
+needed to use this subspace as a `LocalBanachSpace`. In applications it should
+come from closedness of the support condition in ambient `L^p`.
+-/
+noncomputable def supportedLpAELocalBanachSpace
+    (G : WeakGridSpace (α := α)) (p : ℝ≥0∞) [Fact (1 ≤ p)]
+    (Q : WeakGridCell G) [CompleteSpace (supportedLpSubmodule G p Q)] :
+    AELocalBanachSpace G p :=
+  AELocalBanachSpace.ofLpSubmodule G p (supportedLpSubmodule G p Q)
+
+@[simp]
+theorem supportedLpAELocalBanachSpace_toLp
+    (G : WeakGridSpace (α := α)) (p : ℝ≥0∞) [Fact (1 ≤ p)]
+    (Q : WeakGridCell G) [CompleteSpace (supportedLpSubmodule G p Q)]
+    (f : supportedLpSubmodule G p Q) :
+    (supportedLpAELocalBanachSpace G p Q).toLp f =
+      (f : MeasureTheory.Lp ℂ p G.measure) :=
+  rfl
 
 private theorem isAESpAtom_convex
     (G : WeakGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
