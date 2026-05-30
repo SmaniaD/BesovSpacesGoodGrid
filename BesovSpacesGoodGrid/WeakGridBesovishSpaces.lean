@@ -488,6 +488,42 @@ theorem zero_toLp (A : AEAtomFamily G s p) (k : ℕ) :
     (zero A k).toLp A = 0 := by
   simp [toLp, term, zero]
 
+/--
+The a.e. level block supported on a single cell, with coefficient `1` there
+and coefficient `0` on every other cell.
+-/
+def single (A : AEAtomFamily G s p) {k : ℕ} (Q₀ : LevelCell G k)
+    (φ : (A.localSpace (levelCellToWeakGridCell G k Q₀)).carrier)
+    (hφ : A.IsAtom (levelCellToWeakGridCell G k Q₀) φ) :
+    AELevelBlock A k where
+  coeff := fun Q => if Q = Q₀ then 1 else 0
+  atom := fun Q =>
+    if h : Q = Q₀ then
+      h ▸ φ
+    else
+      Classical.choose (A.atoms_nonempty_on (levelCellToWeakGridCell G k Q))
+  atom_mem := by
+    intro Q
+    by_cases h : Q = Q₀
+    · subst Q
+      simpa
+    · simp [h, Classical.choose_spec (A.atoms_nonempty_on (levelCellToWeakGridCell G k Q))]
+
+/-- Evaluating a single-cell a.e. block gives exactly the selected atom. -/
+@[simp]
+theorem single_toLp (A : AEAtomFamily G s p) {k : ℕ} (Q₀ : LevelCell G k)
+    (φ : (A.localSpace (levelCellToWeakGridCell G k Q₀)).carrier)
+    (hφ : A.IsAtom (levelCellToWeakGridCell G k Q₀) φ) :
+    (single A Q₀ φ hφ).toLp A = A.toLp (levelCellToWeakGridCell G k Q₀) φ := by
+  classical
+  unfold toLp
+  refine Finset.sum_eq_single Q₀ ?_ ?_
+  · simp [term, single]
+  · intro Q hQ hneq
+    simp [term, single, hneq]
+  · intro hnot
+    exact False.elim (hnot (Finset.mem_attach _))
+
 /-- Scalar multiplication of an a.e. level block, keeping the same atom on each cell. -/
 def smul (A : AEAtomFamily G s p) {k : ℕ} (c : ℂ)
     (B : AELevelBlock A k) : AELevelBlock A k where
