@@ -64,18 +64,20 @@ abbrev inducedSouzaAtomFamily
     (souzaAtomFamily G β p hβ hp hp_top)
 
 /--
-An `(s, β, p, qtilde)` Besov atom supported on `Q`.
+An `(s, β, p, qtilde)` Besov atom representative supported on `Q`.
 
-The predicate is stated for an `L^p` vector on the ambient good-grid measure.
-It requires an induced Besov representation of order `β` on the grid inside
-`Q`, with coefficient gauge bounded by `C_ba⁻¹ μ(Q)^(s-β)`.
+The predicate is stated for a concrete function on the ambient good-grid
+measure.  It asks that the function has an `L^p` class admitting an induced
+Besov representation of order `β` on the grid inside `Q`, with coefficient
+gauge bounded by `C_ba⁻¹ μ(Q)^(s-β)`.
 -/
 def IsBesovAtom
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p qtilde : ℝ≥0∞)
     (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
-    (Q : GoodGridCell G) (a : Lp ℂ p G.grid.μ) : Prop :=
+    (Q : GoodGridCell G) (a : α → ℂ) : Prop :=
+  ∃ ha : MemLp a p G.grid.μ,
   ∃ R : WeakGridSpace.LpGridRepresentation
-      (inducedSouzaAtomFamily G β p hβ hp hp_top Q) a,
+      (inducedSouzaAtomFamily G β p hβ hp hp_top Q) ha.toLp,
     WeakGridSpace.LpGridRepresentation.FinitePQCost (q := qtilde) R ∧
       WeakGridSpace.LpGridRepresentation.pqCost (q := qtilde) R
         ≤ (besovAtomConstant G β p qtilde)⁻¹ *
