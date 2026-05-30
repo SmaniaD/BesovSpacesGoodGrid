@@ -27,17 +27,35 @@ variable [Fact (1 ≤ p)] [Fact (1 ≤ q)]
 
 namespace DirectLpBesovishSpace
 
-/-- Level weight for the direct `L^p` embedding at exponent `p`. -/
+/--
+The mesh of level `k`, namely `|\mathcal P^k|` in the paper: the supremum of
+the measures of the level-`k` cells.
+-/
+noncomputable def directLevelMesh
+    (G : WeakGridSpace (α := α)) (k : ℕ) : ℝ :=
+  sSup (Set.range fun Q : LevelCell G k => (G.measure Q.1).toReal)
+
+/--
+Level weight for the direct `L^p` embedding at exponent `p`.
+
+This is `|\mathcal P^k|^s` from the paper, where `|\mathcal P^k|` is the mesh
+of level `k`.
+-/
 noncomputable def directLevelLpWeight
     (G : WeakGridSpace (α := α)) (s : ℝ) (_p : ℝ≥0∞) (k : ℕ) : ℝ :=
-  ∑ Q : LevelCell G k, (G.measure Q.1).toReal ^ s
+  (directLevelMesh G k) ^ s
 
 /-- The direct level weight is nonnegative. -/
 theorem directLevelLpWeight_nonneg
     (G : WeakGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞) (k : ℕ) :
     0 ≤ directLevelLpWeight G s p k := by
   unfold directLevelLpWeight
-  exact Finset.sum_nonneg fun Q _ => Real.rpow_nonneg ENNReal.toReal_nonneg _
+  exact Real.rpow_nonneg (by
+    unfold directLevelMesh
+    refine Real.sSup_nonneg ?_
+    intro x hx
+    rcases hx with ⟨Q, rfl⟩
+    exact ENNReal.toReal_nonneg) _
 
 /--
 Direct analogue of assumption `A5`: each cell atom set is sequentially compact
@@ -70,16 +88,66 @@ theorem directTailCoefficientWeight_nonneg
 Direct analogue of assumption `G2` for the `L^p`-ambient API.
 
 The first component is the global direct `C_co` finiteness needed for the
-embedding.  The second component is the tail vanishing needed for strong
-compactness of closed cost balls.
+embedding.  The second component is the mesh decay `|\mathcal P^k| → 0` from
+the paper's `sum` hypothesis.
 -/
 def DirectAssumptionG2
     (G : WeakGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞) : Prop :=
   LpGridRepresentation.cCoefficientFinite p q
       (fun k => (directLevelLpWeight G s p k) ^ p.toReal) ∧
-    (∀ N, LpGridRepresentation.cCoefficientFinite p q
-      (directTailCoefficientWeight G s p N)) ∧
-    Tendsto (fun N => directTailCCoefficient G s p q N) atTop (𝓝 0)
+    Tendsto (fun k => directLevelMesh G k) atTop (𝓝 0)
+
+/--
+The direct tail coefficient finiteness follows from the global direct
+coefficient finiteness: the tail weight is obtained from the global weight by
+replacing finitely many initial entries by zero.
+-/
+theorem directTailCoefficientWeight_cCoefficientFinite
+    (G : WeakGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞) (N : ℕ)
+    (hfin : LpGridRepresentation.cCoefficientFinite p q
+      (fun k => (directLevelLpWeight G s p k) ^ p.toReal)) :
+    LpGridRepresentation.cCoefficientFinite p q
+      (directTailCoefficientWeight G s p N) := by
+  let b : ℕ → ℝ := fun k => (directLevelLpWeight G s p k) ^ p.toReal
+  let bt : ℕ → ℝ := directTailCoefficientWeight G s p N
+  have hbt_nonneg : ∀ k, 0 ≤ bt k := by
+    intro k
+    exact directTailCoefficientWeight_nonneg G s p N k
+  have hb_nonneg : ∀ k, 0 ≤ b k := by
+    intro k
+    exact Real.rpow_nonneg (directLevelLpWeight_nonneg G s p k) _
+  have hbt_le_b : ∀ k, bt k ≤ b k := by
+    intro k
+    unfold bt b directTailCoefficientWeight
+    split_ifs
+    · exact Real.rpow_nonneg (directLevelLpWeight_nonneg G s p k) _
+    · rfl
+  have hpow_le : ∀ (r : ℝ), 0 ≤ r → ∀ k, (bt k) ^ r ≤ (b k) ^ r := by
+    intro r hr k
+    exact Real.rpow_le_rpow (hbt_nonneg k) (hbt_le_b k) hr
+  by_cases hq1 : q = 1
+  · simp only [LpGridRepresentation.cCoefficientFinite, hq1, ↓reduceIte] at hfin ⊢
+    rcases hfin with ⟨C, hC⟩
+    refine ⟨C, ?_⟩
+    rintro x ⟨k, rfl⟩
+    have hglobal :
+        (b k) ^ (1 / p.toReal) ≤ C := by
+      simpa [b] using hC ⟨k, rfl⟩
+    exact (hpow_le (1 / p.toReal) (div_nonneg zero_le_one ENNReal.toReal_nonneg) k).trans
+      hglobal
+  · by_cases hqtop : q = ∞
+    · simp only [LpGridRepresentation.cCoefficientFinite, hqtop, ↓reduceIte] at hfin ⊢
+      exact Summable.of_nonneg_of_le
+        (fun k => Real.rpow_nonneg (hbt_nonneg k) _)
+        (fun k => hpow_le (1 / p.toReal) (div_nonneg zero_le_one ENNReal.toReal_nonneg) k)
+        hfin
+    · let q' : ℝ≥0∞ := q / (q - 1)
+      simp only [LpGridRepresentation.cCoefficientFinite, hq1, hqtop, ↓reduceIte] at hfin ⊢
+      exact Summable.of_nonneg_of_le
+        (fun k => Real.rpow_nonneg (hbt_nonneg k) _)
+        (fun k => hpow_le (q'.toReal / p.toReal)
+          (div_nonneg ENNReal.toReal_nonneg ENNReal.toReal_nonneg) k)
+        hfin
 
 /-- A single coefficient is controlled by the level `ℓ^p` coefficient power. -/
 theorem coeff_norm_le_levelCoeffPower_rpow
@@ -107,41 +175,20 @@ theorem coeff_norm_le_levelCoeffPower_rpow
           (one_div_nonneg.mpr hp_pos.le)
 
 /--
-A direct level block is bounded in ambient `L^p` by the level weight times its
-coefficient `ℓ^p` size.
+A direct level block satisfies the levelwise `L^p` estimate from Proposition
+`lp`, in the case `t = p`.
+
+The factor `Cmult1^(1+1/p)` is the same overlap constant as in the paper, and
+the level weight is `|\mathcal P^k|^s`.
 -/
 theorem norm_LpLevelBlock_toLp_le_directLevelLpWeight_mul
     {A : LpAtomFamily G s p} {k : ℕ}
     (B : LpLevelBlock A k) :
     ‖B.toLp A‖ ≤
+      ((G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)) *
       directLevelLpWeight G s p k *
         (∑ Q : LevelCell G k, ‖B.coeff Q‖ ^ p.toReal) ^ (1 / p.toReal) := by
-  let a : ℝ := (∑ Q : LevelCell G k, ‖B.coeff Q‖ ^ p.toReal) ^ (1 / p.toReal)
-  have ha_nonneg : 0 ≤ a :=
-    Real.rpow_nonneg (Finset.sum_nonneg fun Q _ =>
-      Real.rpow_nonneg (norm_nonneg (B.coeff Q)) _) _
-  have hterm :
-      ∀ Q : LevelCell G k,
-        ‖B.term A Q‖ ≤ a * ((G.measure Q.1).toReal ^ s) := by
-    intro Q
-    calc
-      ‖B.term A Q‖ = ‖B.coeff Q‖ * ‖B.atom Q‖ := by
-          simp [LpLevelBlock.term, norm_smul]
-      _ ≤ a * ((G.measure Q.1).toReal ^ s) :=
-          mul_le_mul
-            (by simpa [a] using coeff_norm_le_levelCoeffPower_rpow (A := A) B Q)
-            (A.atom_norm_bound (B.atom_mem Q))
-            (norm_nonneg _)
-            ha_nonneg
-  calc
-    ‖B.toLp A‖
-        ≤ ∑ Q : LevelCell G k, ‖B.term A Q‖ := by
-            simpa [LpLevelBlock.toLp] using
-              norm_sum_le (G.grid.partitions k).attach (fun Q => B.term A Q)
-    _ ≤ ∑ Q : LevelCell G k, a * ((G.measure Q.1).toReal ^ s) :=
-        Finset.sum_le_sum fun Q _ => hterm Q
-    _ = directLevelLpWeight G s p k * a := by
-        simp [directLevelLpWeight, Finset.mul_sum, mul_comm]
+  sorry
 
 /--
 Direct `L^p` embedding for representations with `q = ∞`.
@@ -156,10 +203,13 @@ theorem lp_embedding_top_of_representation
     (hRfin : DirectLpGridRepresentation.FinitePQCost ∞ R)
     (hWeight : Summable fun k => directLevelLpWeight G s p k) :
     ‖g‖ ≤
+      ((G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)) *
       (∑' k, directLevelLpWeight G s p k) *
         DirectLpGridRepresentation.pqCost (q := ∞) R := by
+  let Cemb : ℝ := (G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)
   let w : ℕ → ℝ := fun k => directLevelLpWeight G s p k
   let a : ℕ → ℝ := fun k => (R.levelCoeffPower k) ^ p.toReal⁻¹
+  have hCemb_nonneg : 0 ≤ Cemb := by positivity
   have hw_nonneg : ∀ k, 0 ≤ w k := by
     intro k
     exact directLevelLpWeight_nonneg G s p k
@@ -182,15 +232,15 @@ theorem lp_embedding_top_of_representation
       (fun k => mul_nonneg (hw_nonneg k) (ha_nonneg k))
       hprod_le
       (hWeight.mul_right (DirectLpGridRepresentation.pqCost (q := ∞) R))
-  have hblock_le : ∀ k, ‖(R.block k).toLp A‖ ≤ w k * a k := by
+  have hblock_le : ∀ k, ‖(R.block k).toLp A‖ ≤ Cemb * (w k * a k) := by
     intro k
-    simpa [w, a, DirectLpGridRepresentation.levelCoeffPower, one_div] using
+    simpa [Cemb, w, a, DirectLpGridRepresentation.levelCoeffPower, one_div, mul_assoc] using
       norm_LpLevelBlock_toLp_le_directLevelLpWeight_mul (A := A) (R.block k)
   have hblock_sum : Summable fun k => ‖(R.block k).toLp A‖ :=
     Summable.of_nonneg_of_le
       (fun k => norm_nonneg ((R.block k).toLp A))
       hblock_le
-      hprod_sum
+      (hprod_sum.mul_left Cemb)
   have hnorm_tsum :
       ‖g‖ ≤ ∑' k, ‖(R.block k).toLp A‖ := by
     have htsum_eq : (∑' k, (R.block k).toLp A) = g := R.hasSum.tsum_eq
@@ -199,8 +249,11 @@ theorem lp_embedding_top_of_representation
       _ ≤ ∑' k, ‖(R.block k).toLp A‖ :=
           norm_tsum_le_tsum_norm hblock_sum
   have htsum_block_le :
-      (∑' k, ‖(R.block k).toLp A‖) ≤ ∑' k, w k * a k :=
-    hblock_sum.tsum_le_tsum hblock_le hprod_sum
+      (∑' k, ‖(R.block k).toLp A‖) ≤ ∑' k, Cemb * (w k * a k) :=
+    hblock_sum.tsum_le_tsum hblock_le (hprod_sum.mul_left Cemb)
+  have htsum_cemb :
+      (∑' k, Cemb * (w k * a k)) = Cemb * ∑' k, w k * a k :=
+    (hprod_sum.hasSum.mul_left Cemb).tsum_eq
   have htsum_prod_le :
       (∑' k, w k * a k) ≤
         ∑' k, w k * DirectLpGridRepresentation.pqCost (q := ∞) R :=
@@ -214,9 +267,14 @@ theorem lp_embedding_top_of_representation
         (DirectLpGridRepresentation.pqCost (q := ∞) R)).tsum_eq
   calc
     ‖g‖ ≤ ∑' k, ‖(R.block k).toLp A‖ := hnorm_tsum
-    _ ≤ ∑' k, w k * a k := htsum_block_le
-    _ ≤ ∑' k, w k * DirectLpGridRepresentation.pqCost (q := ∞) R := htsum_prod_le
-    _ = (∑' k, w k) * DirectLpGridRepresentation.pqCost (q := ∞) R := htsum_scaled
+    _ ≤ ∑' k, Cemb * (w k * a k) := htsum_block_le
+    _ = Cemb * ∑' k, w k * a k := htsum_cemb
+    _ ≤ Cemb * (∑' k, w k * DirectLpGridRepresentation.pqCost (q := ∞) R) :=
+        mul_le_mul_of_nonneg_left htsum_prod_le hCemb_nonneg
+    _ = Cemb * ((∑' k, w k) * DirectLpGridRepresentation.pqCost (q := ∞) R) := by
+        rw [htsum_scaled]
+    _ = Cemb * (∑' k, w k) * DirectLpGridRepresentation.pqCost (q := ∞) R := by
+        ring
 
 /--
 The direct weighted coefficient sequence is summable whenever the direct
@@ -1138,11 +1196,14 @@ theorem lp_embedding_of_representation
     (hCco_fin : LpGridRepresentation.cCoefficientFinite p q
       (fun k => (directLevelLpWeight G s p k) ^ p.toReal)) :
     ‖g‖ ≤
+      ((G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)) *
       LpGridRepresentation.cCoefficient p q
           (fun k => (directLevelLpWeight G s p k) ^ p.toReal) *
         DirectLpGridRepresentation.pqCost (q := q) R := by
+  let Cemb : ℝ := (G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)
   let w : ℕ → ℝ := fun k => directLevelLpWeight G s p k
   let a : ℕ → ℝ := fun k => (R.levelCoeffPower k) ^ (1 / p.toReal)
+  have hCemb_nonneg : 0 ≤ Cemb := by positivity
   have hprod_sum : Summable fun k => w k * a k := by
     simpa [w, a] using
       direct_weighted_coeff_summable (A := A) (q := q) R hRfin hCco_fin
@@ -1153,15 +1214,15 @@ theorem lp_embedding_of_representation
     simpa [w, a] using
       direct_weighted_sum_le_cCoefficient_mul_pqCost
         (A := A) (q := q) R hRfin hCco_fin
-  have hblock_le : ∀ k, ‖(R.block k).toLp A‖ ≤ w k * a k := by
+  have hblock_le : ∀ k, ‖(R.block k).toLp A‖ ≤ Cemb * (w k * a k) := by
     intro k
-    simpa [w, a, DirectLpGridRepresentation.levelCoeffPower, one_div] using
+    simpa [Cemb, w, a, DirectLpGridRepresentation.levelCoeffPower, one_div, mul_assoc] using
       norm_LpLevelBlock_toLp_le_directLevelLpWeight_mul (A := A) (R.block k)
   have hblock_sum : Summable fun k => ‖(R.block k).toLp A‖ :=
     Summable.of_nonneg_of_le
       (fun k => norm_nonneg ((R.block k).toLp A))
       hblock_le
-      hprod_sum
+      (hprod_sum.mul_left Cemb)
   have hnorm_tsum :
       ‖g‖ ≤ ∑' k, ‖(R.block k).toLp A‖ := by
     have htsum_eq : (∑' k, (R.block k).toLp A) = g := R.hasSum.tsum_eq
@@ -1170,13 +1231,21 @@ theorem lp_embedding_of_representation
       _ ≤ ∑' k, ‖(R.block k).toLp A‖ :=
           norm_tsum_le_tsum_norm hblock_sum
   have htsum_block_le :
-      (∑' k, ‖(R.block k).toLp A‖) ≤ ∑' k, w k * a k :=
-    hblock_sum.tsum_le_tsum hblock_le hprod_sum
+      (∑' k, ‖(R.block k).toLp A‖) ≤ ∑' k, Cemb * (w k * a k) :=
+    hblock_sum.tsum_le_tsum hblock_le (hprod_sum.mul_left Cemb)
+  have htsum_cemb :
+      (∑' k, Cemb * (w k * a k)) = Cemb * ∑' k, w k * a k :=
+    (hprod_sum.hasSum.mul_left Cemb).tsum_eq
   calc
     ‖g‖ ≤ ∑' k, ‖(R.block k).toLp A‖ := hnorm_tsum
-    _ ≤ ∑' k, w k * a k := htsum_block_le
-    _ ≤ LpGridRepresentation.cCoefficient p q (fun k => (w k) ^ p.toReal) *
-        DirectLpGridRepresentation.pqCost (q := q) R := hweighted_bound
+    _ ≤ ∑' k, Cemb * (w k * a k) := htsum_block_le
+    _ = Cemb * ∑' k, w k * a k := htsum_cemb
+    _ ≤ Cemb * (LpGridRepresentation.cCoefficient p q (fun k => (w k) ^ p.toReal) *
+        DirectLpGridRepresentation.pqCost (q := q) R) :=
+        mul_le_mul_of_nonneg_left hweighted_bound hCemb_nonneg
+    _ = Cemb * LpGridRepresentation.cCoefficient p q (fun k => (w k) ^ p.toReal) *
+        DirectLpGridRepresentation.pqCost (q := q) R := by
+        ring
 
 /--
 Direct tail embedding. If a representation has no coefficient mass below
@@ -1190,14 +1259,18 @@ theorem direct_tail_embedding_bound
     (N : ℕ)
     (hzero : ∀ k, k < N → R.levelCoeffPower k = 0) :
     ‖g‖ ≤
+      ((G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)) *
       directTailCCoefficient G s p q N *
         DirectLpGridRepresentation.pqCost (q := q) R := by
+  let Cemb : ℝ := (G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)
   let b : ℕ → ℝ := directTailCoefficientWeight G s p N
+  have hCemb_nonneg : 0 ≤ Cemb := by positivity
   have hb_nonneg : ∀ k, 0 ≤ b k := by
     intro k
     exact directTailCoefficientWeight_nonneg G s p N k
   have hb_fin : LpGridRepresentation.cCoefficientFinite p q b := by
-    simpa [b] using hG2.2.1 N
+    simpa [b] using
+      directTailCoefficientWeight_cCoefficientFinite G s p q N hG2.1
   have hweighted :=
     direct_weighted_sum_le_cCoefficient_mul_pqCost_of_weight
       (A := A) (q := q) b hb_nonneg R hRfin hb_fin
@@ -1208,17 +1281,17 @@ theorem direct_tail_embedding_bound
   let w : ℕ → ℝ := fun k => directLevelLpWeight G s p k
   let a : ℕ → ℝ := fun k => (R.levelCoeffPower k) ^ (1 / p.toReal)
   have hblock_le : ∀ k,
-      ‖(R.block k).toLp A‖ ≤ b k ^ (1 / p.toReal) * a k := by
+      ‖(R.block k).toLp A‖ ≤ Cemb * (b k ^ (1 / p.toReal) * a k) := by
     intro k
     by_cases hk : k < N
     · have ha_zero : a k = 0 := by
         simpa [a, hzero k hk, one_div] using
           Real.zero_rpow (inv_pos.mpr hp_pos).ne'
       calc
-        ‖(R.block k).toLp A‖ ≤ w k * a k := by
-          simpa [w, a, DirectLpGridRepresentation.levelCoeffPower, one_div] using
+        ‖(R.block k).toLp A‖ ≤ Cemb * (w k * a k) := by
+          simpa [Cemb, w, a, DirectLpGridRepresentation.levelCoeffPower, one_div, mul_assoc] using
             norm_LpLevelBlock_toLp_le_directLevelLpWeight_mul (A := A) (R.block k)
-        _ = b k ^ (1 / p.toReal) * a k := by simp [ha_zero]
+        _ = Cemb * (b k ^ (1 / p.toReal) * a k) := by simp [ha_zero]
     · have hkN : ¬ k < N := hk
       have hb_root : b k ^ (1 / p.toReal) = w k := by
         have hw_nonneg : 0 ≤ w k := by
@@ -1226,15 +1299,17 @@ theorem direct_tail_embedding_bound
         simp [b, directTailCoefficientWeight, hkN, w]
         simpa [one_div] using (Real.rpow_rpow_inv hw_nonneg hp_pos.ne')
       calc
-        ‖(R.block k).toLp A‖ ≤ w k * a k := by
-          simpa [w, a, DirectLpGridRepresentation.levelCoeffPower, one_div] using
+        ‖(R.block k).toLp A‖ ≤ Cemb * (w k * a k) := by
+          simpa [Cemb, w, a, DirectLpGridRepresentation.levelCoeffPower, one_div, mul_assoc] using
             norm_LpLevelBlock_toLp_le_directLevelLpWeight_mul (A := A) (R.block k)
-        _ = b k ^ (1 / p.toReal) * a k := by rw [hb_root]
+        _ = Cemb * (b k ^ (1 / p.toReal) * a k) := by rw [hb_root]
+  have hprod_sum' : Summable fun k => b k ^ (1 / p.toReal) * a k := by
+    simpa [b, a] using hprod_sum
   have hblock_sum : Summable fun k => ‖(R.block k).toLp A‖ :=
     Summable.of_nonneg_of_le
       (fun k => norm_nonneg ((R.block k).toLp A))
       hblock_le
-      (by simpa [b, a] using hprod_sum)
+      (hprod_sum'.mul_left Cemb)
   have hnorm_tsum :
       ‖g‖ ≤ ∑' k, ‖(R.block k).toLp A‖ := by
     have htsum_eq : (∑' k, (R.block k).toLp A) = g := R.hasSum.tsum_eq
@@ -1244,14 +1319,24 @@ theorem direct_tail_embedding_bound
           norm_tsum_le_tsum_norm hblock_sum
   have htsum_block_le :
       (∑' k, ‖(R.block k).toLp A‖) ≤
-        ∑' k, b k ^ (1 / p.toReal) * a k :=
-    hblock_sum.tsum_le_tsum hblock_le (by simpa [b, a] using hprod_sum)
+        ∑' k, Cemb * (b k ^ (1 / p.toReal) * a k) :=
+    hblock_sum.tsum_le_tsum hblock_le
+      (hprod_sum'.mul_left Cemb)
+  have htsum_cemb :
+      (∑' k, Cemb * (b k ^ (1 / p.toReal) * a k)) =
+        Cemb * ∑' k, b k ^ (1 / p.toReal) * a k :=
+    (hprod_sum'.hasSum.mul_left Cemb).tsum_eq
   calc
     ‖g‖ ≤ ∑' k, ‖(R.block k).toLp A‖ := hnorm_tsum
-    _ ≤ ∑' k, b k ^ (1 / p.toReal) * a k := htsum_block_le
-    _ ≤ directTailCCoefficient G s p q N *
+    _ ≤ ∑' k, Cemb * (b k ^ (1 / p.toReal) * a k) := htsum_block_le
+    _ = Cemb * ∑' k, b k ^ (1 / p.toReal) * a k := htsum_cemb
+    _ ≤ Cemb * (directTailCCoefficient G s p q N *
+        DirectLpGridRepresentation.pqCost (q := q) R) := by
+          exact mul_le_mul_of_nonneg_left (by
+            simpa [directTailCCoefficient, b, a] using hweighted.2) hCemb_nonneg
+    _ = Cemb * directTailCCoefficient G s p q N *
         DirectLpGridRepresentation.pqCost (q := q) R := by
-          simpa [directTailCCoefficient, b, a] using hweighted.2
+          ring
 
 /--
 The direct coefficient-cost gauge is available on every direct Besov-ish
@@ -1317,9 +1402,14 @@ theorem costNormControlsLp_top
     {A : LpAtomFamily G s p}
     (hWeight : Summable fun k => directLevelLpWeight G s p k) :
     CostNormControlsLp (A := A) ∞ := by
-  let C : ℝ := ∑' k, directLevelLpWeight G s p k
-  have hC_nonneg : 0 ≤ C := by
+  let Cemb : ℝ := (G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)
+  let Cbase : ℝ := ∑' k, directLevelLpWeight G s p k
+  let C : ℝ := Cemb * Cbase
+  have hCemb_nonneg : 0 ≤ Cemb := by positivity
+  have hCbase_nonneg : 0 ≤ Cbase := by
     exact tsum_nonneg fun k => directLevelLpWeight_nonneg G s p k
+  have hC_nonneg : 0 ≤ C := by
+    exact mul_nonneg hCemb_nonneg hCbase_nonneg
   refine ⟨C, hC_nonneg, ?_⟩
   intro g
   refine le_iff_forall_pos_le_add.mpr ?_
@@ -1333,7 +1423,7 @@ theorem costNormControlsLp_top
   have hEmb :
       ‖(g : Lp ℂ p G.measure)‖ ≤
         C * DirectLpGridRepresentation.pqCost (q := ∞) R := by
-    simpa [C] using
+    simpa [C, Cemb, Cbase] using
       lp_embedding_top_of_representation (A := A) R hRfin hWeight
   have hRle :
       DirectLpGridRepresentation.pqCost (q := ∞) R ≤
@@ -1373,14 +1463,20 @@ theorem costNormControlsLp_of_cCoefficientFinite
     (hCco_fin : LpGridRepresentation.cCoefficientFinite p q
       (fun k => (directLevelLpWeight G s p k) ^ p.toReal)) :
     CostNormControlsLp (A := A) q := by
-  let C : ℝ :=
+  let Cemb : ℝ := (G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)
+  let Cbase : ℝ :=
     LpGridRepresentation.cCoefficient p q
       (fun k => (directLevelLpWeight G s p k) ^ p.toReal)
-  have hC_nonneg : 0 ≤ C := by
-    dsimp [C]
+  let C : ℝ :=
+    Cemb * Cbase
+  have hCemb_nonneg : 0 ≤ Cemb := by positivity
+  have hCbase_nonneg : 0 ≤ Cbase := by
+    dsimp [Cbase]
     exact LpGridRepresentation.cCoefficient_nonneg p q
       (fun k => (directLevelLpWeight G s p k) ^ p.toReal)
       (fun k => Real.rpow_nonneg (directLevelLpWeight_nonneg G s p k) _)
+  have hC_nonneg : 0 ≤ C := by
+    exact mul_nonneg hCemb_nonneg hCbase_nonneg
   refine ⟨C, hC_nonneg, ?_⟩
   intro g
   refine le_iff_forall_pos_le_add.mpr ?_
@@ -1394,7 +1490,7 @@ theorem costNormControlsLp_of_cCoefficientFinite
   have hEmb :
       ‖(g : Lp ℂ p G.measure)‖ ≤
         C * DirectLpGridRepresentation.pqCost (q := q) R := by
-    simpa [C] using
+    simpa [C, Cemb, Cbase] using
       lp_embedding_of_representation (A := A) (q := q) R hRfin hCco_fin
   have hRle :
       DirectLpGridRepresentation.pqCost (q := q) R ≤
@@ -1696,6 +1792,197 @@ theorem costNorm_completeSpace_of_closedBallStrongSeqCompact
     simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using hcost
   change Norm_Costpq A q (-gseq n + gLim) < η
   exact hdist_cost
+
+/--
+Existence form of the direct strong representation-limit theorem.
+
+Given uniformly bounded direct representations whose coefficients and atoms
+converge cellwise, the formal limiting block sequence represents an ambient
+`L^p` limit, has finite cost bounded by the same constant, and the represented
+sequence converges strongly to that limit.
+-/
+theorem direct_representation_limit_strong_existence
+    {A : LpAtomFamily G s p}
+    (hG2 : DirectAssumptionG2 G s p q)
+    {gseq : ℕ → Lp ℂ p G.measure}
+    (Rseq : ∀ n, DirectLpGridRepresentation A (gseq n))
+    {C : ℝ}
+    (hC : 0 ≤ C)
+    (uniform_bound : ∀ n,
+      DirectLpGridRepresentation.pqCostENNReal (q := q) (Rseq n) ≤ ENNReal.ofReal C)
+    (Rlim : (k : ℕ) → LpLevelBlock A k)
+    (coeff_tendsto : ∀ (k : ℕ) (Q : LevelCell G k),
+      Tendsto (fun n => ((Rseq n).block k).coeff Q) atTop
+        (𝓝 ((Rlim k).coeff Q)))
+    (atom_tendsto : ∀ (k : ℕ) (Q : LevelCell G k),
+      Tendsto (fun n => ((Rseq n).block k).atom Q) atTop
+        (𝓝 ((Rlim k).atom Q))) :
+    ∃ gLim : Lp ℂ p G.measure,
+      ∃ hRlim : HasSum (fun k => (Rlim k).toLp A) gLim,
+        let RlimRep : DirectLpGridRepresentation A gLim := { block := Rlim, hasSum := hRlim }
+        DirectLpMemBesovishCoeffCost A q gLim ∧
+        DirectLpGridRepresentation.FinitePQCost (q := q) RlimRep ∧
+        DirectLpGridRepresentation.pqCost (q := q) RlimRep ≤ C ∧
+        Tendsto gseq atTop (𝓝 gLim) := by
+  sorry
+
+/--
+Closed direct cost balls are strongly sequentially compact under the direct
+atom compactness and grid tail assumptions.
+
+This is the direct `L^p` replacement for the legacy
+`closed_Norm_Costpq_ball_strongly_seqCompact`.  The intended proof follows the
+ported ingredients in this file: choose almost-minimizing representations,
+extract coefficient and atom subsequences, build the limiting formal block
+sequence, use the direct tail estimate to prove summability, and then pass the
+coefficient cost bound to the limit.
+-/
+theorem closedCostBallStrongSeqCompact_of_A5_G2
+    {A : LpAtomFamily G s p}
+    (hA5 : DirectAssumptionA5 (A := A))
+    (hG2 : DirectAssumptionG2 G s p q) :
+    ClosedCostBallStrongSeqCompact (A := A) q := by
+  classical
+  intro C hC gseq hball
+  let ε : ℕ → ℝ := fun n => ((n + 1 : ℕ) : ℝ)⁻¹
+  have hε_pos : ∀ n, 0 < ε n := by
+    intro n
+    dsimp [ε]
+    positivity
+  let Rseq : ∀ n,
+      DirectLpGridRepresentation A ((gseq n : DirectLpBesovishSpace A q) : Lp ℂ p G.measure) :=
+    fun n =>
+      Classical.choose
+        (exists_cost_lt_Norm_Costpq_add
+          (A := A) (q := q) (hasFiniteCostRepresentations A q)
+          (gseq n) (hε_pos n))
+  have hRseq_fin : ∀ n, DirectLpGridRepresentation.FinitePQCost (q := q) (Rseq n) := by
+    intro n
+    exact (Classical.choose_spec
+      (exists_cost_lt_Norm_Costpq_add
+        (A := A) (q := q) (hasFiniteCostRepresentations A q)
+        (gseq n) (hε_pos n))).1
+  have hRseq_cost_lt : ∀ n,
+      DirectLpGridRepresentation.pqCost (q := q) (Rseq n) <
+        Norm_Costpq A q (gseq n) + ε n := by
+    intro n
+    exact (Classical.choose_spec
+      (exists_cost_lt_Norm_Costpq_add
+        (A := A) (q := q) (hasFiniteCostRepresentations A q)
+        (gseq n) (hε_pos n))).2
+  have hε_le_one : ∀ n, ε n ≤ 1 := by
+    intro n
+    dsimp [ε]
+    have hn : (1 : ℝ) ≤ ((n + 1 : ℕ) : ℝ) := by
+      exact_mod_cast Nat.succ_le_succ (Nat.zero_le n)
+    exact inv_le_one_of_one_le₀ hn
+  have hC1_nonneg : 0 ≤ C + 1 := by linarith
+  have uniform_bound_C1 : ∀ n,
+      DirectLpGridRepresentation.pqCostENNReal (q := q) (Rseq n) ≤ ENNReal.ofReal (C + 1) := by
+    intro n
+    have hcost_le : DirectLpGridRepresentation.pqCost (q := q) (Rseq n) ≤ C + 1 := by
+      calc
+        DirectLpGridRepresentation.pqCost (q := q) (Rseq n)
+            ≤ Norm_Costpq A q (gseq n) + ε n :=
+              le_of_lt (hRseq_cost_lt n)
+        _ ≤ C + 1 := add_le_add (hball n) (hε_le_one n)
+    exact direct_pqCostENNReal_le_of_finitePQCost_pqCost_le
+      (A := A) (q := q) (Rseq n) (hRseq_fin n) hcost_le
+  rcases exists_direct_subseq_blocks_tendsto_of_uniform_pqCostENNReal
+      (A := A) (q := q) hA5 Rseq hC1_nonneg uniform_bound_C1 with
+    ⟨φ, hφ, Rlim, hcoeff_lim, hatom_lim⟩
+  have uniform_bound_sub_C1 : ∀ n,
+      DirectLpGridRepresentation.pqCostENNReal (q := q) (Rseq (φ n)) ≤ ENNReal.ofReal (C + 1) := by
+    intro n
+    exact uniform_bound_C1 (φ n)
+  rcases direct_representation_limit_strong_existence
+      (A := A) (q := q) hG2
+      (fun n => Rseq (φ n)) hC1_nonneg uniform_bound_sub_C1
+      Rlim hcoeff_lim hatom_lim with
+    ⟨gLp, hRlim, hmem, hfin, _hcost_C1, htend⟩
+  let gLim : DirectLpBesovishSpace A q := ⟨gLp, hmem⟩
+  let RlimRep : DirectLpGridRepresentation A gLp := { block := Rlim, hasSum := hRlim }
+  have hcost_le_add : ∀ δ > 0,
+      DirectLpGridRepresentation.pqCost (q := q) RlimRep ≤ C + δ := by
+    intro δ hδ
+    have hD_nonneg : 0 ≤ C + δ := by linarith
+    have hε_eventually : ∀ᶠ n in atTop, ε (φ n) < δ := by
+      have hε_tendsto : Tendsto (fun n : ℕ => ε n) atTop (𝓝 0) := by
+        simpa [ε] using (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ))
+      have hε_sub_tendsto : Tendsto (fun n : ℕ => ε (φ n)) atTop (𝓝 0) :=
+        hε_tendsto.comp hφ.tendsto_atTop
+      rcases (Metric.tendsto_atTop.mp hε_sub_tendsto) δ hδ with ⟨N, hN⟩
+      refine eventually_atTop.2 ⟨N, ?_⟩
+      intro n hn
+      have hdist := hN n hn
+      have hnonneg : 0 ≤ ε (φ n) := (hε_pos (φ n)).le
+      simpa [dist_eq_norm, Real.norm_eq_abs, abs_of_nonneg hnonneg] using hdist
+    rcases eventually_atTop.1 hε_eventually with ⟨N, hN⟩
+    let ψ : ℕ → ℕ := fun n => φ (n + N)
+    have hψ_coeff : ∀ (k : ℕ) (Q : LevelCell G k),
+        Tendsto (fun n => ((Rseq (ψ n)).block k).coeff Q) atTop
+          (𝓝 ((Rlim k).coeff Q)) := by
+      intro k Q
+      exact (hcoeff_lim k Q).comp (tendsto_add_atTop_nat N)
+    have hψ_atom : ∀ (k : ℕ) (Q : LevelCell G k),
+        Tendsto (fun n => ((Rseq (ψ n)).block k).atom Q) atTop
+          (𝓝 ((Rlim k).atom Q)) := by
+      intro k Q
+      exact (hatom_lim k Q).comp (tendsto_add_atTop_nat N)
+    have hψ_bound : ∀ n,
+        DirectLpGridRepresentation.pqCostENNReal (q := q) (Rseq (ψ n)) ≤
+          ENNReal.ofReal (C + δ) := by
+      intro n
+      have hcost_le : DirectLpGridRepresentation.pqCost (q := q) (Rseq (ψ n)) ≤ C + δ := by
+        calc
+          DirectLpGridRepresentation.pqCost (q := q) (Rseq (ψ n))
+              ≤ Norm_Costpq A q (gseq (ψ n)) + ε (ψ n) :=
+                le_of_lt (hRseq_cost_lt (ψ n))
+          _ ≤ C + ε (ψ n) := by
+              linarith [hball (ψ n)]
+          _ ≤ C + δ := by
+              have hsmall : ε (ψ n) < δ := hN (n + N) (Nat.le_add_left N n)
+              linarith
+      exact direct_pqCostENNReal_le_of_finitePQCost_pqCost_le
+        (A := A) (q := q) (Rseq (ψ n)) (hRseq_fin (ψ n)) hcost_le
+    rcases direct_representation_limit_strong_existence
+        (A := A) (q := q) hG2
+        (fun n => Rseq (ψ n)) hD_nonneg hψ_bound
+        Rlim hψ_coeff hψ_atom with
+      ⟨_gδ, _hRδ, _hmemδ, _hfinδ, hcostδ, _htendδ⟩
+    simpa [RlimRep] using hcostδ
+  have hNorm_le_C : Norm_Costpq A q gLim ≤ C := by
+    refine le_iff_forall_pos_le_add.mpr ?_
+    intro δ hδ
+    have hNorm_le_cost :
+        Norm_Costpq A q gLim ≤
+          DirectLpGridRepresentation.pqCost (q := q) RlimRep :=
+      Norm_Costpq_le_cost (A := A) (q := q) (g := gLim)
+        RlimRep hfin
+    exact hNorm_le_cost.trans (hcost_le_add δ hδ)
+  exact ⟨φ, hφ, gLim, hNorm_le_C, by simpa [gLim] using htend⟩
+
+/--
+Completeness of the direct coefficient-cost norm from the direct compactness
+assumptions.
+
+The analytic control of the ambient `L^p` norm comes from the first component
+of `DirectAssumptionG2`; compactness of closed cost balls is supplied by
+`closedCostBallStrongSeqCompact_of_A5_G2`.
+-/
+theorem costNorm_completeSpace_of_A5_G2
+    {A : LpAtomFamily G s p}
+    (hA5 : DirectAssumptionA5 (A := A))
+    (hG2 : DirectAssumptionG2 G s p q) :
+    @CompleteSpace (DirectLpBesovishSpace A q)
+      (costNormedAddCommGroup
+        (A := A) (q := q)
+        (costNormControlsLp_of_cCoefficientFinite
+          (A := A) (q := q) hG2.1)).toMetricSpace.toPseudoMetricSpace.toUniformSpace := by
+  exact costNorm_completeSpace_of_closedBallStrongSeqCompact
+    (A := A) (q := q)
+    (costNormControlsLp_of_cCoefficientFinite (A := A) (q := q) hG2.1)
+    (closedCostBallStrongSeqCompact_of_A5_G2 (A := A) (q := q) hA5 hG2)
 
 end DirectLpBesovishSpace
 

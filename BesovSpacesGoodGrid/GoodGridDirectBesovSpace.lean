@@ -1,6 +1,7 @@
 import BesovSpacesGoodGrid.GoodGridBesovSpace
 import BesovSpacesGoodGrid.WeakGridDirectAtoms
 import BesovSpacesGoodGrid.WeakGridDirectBesovishSpaces
+import BesovSpacesGoodGrid.WeakGridDirectCompletenessBesovishSpaces
 
 /-!
 # Direct `L^p` Besov spaces on a good grid
@@ -240,6 +241,128 @@ def MemDirectLpSizeBesov (G : GoodGridSpace (α := α))
     [Fact (1 ≤ q)]
     (g : MeasureTheory.Lp ℂ p G.toWeakGridSpace.measure) : Prop :=
   g ∈ DirectLpSizeBesovSpace G s p q hs hp hp_top
+
+/--
+The direct Souza atom sets are strongly sequentially compact in ambient `L^p`.
+
+Each atom on a fixed cell is a scalar multiple of the normalized cell
+indicator with scalar constrained to a closed complex disk, so the compactness
+reduces to compactness of that disk and continuity of scalar multiplication.
+-/
+theorem directSouza_assumptionA5
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) [Fact (1 ≤ p)] (hp_top : p ≠ ∞) :
+    WeakGridSpace.DirectLpBesovishSpace.DirectAssumptionA5
+      (A := directSouzaAtomFamily G s p hs hp_top) := by
+  classical
+  refine ⟨Fact.out, hp_top, ?_⟩
+  intro Q
+  let Qg : GoodGridCell G := ⟨Q.level, Q.cell, Q.mem⟩
+  let r : ℝ := (G.grid.μ Q.cell).toReal ^ (s - (p.toReal)⁻¹)
+  let M : ℝ := (G.grid.μ Q.cell).toReal ^ s
+  let oneAtom : MeasureTheory.Lp ℂ p G.toWeakGridSpace.measure :=
+    directSouzaOneAtom G p Qg
+  let S : Set ℂ := {c : ℂ | ‖c‖ ≤ r ∧ ‖c • oneAtom‖ ≤ M}
+  let toLpAtom : ℂ → MeasureTheory.Lp ℂ p G.toWeakGridSpace.measure :=
+    fun c => c • oneAtom
+  have hclosed_norm : IsClosed {c : ℂ | ‖c • oneAtom‖ ≤ M} :=
+    isClosed_le
+      (continuous_norm.comp ((continuous_id.smul continuous_const) : Continuous toLpAtom))
+      continuous_const
+  have hcompact_S : IsSeqCompact S := by
+    have hcompact_ball : IsCompact (Metric.closedBall (0 : ℂ) r) :=
+      isCompact_closedBall (0 : ℂ) r
+    have hS_eq :
+        S = Metric.closedBall (0 : ℂ) r ∩ {c : ℂ | ‖c • oneAtom‖ ≤ M} := by
+      ext c
+      simp [S, Metric.mem_closedBall, dist_zero_right, r, M]
+    rw [hS_eq]
+    exact (hcompact_ball.inter_right hclosed_norm).isSeqCompact
+  have hseq_cont : SeqContinuous toLpAtom :=
+    (continuous_id.smul continuous_const).seqContinuous
+  have himage_seq : IsSeqCompact (toLpAtom '' S) :=
+    hcompact_S.image hseq_cont
+  convert himage_seq using 1
+  ext f
+  constructor
+  · intro hf
+    rcases hf with ⟨c, hc, hrep, hnorm⟩
+    refine ⟨c, ?_, ?_⟩
+    · exact ⟨by simpa [r, Qg, GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid,
+          WeakGridSpace.WeakGridSpace.measure] using hc,
+        by simpa [M, oneAtom, Qg, hrep] using hnorm⟩
+    · simpa [toLpAtom, oneAtom, Qg] using hrep.symm
+  · intro hf
+    rcases hf with ⟨c, hc, rfl⟩
+    refine ⟨c, ?_, ?_, ?_⟩
+    · simpa [S, r] using hc.1
+    · rfl
+    · simpa [S, M, toLpAtom, oneAtom] using hc.2
+
+/--
+The direct grid coefficient and tail assumptions for the Souza direct API.
+
+This is the good-grid geometric input needed by the direct compactness proof:
+the direct level weights have finite coefficient constant, the corresponding
+tail constants are finite, and those tail constants vanish.
+-/
+theorem directSouza_assumptionG2
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) [Fact (1 ≤ p)] (hp_top : p ≠ ∞) [Fact (1 ≤ q)] :
+    WeakGridSpace.DirectLpBesovishSpace.DirectAssumptionG2
+      G.toWeakGridSpace s p q := by
+  sorry
+
+/--
+The direct Souza cost gauge controls the ambient `L^p` norm.
+-/
+theorem directSouza_costNormControlsLp
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) [Fact (1 ≤ p)] (hp_top : p ≠ ∞) [Fact (1 ≤ q)] :
+    WeakGridSpace.DirectLpBesovishSpace.CostNormControlsLp
+      (A := directSouzaAtomFamily G s p hs hp_top) q := by
+  exact
+    WeakGridSpace.DirectLpBesovishSpace.costNormControlsLp_of_cCoefficientFinite
+      (A := directSouzaAtomFamily G s p hs hp_top)
+      (q := q)
+      (directSouza_assumptionG2 G s p q hs hp_top).1
+
+/--
+Closed balls for the direct Souza coefficient-cost norm are strongly
+sequentially compact in ambient `L^p`.
+-/
+theorem directSouza_closedCostBallStrongSeqCompact
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) [Fact (1 ≤ p)] (hp_top : p ≠ ∞) [Fact (1 ≤ q)] :
+    WeakGridSpace.DirectLpBesovishSpace.ClosedCostBallStrongSeqCompact
+      (A := directSouzaAtomFamily G s p hs hp_top) q := by
+  exact
+    WeakGridSpace.DirectLpBesovishSpace.closedCostBallStrongSeqCompact_of_A5_G2
+      (A := directSouzaAtomFamily G s p hs hp_top)
+      (q := q)
+      (directSouza_assumptionA5 G s p hs hp_top)
+      (directSouza_assumptionG2 G s p q hs hp_top)
+
+/--
+Completeness of the direct Souza Besov-ish space for the coefficient-cost norm.
+-/
+theorem directSouza_costNorm_completeSpace
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) [Fact (1 ≤ p)] (hp_top : p ≠ ∞) [Fact (1 ≤ q)] :
+    @CompleteSpace
+      (WeakGridSpace.DirectLpBesovishSpace
+        (directSouzaAtomFamily G s p hs hp_top) q)
+      (WeakGridSpace.DirectLpBesovishSpace.costNormedAddCommGroup
+        (A := directSouzaAtomFamily G s p hs hp_top)
+        (q := q)
+        (directSouza_costNormControlsLp G s p q hs hp_top)
+        ).toMetricSpace.toPseudoMetricSpace.toUniformSpace := by
+  exact
+    WeakGridSpace.DirectLpBesovishSpace.costNorm_completeSpace_of_closedBallStrongSeqCompact
+      (A := directSouzaAtomFamily G s p hs hp_top)
+      (q := q)
+      (directSouza_costNormControlsLp G s p q hs hp_top)
+      (directSouza_closedCostBallStrongSeqCompact G s p q hs hp_top)
 
 end
 
