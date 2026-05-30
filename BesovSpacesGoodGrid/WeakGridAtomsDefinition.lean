@@ -39,6 +39,22 @@ theorem measurable (G : WeakGridSpace (α := α)) (Q : WeakGridCell G) :
   G.grid.measurable Q.level Q.cell Q.mem
 
 /--
+The type of cells at level `k`, using the grid of `G`.
+
+This is shared by both the legacy local-Banach atom API and the direct `L^p`
+atom API.
+-/
+abbrev LevelCell (G : WeakGridSpace (α := α)) (k : ℕ) :=
+  { Q : Set α // Q ∈ G.grid.partitions k }
+
+/--
+Converts a level cell into a bundled weak-grid cell.
+-/
+def levelCellToWeakGridCell (G : WeakGridSpace (α := α)) (k : ℕ)
+    (Q : LevelCell G k) : WeakGridCell G :=
+  ⟨k, Q.1, Q.2⟩
+
+/--
 The exponent appearing in the atom size estimate
 `|Q| ^ (s - 1 / (u' p))`, where `u'` is represented by `uConj`.
 -/

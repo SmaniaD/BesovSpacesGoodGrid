@@ -33,18 +33,6 @@ noncomputable section
 variable {G : WeakGridSpace (α := α)} {s : ℝ} {p u q : ℝ≥0∞}
 variable [Fact (1 ≤ p)]
 
-/--
-O tipo dos cells no nível k, usando o grid de G.
--/
-abbrev LevelCell (G : WeakGridSpace (α := α)) (k : ℕ) :=
-  { Q : Set α // Q ∈ G.grid.partitions k }
-
-/--
-Converte um LevelCell para um WeakGridCell, usando o grid de G.
--/
-def levelCellToWeakGridCell (G : WeakGridSpace (α := α)) (k : ℕ)
-    (Q : LevelCell G k) : WeakGridCell G :=
-  ⟨k, Q.1, Q.2⟩
 
 /--
 A level-`k` atomic block.
