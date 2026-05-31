@@ -737,7 +737,7 @@ private lemma tailCCoefficient_tendsto_zero
 The set of atoms on one weak-grid cell, realized in the ambient `L^p` space.
 
 This is the object that appears in the compactness assumptions for
-completeness: although atoms are stored in their local Banach spaces, the paper
+completeness: although atoms are stored in their local vector spaces, the paper
 states compactness after viewing them as `L^p` functions.
 -/
 def atomSetLp (A : AtomFamily G s p u) (Q : WeakGridCell G) :

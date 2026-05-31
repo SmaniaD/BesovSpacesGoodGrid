@@ -61,7 +61,7 @@ abbrev inducedSouzaAtomFamily
     WeakGridSpace.AtomFamily
       (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell) β p ∞ :=
   WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-    (souzaAtomFamily G β p hβ hp hp_top)
+    (souzaAtomFamily G β p hβ hp.out hp_top)
 
 /--
 An `(s, β, p, qtilde)` Besov atom representative supported on `Q`.
@@ -94,7 +94,7 @@ transmutation theorems.
 noncomputable def besovAtomFamily
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p qtilde : ℝ≥0∞)
     (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞) :
-    WeakGridSpace.AtomFamily G.toWeakGridSpace s p 1 := by
+    WeakGridSpace.AtomFamily.{u, u} G.toWeakGridSpace s p 1 := by
   classical
   -- The carrier should be the ambient `L^p` functions supported on each cell,
   -- with atoms cut out by `IsBesovAtom`.  Proving the `AtomFamily` axioms is a
@@ -134,14 +134,14 @@ def SouzaBesovSandwich
     (A : WeakGridSpace.AtomFamily G.toWeakGridSpace s p u)
     (C56 C566 : ℝ) : Prop :=
   (∀ Q φ,
-      (souzaAtomFamily G s p hs hp hp_top).IsAtom Q φ →
+      (souzaAtomFamily G s p hs hp.out hp_top).IsAtom Q φ →
         ∃ ψ, A.IsAtom Q ψ ∧
           A.toFunction Q ψ =
             (C56⁻¹ : ℂ) •
-              (souzaAtomFamily G s p hs hp hp_top).toFunction Q φ) ∧
+              (souzaAtomFamily G s p hs hp.out hp_top).toFunction Q φ) ∧
   (∀ Q φ,
       A.IsAtom Q φ →
-        ∃ ψ,
+        ∃ ψ : ((besovAtomFamily G s β p qtilde hs hβ hp hp_top).localSpace Q).carrier,
           (besovAtomFamily G s β p qtilde hs hβ hp hp_top).IsAtom Q ψ ∧
             A.toFunction Q φ =
               (C566 : ℂ) •
@@ -166,30 +166,30 @@ theorem souza_atoms_and_besov_atoms
     (hSandwich :
       SouzaBesovSandwich G s β p u qtilde hs hβ (inferInstance : Fact (1 ≤ p))
         hp_top A C56 C566) :
-    (WeakGridSpace.BesovishSpace (souzaAtomFamily G s p hs inferInstance hp_top) q =
+    (WeakGridSpace.BesovishSpace (souzaAtomFamily G s p hs (Fact.out : 1 ≤ p) hp_top) q =
         WeakGridSpace.BesovishSpace A q) ∧
       (WeakGridSpace.BesovishSpace A q =
         WeakGridSpace.BesovishSpace
           (besovAtomFamily G s β p qtilde hs hβ inferInstance hp_top) q) ∧
       (∀ f : WeakGridSpace.BesovishSpace
-          (souzaAtomFamily G s p hs inferInstance hp_top) q,
+          (souzaAtomFamily G s p hs (Fact.out : 1 ≤ p) hp_top) q,
         ∃ hfA : WeakGridSpace.MemBesovishCoeffCost A q
-            (f : Lp ℂ p G.grid.μ),
+            (f : Lp ℂ p G.toWeakGridSpace.measure),
           WeakGridSpace.BesovishSpace.Norm_Costpq A q
-              (⟨(f : Lp ℂ p G.grid.μ), hfA⟩ :
+              (⟨(f : Lp ℂ p G.toWeakGridSpace.measure), hfA⟩ :
                 WeakGridSpace.BesovishSpace A q)
             ≤ C56 *
               WeakGridSpace.BesovishSpace.Norm_Costpq
-                (souzaAtomFamily G s p hs inferInstance hp_top) q f) ∧
+                (souzaAtomFamily G s p hs (Fact.out : 1 ≤ p) hp_top) q f) ∧
       (∀ f : WeakGridSpace.BesovishSpace A q,
         ∃ hfS : WeakGridSpace.MemBesovishCoeffCost
-            (souzaAtomFamily G s p hs inferInstance hp_top) q
-            (f : Lp ℂ p G.grid.μ),
+            (souzaAtomFamily G s p hs (Fact.out : 1 ≤ p) hp_top) q
+            (f : Lp ℂ p G.toWeakGridSpace.measure),
           WeakGridSpace.BesovishSpace.Norm_Costpq
-              (souzaAtomFamily G s p hs inferInstance hp_top) q
-              (⟨(f : Lp ℂ p G.grid.μ), hfS⟩ :
+              (souzaAtomFamily G s p hs (Fact.out : 1 ≤ p) hp_top) q
+              (⟨(f : Lp ℂ p G.toWeakGridSpace.measure), hfS⟩ :
                 WeakGridSpace.BesovishSpace
-                  (souzaAtomFamily G s p hs inferInstance hp_top) q)
+                  (souzaAtomFamily G s p hs (Fact.out : 1 ≤ p) hp_top) q)
             ≤ (C566 / (1 - G.grid.lambda2 ^ (β - s))) *
               WeakGridSpace.BesovishSpace.Norm_Costpq A q f) := by
   -- The second embedding is exactly the transmutation argument: expand each

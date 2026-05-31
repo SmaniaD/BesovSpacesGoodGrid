@@ -388,7 +388,7 @@ noncomputable def TransmutationAtom
 
 
 
-/-- The transmutation atom `d_{P,N}` as an element of the local Banach space
+/-- The transmutation atom `d_{P,N}` as an element of the local vector space
     `AW.localSpace (levelCellToWeakGridCell W j P)`.
     It is the normalised complex combination
     `(1/m) · ∑_{i<N} ∑_{Q∈Gⁱ,P⊆Q} c_Q · s_{P,Q} · b_{P,Q}`

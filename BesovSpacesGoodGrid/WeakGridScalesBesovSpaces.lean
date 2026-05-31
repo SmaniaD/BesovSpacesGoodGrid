@@ -41,7 +41,7 @@ noncomputable def smoothnessScaleFactor
 Raw atom set for the one-parameter smoothness scale.
 
 An element of this set is obtained by taking an original atom on `Q` and
-multiplying it by the smoothness scale factor. The local Banach spaces are not
+multiplying it by the smoothness scale factor. The local vector spaces are not
 changed here; this is only the underlying set of scaled atoms.
 -/
 noncomputable def smoothnessScaleAtoms

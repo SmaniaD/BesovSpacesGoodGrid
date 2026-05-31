@@ -57,29 +57,26 @@ noncomputable def atomMeasureScale (G : WeakGridSpace (α := α)) (s : ℝ)
   (G.measure Q.cell) ^ atomMeasureExponent s p uConj
 
 /--
-A local Banach space of complex-valued functions on `α`.
+A local vector space of complex-valued functions on `α`.
 
-The carrier has its own normed complex vector-space structure and its own
-completeness proof. The map `toFun` is the inclusion/realization of local
-elements as actual functions `α → ℂ`.
+The carrier has its own complex vector-space structure. The map `toFun` is the
+inclusion/realization of local elements as actual functions `α → ℂ`.
 -/
-structure LocalBanachSpace (α : Type u) [MeasurableSpace α] where
+structure LocalVectorSpace (α : Type u) [MeasurableSpace α] where
   carrier : Type v
-  [normedAddCommGroup : NormedAddCommGroup carrier]
-  [normedSpace : NormedSpace ℂ carrier]
-  [completeSpace : CompleteSpace carrier]
+  [addCommGroup : AddCommGroup carrier]
+  [module : Module ℂ carrier]
   toFun : carrier →ₗ[ℂ] (α → ℂ)
   injective_toFun : Function.Injective toFun
 
-attribute [instance] LocalBanachSpace.normedAddCommGroup
-attribute [instance] LocalBanachSpace.normedSpace
-attribute [instance] LocalBanachSpace.completeSpace
+attribute [instance] LocalVectorSpace.addCommGroup
+attribute [instance] LocalVectorSpace.module
 
 
 
-variable (B : LocalBanachSpace α)
+variable (B : LocalVectorSpace α)
 
-/-- View an element of a local Banach space as a function on `α`. -/
+/-- View an element of a local vector space as a function on `α`. -/
 def asFun (φ : B.carrier) : α → ℂ :=
   B.toFun φ
 
@@ -89,8 +86,9 @@ A family of atoms of type `(s,p,u)` on a Weak grid.
 
 The paper writes this as an indexed family
 `(B(Q), A(Q))_{Q ∈ ⋃ₖ Pᵏ}`. Here `localSpace Q` is `B(Q)` and
-`atoms Q` is `A(Q)`. Each `B(Q)` is a Banach space with its own norm. The
-exponent `uConj` is the Hölder conjugate of `u`.
+`atoms Q` is `A(Q)`. Each `B(Q)` is represented here as a complex vector
+space of concrete functions. The exponent `uConj` is the Hölder conjugate of
+`u`.
 -/
 structure AtomFamily
   (G : WeakGridSpace (α := α)) (s : ℝ) (p u : ℝ≥0∞) where
@@ -106,8 +104,8 @@ structure AtomFamily
   one_le_u : 1 ≤ u
   /-- `uConj` is the Hölder conjugate of `u`. -/
   holder_conjugate : ENNReal.HolderConjugate u uConj
-  /-- The local Banach space `B(Q)`. -/
-  localSpace : WeakGridCell G → LocalBanachSpace.{u, v} α
+  /-- The local vector space `B(Q)`. -/
+  localSpace : WeakGridCell G → LocalVectorSpace.{u, v} α
   /-- The chosen atoms `A(Q)`, as elements of `B(Q)`. -/
   atoms : ∀ Q, Set ((localSpace Q).carrier)
   /-- Every cell has at least one atom. -/
@@ -116,7 +114,7 @@ structure AtomFamily
   local_memLp : ∀ Q φ, MeasureTheory.MemLp ((localSpace Q).toFun φ) (p * u) G.measure
   /-- Local functions are supported on `Q`. -/
   local_support : ∀ Q φ, ∀ x, x ∉ Q.cell → (localSpace Q).toFun φ x = 0
-  /-- `A(Q)` is convex in the local Banach space. -/
+  /-- `A(Q)` is convex in the local vector space. -/
   atoms_convex : ∀ Q, Convex ℝ (atoms Q)
   /-- `A(Q)` is invariant under multiplication by complex scalars of modulus one. -/
   atoms_phase_invariant :
@@ -191,28 +189,10 @@ theorem atom_norm_bound (A : AtomFamily G s p u)
   A.atom_bound Q φ hφ
 
 /--
-Optional compactness hypothesis from the paper, modeled using the ambient
-strong topology on functions.
--/
-def StronglyCompactAtoms (A : AtomFamily G s p u) : Prop :=
-  ∀ Q, IsCompact (A.atoms Q)
-
-/--
-Optional weak sequential compactness hypothesis. This predicate is stated for
-the current ambient topology; later files can instantiate a weak topology if
-the local spaces are packaged as `Lp` spaces.
--/
-def WeaklySequentiallyCompactAtoms (A : AtomFamily G s p u) : Prop :=
-  ∀ Q, IsSeqCompact (A.atoms Q)
-
-/--
-Optional finite-dimensional hypothesis: every local space is finite-dimensional
-and `A(Q)` contains a relative neighborhood of `0` in `B(Q)`.
+Optional finite-dimensional hypothesis: every local space is finite-dimensional.
 -/
 def FiniteDimensionalAtoms (A : AtomFamily G s p u) : Prop :=
-  (∀ Q, FiniteDimensional ℂ ((A.localSpace Q).carrier)) ∧
-    ∀ Q, ∃ U : Set ((A.localSpace Q).carrier),
-      U ∈ 𝓝 (0 : (A.localSpace Q).carrier) ∧ U ⊆ A.atoms Q
+  ∀ Q, FiniteDimensional ℂ ((A.localSpace Q).carrier)
 
 
 end AtomFamily
