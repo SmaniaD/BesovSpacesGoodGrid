@@ -1,5 +1,5 @@
-import BesovSpacesGoodGrid.WeakGridAtomsDefinition
-import BesovSpacesGoodGrid.WeakGridBesovishSpaces
+import BesovSpacesGoodGrid.WeakGrid.Atoms
+import BesovSpacesGoodGrid.WeakGrid.BesovishSpaces
 import Mathlib.MeasureTheory.Function.LpSpace.Basic
 import Mathlib.Analysis.Normed.Group.InfiniteSum
 import Mathlib.Analysis.Convex.Combination
@@ -7,6 +7,16 @@ import Mathlib.Analysis.MeanInequalitiesPow
 import Mathlib.Topology.Algebra.Module.Spaces.WeakDual
 import Mathlib.Analysis.LocallyConvex.SeparatingDual
 import Mathlib.Topology.Algebra.InfiniteSum.NatInt
+
+/-!
+# Completeness for weak-grid Besov-ish spaces
+
+This file proves the compactness and limiting tools needed to show that
+Besov-ish spaces are complete for the coefficient-cost gauge.  The main
+ingredients are uniform bounds for atomic representations, diagonal extraction
+of level blocks, passage to limits in `L^p`, and construction of a limiting
+representation with controlled `(p, q)` cost.
+-/
 
 
 
@@ -737,7 +747,7 @@ private lemma tailCCoefficient_tendsto_zero
 The set of atoms on one weak-grid cell, realized in the ambient `L^p` space.
 
 This is the object that appears in the compactness assumptions for
-completeness: although atoms are stored in their local Banach spaces, the paper
+completeness: although atoms are stored in their local vector spaces, the paper
 states compactness after viewing them as `L^p` functions.
 -/
 def atomSetLp (A : AtomFamily G s p u) (Q : WeakGridCell G) :

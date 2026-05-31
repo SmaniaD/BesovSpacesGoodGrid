@@ -1,9 +1,18 @@
-import BesovSpacesGoodGrid.GoodGridDefinition
-import BesovSpacesGoodGrid.WeakGridDefinition
-import BesovSpacesGoodGrid.WeakGridAtomsDefinition
-import BesovSpacesGoodGrid.WeakGridBesovishSpaces
-import BesovSpacesGoodGrid.WeakGridScalesBesovSpaces
-import BesovSpacesGoodGrid.WeakGridCompletenessBesovishSpaces
-import BesovSpacesGoodGrid.WeakGridTransmutation
-import BesovSpacesGoodGrid.GoodGridInducedGrid
-import BesovSpacesGoodGrid.GoodGridBesovAtoms
+import BesovSpacesGoodGrid.GoodGrid.Definition
+import BesovSpacesGoodGrid.WeakGrid.Definition
+import BesovSpacesGoodGrid.WeakGrid.Atoms
+import BesovSpacesGoodGrid.WeakGrid.BesovishSpaces
+import BesovSpacesGoodGrid.WeakGrid.Scales
+import BesovSpacesGoodGrid.WeakGrid.Completeness
+import BesovSpacesGoodGrid.WeakGrid.Transmutation
+import BesovSpacesGoodGrid.WeakGrid.InducedGrid
+import BesovSpacesGoodGrid.GoodGrid.BesovAtoms
+
+/-!
+# Besov spaces over weak grids and good grids
+
+This is the public entry point for the library.  It imports the weak-grid
+infrastructure for atom families, Besov-ish spaces, scale changes,
+completeness, induced grids, and transmutation, together with the current
+good-grid specialization to Souza and Besov atoms.
+-/

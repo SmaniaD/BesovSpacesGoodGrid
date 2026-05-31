@@ -1,7 +1,7 @@
-import BesovSpacesGoodGrid.WeakGridAtomsDefinition
-import BesovSpacesGoodGrid.WeakGridBesovishSpaces
-import BesovSpacesGoodGrid.WeakGridCompletenessBesovishSpaces
-import BesovSpacesGoodGrid.GoodGridDefinition
+import BesovSpacesGoodGrid.WeakGrid.Atoms
+import BesovSpacesGoodGrid.WeakGrid.BesovishSpaces
+import BesovSpacesGoodGrid.WeakGrid.Completeness
+import BesovSpacesGoodGrid.GoodGrid.Definition
 import Mathlib.MeasureTheory.Measure.MeasureSpace
 import Mathlib.MeasureTheory.Function.LpSeminorm.Basic
 import Mathlib.MeasureTheory.Function.LpSeminorm.Indicator
@@ -16,7 +16,7 @@ This file defines:
    (overlap constant = 1, since partitions are disjoint)
 3. `IsSouzaAtom`: the predicate for `(s,p)`-Souza atoms
 4. `canonicalSouzaAtom`: the canonical Souza atom on a cell
-5. `souzaLocalBanachSpace`: the local Banach space `ℂ` for Souza atoms
+5. `souzaLocalVectorSpace`: the local vector space `ℂ` for Souza atoms
 6. `souzaAtomFamily`: packages Souza atoms as an `AtomFamily`
 7. `SouzaBesovSpace`: the Besov space induced by a `GoodGrid` and Souza atoms
 -/
@@ -182,15 +182,15 @@ theorem canonicalSouzaAtom_isSouzaAtom (G : GoodGridSpace (α := α)) (s : ℝ) 
   simp [Complex.norm_real, Real.norm_of_nonneg hnonneg]
 
 -- ============================================================
--- §4. Local Banach space for Souza atoms
+-- §4. Local vector space for Souza atoms
 -- ============================================================
 
 /--
-The local Banach space at cell `Q` for Souza atoms is `ℂ`, with the
+The local vector space at cell `Q` for Souza atoms is `ℂ`, with the
 linear map `c ↦ (fun x => if x ∈ Q.cell then c else 0)`.
 -/
-def souzaLocalBanachSpace (G : GoodGridSpace (α := α)) (Q : GoodGridCell G) :
-    WeakGridSpace.LocalBanachSpace α := by
+def souzaLocalVectorSpace (G : GoodGridSpace (α := α)) (Q : GoodGridCell G) :
+    WeakGridSpace.LocalVectorSpace α := by
   classical
   exact
   { carrier := ℂ
@@ -209,8 +209,8 @@ def souzaLocalBanachSpace (G : GoodGridSpace (α := α)) (Q : GoodGridCell G) :
 -- ============================================================
 
 /--
-The set of Souza atoms at `Q`, viewed as elements `c : ℂ` of the local
-Banach space: those satisfying `‖c‖ ≤ μ(Q)^(s − 1/p)`.
+The set of Souza atoms at `Q`, viewed as elements `c : ℂ` of the local vector
+space: those satisfying `‖c‖ ≤ μ(Q)^(s − 1/p)`.
 -/
 def souzaAtomsSet (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (Q : GoodGridCell G) : Set ℂ :=
@@ -232,7 +232,7 @@ def souzaAtomFamily (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     rw [ENNReal.holderConjugate_iff]
     simp
   localSpace        := fun Q =>
-    souzaLocalBanachSpace G ⟨Q.level, Q.cell, Q.mem⟩
+    souzaLocalVectorSpace G ⟨Q.level, Q.cell, Q.mem⟩
   atoms             := fun Q =>
     souzaAtomsSet G s p ⟨Q.level, Q.cell, Q.mem⟩
   atoms_nonempty    := fun Q =>
@@ -242,7 +242,7 @@ def souzaAtomFamily (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
         Real.rpow_nonneg ENNReal.toReal_nonneg _
       change ‖(0 : ℂ)‖ ≤ (G.grid.μ Q.cell).toReal ^ (s - (p.toReal)⁻¹)
       simpa using hnonneg⟩
-  local_memLp       := fun Q c => by
+  local_memLp       := fun Q (c : ℂ) => by
     -- c · 1_Q ∈ L^(p · ∞) = L^∞, proved via boundedness
     classical
     have hp_ne_zero : p ≠ 0 :=
@@ -254,11 +254,11 @@ def souzaAtomFamily (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
       by
         letI : MeasureTheory.IsFiniteMeasure G.grid.μ := G.grid.isFinite
         exact MeasureTheory.measure_ne_top G.grid.μ Q.cell
-    simpa [souzaLocalBanachSpace, hp_top_mul, GoodGridSpace.toWeakGridSpace,
+    simpa [souzaLocalVectorSpace, hp_top_mul, GoodGridSpace.toWeakGridSpace,
       GoodGridSpace.toWeakGrid] using
       (MeasureTheory.memLp_indicator_const (μ := G.grid.μ) (s := Q.cell)
         (p := ∞) hQmeas c (Or.inr hQfinite))
-  local_support     := fun Q c x hx => by
+  local_support     := fun Q (c : ℂ) x hx => by
     classical
     change (Q.cell.indicator fun _ => c) x = 0
     simp [hx]
@@ -266,13 +266,13 @@ def souzaAtomFamily (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     -- souzaAtomsSet Q is a closed ball in ℂ, hence convex
     simpa [souzaAtomsSet, Metric.closedBall, dist_eq_norm] using
       (convex_closedBall (0 : ℂ) ((G.grid.μ Q.cell).toReal ^ (s - (p.toReal)⁻¹)))
-  atoms_phase_invariant := fun Q c σ hc hσ => by
+  atoms_phase_invariant := fun Q (c : ℂ) σ hc hσ => by
     simp only [souzaAtomsSet] at hc ⊢
     calc ‖σ • c‖ = ‖σ‖ * ‖c‖ := norm_smul σ c
       _ = 1 * ‖c‖             := by rw [hσ]
       _ = ‖c‖                 := one_mul _
       _ ≤ _                   := hc
-  atom_bound        := fun Q c hc => by
+  atom_bound        := fun Q (c : ℂ) hc => by
     -- eLpNorm (c · 1_Q) ∞ μ ≤ μ(Q)^(s − 1·p⁻¹)
     simp only [souzaAtomsSet] at hc
     classical
@@ -562,7 +562,7 @@ theorem indicatorConstLp_cell_mem_souzaBesov
         rw [hsum]
         rw [Set.indicator_of_mem hx]
         simp only [A, B, Qw, WeakGridSpace.AtomFamily.toFunction, souzaAtomFamily,
-          souzaLocalBanachSpace]
+          souzaLocalVectorSpace]
         change c / (r Qw : ℂ) * (Q.cell.indicator (fun _ => (r Qw : ℂ)) x) = c
         rw [Set.indicator_of_mem hx]
         field_simp [show (r Qw : ℂ) ≠ 0 by exact_mod_cast (ne_of_gt hrQ_pos)]
@@ -575,7 +575,7 @@ theorem indicatorConstLp_cell_mem_souzaBesov
           by_cases hPQ : P = Qw
           · subst P
             simp only [A, B, Qw, WeakGridSpace.AtomFamily.toFunction, souzaAtomFamily,
-              souzaLocalBanachSpace]
+              souzaLocalVectorSpace]
             change c / (r Qw : ℂ) * (Q.cell.indicator (fun _ => (r Qw : ℂ)) x) = 0
             rw [Set.indicator_of_notMem hx]
             simp
@@ -852,6 +852,22 @@ private theorem souza_hCco
         exact Real.rpow_nonneg (Real.rpow_nonneg (hw_nonneg k) _) _
       simpa [WeakGridSpace.LpGridRepresentation.cCoefficientFinite, hq1, hqtop, q', w] using
         Summable.of_nonneg_of_le hnonneg_q hle_q hsum_qgeom
+
+/--
+The concrete `AssumptionG2` package for Souza atoms on a good grid.
+
+This bundles the coefficient summability estimate and the mesh decay estimate
+used by the abstract weak-grid compactness and transmutation theorems.  It is
+kept public so later comparison arguments can invoke those abstract theorems
+without duplicating the analytic grid estimates.
+-/
+theorem souza_assumptionG2
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
+    WeakGridSpace.AssumptionG2 G.toWeakGridSpace s p ∞ q :=
+  ⟨souza_hCco G s p q hs hp hp_top, souza_hmesh G⟩
 
 -- ============================================================
 -- §9. Completeness of Souza Besov spaces with the cost norm

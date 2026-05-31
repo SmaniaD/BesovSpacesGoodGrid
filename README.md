@@ -16,8 +16,9 @@ DOI: <https://doi.org/10.2140/apde.2022.15.123>
 
 The root module is `BesovSpacesGoodGrid.lean`.  It currently imports the weak
 grid API, atom families, Besov-ish spaces, scale inclusions, completeness
-theorems, and weak-grid transmutation.  The repository also contains ongoing
-good-grid specializations and auxiliary indexed-sum infrastructure.
+theorems, induced grids, weak-grid transmutation, and the current good-grid
+Besov-atom comparison layer.  The repository also contains auxiliary
+indexed-sum infrastructure.
 
 The formalization currently includes:
 
@@ -40,13 +41,20 @@ The formalization currently includes:
   coefficient-cost balls, and completeness of `BesovishSpace` for the
   coefficient-cost norm.
 - Transmutation definitions and theorems `ClaimI`, `ClaimII`, and `ClaimIII`,
-  together with endpoint versions for `q = infinity`.
-- Good-grid/Souza specializations in `GoodGridBesovSpace.lean`, including the
+  together with endpoint versions for `q = infinity`, plus the explicit
+  identity-level Claim C embedding used by the good-grid comparison theorem.
+- Good-grid/Souza specializations in `GoodGrid/BesovSpace.lean`, including the
   induced weak grid, Souza atoms, the Souza Besov space, compactness of closed
   balls, and density theorems.
+- Good-grid Besov atoms in `GoodGrid/BesovAtoms.lean`, including the
+  transmutation of Besov atoms into Souza atoms and the theorem
+  `atoms_between_souza_atoms_and_besov_atoms`, which identifies the Besov-ish
+  spaces associated to Souza atoms, any atom family sandwiched between Souza
+  and Besov atoms, and Besov atoms themselves, with the norm constants from
+  the paper.
 
-At this snapshot, the repository has no `sorry`, `admit`, or project-local
-axiom declarations.
+At this snapshot, a search finds no Lean `sorry`, no `admit`, and no
+project-local `axiom` declarations.
 
 ## Build
 
@@ -67,23 +75,27 @@ lake env lean BesovSpacesGoodGrid.lean
 
 - `BesovSpacesGoodGrid.lean`: library entry point for the main weak-grid
   development.
-- `BesovSpacesGoodGrid/GoodGridDefinition.lean`: good grids with quantitative
+- `BesovSpacesGoodGrid/GoodGrid/Definition.lean`: good grids with quantitative
   parent-child measure-ratio bounds.
-- `BesovSpacesGoodGrid/WeakGridDefinition.lean`: weak grids and overlap
+- `BesovSpacesGoodGrid/WeakGrid/Definition.lean`: weak grids and overlap
   counting estimates.
-- `BesovSpacesGoodGrid/WeakGridAtomsDefinition.lean`: cells, local Banach
+- `BesovSpacesGoodGrid/WeakGrid/Atoms.lean`: cells, local Banach
   spaces, atom families, and basic atom lemmas.
-- `BesovSpacesGoodGrid/WeakGridBesovishSpaces.lean`: level blocks,
+- `BesovSpacesGoodGrid/WeakGrid/BesovishSpaces.lean`: level blocks,
   representations, coefficient costs, Besov-ish spaces, and the cost gauge.
-- `BesovSpacesGoodGrid/WeakGridScalesBesovSpaces.lean`: scaled atom families
+- `BesovSpacesGoodGrid/WeakGrid/Scales.lean`: scaled atom families
   and smoothness-scale inclusions.
-- `BesovSpacesGoodGrid/WeakGridCompletenessBesovishSpaces.lean`:
+- `BesovSpacesGoodGrid/WeakGrid/Completeness.lean`:
   representation limits, compactness of cost balls, and completeness.
-- `BesovSpacesGoodGrid/WeakGridTransmutation.lean`: weak-grid transmutation and
+- `BesovSpacesGoodGrid/WeakGrid/InducedGrid.lean`: induced weak grids on a
+  fixed cell and the contraction into the ambient Besov-ish space.
+- `BesovSpacesGoodGrid/WeakGrid/Transmutation.lean`: weak-grid transmutation and
   the formal versions of Claims I, II, and III.
-- `BesovSpacesGoodGrid/GoodGridBesovSpace.lean`: Souza atoms and good-grid
+- `BesovSpacesGoodGrid/GoodGrid/BesovSpace.lean`: Souza atoms and good-grid
   Besov-space consequences.
-- `BesovSpacesGoodGrid/GoodGridDistributionDefinition.lean`: test functions
+- `BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean`: Besov atoms on good grids and
+  the Souza/Besov atom comparison theorem.
+- `BesovSpacesGoodGrid/GoodGrid/Distribution.lean`: test functions
   and distributions associated with a good grid.
 - `BesovSpacesGoodGrid/Sums.lean`: reusable block-index and block-sum
   notation.
@@ -97,8 +109,8 @@ lake env lean BesovSpacesGoodGrid.lean
 
 Likely next steps are:
 
-- decide whether `GoodGridBesovSpace`, `GoodGridDistributionDefinition`, and
-  `Sums` should be imported by the root module or kept as opt-in modules;
+- decide whether `GoodGrid.Distribution` and `Sums` should be imported by the
+  root module or kept as opt-in modules;
 - continue polishing public docstrings around the large transmutation and
   completeness files;
 - factor large proof-heavy files into smaller topic-focused modules if
