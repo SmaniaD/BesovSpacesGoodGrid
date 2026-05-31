@@ -79,6 +79,8 @@ lake env lean BesovSpacesGoodGrid.lean
   and smoothness-scale inclusions.
 - `BesovSpacesGoodGrid/WeakGrid/Completeness.lean`:
   representation limits, compactness of cost balls, and completeness.
+- `BesovSpacesGoodGrid/WeakGrid/InducedGrid.lean`: induced weak grids on a
+  fixed cell and the contraction into the ambient Besov-ish space.
 - `BesovSpacesGoodGrid/WeakGrid/Transmutation.lean`: weak-grid transmutation and
   the formal versions of Claims I, II, and III.
 - `BesovSpacesGoodGrid/GoodGrid/BesovSpace.lean`: Souza atoms and good-grid

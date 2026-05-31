@@ -5,5 +5,5 @@ import BesovSpacesGoodGrid.WeakGrid.BesovishSpaces
 import BesovSpacesGoodGrid.WeakGrid.Scales
 import BesovSpacesGoodGrid.WeakGrid.Completeness
 import BesovSpacesGoodGrid.WeakGrid.Transmutation
-import BesovSpacesGoodGrid.GoodGrid.InducedGrid
+import BesovSpacesGoodGrid.WeakGrid.InducedGrid
 import BesovSpacesGoodGrid.GoodGrid.BesovAtoms

@@ -1,5 +1,5 @@
 import BesovSpacesGoodGrid.GoodGrid.BesovSpace
-import BesovSpacesGoodGrid.GoodGrid.InducedGrid
+import BesovSpacesGoodGrid.WeakGrid.InducedGrid
 import BesovSpacesGoodGrid.WeakGrid.Transmutation
 
 /-!
