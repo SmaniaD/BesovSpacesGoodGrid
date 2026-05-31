@@ -8,7 +8,7 @@ Branch atual: `Atomliner`
 
 Formalizar a comparação entre o espaço de Besov construído com átomos de Souza
 e o espaço construído com átomos de Besov em uma boa grade.  O alvo principal
-atual é completar `GoodGridBesovAtoms.lean`, especialmente o teorema
+atual é completar `GoodGrid/BesovAtoms.lean`, especialmente o teorema
 `souza_atoms_and_besov_atoms`.
 
 Em termos matemáticos, queremos provar que uma família de átomos situada entre
@@ -57,7 +57,7 @@ cotas normativas esperadas.
 
 ## O que falta fazer
 
-Em `BesovSpacesGoodGrid/GoodGridBesovAtoms.lean`, ainda faltam os seguintes
+Em `BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean`, ainda faltam os seguintes
 sublemas/teoremas:
 
 - `souza_atoms_and_besov_atoms`: completar a comparação principal entre os
@@ -66,7 +66,7 @@ sublemas/teoremas:
 ## Próximos passos sugeridos
 
 1. Atacar `souza_atoms_and_besov_atoms` via o argumento de transmutação já
-   existente em `WeakGridTransmutation.lean`.
+   existente em `WeakGrid/Transmutation.lean`.
 
 ## Observações
 

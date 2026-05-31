@@ -1,7 +1,7 @@
-import BesovSpacesGoodGrid.WeakGridAtomsDefinition
-import BesovSpacesGoodGrid.WeakGridBesovishSpaces
-import BesovSpacesGoodGrid.WeakGridCompletenessBesovishSpaces
-import BesovSpacesGoodGrid.GoodGridDefinition
+import BesovSpacesGoodGrid.WeakGrid.Atoms
+import BesovSpacesGoodGrid.WeakGrid.BesovishSpaces
+import BesovSpacesGoodGrid.WeakGrid.Completeness
+import BesovSpacesGoodGrid.GoodGrid.Definition
 import Mathlib.MeasureTheory.Measure.MeasureSpace
 import Mathlib.MeasureTheory.Function.LpSeminorm.Basic
 import Mathlib.MeasureTheory.Function.LpSeminorm.Indicator

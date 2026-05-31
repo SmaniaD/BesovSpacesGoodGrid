@@ -1,6 +1,6 @@
-import BesovSpacesGoodGrid.GoodGridBesovSpace
-import BesovSpacesGoodGrid.GoodGridInducedGrid
-import BesovSpacesGoodGrid.WeakGridTransmutation
+import BesovSpacesGoodGrid.GoodGrid.BesovSpace
+import BesovSpacesGoodGrid.GoodGrid.InducedGrid
+import BesovSpacesGoodGrid.WeakGrid.Transmutation
 
 /-!
 # Besov atoms on a good grid

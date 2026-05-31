@@ -1,4 +1,4 @@
-import BesovSpacesGoodGrid.WeakGridDefinition
+import BesovSpacesGoodGrid.WeakGrid.Definition
 import Mathlib.MeasureTheory.Measure.MeasureSpace
 import Mathlib.MeasureTheory.Function.LpSeminorm.Basic
 import Mathlib.MeasureTheory.Function.LpSeminorm.CompareExp

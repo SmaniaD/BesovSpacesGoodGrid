@@ -1,4 +1,4 @@
-import BesovSpacesGoodGrid.GoodGridDefinition
+import BesovSpacesGoodGrid.GoodGrid.Definition
 import Mathlib.MeasureTheory.Function.SimpleFunc
 
 /-!

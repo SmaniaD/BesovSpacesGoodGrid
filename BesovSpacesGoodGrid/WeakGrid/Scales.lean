@@ -1,4 +1,4 @@
-import BesovSpacesGoodGrid.WeakGridBesovishSpaces
+import BesovSpacesGoodGrid.WeakGrid.BesovishSpaces
 
 /-!
 Scales of Besov-ish atom families.

@@ -1,4 +1,4 @@
-import BesovSpacesGoodGrid.WeakGridBesovishSpaces
+import BesovSpacesGoodGrid.WeakGrid.BesovishSpaces
 
 /-!
 # Induced Besov-ish spaces on a cell

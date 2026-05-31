@@ -41,7 +41,7 @@ The formalization currently includes:
   coefficient-cost norm.
 - Transmutation definitions and theorems `ClaimI`, `ClaimII`, and `ClaimIII`,
   together with endpoint versions for `q = infinity`.
-- Good-grid/Souza specializations in `GoodGridBesovSpace.lean`, including the
+- Good-grid/Souza specializations in `GoodGrid/BesovSpace.lean`, including the
   induced weak grid, Souza atoms, the Souza Besov space, compactness of closed
   balls, and density theorems.
 
@@ -67,23 +67,23 @@ lake env lean BesovSpacesGoodGrid.lean
 
 - `BesovSpacesGoodGrid.lean`: library entry point for the main weak-grid
   development.
-- `BesovSpacesGoodGrid/GoodGridDefinition.lean`: good grids with quantitative
+- `BesovSpacesGoodGrid/GoodGrid/Definition.lean`: good grids with quantitative
   parent-child measure-ratio bounds.
-- `BesovSpacesGoodGrid/WeakGridDefinition.lean`: weak grids and overlap
+- `BesovSpacesGoodGrid/WeakGrid/Definition.lean`: weak grids and overlap
   counting estimates.
-- `BesovSpacesGoodGrid/WeakGridAtomsDefinition.lean`: cells, local Banach
+- `BesovSpacesGoodGrid/WeakGrid/Atoms.lean`: cells, local Banach
   spaces, atom families, and basic atom lemmas.
-- `BesovSpacesGoodGrid/WeakGridBesovishSpaces.lean`: level blocks,
+- `BesovSpacesGoodGrid/WeakGrid/BesovishSpaces.lean`: level blocks,
   representations, coefficient costs, Besov-ish spaces, and the cost gauge.
-- `BesovSpacesGoodGrid/WeakGridScalesBesovSpaces.lean`: scaled atom families
+- `BesovSpacesGoodGrid/WeakGrid/Scales.lean`: scaled atom families
   and smoothness-scale inclusions.
-- `BesovSpacesGoodGrid/WeakGridCompletenessBesovishSpaces.lean`:
+- `BesovSpacesGoodGrid/WeakGrid/Completeness.lean`:
   representation limits, compactness of cost balls, and completeness.
-- `BesovSpacesGoodGrid/WeakGridTransmutation.lean`: weak-grid transmutation and
+- `BesovSpacesGoodGrid/WeakGrid/Transmutation.lean`: weak-grid transmutation and
   the formal versions of Claims I, II, and III.
-- `BesovSpacesGoodGrid/GoodGridBesovSpace.lean`: Souza atoms and good-grid
+- `BesovSpacesGoodGrid/GoodGrid/BesovSpace.lean`: Souza atoms and good-grid
   Besov-space consequences.
-- `BesovSpacesGoodGrid/GoodGridDistributionDefinition.lean`: test functions
+- `BesovSpacesGoodGrid/GoodGrid/Distribution.lean`: test functions
   and distributions associated with a good grid.
 - `BesovSpacesGoodGrid/Sums.lean`: reusable block-index and block-sum
   notation.
@@ -97,7 +97,7 @@ lake env lean BesovSpacesGoodGrid.lean
 
 Likely next steps are:
 
-- decide whether `GoodGridBesovSpace`, `GoodGridDistributionDefinition`, and
+- decide whether `GoodGrid.BesovSpace`, `GoodGrid.Distribution`, and
   `Sums` should be imported by the root module or kept as opt-in modules;
 - continue polishing public docstrings around the large transmutation and
   completeness files;

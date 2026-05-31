@@ -1,4 +1,4 @@
-import BesovSpacesGoodGrid.WeakGridAtomsDefinition
+import BesovSpacesGoodGrid.WeakGrid.Atoms
 import Mathlib.MeasureTheory.Function.LpSpace.Basic
 import Mathlib.Analysis.Normed.Group.InfiniteSum
 import Mathlib.Analysis.Convex.Combination

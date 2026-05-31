@@ -315,7 +315,7 @@ and an explicit \(L^t\) embedding estimate for exponents
 \section{Scale Inclusions}
 
 \begin{definition}[Smoothness scaling]
-The file \verb|WeakGridScalesBesovSpaces.lean| defines
+The file \verb|WeakGrid/Scales.lean| defines
 \begin{center}
 \verb|smoothnessScaleFactor|,\quad
 \verb|smoothnessScaleAtoms|,\quad
@@ -449,7 +449,7 @@ complete.
 
 \subsection{Setup}
 
-The file \verb|WeakGridTransmutation.lean| formalizes the transfer of an
+The file \verb|WeakGrid/Transmutation.lean| formalizes the transfer of an
 atomic representation from a source weak grid \(G\) to a target weak grid
 \(W\).  The source coefficients are measured by
 \verb|CoeffPLevel|, \verb|CoeffPQCost|, and \verb|CoeffFinitePQCost|.
@@ -534,7 +534,7 @@ endpoint version.
 
 \section{Good-Grid Souza Spaces}
 
-The file \verb|GoodGridBesovSpace.lean| specializes the weak-grid theory to
+The file \verb|GoodGrid/BesovSpace.lean| specializes the weak-grid theory to
 good grids and Souza atoms.
 
 \begin{definition}[Induced weak grid]
@@ -606,7 +606,7 @@ of its image in \(L^1\).
 
 \subsection{Distributions}
 
-The file \verb|GoodGridDistributionDefinition.lean| defines:
+The file \verb|GoodGrid/Distribution.lean| defines:
 \begin{itemize}
   \item \verb|atomIndicator|: a simple-function indicator attached to a good-grid
     cell;
@@ -673,21 +673,21 @@ The most important public results currently include:
 
 \begin{itemize}
   \item \verb|BesovSpacesGoodGrid.lean|: main library entry point.
-  \item \verb|GoodGridDefinition.lean|: good-grid structures.
-  \item \verb|WeakGridDefinition.lean|: weak-grid structures and overlap
+  \item \verb|GoodGrid/Definition.lean|: good-grid structures.
+  \item \verb|WeakGrid/Definition.lean|: weak-grid structures and overlap
     estimates.
-  \item \verb|WeakGridAtomsDefinition.lean|: cells, local spaces, and atom
+  \item \verb|WeakGrid/Atoms.lean|: cells, local spaces, and atom
     families.
-  \item \verb|WeakGridBesovishSpaces.lean|: level blocks, representations,
+  \item \verb|WeakGrid/BesovishSpaces.lean|: level blocks, representations,
     costs, Besov-ish spaces, and the cost gauge.
-  \item \verb|WeakGridScalesBesovSpaces.lean|: scaled atom families and
+  \item \verb|WeakGrid/Scales.lean|: scaled atom families and
     inclusions.
-  \item \verb|WeakGridCompletenessBesovishSpaces.lean|: limit, compactness, and
+  \item \verb|WeakGrid/Completeness.lean|: limit, compactness, and
     completeness theorems.
-  \item \verb|WeakGridTransmutation.lean|: transmutation objects and Claims I,
+  \item \verb|WeakGrid/Transmutation.lean|: transmutation objects and Claims I,
     II, III.
-  \item \verb|GoodGridBesovSpace.lean|: Souza atoms and good-grid Besov spaces.
-  \item \verb|GoodGridDistributionDefinition.lean|: test functions and
+  \item \verb|GoodGrid/BesovSpace.lean|: Souza atoms and good-grid Besov spaces.
+  \item \verb|GoodGrid/Distribution.lean|: test functions and
     distributions.
   \item \verb|Sums.lean|: block-index and block-sum infrastructure.
 \end{itemize}

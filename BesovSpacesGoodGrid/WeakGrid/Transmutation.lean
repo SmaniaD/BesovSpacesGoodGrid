@@ -1,6 +1,6 @@
-import BesovSpacesGoodGrid.WeakGridAtomsDefinition
-import BesovSpacesGoodGrid.WeakGridBesovishSpaces
-import BesovSpacesGoodGrid.WeakGridCompletenessBesovishSpaces
+import BesovSpacesGoodGrid.WeakGrid.Atoms
+import BesovSpacesGoodGrid.WeakGrid.BesovishSpaces
+import BesovSpacesGoodGrid.WeakGrid.Completeness
 import Mathlib.MeasureTheory.Function.ConvergenceInMeasure
 import Mathlib.MeasureTheory.Function.LpSpace.Basic
 import Mathlib.Analysis.Normed.Group.InfiniteSum
