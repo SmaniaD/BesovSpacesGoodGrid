@@ -137,9 +137,9 @@ normalized Haar coefficient convention fixed above.
 -/
 def cellCoeffPower (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G))
-    (p : ℝ≥0∞) (f : α → ℂ) (Q : GoodGridCell G) : ℝ :=
+    (p : ℝ≥0∞) (f : α → ℂ) (Q : GoodGridCell G) : ℝ≥0∞ :=
   ∑ b ∈ indicesInCell G F Q,
-    ‖coeff G F f (.wavelet (indexOfCellBranch G F Q b))‖ ^ p.toReal
+    ENNReal.ofReal (‖coeff G F f (.wavelet (indexOfCellBranch G F Q b))‖ ^ p.toReal)
 
 /--
 The level-`k` Haar block appearing in `N_haar`.
@@ -149,9 +149,9 @@ It is
 -/
 def levelHaarBlock (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G))
-    (s : ℝ) (p : ℝ≥0∞) (f : α → ℂ) (k : ℕ) : ℝ :=
+    (s : ℝ) (p : ℝ≥0∞) (f : α → ℂ) (k : ℕ) : ℝ≥0∞ :=
   ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
-    (G.grid.μ Q.1).toReal ^ (1 - s * p.toReal - p.toReal / 2) *
+    ENNReal.ofReal ((G.grid.μ Q.1).toReal ^ (1 - s * p.toReal - p.toReal / 2)) *
       cellCoeffPower G F p f
         { level := k
           cell := Q.1
@@ -164,9 +164,10 @@ This is `μ(I)^(1/p - s - 1/2) |d_I^f|`, with `I = univ`.
 -/
 def fatherTerm (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G))
-    (s : ℝ) (p : ℝ≥0∞) (f : α → ℂ) : ℝ :=
-  (G.grid.μ Set.univ).toReal ^ (1 / p.toReal - s - 1 / 2) *
-    ‖coeff G F f .alpha‖
+    (s : ℝ) (p : ℝ≥0∞) (f : α → ℂ) : ℝ≥0∞ :=
+  ENNReal.ofReal
+    ((G.grid.μ Set.univ).toReal ^ (1 / p.toReal - s - 1 / 2) *
+      ‖coeff G F f .alpha‖)
 
 /--
 The Haar representation gauge from the paper, using `L²`-normalized Haar
@@ -174,7 +175,7 @@ functions.
 -/
 def haarL2RepresentationNorm (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G))
-    (s : ℝ) (p q : ℝ≥0∞) (f : α → ℂ) : ℝ :=
+    (s : ℝ) (p q : ℝ≥0∞) (f : α → ℂ) : ℝ≥0∞ :=
   fatherTerm G F s p f +
     if q = ∞ then
       sSup (Set.range fun k => (levelHaarBlock G F s p f k) ^ (1 / p.toReal))
