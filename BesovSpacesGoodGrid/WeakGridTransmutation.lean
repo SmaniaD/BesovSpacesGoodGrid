@@ -4704,13 +4704,26 @@ private lemma id_almostLinear_bound :
 private lemma id_almostLinearSequence : AlmostLinearSequence (fun i : ℕ => i) :=
   ⟨0, 0, 1, by norm_num, id_almostLinear_bound⟩
 
+/--
+The explicit constant in Claim C for the identity level map.
+
+This is the Lean version of the paper's Claim C constant after simplifying the
+special case used here.  The almost-linear sequence is `k i = i`, so the general
+Claim A factors `lambda^(-B/p)` and `m1^(1/q)` are both equal to one.
+-/
+noncomputable def transmutationClaimCEmbeddingConstant
+    (G : WeakGridSpace (α := α)) (p _q : ℝ≥0∞) (lam C : ℝ) : ℝ :=
+  (G.grid.Cmult1 : ℝ) *
+    C ^ (1 / p.toReal) *
+    LpGridRepresentation.cCoefficientInt p ∞ (transmutationKernelZ lam 0 1)
+
 /-- Claim C: if every `AG1` atom admits a uniformly controlled `AG2`
 representation centered at the same level, then any `AG1` atomic expansion
 transmutes into an `AG2` expansion.
 
 The constants `lam` and `C` are outside the universal quantifier over atoms, so
 they are uniform: they do not depend on the particular atom being represented. -/
-theorem Transmutation_of_Atoms_Claim_C
+theorem Transmutation_of_Atoms_Claim_C_explicit
     (G : WeakGridSpace (α := α))
     (u1 u2 : ℝ≥0∞)
     [Fact (1 ≤ u2)]
@@ -4730,7 +4743,7 @@ theorem Transmutation_of_Atoms_Claim_C
               (¬ S.1 ⊆ Q.1 → (Rg.block j).coeff S = 0) ∧
               (j < i → (Rg.block j).coeff S = 0)) ∧
             ∀ j : ℕ, i ≤ j → Rg.levelCoeffPower j ≤ C * lam ^ (j - i)) :
-    ∃ C_cont_embedding : ℝ, 0 ≤ C_cont_embedding ∧
+    0 ≤ transmutationClaimCEmbeddingConstant G p q lam C ∧
       ∀ (h : (i : ℕ) → LevelCell G i → Lp ℂ p G.measure),
       (∀ i : ℕ, ∀ Q : LevelCell G i,
         ∃ φ : (AG1.localSpace (levelCellToWeakGridCell G i Q)).carrier,
@@ -4754,14 +4767,10 @@ theorem Transmutation_of_Atoms_Claim_C
             LpGridRepresentation.FinitePQCost (q := q) RlimAG2 ∧
             MemBesovishCoeffCost AG2 q gLim ∧
               LpGridRepresentation.pqCost (q := q) RlimAG2 ≤
-                C_cont_embedding * CoeffPQCost (p := p) (q := q) G c := by
+                transmutationClaimCEmbeddingConstant G p q lam C *
+                  CoeffPQCost (p := p) (q := q) G c := by
   classical
-  let C_cont_embedding : ℝ :=
-    (G.grid.Cmult1 : ℝ) *
-    C ^ (1 / p.toReal) *
-    lam ^ (-(0 : ℝ) / p.toReal) *
-    LpGridRepresentation.cCoefficientInt p ∞ (transmutationKernelZ lam 0 1) *
-    (Nat.ceil (1 : ℝ) : ℝ) ^ (1 / q.toReal)
+  let C_cont_embedding : ℝ := transmutationClaimCEmbeddingConstant G p q lam C
   have hkernel_nonneg : ∀ n : ℤ, 0 ≤ transmutationKernelZ lam 0 1 n := by
     intro n
     dsimp [transmutationKernelZ]
@@ -4772,15 +4781,12 @@ theorem Transmutation_of_Atoms_Claim_C
       LpGridRepresentation.cCoefficientInt p ∞ (transmutationKernelZ lam 0 1) :=
     LpGridRepresentation.cCoefficientInt_nonneg p ∞ _ hkernel_nonneg
   have hCcont_nonneg : 0 ≤ C_cont_embedding := by
-    dsimp [C_cont_embedding]
+    dsimp [C_cont_embedding, transmutationClaimCEmbeddingConstant]
     repeat' apply mul_nonneg
     · exact by exact_mod_cast Nat.zero_le G.grid.Cmult1
     · exact Real.rpow_nonneg hC _
-    · exact Real.rpow_nonneg (le_of_lt hlam_pos) _
     · exact hccoef_nonneg
-    · exact Real.rpow_nonneg
-        (show 0 ≤ (Nat.ceil (1 : ℝ) : ℝ) by exact_mod_cast Nat.zero_le (Nat.ceil (1 : ℝ))) _
-  refine ⟨C_cont_embedding, hCcont_nonneg, ?_⟩
+  refine ⟨by simpa [C_cont_embedding] using hCcont_nonneg, ?_⟩
   intro h h_atom c hc hG2_G hp_ne_top hs_pos
   have hrepr : ∀ i : ℕ, ∀ Q : LevelCell G i,
       ∃ Rg : LpGridRepresentation AG2 (h i Q),
@@ -4851,13 +4857,13 @@ theorem Transmutation_of_Atoms_Claim_C
     have hcost : LpGridRepresentation.pqCost (q := q) (Rseq N) ≤ K := by
       by_cases hq_top : q = ∞
       · subst q
-        simpa [K, C_cont_embedding, Rseq, LpGridRepresentation.pqCost, CoeffPQCost,
-          TransmutationBlock] using
+        simpa [K, C_cont_embedding, transmutationClaimCEmbeddingConstant, Rseq,
+          LpGridRepresentation.pqCost, CoeffPQCost, TransmutationBlock] using
           (ClaimII_top G G AG2 (fun i : ℕ => i) 0 0 1 (by norm_num)
             id_almostLinear_bound lam hlam_pos hlam_lt C hC h R hR c hc N
             hG2_G hp_ne_top hs_pos).2
-      · simpa [K, C_cont_embedding, Rseq, LpGridRepresentation.pqCost, CoeffPQCost,
-          TransmutationBlock] using
+      · simpa [K, C_cont_embedding, transmutationClaimCEmbeddingConstant, Rseq,
+          LpGridRepresentation.pqCost, CoeffPQCost, TransmutationBlock] using
           (ClaimII G G AG2 (fun i : ℕ => i) 0 0 1 (by norm_num)
             id_almostLinear_bound lam hlam_pos hlam_lt C hC h R hR c hc N
             hq_top hG2_G hp_ne_top hs_pos).2
@@ -4892,7 +4898,7 @@ If every `AG1` atom admits a uniformly controlled representation by `AG2`
 atoms, then every element represented with finite `(p,q)` cost in `AG1` is also
 represented with finite `(p,q)` cost in `AG2`.  Moreover the `AG2` cost gauge is
 bounded by a uniform constant times the `AG1` cost gauge. -/
-theorem Transmutation_of_Atoms_continuous_embedding
+theorem Transmutation_of_Atoms_continuous_embedding_explicit
     (G : WeakGridSpace (α := α))
     (u1 u2 : ℝ≥0∞)
     [Fact (1 ≤ u2)]
@@ -4915,17 +4921,21 @@ theorem Transmutation_of_Atoms_continuous_embedding
     (hG2_G : AssumptionG2 G s p u2 q)
     (hp_ne_top : p ≠ ∞)
     (hs_pos : 0 < s) :
-    ∃ C_cont_embedding : ℝ, 0 ≤ C_cont_embedding ∧
+    0 ≤ transmutationClaimCEmbeddingConstant G p q lam C ∧
       ∀ g : BesovishSpace AG1 q,
         ∃ hg2 : MemBesovishCoeffCost AG2 q (g : Lp ℂ p G.measure),
           BesovishSpace.Norm_Costpq AG2 q
               (⟨(g : Lp ℂ p G.measure), hg2⟩ : BesovishSpace AG2 q) ≤
-            C_cont_embedding * BesovishSpace.Norm_Costpq AG1 q g := by
+            transmutationClaimCEmbeddingConstant G p q lam C *
+              BesovishSpace.Norm_Costpq AG1 q g := by
   classical
-  rcases Transmutation_of_Atoms_Claim_C G u1 u2 AG1 AG2 lam hlam_pos hlam_lt C hC
-      hAG1_to_AG2 with
-    ⟨C_cont_embedding, hCcont_nonneg, hclaim⟩
-  refine ⟨C_cont_embedding, hCcont_nonneg, ?_⟩
+  rcases Transmutation_of_Atoms_Claim_C_explicit G u1 u2 AG1 AG2
+      lam hlam_pos hlam_lt C hC hAG1_to_AG2 with
+    ⟨hCcont_nonneg_explicit, hclaim⟩
+  let C_cont_embedding : ℝ := transmutationClaimCEmbeddingConstant G p q lam C
+  have hCcont_nonneg : 0 ≤ C_cont_embedding := by
+    simpa [C_cont_embedding] using hCcont_nonneg_explicit
+  refine ⟨hCcont_nonneg_explicit, ?_⟩
   have hAG1_finite : BesovishSpace.HasFiniteCostRepresentations (A := AG1) q :=
     BesovishSpace.hasFiniteCostRepresentations (A := AG1) (q := q)
   have transmute_rep :

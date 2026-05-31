@@ -26,6 +26,32 @@ cotas normativas esperadas.
 - `IsBesovAtom` é um predicado sobre representantes concretos, usando a classe
   `Lp` via uma prova existencial de `MemLp`.
 - `zero_isBesovAtom` está provado.
+- `convex_isBesovAtom` está provado usando adição de representações e a
+  desigualdade triangular do custo `pq`.
+- `isBesovAtom_smul_of_norm_eq_one` está provado usando escala de
+  representações e invariância do custo por escalares de norma um.
+- `besovAtom_is_sp_one_atom` agora é uma consequência curta de
+  `isBesovAtom_eLpNorm_le`.
+- `isBesovAtom_eLpNorm_le` está provado: a prova aplica o embedding no grid
+  induzido, controla o coeficiente induzido pela constante geométrica com o
+  expoente conjugado `qtilde'`, e converte a cota real de volta para `ℝ≥0∞`.
+- `besovAtom_to_souza_representation_decay` está provado: para um átomo de
+  Besov em `Q`, a representação induzida de Souza-`β` tem coeficientes
+  rescalados `c_P μ(P)^(β-s)` com decaimento geométrico
+  `lambda2^(k(β-s))`, exatamente a conta usada no Claim de transmutação.
+- Também foram adicionados os blocos auxiliares que convertem um bloco ou uma
+  representação Souza-`β` em Souza-`s` sem alterar o elemento de `Lp`.
+- O Claim C de transmutação agora tem uma interface explícita para a constante:
+  `transmutationClaimCEmbeddingConstant`,
+  `Transmutation_of_Atoms_Claim_C_explicit`, e
+  `Transmutation_of_Atoms_continuous_embedding_explicit`. Os wrappers
+  existenciais antigos de `Transmutation_of_Atoms_Claim_C` e
+  `Transmutation_of_Atoms_continuous_embedding` foram removidos. A
+  constante de Claim C já está simplificada no caso identidade: os fatores
+  `lambda^0` e `ceil(1)^(1/q)` foram removidos da definição pública.
+- A constante `besovAtomConstant` foi corrigida para usar o expoente conjugado
+  `qtilde'` na parte geométrica, enquanto `qtilde` continua sendo o expoente do
+  custo dos coeficientes.
 - Foi adicionada a hipótese natural `[Fact (1 ≤ qtilde)]` onde `besovAtomFamily`
   é usado, para evitar o caso degenerado `qtilde = 0` no custo dos coeficientes.
 
@@ -34,32 +60,17 @@ cotas normativas esperadas.
 Em `BesovSpacesGoodGrid/GoodGridBesovAtoms.lean`, ainda faltam os seguintes
 sublemas/teoremas:
 
-- `convex_isBesovAtom`: provar que os átomos de Besov formam um conjunto convexo.
-- `isBesovAtom_smul_of_norm_eq_one`: provar invariância por escalares complexos
-  de módulo um.
-- `isBesovAtom_eLpNorm_le`: provar que a normalização de Besov implica a cota
-  ordinária de átomo `(s,p,1)`.
-- `besovAtom_is_sp_one_atom`: conectar a cota anterior ao campo `atom_bound` da
-  família empacotada.
 - `souza_atoms_and_besov_atoms`: completar a comparação principal entre os
   espaços.
 
 ## Próximos passos sugeridos
 
-1. Provar lemas gerais em `WeakGridBesovishSpaces.lean` para transportar
-   `LpGridRepresentation` por soma convexa e por escalares de módulo um.
-2. Usar esses lemas para fechar `convex_isBesovAtom` e
-   `isBesovAtom_smul_of_norm_eq_one`.
-3. Provar a estimativa analítica `isBesovAtom_eLpNorm_le` a partir da
-   representação induzida e da constante `besovAtomConstant`.
-4. Substituir `besovAtom_is_sp_one_atom` por uma prova curta usando
-   `isBesovAtom_eLpNorm_le`.
-5. Atacar `souza_atoms_and_besov_atoms` via o argumento de transmutação já
+1. Atacar `souza_atoms_and_besov_atoms` via o argumento de transmutação já
    existente em `WeakGridTransmutation.lean`.
 
 ## Observações
 
 - O build passa apesar dos `sorry`s restantes.
 - Não há mudanças pendentes fora do escopo dos arquivos de átomos/estrutura local.
-- O ponto técnico mais delicado continua sendo a relação entre representantes
-  concretos `α → ℂ` e classes em `Lp`.
+- O ponto técnico mais delicado restante é empacotar a comparação principal dos
+  espaços usando os resultados de transmutação já disponíveis.
