@@ -854,6 +854,38 @@ private theorem souza_hCco
         Summable.of_nonneg_of_le hnonneg_q hle_q hsum_qgeom
 
 /--
+Coefficient summability for the `L^t` embedding weight.
+
+The level weight only depends on the exponent
+`s - 1 / p + 1 / t`; applying `souza_hCco` with this exponent and with
+integrability parameter `t` gives the required summability whenever that
+exponent is positive.
+-/
+private theorem souza_hCco_embedding
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q t : ℝ≥0∞)
+    (hδ : 0 < s - 1 / p.toReal + 1 / t.toReal)
+    (ht : 1 ≤ t) (ht_top : t ≠ ∞)
+    [Fact (1 ≤ t)] [Fact (1 ≤ q)] :
+    WeakGridSpace.LpGridRepresentation.cCoefficientFinite t q
+      (fun k => (WeakGridSpace.LpGridRepresentation.levelMeasureWeight
+        G.toWeakGridSpace s p t k) ^ t.toReal) := by
+  have hfin :=
+    souza_hCco G (s - 1 / p.toReal + 1 / t.toReal) t q hδ ht ht_top
+  have hweight :
+      (fun k => (WeakGridSpace.LpGridRepresentation.levelMeasureWeight
+        G.toWeakGridSpace (s - 1 / p.toReal + 1 / t.toReal) t t k) ^ t.toReal)
+        =
+      (fun k => (WeakGridSpace.LpGridRepresentation.levelMeasureWeight
+        G.toWeakGridSpace s p t k) ^ t.toReal) := by
+    funext k
+    congr 1
+    unfold WeakGridSpace.LpGridRepresentation.levelMeasureWeight
+    congr 1
+    ring
+  simpa [← hweight] using hfin
+
+/--
 The concrete `AssumptionG2` package for Souza atoms on a good grid.
 
 This bundles the coefficient summability estimate and the mesh decay estimate
@@ -907,6 +939,81 @@ theorem souzaBesovSpace_costNorm_completeSpace
     (souzaAtomFamily G s p hs hp hp_top)
     hG2
     (souza_assumptionA5 G s p hs hp hp_top)
+
+/--
+Every Souza Besov function with positive smoothness has a representative in
+some strictly better space than `L^1`.
+
+If the ambient exponent already satisfies `1 < p`, we simply take the original
+`L^p` representative.  At the endpoint `p = 1`, the abstract Besov embedding is
+applied with exponent `1 + s / 2`.
+-/
+theorem souzaBesovSpace_exists_Lp_one_add_epsilon
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (g : SouzaBesovSpace G s p q hs hp hp_top) :
+    ∃ ε : ℝ, 0 < ε ∧
+      ∃ h : MeasureTheory.Lp ℂ (ENNReal.ofReal (1 + ε)) G.toWeakGridSpace.measure,
+        h =ᵐ[G.toWeakGridSpace.measure]
+          ((g : MeasureTheory.Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) := by
+  classical
+  by_cases hp_gt_one : (1 : ℝ≥0∞) < p
+  · let ε : ℝ := p.toReal - 1
+    have hε : 0 < ε := by
+      dsimp [ε]
+      exact sub_pos.mpr
+        ((ENNReal.toReal_lt_toReal ENNReal.one_ne_top hp_top).mpr hp_gt_one)
+    have ht_eq : ENNReal.ofReal (1 + ε) = p := by
+      have hsum : 1 + ε = p.toReal := by
+        dsimp [ε]
+        ring
+      rw [hsum, ENNReal.ofReal_toReal hp_top]
+    refine ⟨ε, hε, ?_⟩
+    rw [ht_eq]
+    exact ⟨(g : MeasureTheory.Lp ℂ p G.toWeakGridSpace.measure), Filter.EventuallyEq.rfl⟩
+  · have hp_le_one : p ≤ 1 := le_of_not_gt hp_gt_one
+    have hp_eq_one : p = 1 := le_antisymm hp_le_one hp
+    subst p
+    let ε : ℝ := s / 2
+    let t : ℝ≥0∞ := ENNReal.ofReal (1 + ε)
+    have hε : 0 < ε := by
+      dsimp [ε]
+      linarith
+    have ht_one : (1 : ℝ≥0∞) ≤ t := by
+      rw [← ENNReal.ofReal_one]
+      exact ENNReal.ofReal_le_ofReal (by dsimp [t, ε]; linarith)
+    have ht_top : t ≠ ∞ := by
+      simp [t]
+    letI : Fact (1 ≤ t) := ⟨ht_one⟩
+    let A := souzaAtomFamily G s (1 : ℝ≥0∞) hs le_rfl ENNReal.one_ne_top
+    let gb : WeakGridSpace.BesovishSpace A q :=
+      ⟨(g : MeasureTheory.Lp ℂ 1 G.toWeakGridSpace.measure), g.property⟩
+    rcases (WeakGridSpace.BesovishSpace.hasFiniteCostRepresentations
+        (A := A) q gb) with ⟨R, hRfin⟩
+    have ht_toReal : t.toReal = 1 + ε := by
+      rw [ENNReal.toReal_ofReal (by linarith : 0 ≤ 1 + ε)]
+    have hδ_pos : 0 < s - 1 / (1 : ℝ≥0∞).toReal + 1 / t.toReal := by
+      rw [ht_toReal]
+      norm_num
+      have hden_pos : 0 < 1 + s / 2 := by linarith
+      have hmul : 0 < (s - 1 + 1 / (1 + ε)) * (1 + s / 2) := by
+        dsimp [ε]
+        field_simp [hden_pos.ne']
+        nlinarith [hs]
+      simpa [one_div] using (mul_pos_iff_of_pos_right hden_pos).mp hmul
+    have hCco :
+        WeakGridSpace.LpGridRepresentation.cCoefficientFinite t q
+          (fun k => (WeakGridSpace.LpGridRepresentation.levelMeasureWeight
+            G.toWeakGridSpace s (1 : ℝ≥0∞) t k) ^ t.toReal) :=
+      souza_hCco_embedding G s 1 q t hδ_pos ht_one ht_top
+    rcases WeakGridSpace.LpGridRepresentation.exists_Lt_representative_of_lp_embedding
+        (G := G.toWeakGridSpace) (s := s) (p := 1) (u := ∞) (q := q)
+        (A := A) (t := t)
+        ENNReal.one_ne_top ht_top (show (1 : ℝ≥0∞) ≤ q from Fact.out)
+        ht_one (by simp) hδ_pos.le R hRfin hCco with ⟨h, hh⟩
+    exact ⟨ε, hε, h, hh⟩
 
 -- ============================================================
 -- §10. Compactness of closed cost balls

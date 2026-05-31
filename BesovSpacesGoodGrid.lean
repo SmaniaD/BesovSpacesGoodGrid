@@ -7,6 +7,7 @@ import BesovSpacesGoodGrid.WeakGrid.Completeness
 import BesovSpacesGoodGrid.WeakGrid.Transmutation
 import BesovSpacesGoodGrid.WeakGrid.InducedGrid
 import BesovSpacesGoodGrid.GoodGrid.BesovAtoms
+import BesovSpacesGoodGrid.GoodGrid.HaarRepresentationNorm
 
 /-!
 # Besov spaces over weak grids and good grids
