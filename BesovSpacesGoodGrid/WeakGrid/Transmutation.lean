@@ -11,6 +11,16 @@ import Mathlib.Analysis.LocallyConvex.SeparatingDual
 import Mathlib.Topology.Algebra.InfiniteSum.NatInt
 import Mathlib.Topology.Algebra.InfiniteSum.Order
 
+/-!
+# Transmutation of weak-grid atomic representations
+
+This file formalizes the transmutation argument for atomic decompositions.  It
+takes uniformly controlled representations of source atoms by target atoms and
+builds a target representation for any source expansion, with explicit
+coefficient-cost bounds.  The main public results are the formal versions of
+Claims A, B, C, and the corresponding continuous embedding statement.
+-/
+
 
 
 
@@ -1787,6 +1797,74 @@ private lemma tsum_extendNatToInt {f : ℕ → ℝ} (hf : Summable f) :
           tsum_of_nat_of_neg_add_one hpos hneg
     _ = (∑' n : ℕ, f n) + 0 := by rw [hpos_tsum, hneg_tsum]
     _ = ∑' n : ℕ, f n := by ring
+
+/--
+For the identity-level Claim C kernel, the integer coefficient is exactly the
+ordinary geometric sum.  This is the special case used when a level-`i` atom is
+expanded only into levels `j ≥ i` with decay `rho^(j-i)`.
+-/
+theorem LpGridRepresentation.cCoefficientInt_transmutationKernelZ_zero_one
+    (p : ℝ≥0∞) [Fact (1 ≤ p)] (hp_top : p ≠ ∞)
+    (rho : ℝ) (hrho_pos : 0 < rho) (hrho_lt_one : rho < 1) :
+    LpGridRepresentation.cCoefficientInt p ∞
+        (transmutationKernelZ (rho ^ p.toReal) 0 1)
+      = (1 - rho)⁻¹ := by
+  classical
+  let f : ℕ → ℝ := fun n => rho ^ n
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne' hp_top
+  have hrho_nonneg : 0 ≤ rho := hrho_pos.le
+  have hf_summable : Summable f :=
+    summable_geometric_of_lt_one hrho_nonneg hrho_lt_one
+  have hkernel_root :
+      (fun z : ℤ =>
+          (transmutationKernelZ (rho ^ p.toReal) 0 1 z) ^ (1 / p.toReal))
+        = extendNatToInt f := by
+    funext z
+    by_cases hz : 0 ≤ z
+    · lift z to ℕ using hz with n
+      have hcut : (0 : ℝ) / (1 : ℝ) - 1 < (n : ℝ) := by
+        have hn_nonneg : (0 : ℝ) ≤ n := by exact_mod_cast Nat.zero_le n
+        norm_num
+        linarith
+      have hcutZ : (0 : ℝ) / (1 : ℝ) - 1 < ((n : ℤ) : ℝ) := by
+        simpa using hcut
+      have hpow_root :
+          (((rho ^ p.toReal) ^ n : ℝ) : ℝ) ^ (p.toReal)⁻¹ = rho ^ n := by
+        calc
+          (((rho ^ p.toReal) ^ n : ℝ) : ℝ) ^ (p.toReal)⁻¹
+              = (rho ^ (p.toReal * (n : ℝ))) ^ (p.toReal)⁻¹ := by
+                  rw [← Real.rpow_mul_natCast hrho_nonneg p.toReal n]
+          _ = rho ^ ((p.toReal * (n : ℝ)) * (p.toReal)⁻¹) := by
+                  rw [← Real.rpow_mul hrho_nonneg]
+          _ = rho ^ (n : ℝ) := by
+                  congr 1
+                  field_simp [hp_pos.ne']
+          _ = rho ^ n := by
+                  rw [Real.rpow_natCast]
+      dsimp [transmutationKernelZ, extendNatToInt, f]
+      rw [if_pos hcutZ]
+      simpa [one_div] using hpow_root
+    · have hcut : ¬ (0 : ℝ) / (1 : ℝ) - 1 < (z : ℝ) := by
+        have hz_le : z ≤ -1 := by omega
+        have hz_le_real : (z : ℝ) ≤ -1 := by exact_mod_cast hz_le
+        norm_num
+        exact hz_le_real
+      have hroot_zero :
+          (0 : ℝ) ^ (1 / p.toReal) = 0 :=
+        Real.zero_rpow (one_div_pos.mpr hp_pos).ne'
+      dsimp [transmutationKernelZ, extendNatToInt]
+      rw [if_neg hcut, if_neg hz]
+      exact hroot_zero
+  calc
+    LpGridRepresentation.cCoefficientInt p ∞
+        (transmutationKernelZ (rho ^ p.toReal) 0 1)
+        = ∑' z : ℤ,
+            (transmutationKernelZ (rho ^ p.toReal) 0 1 z) ^ (1 / p.toReal) := by
+            simp [LpGridRepresentation.cCoefficientInt]
+    _ = ∑' z : ℤ, extendNatToInt f z := by rw [hkernel_root]
+    _ = ∑' n : ℕ, f n := tsum_extendNatToInt hf_summable
+    _ = (1 - rho)⁻¹ := tsum_geometric_of_lt_one hrho_nonneg hrho_lt_one
 
 /-- Quotient index in the residue-class decomposition of an output level.
 

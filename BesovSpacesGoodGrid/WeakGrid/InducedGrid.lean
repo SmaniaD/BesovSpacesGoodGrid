@@ -411,6 +411,24 @@ theorem cast_levelBlock_levelCoeffPower
   subst h
   rfl
 
+@[simp]
+theorem cast_levelBlock_coeff
+    (G : WeakGridSpace (α := α)) {m n : ℕ}
+    {s : ℝ} {p u : ℝ≥0∞} [Fact (1 ≤ p)] (A : AtomFamily G s p u)
+    (h : m = n) (B : LevelBlock A m) (P : LevelCell G n) :
+    (cast (congrArg (LevelBlock A) h) B).coeff P =
+      B.coeff (cast (congrArg (LevelCell G) h.symm) P) := by
+  subst h
+  rfl
+
+@[simp]
+theorem cast_levelCell_coe
+    (G : WeakGridSpace (α := α)) {m n : ℕ}
+    (h : m = n) (P : LevelCell G m) :
+    (cast (congrArg (LevelCell G) h) P).1 = P.1 := by
+  subst h
+  rfl
+
 /-- The same `L^p` element, viewed from the induced grid as an ambient element. -/
 abbrev inducedLpToAmbient
     (G : WeakGridSpace (α := α)) {k₀ : ℕ} (Q : LevelCell G k₀)
@@ -558,6 +576,31 @@ theorem inducedRepresentationToAmbient_levelCoeffPower_add
       R.levelCoeffPower i := by
   unfold LpGridRepresentation.levelCoeffPower
   exact inducedRepresentationBlockToAmbient_levelCoeffPower_add (G := G) Q A R
+
+@[simp]
+theorem inducedRepresentationToAmbient_coeff_lt
+    (G : WeakGridSpace (α := α)) {k₀ n : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} [Fact (1 ≤ p)] (A : AtomFamily G s p u)
+    {f : Lp ℂ p (inducedWeakGridSpace G Q).measure}
+    (R : LpGridRepresentation (inducedAtomFamily G Q A) f)
+    (hn : n < k₀) (S : LevelCell G n) :
+    ((inducedRepresentationToAmbient G Q A R).block n).coeff S = 0 := by
+  have hnot : ¬ k₀ ≤ n := Nat.not_le_of_gt hn
+  simp [inducedRepresentationToAmbient, inducedRepresentationBlockToAmbient, hnot,
+    LevelBlock.zero]
+
+@[simp]
+theorem inducedRepresentationToAmbient_coeff_eq_zero_of_not_subset
+    (G : WeakGridSpace (α := α)) {k₀ n : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} [Fact (1 ≤ p)] (A : AtomFamily G s p u)
+    {f : Lp ℂ p (inducedWeakGridSpace G Q).measure}
+    (R : LpGridRepresentation (inducedAtomFamily G Q A) f)
+    (S : LevelCell G n) (hS : ¬ S.1 ⊆ Q.1) :
+    ((inducedRepresentationToAmbient G Q A R).block n).coeff S = 0 := by
+  by_cases hn : k₀ ≤ n
+  · simp [inducedRepresentationToAmbient, inducedRepresentationBlockToAmbient, hn,
+      inducedLevelBlockToAmbient, cast_levelBlock_coeff, cast_levelCell_coe, hS]
+  · exact inducedRepresentationToAmbient_coeff_lt G Q A R (Nat.lt_of_not_ge hn) S
 
 /--
 Reindexing an induced representation into the ambient grid preserves finite

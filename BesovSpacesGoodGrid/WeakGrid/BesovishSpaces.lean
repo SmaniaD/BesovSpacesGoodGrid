@@ -5,15 +5,13 @@ import Mathlib.Analysis.Convex.Combination
 import Mathlib.Analysis.MeanInequalitiesPow
 
 /-!
-Besov-ish spaces associated to a weak grid and a family of atoms.
+# Besov-ish spaces on weak grids
 
-The paper defines a Besov-ish element as a function in L^p
-that has a representaion as a sum of level
-blocks converge  in `L^p` and with finite pq-cost.  A level block is explicitly indexed by
-the cells of the level-`k` partition: for each cell there is one coefficient
-and one atom.  This matches the paper's finite inner sum
-`∑_{Q ∈ P^k} s_Q a_Q`. We also define a norm of the Besovish space,
- that is the infimum of the pq-costs of all representations.
+This file defines level blocks, atomic representations, coefficient costs, and
+the Besov-ish space associated to a weak grid and an atom family.  A Besov-ish
+element is an `L^p` function admitting a convergent sum of level blocks with
+finite `(p, q)` coefficient cost.  The cost gauge is the infimum of the costs of
+all such representations.
 -/
 
 namespace WeakGridSpace
@@ -33,15 +31,11 @@ noncomputable section
 variable {G : WeakGridSpace (α := α)} {s : ℝ} {p u q : ℝ≥0∞}
 variable [Fact (1 ≤ p)]
 
-/--
-O tipo dos cells no nível k, usando o grid de G.
--/
+/-- The type of cells in level `k` of the weak grid `G`. -/
 abbrev LevelCell (G : WeakGridSpace (α := α)) (k : ℕ) :=
   { Q : Set α // Q ∈ G.grid.partitions k }
 
-/--
-Converte um LevelCell para um WeakGridCell, usando o grid de G.
--/
+/-- View a level cell as a weak-grid cell carrying its level explicitly. -/
 def levelCellToWeakGridCell (G : WeakGridSpace (α := α)) (k : ℕ)
     (Q : LevelCell G k) : WeakGridCell G :=
   ⟨k, Q.1, Q.2⟩

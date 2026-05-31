@@ -1,6 +1,15 @@
 import Mathlib.Topology.Algebra.InfiniteSum.Basic
 import Mathlib.Data.Set.Basic
 
+/-!
+# Block-indexed sums
+
+This file provides a small reusable notation layer for sums indexed by a
+sequence of finite families.  It packages a global index as a level together
+with a cell at that level, and defines notation for the corresponding iterated
+infinite sum.
+-/
+
 open scoped BigOperators
 
 universe u v

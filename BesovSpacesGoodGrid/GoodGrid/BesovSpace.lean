@@ -853,6 +853,22 @@ private theorem souza_hCco
       simpa [WeakGridSpace.LpGridRepresentation.cCoefficientFinite, hq1, hqtop, q', w] using
         Summable.of_nonneg_of_le hnonneg_q hle_q hsum_qgeom
 
+/--
+The concrete `AssumptionG2` package for Souza atoms on a good grid.
+
+This bundles the coefficient summability estimate and the mesh decay estimate
+used by the abstract weak-grid compactness and transmutation theorems.  It is
+kept public so later comparison arguments can invoke those abstract theorems
+without duplicating the analytic grid estimates.
+-/
+theorem souza_assumptionG2
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
+    WeakGridSpace.AssumptionG2 G.toWeakGridSpace s p ∞ q :=
+  ⟨souza_hCco G s p q hs hp hp_top, souza_hmesh G⟩
+
 -- ============================================================
 -- §9. Completeness of Souza Besov spaces with the cost norm
 -- ============================================================

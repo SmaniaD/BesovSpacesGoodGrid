@@ -292,6 +292,101 @@ private theorem besovAtomGeometric_cCoefficientFinite
         hsum_qgeom.congr fun k => (hroot_q k).symm
       simpa [WeakGridSpace.LpGridRepresentation.cCoefficientFinite, hq1, hqtop, q'] using hsum
 
+/--
+The geometric normalization coefficient for Besov atoms is at least one.
+
+The reason is simple: its underlying geometric weight has first term equal to
+one, and each of the coefficient-cost cases dominates that first term.
+-/
+private theorem one_le_besovAtomGeometric_cCoefficient
+    (G : GoodGridSpace (α := α)) (β : ℝ) (p qtilde : ℝ≥0∞)
+    (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞) [Fact (1 ≤ qtilde)] :
+    1 ≤ WeakGridSpace.LpGridRepresentation.cCoefficient p qtilde
+      (besovAtomGeometricWeight G β p) := by
+  classical
+  let b : ℕ → ℝ := besovAtomGeometricWeight G β p
+  have hb_nonneg : ∀ k, 0 ≤ b k := by
+    intro k
+    exact Real.rpow_nonneg
+      (Real.rpow_nonneg
+        (pow_nonneg (le_trans G.grid.hlambda1_pos.le G.grid.hlambda1_le_lambda2) k) _) _
+  have hb0 : b 0 = 1 := by
+    simp [b, besovAtomGeometricWeight]
+  have hfin := besovAtomGeometric_cCoefficientFinite G β p qtilde hβ hp hp_top
+  by_cases hq1 : qtilde = 1
+  · have hbdd :
+        BddAbove (Set.range fun k => b k ^ (1 / p.toReal)) := by
+      simpa [WeakGridSpace.LpGridRepresentation.cCoefficientFinite, hq1, b] using hfin
+    have hone_mem : (1 : ℝ) ∈ Set.range fun k => b k ^ (1 / p.toReal) := by
+      refine ⟨0, ?_⟩
+      simp [hb0]
+    simpa [WeakGridSpace.LpGridRepresentation.cCoefficient, hq1, b] using
+      le_csSup hbdd hone_mem
+  · by_cases hqtop : qtilde = ∞
+    · have hsum : Summable fun k => b k ^ (1 / p.toReal) := by
+        simpa [WeakGridSpace.LpGridRepresentation.cCoefficientFinite, hq1, hqtop, b] using hfin
+      have hsingle :
+          (∑ k ∈ ({0} : Finset ℕ), b k ^ (1 / p.toReal)) = 1 := by
+        simp [hb0]
+      calc
+        1 = ∑ k ∈ ({0} : Finset ℕ), b k ^ (1 / p.toReal) := hsingle.symm
+        _ ≤ ∑' k, b k ^ (1 / p.toReal) :=
+            hsum.sum_le_tsum ({0} : Finset ℕ)
+              (fun k _ => Real.rpow_nonneg (hb_nonneg k) _)
+        _ = WeakGridSpace.LpGridRepresentation.cCoefficient p qtilde
+              (besovAtomGeometricWeight G β p) := by
+            simp [WeakGridSpace.LpGridRepresentation.cCoefficient, hqtop, b]
+    · let q' : ℝ≥0∞ := qtilde / (qtilde - 1)
+      have hq_toReal_le : (1 : ℝ) ≤ qtilde.toReal := by
+        have h := ENNReal.toReal_mono hqtop (Fact.out : 1 ≤ qtilde)
+        simpa using h
+      have hq_toReal_ne_one : qtilde.toReal ≠ 1 := by
+        intro hreal
+        apply hq1
+        exact ((ENNReal.toReal_eq_toReal_iff' ENNReal.one_ne_top hqtop).mp
+          (by simp [hreal])).symm
+      have hq_toReal_one : 1 < qtilde.toReal :=
+        lt_of_le_of_ne hq_toReal_le (Ne.symm hq_toReal_ne_one)
+      have hq_conj : q'.toReal.HolderConjugate qtilde.toReal := by
+        simpa [q'] using
+          WeakGridSpace.LpGridRepresentation.holderConjugate_q_div_qsub1_toReal
+            (q := qtilde) hq_toReal_one hqtop
+      have hq'_pos : 0 < q'.toReal := by
+        rw [Real.holderConjugate_iff] at hq_conj
+        exact zero_lt_one.trans hq_conj.1
+      have hsum : Summable fun k => b k ^ (q'.toReal / p.toReal) := by
+        simpa [WeakGridSpace.LpGridRepresentation.cCoefficientFinite, hq1, hqtop, q', b]
+          using hfin
+      have hsingle :
+          (∑ k ∈ ({0} : Finset ℕ), b k ^ (q'.toReal / p.toReal)) = 1 := by
+        simp [hb0]
+      have hsum_ge_one : 1 ≤ ∑' k, b k ^ (q'.toReal / p.toReal) := by
+        calc
+          1 = ∑ k ∈ ({0} : Finset ℕ), b k ^ (q'.toReal / p.toReal) := hsingle.symm
+          _ ≤ ∑' k, b k ^ (q'.toReal / p.toReal) :=
+              hsum.sum_le_tsum ({0} : Finset ℕ)
+                (fun k _ => Real.rpow_nonneg (hb_nonneg k) _)
+      have hsum_nonneg : 0 ≤ ∑' k, b k ^ (q'.toReal / p.toReal) :=
+        tsum_nonneg fun k => Real.rpow_nonneg (hb_nonneg k) _
+      calc
+        1 ≤ (∑' k, b k ^ (q'.toReal / p.toReal)) ^ (1 / q'.toReal) := by
+          simpa using
+            Real.rpow_le_rpow (show (0 : ℝ) ≤ 1 by norm_num)
+              hsum_ge_one (one_div_pos.mpr hq'_pos).le
+        _ = WeakGridSpace.LpGridRepresentation.cCoefficient p qtilde
+              (besovAtomGeometricWeight G β p) := by
+            simp [WeakGridSpace.LpGridRepresentation.cCoefficient, hq1, hqtop, q', b]
+
+/-- The Besov-atom normalizing constant is at least one on a good grid. -/
+theorem one_le_besovAtomConstant
+    (G : GoodGridSpace (α := α)) (β : ℝ) (p qtilde : ℝ≥0∞)
+    (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞) [Fact (1 ≤ qtilde)] :
+    1 ≤ besovAtomConstant G β p qtilde := by
+  have hcoeff :=
+    one_le_besovAtomGeometric_cCoefficient G β p qtilde hβ hp hp_top
+  simpa [besovAtomConstant, GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid] using
+    hcoeff
+
 private theorem induced_cCoefficientFinite
     (G : GoodGridSpace (α := α)) (Q : GoodGridCell G)
     (β : ℝ) (p qtilde : ℝ≥0∞)
@@ -906,6 +1001,184 @@ private noncomputable def besovToSouzaScaledCoeffPower
     ‖(R.block k).coeff P *
       (((G.grid.μ P.1).toReal ^ (β - s) : ℝ) : ℂ)‖ ^ p.toReal
 
+private noncomputable def inducedSouzaBetaBlockToSouzaS
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
+    (Q : GoodGridCell G) {n : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (inducedSouzaAtomFamily G β p hβ hp hp_top Q) n) :
+    WeakGridSpace.LevelBlock
+      (inducedSouzaAtomFamily G s p hs hp hp_top Q) n where
+  coeff := fun P =>
+    B.coeff P * (((G.grid.μ P.1).toReal ^ (β - s) : ℝ) : ℂ)
+  atom := fun P => by
+    let b : ℂ := B.atom P
+    exact (((G.grid.μ P.1).toReal ^ (s - β) : ℝ) : ℂ) * b
+  atom_mem := by
+    intro P
+    let W := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell
+    have hP_pos : 0 < G.grid.μ P.1 := by
+      simpa [W, WeakGridSpace.inducedWeakGridSpace, WeakGridSpace.inducedWeakGrid,
+        GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid,
+        WeakGridSpace.WeakGridSpace.measure] using W.grid.positive_measure n P.1 P.2
+    have hP_finite : G.grid.μ P.1 ≠ ∞ := by
+      letI : MeasureTheory.IsFiniteMeasure G.grid.μ := G.grid.isFinite
+      exact MeasureTheory.measure_ne_top G.grid.μ P.1
+    have hP_toReal_pos : 0 < (G.grid.μ P.1).toReal :=
+      ENNReal.toReal_pos hP_pos.ne' hP_finite
+    have hscale_nonneg : 0 ≤ (G.grid.μ P.1).toReal ^ (s - β) :=
+      Real.rpow_nonneg hP_toReal_pos.le _
+    let b : ℂ := B.atom P
+    have hB :
+        ‖b‖ ≤ (G.grid.μ P.1).toReal ^ (β - p.toReal⁻¹) := by
+      dsimp [b]
+      simpa [inducedSouzaAtomFamily, WeakGridSpace.inducedAtomFamily,
+        WeakGridSpace.inducedWeakGridCellToAmbient, WeakGridSpace.levelCellToWeakGridCell,
+        souzaAtomFamily, souzaAtomsSet] using B.atom_mem P
+    change
+      ‖(((G.grid.μ P.1).toReal ^ (s - β) : ℝ) : ℂ) * b‖ ≤
+        (G.grid.μ P.1).toReal ^ (s - p.toReal⁻¹)
+    calc
+      ‖(((G.grid.μ P.1).toReal ^ (s - β) : ℝ) : ℂ) * b‖
+          = (G.grid.μ P.1).toReal ^ (s - β) * ‖b‖ := by
+              rw [norm_mul, Complex.norm_real, Real.norm_of_nonneg hscale_nonneg]
+      _ ≤ (G.grid.μ P.1).toReal ^ (s - β) *
+            (G.grid.μ P.1).toReal ^ (β - p.toReal⁻¹) := by
+              exact mul_le_mul_of_nonneg_left hB hscale_nonneg
+      _ = (G.grid.μ P.1).toReal ^ (s - p.toReal⁻¹) := by
+              rw [← Real.rpow_add hP_toReal_pos]
+              ring_nf
+
+private theorem inducedSouzaBetaBlockToSouzaS_toFunLt
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
+    (Q : GoodGridCell G) {n : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (inducedSouzaAtomFamily G β p hβ hp hp_top Q) n) :
+    (inducedSouzaBetaBlockToSouzaS G s β p hs hβ hp hp_top Q B).toFunLt
+        (inducedSouzaAtomFamily G s p hs hp hp_top Q) =
+      B.toFunLt (inducedSouzaAtomFamily G β p hβ hp hp_top Q) := by
+  classical
+  funext x
+  unfold WeakGridSpace.LevelBlock.toFunLt inducedSouzaBetaBlockToSouzaS
+  refine Finset.sum_congr rfl ?_
+  intro P _hP
+  let W := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell
+  have hP_pos : 0 < G.grid.μ P.1 := by
+    simpa [W, WeakGridSpace.inducedWeakGridSpace, WeakGridSpace.inducedWeakGrid,
+      GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid,
+      WeakGridSpace.WeakGridSpace.measure] using W.grid.positive_measure n P.1 P.2
+  have hP_finite : G.grid.μ P.1 ≠ ∞ := by
+    letI : MeasureTheory.IsFiniteMeasure G.grid.μ := G.grid.isFinite
+    exact MeasureTheory.measure_ne_top G.grid.μ P.1
+  have hP_toReal_pos : 0 < (G.grid.μ P.1).toReal :=
+    ENNReal.toReal_pos hP_pos.ne' hP_finite
+  have hscale :
+      ((G.grid.μ P.1).toReal ^ (β - s) : ℝ) *
+          (G.grid.μ P.1).toReal ^ (s - β) = 1 := by
+    calc
+      ((G.grid.μ P.1).toReal ^ (β - s) : ℝ) *
+          (G.grid.μ P.1).toReal ^ (s - β)
+          = (G.grid.μ P.1).toReal ^ ((β - s) + (s - β)) := by
+              rw [← Real.rpow_add hP_toReal_pos]
+      _ = (G.grid.μ P.1).toReal ^ (0 : ℝ) := by ring_nf
+      _ = 1 := by rw [Real.rpow_zero]
+  have hscaleC :
+      (((G.grid.μ P.1).toReal ^ (β - s) : ℝ) : ℂ) *
+          (((G.grid.μ P.1).toReal ^ (s - β) : ℝ) : ℂ) = 1 := by
+    exact_mod_cast hscale
+  by_cases hx : x ∈ P.1
+  · dsimp [WeakGridSpace.AtomFamily.toFunction, inducedSouzaAtomFamily,
+      WeakGridSpace.inducedAtomFamily, WeakGridSpace.inducedWeakGridCellToAmbient,
+      souzaAtomFamily, souzaLocalVectorSpace, WeakGridSpace.levelCellToWeakGridCell]
+    rw [Set.indicator_of_mem hx, Set.indicator_of_mem hx]
+    let b : ℂ := B.atom P
+    change
+      B.coeff P * (((G.grid.μ P.1).toReal ^ (β - s) : ℝ) : ℂ) *
+          ((((G.grid.μ P.1).toReal ^ (s - β) : ℝ) : ℂ) * b)
+        = B.coeff P * b
+    calc
+      B.coeff P * (((G.grid.μ P.1).toReal ^ (β - s) : ℝ) : ℂ) *
+          ((((G.grid.μ P.1).toReal ^ (s - β) : ℝ) : ℂ) * b)
+          = B.coeff P *
+              (((((G.grid.μ P.1).toReal ^ (β - s) : ℝ) : ℂ) *
+                  (((G.grid.μ P.1).toReal ^ (s - β) : ℝ) : ℂ)) * b) := by
+              ring
+      _ = B.coeff P * b := by
+              rw [hscaleC]
+              ring
+  · dsimp [WeakGridSpace.AtomFamily.toFunction, inducedSouzaAtomFamily,
+      WeakGridSpace.inducedAtomFamily, WeakGridSpace.inducedWeakGridCellToAmbient,
+      souzaAtomFamily, souzaLocalVectorSpace, WeakGridSpace.levelCellToWeakGridCell]
+    simp [hx]
+
+private theorem inducedSouzaBetaBlockToSouzaS_toLp
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
+    (Q : GoodGridCell G) {n : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (inducedSouzaAtomFamily G β p hβ hp hp_top Q) n) :
+    (inducedSouzaBetaBlockToSouzaS G s β p hs hβ hp hp_top Q B).toLp
+        (inducedSouzaAtomFamily G s p hs hp hp_top Q) =
+      B.toLp (inducedSouzaAtomFamily G β p hβ hp hp_top Q) := by
+  apply Lp.ext
+  let W := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell
+  have hleft :
+      ((inducedSouzaBetaBlockToSouzaS G s β p hs hβ hp hp_top Q B).toLp
+          (inducedSouzaAtomFamily G s p hs hp hp_top Q) : α → ℂ)
+        =ᵐ[W.measure]
+      (inducedSouzaBetaBlockToSouzaS G s β p hs hβ hp hp_top Q B).toFunLt
+        (inducedSouzaAtomFamily G s p hs hp hp_top Q) :=
+    WeakGridSpace.LevelBlock.coeFn_toLp
+      (inducedSouzaAtomFamily G s p hs hp hp_top Q)
+      (inducedSouzaBetaBlockToSouzaS G s β p hs hβ hp hp_top Q B)
+  have hmid :
+      (inducedSouzaBetaBlockToSouzaS G s β p hs hβ hp hp_top Q B).toFunLt
+          (inducedSouzaAtomFamily G s p hs hp hp_top Q)
+        =ᵐ[W.measure]
+      B.toFunLt (inducedSouzaAtomFamily G β p hβ hp hp_top Q) :=
+    Filter.Eventually.of_forall
+      (fun x => congrFun
+        (inducedSouzaBetaBlockToSouzaS_toFunLt G s β p hs hβ hp hp_top Q B) x)
+  have hright :
+      (B.toLp (inducedSouzaAtomFamily G β p hβ hp hp_top Q) : α → ℂ)
+        =ᵐ[W.measure]
+      B.toFunLt (inducedSouzaAtomFamily G β p hβ hp hp_top Q) :=
+    WeakGridSpace.LevelBlock.coeFn_toLp
+      (inducedSouzaAtomFamily G β p hβ hp hp_top Q) B
+  exact hleft.trans (hmid.trans hright.symm)
+
+private noncomputable def inducedSouzaBetaRepresentationToSouzaS
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
+    (Q : GoodGridCell G)
+    {g : Lp ℂ p
+      (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).measure}
+    (R : WeakGridSpace.LpGridRepresentation
+      (inducedSouzaAtomFamily G β p hβ hp hp_top Q) g) :
+    WeakGridSpace.LpGridRepresentation
+      (inducedSouzaAtomFamily G s p hs hp hp_top Q) g where
+  block n := inducedSouzaBetaBlockToSouzaS G s β p hs hβ hp hp_top Q (R.block n)
+  hasSum := by
+    refine HasSum.congr_fun R.hasSum ?_
+    intro n
+    exact inducedSouzaBetaBlockToSouzaS_toLp G s β p hs hβ hp hp_top Q (R.block n)
+
+private theorem inducedSouzaBetaRepresentationToSouzaS_levelCoeffPower
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
+    (Q : GoodGridCell G)
+    {g : Lp ℂ p
+      (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).measure}
+    (R : WeakGridSpace.LpGridRepresentation
+      (inducedSouzaAtomFamily G β p hβ hp hp_top Q) g)
+    (k : ℕ) :
+    (inducedSouzaBetaRepresentationToSouzaS G s β p hs hβ hp hp_top Q R).levelCoeffPower k =
+      besovToSouzaScaledCoeffPower G s β p hβ hp hp_top Q R k := by
+  unfold WeakGridSpace.LpGridRepresentation.levelCoeffPower
+  unfold inducedSouzaBetaRepresentationToSouzaS inducedSouzaBetaBlockToSouzaS
+  rfl
+
 /--
 An `(s, β, p, qtilde)` Besov atom representative supported on `Q`.
 
@@ -1176,6 +1449,128 @@ theorem besovAtom_to_souza_representation_decay
             WeakGridSpace.LpGridRepresentation.pqCost (q := qtilde) R := hroot
     _ ≤ (μQ ^ (β - s) * geom) * (Cba⁻¹ * μQ ^ (s - β)) := hmul_cost
     _ = Cba⁻¹ * geom := htarget
+
+theorem besovAtom_to_induced_souzaS_representation_decay
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p qtilde : ℝ≥0∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ qtilde)]
+    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β) (hp_top : p ≠ ∞)
+    (Q : GoodGridCell G) {a : α → ℂ}
+    (ha : IsBesovAtom G s β p qtilde hβ
+      (inferInstance : Fact (1 ≤ p)) hp_top Q a) :
+    ∃ haLp : MemLp a p G.grid.μ,
+    ∃ R : WeakGridSpace.LpGridRepresentation
+      (inducedSouzaAtomFamily G s p hs (inferInstance : Fact (1 ≤ p)) hp_top Q)
+      haLp.toLp,
+      ∀ k : ℕ,
+        R.levelCoeffPower k ≤
+          ((besovAtomConstant G β p qtilde)⁻¹ *
+              (G.grid.lambda2 ^ k : ℝ) ^ (β - s)) ^ p.toReal := by
+  classical
+  rcases besovAtom_to_souza_representation_decay
+      G s β p qtilde hβ hβs hp_top Q ha with
+    ⟨haLp, Rβ, _hRβfin, _hRβcost, hdecay⟩
+  let R := inducedSouzaBetaRepresentationToSouzaS G s β p hs hβ
+    (inferInstance : Fact (1 ≤ p)) hp_top Q Rβ
+  refine ⟨haLp, R, ?_⟩
+  intro k
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne' hp_top
+  have hroot :
+      (R.levelCoeffPower k) ^ (1 / p.toReal)
+        ≤ (besovAtomConstant G β p qtilde)⁻¹ *
+            (G.grid.lambda2 ^ k : ℝ) ^ (β - s) := by
+    simpa [R, inducedSouzaBetaRepresentationToSouzaS_levelCoeffPower] using hdecay k
+  have hleft :
+      ((R.levelCoeffPower k) ^ (1 / p.toReal)) ^ p.toReal =
+        R.levelCoeffPower k := by
+    have hmul : (1 / p.toReal) * p.toReal = 1 := by
+      field_simp [hp_pos.ne']
+    calc
+      ((R.levelCoeffPower k) ^ (1 / p.toReal)) ^ p.toReal =
+          (R.levelCoeffPower k) ^ ((1 / p.toReal) * p.toReal) := by
+          rw [← Real.rpow_mul (R.levelCoeffPower_nonneg k)]
+      _ = R.levelCoeffPower k := by
+          rw [hmul, Real.rpow_one]
+  have hpow :=
+    Real.rpow_le_rpow
+      (Real.rpow_nonneg (R.levelCoeffPower_nonneg k) _)
+      hroot hp_pos.le
+  rwa [hleft] at hpow
+
+theorem besovAtom_to_induced_souzaS_representation_decay_claimC
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p qtilde : ℝ≥0∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ qtilde)]
+    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β) (hp_top : p ≠ ∞)
+    (Q : GoodGridCell G) {a : α → ℂ}
+    (ha : IsBesovAtom G s β p qtilde hβ
+      (inferInstance : Fact (1 ≤ p)) hp_top Q a) :
+    ∃ haLp : MemLp a p G.grid.μ,
+    ∃ R : WeakGridSpace.LpGridRepresentation
+      (inducedSouzaAtomFamily G s p hs (inferInstance : Fact (1 ≤ p)) hp_top Q)
+      haLp.toLp,
+      ∀ k : ℕ,
+        R.levelCoeffPower k ≤
+          ((besovAtomConstant G β p qtilde)⁻¹) ^ p.toReal *
+            ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) ^ k := by
+  classical
+  rcases besovAtom_to_induced_souzaS_representation_decay
+      G s β p qtilde hs hβ hβs hp_top Q ha with
+    ⟨haLp, R, hdecay⟩
+  refine ⟨haLp, R, ?_⟩
+  intro k
+  let Cinv : ℝ := (besovAtomConstant G β p qtilde)⁻¹
+  let lamRoot : ℝ := G.grid.lambda2 ^ (β - s)
+  have hdelta_pos : 0 < β - s := sub_pos.mpr hβs
+  have hlam_pos : 0 < G.grid.lambda2 :=
+    lt_of_lt_of_le G.grid.hlambda1_pos G.grid.hlambda1_le_lambda2
+  have hlam_nonneg : 0 ≤ G.grid.lambda2 := hlam_pos.le
+  have hlamRoot_pos : 0 < lamRoot := Real.rpow_pos_of_pos hlam_pos (β - s)
+  have hCinv_nonneg : 0 ≤ Cinv := by
+    dsimp [Cinv]
+    exact inv_nonneg.mpr (besovAtomConstant_nonneg G β p qtilde)
+  have hgeom_eq :
+      (G.grid.lambda2 ^ k : ℝ) ^ (β - s) = lamRoot ^ k := by
+    calc
+      (G.grid.lambda2 ^ k : ℝ) ^ (β - s) =
+          G.grid.lambda2 ^ ((k : ℝ) * (β - s)) := by
+            simpa [mul_comm] using
+              (Real.rpow_natCast_mul hlam_nonneg k (β - s)).symm
+      _ = G.grid.lambda2 ^ ((β - s) * k) := by ring_nf
+      _ = lamRoot ^ k := by
+            simpa [lamRoot, mul_comm] using
+              Real.rpow_mul_natCast hlam_nonneg (β - s) k
+  have hpow_geom :
+      (lamRoot ^ k : ℝ) ^ p.toReal = (lamRoot ^ p.toReal) ^ k := by
+    calc
+      (lamRoot ^ k : ℝ) ^ p.toReal =
+          lamRoot ^ ((k : ℝ) * p.toReal) := by
+            simpa [mul_comm] using
+              (Real.rpow_natCast_mul hlamRoot_pos.le k p.toReal).symm
+      _ = lamRoot ^ (p.toReal * k) := by ring_nf
+      _ = (lamRoot ^ p.toReal) ^ k := by
+            simpa [mul_comm] using
+              Real.rpow_mul_natCast hlamRoot_pos.le p.toReal k
+  have htarget :
+      ((besovAtomConstant G β p qtilde)⁻¹ *
+          (G.grid.lambda2 ^ k : ℝ) ^ (β - s)) ^ p.toReal =
+        Cinv ^ p.toReal * (lamRoot ^ p.toReal) ^ k := by
+    calc
+      ((besovAtomConstant G β p qtilde)⁻¹ *
+          (G.grid.lambda2 ^ k : ℝ) ^ (β - s)) ^ p.toReal =
+          (Cinv * lamRoot ^ k) ^ p.toReal := by
+            simp [Cinv, hgeom_eq]
+      _ = Cinv ^ p.toReal * (lamRoot ^ k : ℝ) ^ p.toReal := by
+            rw [Real.mul_rpow hCinv_nonneg (pow_nonneg hlamRoot_pos.le k)]
+      _ = Cinv ^ p.toReal * (lamRoot ^ p.toReal) ^ k := by
+            rw [hpow_geom]
+  calc
+    R.levelCoeffPower k
+        ≤ ((besovAtomConstant G β p qtilde)⁻¹ *
+              (G.grid.lambda2 ^ k : ℝ) ^ (β - s)) ^ p.toReal := hdecay k
+    _ = Cinv ^ p.toReal * (lamRoot ^ p.toReal) ^ k := htarget
+    _ = ((besovAtomConstant G β p qtilde)⁻¹) ^ p.toReal *
+            ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) ^ k := by
+          simp [Cinv, lamRoot]
 
 /-- The local space of concrete `L^p` representatives supported on a cell. -/
 def besovAtomLocalSubmodule
@@ -1680,6 +2075,354 @@ def SouzaBesovSandwich
               (C2 : ℂ) •
                 (besovAtomFamily G s β p qtilde hs hβ hp hp_top).toFunction Q ψ)
 
+private noncomputable def scaledAtomInclusionBlock
+    {G : WeakGridSpace.WeakGridSpace (α := α)} {s : ℝ} {p u₁ u₂ : ℝ≥0∞}
+    [Fact (1 ≤ p)]
+    (A₁ : WeakGridSpace.AtomFamily G s p u₁)
+    (A₂ : WeakGridSpace.AtomFamily G s p u₂)
+    (C : ℝ)
+    (hA₁A₂ : ∀ Q φ, A₁.IsAtom Q φ →
+      ∃ ψ, A₂.IsAtom Q ψ ∧
+        A₁.toFunction Q φ = (C : ℂ) • A₂.toFunction Q ψ)
+    {k : ℕ} (B : WeakGridSpace.LevelBlock A₁ k) :
+    WeakGridSpace.LevelBlock A₂ k where
+  coeff := fun Q => (C : ℂ) * B.coeff Q
+  atom := fun Q =>
+    Classical.choose (hA₁A₂ (WeakGridSpace.levelCellToWeakGridCell G k Q)
+      (B.atom Q) (B.atom_mem Q))
+  atom_mem := fun Q =>
+    (Classical.choose_spec (hA₁A₂ (WeakGridSpace.levelCellToWeakGridCell G k Q)
+      (B.atom Q) (B.atom_mem Q))).1
+
+private theorem scaledAtomInclusionBlock_toLp
+    {G : WeakGridSpace.WeakGridSpace (α := α)} {s : ℝ} {p u₁ u₂ : ℝ≥0∞}
+    [Fact (1 ≤ p)]
+    (A₁ : WeakGridSpace.AtomFamily G s p u₁)
+    (A₂ : WeakGridSpace.AtomFamily G s p u₂)
+    (C : ℝ)
+    (hA₁A₂ : ∀ Q φ, A₁.IsAtom Q φ →
+      ∃ ψ, A₂.IsAtom Q ψ ∧
+        A₁.toFunction Q φ = (C : ℂ) • A₂.toFunction Q ψ)
+    {k : ℕ} (B : WeakGridSpace.LevelBlock A₁ k) :
+    (scaledAtomInclusionBlock A₁ A₂ C hA₁A₂ B).toLp A₂ = B.toLp A₁ := by
+  classical
+  unfold WeakGridSpace.LevelBlock.toLp
+  refine Finset.sum_congr rfl ?_
+  intro Q _hQ
+  unfold WeakGridSpace.LevelBlock.term scaledAtomInclusionBlock
+  let Qw := WeakGridSpace.levelCellToWeakGridCell G k Q
+  let ψ := Classical.choose (hA₁A₂ Qw (B.atom Q) (B.atom_mem Q))
+  have hψ :=
+    Classical.choose_spec (hA₁A₂ Qw (B.atom Q) (B.atom_mem Q))
+  have htoLp :
+      MeasureTheory.MemLp.toLp (A₁.toFunction Qw (B.atom Q)) (A₁.local_memLp_p Qw (B.atom Q)) =
+        (C : ℂ) •
+          MeasureTheory.MemLp.toLp (A₂.toFunction Qw ψ) (A₂.local_memLp_p Qw ψ) := by
+    rw [← MeasureTheory.MemLp.toLp_const_smul]
+    exact MeasureTheory.MemLp.toLp_congr _ _
+      (Filter.Eventually.of_forall fun x => congrFun hψ.2 x)
+  calc
+    ((C : ℂ) * B.coeff Q) •
+        MeasureTheory.MemLp.toLp (A₂.toFunction Qw ψ) (A₂.local_memLp_p Qw ψ)
+        = B.coeff Q •
+            ((C : ℂ) •
+              MeasureTheory.MemLp.toLp (A₂.toFunction Qw ψ) (A₂.local_memLp_p Qw ψ)) := by
+            rw [smul_smul]
+            ring_nf
+    _ = B.coeff Q •
+        MeasureTheory.MemLp.toLp (A₁.toFunction Qw (B.atom Q)) (A₁.local_memLp_p Qw (B.atom Q)) := by
+          rw [htoLp]
+
+private noncomputable def scaledAtomInclusionRepresentation
+    {G : WeakGridSpace.WeakGridSpace (α := α)} {s : ℝ} {p u₁ u₂ : ℝ≥0∞}
+    [Fact (1 ≤ p)]
+    (A₁ : WeakGridSpace.AtomFamily G s p u₁)
+    (A₂ : WeakGridSpace.AtomFamily G s p u₂)
+    (C : ℝ)
+    (hA₁A₂ : ∀ Q φ, A₁.IsAtom Q φ →
+      ∃ ψ, A₂.IsAtom Q ψ ∧
+        A₁.toFunction Q φ = (C : ℂ) • A₂.toFunction Q ψ)
+    {g : Lp ℂ p G.measure}
+    (R : WeakGridSpace.LpGridRepresentation A₁ g) :
+    WeakGridSpace.LpGridRepresentation A₂ g where
+  block k := scaledAtomInclusionBlock A₁ A₂ C hA₁A₂ (R.block k)
+  hasSum := by
+    refine HasSum.congr_fun R.hasSum ?_
+    intro k
+    exact scaledAtomInclusionBlock_toLp A₁ A₂ C hA₁A₂ (R.block k)
+
+private theorem scaledAtomInclusionRepresentation_levelCoeffPower
+    {G : WeakGridSpace.WeakGridSpace (α := α)} {s : ℝ} {p u₁ u₂ : ℝ≥0∞}
+    [Fact (1 ≤ p)]
+    (A₁ : WeakGridSpace.AtomFamily G s p u₁)
+    (A₂ : WeakGridSpace.AtomFamily G s p u₂)
+    (C : ℝ)
+    (hA₁A₂ : ∀ Q φ, A₁.IsAtom Q φ →
+      ∃ ψ, A₂.IsAtom Q ψ ∧
+        A₁.toFunction Q φ = (C : ℂ) • A₂.toFunction Q ψ)
+    {g : Lp ℂ p G.measure}
+    (R : WeakGridSpace.LpGridRepresentation A₁ g) (k : ℕ) :
+    (scaledAtomInclusionRepresentation A₁ A₂ C hA₁A₂ R).levelCoeffPower k =
+      ((WeakGridSpace.LpGridRepresentation.smul (A := A₁) (C : ℂ) R).levelCoeffPower k) := by
+  unfold WeakGridSpace.LpGridRepresentation.levelCoeffPower
+  rfl
+
+private theorem scaledAtomInclusionRepresentation_finitePQCost
+    {G : WeakGridSpace.WeakGridSpace (α := α)} {s : ℝ} {p u₁ u₂ q : ℝ≥0∞}
+    [Fact (1 ≤ p)]
+    (A₁ : WeakGridSpace.AtomFamily G s p u₁)
+    (A₂ : WeakGridSpace.AtomFamily G s p u₂)
+    (C : ℝ)
+    (hA₁A₂ : ∀ Q φ, A₁.IsAtom Q φ →
+      ∃ ψ, A₂.IsAtom Q ψ ∧
+        A₁.toFunction Q φ = (C : ℂ) • A₂.toFunction Q ψ)
+    {g : Lp ℂ p G.measure}
+    (R : WeakGridSpace.LpGridRepresentation A₁ g)
+    (hRfin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R) :
+    WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q)
+      (scaledAtomInclusionRepresentation A₁ A₂ C hA₁A₂ R) := by
+  have hfin :=
+    WeakGridSpace.LpGridRepresentation.smul_finitePQCost
+      (A := A₁) (q := q) (C : ℂ) hRfin
+  simpa [WeakGridSpace.LpGridRepresentation.FinitePQCost,
+    scaledAtomInclusionRepresentation_levelCoeffPower (A₁ := A₁) (A₂ := A₂)
+      (C := C) (hA₁A₂ := hA₁A₂) (R := R)] using hfin
+
+private theorem scaledAtomInclusionRepresentation_pqCost
+    {G : WeakGridSpace.WeakGridSpace (α := α)} {s : ℝ} {p u₁ u₂ q : ℝ≥0∞}
+    [Fact (1 ≤ p)]
+    (A₁ : WeakGridSpace.AtomFamily G s p u₁)
+    (A₂ : WeakGridSpace.AtomFamily G s p u₂)
+    (C : ℝ)
+    (hA₁A₂ : ∀ Q φ, A₁.IsAtom Q φ →
+      ∃ ψ, A₂.IsAtom Q ψ ∧
+        A₁.toFunction Q φ = (C : ℂ) • A₂.toFunction Q ψ)
+    {g : Lp ℂ p G.measure}
+    (R : WeakGridSpace.LpGridRepresentation A₁ g) :
+    WeakGridSpace.LpGridRepresentation.pqCost (q := q)
+        (scaledAtomInclusionRepresentation A₁ A₂ C hA₁A₂ R) =
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q)
+        (WeakGridSpace.LpGridRepresentation.smul (A := A₁) (C : ℂ) R) := by
+  unfold WeakGridSpace.LpGridRepresentation.pqCost
+  simp [scaledAtomInclusionRepresentation_levelCoeffPower
+    (A₁ := A₁) (A₂ := A₂) (C := C) (hA₁A₂ := hA₁A₂) (R := R)]
+
+private theorem lpGridRepresentation_smul_levelCoeffPower
+    {G : WeakGridSpace.WeakGridSpace (α := α)} {s : ℝ} {p u : ℝ≥0∞}
+    [Fact (1 ≤ p)] {A : WeakGridSpace.AtomFamily G s p u}
+    {g : Lp ℂ p G.measure} (c : ℂ)
+    (R : WeakGridSpace.LpGridRepresentation A g) (k : ℕ) :
+    (WeakGridSpace.LpGridRepresentation.smul (A := A) c R).levelCoeffPower k =
+      ‖c‖ ^ p.toReal * R.levelCoeffPower k := by
+  unfold WeakGridSpace.LpGridRepresentation.levelCoeffPower
+  unfold WeakGridSpace.LpGridRepresentation.smul WeakGridSpace.LevelBlock.smul
+  calc
+    (∑ Q : WeakGridSpace.LevelCell G k, ‖c * (R.block k).coeff Q‖ ^ p.toReal)
+        = ∑ Q : WeakGridSpace.LevelCell G k,
+            (‖c‖ * ‖(R.block k).coeff Q‖) ^ p.toReal := by
+          refine Finset.sum_congr rfl ?_
+          intro Q _hQ
+          rw [norm_mul]
+    _ = ∑ Q : WeakGridSpace.LevelCell G k,
+          ‖c‖ ^ p.toReal * ‖(R.block k).coeff Q‖ ^ p.toReal := by
+          refine Finset.sum_congr rfl ?_
+          intro Q _hQ
+          rw [Real.mul_rpow (norm_nonneg c) (norm_nonneg _)]
+    _ = ‖c‖ ^ p.toReal *
+          ∑ Q : WeakGridSpace.LevelCell G k, ‖(R.block k).coeff Q‖ ^ p.toReal := by
+          rw [Finset.mul_sum]
+
+private theorem finitePQCost_of_levelCoeffPower_geometric_decay
+    {G : WeakGridSpace.WeakGridSpace (α := α)} {s : ℝ} {p u q : ℝ≥0∞}
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    {A : WeakGridSpace.AtomFamily G s p u}
+    {g : Lp ℂ p G.measure} (R : WeakGridSpace.LpGridRepresentation A g)
+    (C lam : ℝ) (hC_nonneg : 0 ≤ C) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (hdecay : ∀ k : ℕ, R.levelCoeffPower k ≤ C * lam ^ k) :
+    WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R := by
+  classical
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le A.one_le_p).ne' A.p_ne_top
+  have hgeom_nonneg : ∀ k : ℕ, 0 ≤ C * lam ^ k :=
+    fun k => mul_nonneg hC_nonneg (pow_nonneg hlam_pos.le k)
+  have hroot_bound :
+      ∀ k : ℕ, (R.levelCoeffPower k) ^ (1 / p.toReal) ≤ C ^ (1 / p.toReal) := by
+    intro k
+    have hpow_le_one : lam ^ k ≤ (1 : ℝ) := pow_le_one₀ hlam_pos.le hlam_lt.le
+    have hCgeom_le_C : C * lam ^ k ≤ C := by
+      calc
+        C * lam ^ k ≤ C * 1 := mul_le_mul_of_nonneg_left hpow_le_one hC_nonneg
+        _ = C := by ring
+    calc
+      (R.levelCoeffPower k) ^ (1 / p.toReal)
+          ≤ (C * lam ^ k) ^ (1 / p.toReal) :=
+            Real.rpow_le_rpow (R.levelCoeffPower_nonneg k) (hdecay k)
+              (div_nonneg zero_le_one hp_pos.le)
+      _ ≤ C ^ (1 / p.toReal) :=
+            Real.rpow_le_rpow (hgeom_nonneg k) hCgeom_le_C
+              (div_nonneg zero_le_one hp_pos.le)
+  by_cases hqtop : q = ∞
+  · have hbdd :
+        BddAbove (Set.range fun k => (R.levelCoeffPower k) ^ (1 / p.toReal)) := by
+      refine ⟨C ^ (1 / p.toReal), ?_⟩
+      rintro x ⟨k, rfl⟩
+      exact hroot_bound k
+    simpa [WeakGridSpace.LpGridRepresentation.FinitePQCost, hqtop] using hbdd
+  · have hq_pos : 0 < q.toReal :=
+      ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ q)).ne' hqtop
+    let r : ℝ := q.toReal / p.toReal
+    have hr_pos : 0 < r := div_pos hq_pos hp_pos
+    have hratio_nonneg : 0 ≤ lam ^ r := Real.rpow_nonneg hlam_pos.le _
+    have hratio_lt_one : lam ^ r < 1 := Real.rpow_lt_one hlam_pos.le hlam_lt hr_pos
+    have hgeom_sum : Summable (fun k : ℕ => C ^ r * (lam ^ r) ^ k) := by
+      simpa [mul_comm, mul_left_comm, mul_assoc] using
+        (summable_geometric_of_lt_one hratio_nonneg hratio_lt_one).mul_left (C ^ r)
+    have hpow_geom : ∀ k : ℕ, (lam ^ k : ℝ) ^ r = (lam ^ r) ^ k := by
+      intro k
+      calc
+        (lam ^ k : ℝ) ^ r = lam ^ ((k : ℝ) * r) := by
+          simpa [mul_comm] using (Real.rpow_natCast_mul hlam_pos.le k r).symm
+        _ = lam ^ (r * k) := by ring_nf
+        _ = (lam ^ r) ^ k := by
+          simpa [mul_comm] using Real.rpow_mul_natCast hlam_pos.le r k
+    have hterm_le :
+        (fun k : ℕ => (R.levelCoeffPower k) ^ (q.toReal / p.toReal)) ≤
+          fun k : ℕ => C ^ r * (lam ^ r) ^ k := by
+      intro k
+      dsimp [r]
+      calc
+        (R.levelCoeffPower k) ^ (q.toReal / p.toReal)
+            ≤ (C * lam ^ k) ^ (q.toReal / p.toReal) :=
+              Real.rpow_le_rpow (R.levelCoeffPower_nonneg k) (hdecay k) hr_pos.le
+        _ = C ^ r * (lam ^ k : ℝ) ^ r := by
+              rw [Real.mul_rpow hC_nonneg (pow_nonneg hlam_pos.le k)]
+        _ = C ^ r * (lam ^ r) ^ k := by rw [hpow_geom k]
+    have hterm_nonneg :
+        ∀ k : ℕ, 0 ≤ (R.levelCoeffPower k) ^ (q.toReal / p.toReal) :=
+      fun k => Real.rpow_nonneg (R.levelCoeffPower_nonneg k) _
+    simpa [WeakGridSpace.LpGridRepresentation.FinitePQCost, hqtop] using
+      Summable.of_nonneg_of_le hterm_nonneg hterm_le hgeom_sum
+
+private theorem scaledAtomInclusionEmbedding
+    {G : WeakGridSpace.WeakGridSpace (α := α)} {s : ℝ} {p u₁ u₂ q : ℝ≥0∞}
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (A₁ : WeakGridSpace.AtomFamily G s p u₁)
+    (A₂ : WeakGridSpace.AtomFamily G s p u₂)
+    (C : ℝ) (hC_nonneg : 0 ≤ C)
+    (hA₁A₂ : ∀ Q φ, A₁.IsAtom Q φ →
+      ∃ ψ, A₂.IsAtom Q ψ ∧
+        A₁.toFunction Q φ = (C : ℂ) • A₂.toFunction Q ψ) :
+    ∀ f : WeakGridSpace.BesovishSpace A₁ q,
+      ∃ hf₂ : WeakGridSpace.MemBesovishCoeffCost A₂ q
+          (f : Lp ℂ p G.measure),
+        WeakGridSpace.BesovishSpace.Norm_Costpq A₂ q
+            (⟨(f : Lp ℂ p G.measure), hf₂⟩ :
+              WeakGridSpace.BesovishSpace A₂ q) ≤
+          C * WeakGridSpace.BesovishSpace.Norm_Costpq A₁ q f := by
+  classical
+  intro f
+  have hfinite₁ :
+      WeakGridSpace.BesovishSpace.HasFiniteCostRepresentations (A := A₁) q :=
+    WeakGridSpace.BesovishSpace.hasFiniteCostRepresentations A₁ q
+  have hnormC : ‖(C : ℂ)‖ = C := by
+    rw [Complex.norm_real, Real.norm_of_nonneg hC_nonneg]
+  refine ⟨?_, ?_⟩
+  · rcases f.property with ⟨R, hRfin⟩
+    exact ⟨scaledAtomInclusionRepresentation A₁ A₂ C hA₁A₂ R,
+      scaledAtomInclusionRepresentation_finitePQCost A₁ A₂ C hA₁A₂ R hRfin⟩
+  · let hf₂ : WeakGridSpace.MemBesovishCoeffCost A₂ q
+        (f : Lp ℂ p G.measure) := by
+        rcases f.property with ⟨R, hRfin⟩
+        exact ⟨scaledAtomInclusionRepresentation A₁ A₂ C hA₁A₂ R,
+          scaledAtomInclusionRepresentation_finitePQCost A₁ A₂ C hA₁A₂ R hRfin⟩
+    change
+      WeakGridSpace.BesovishSpace.Norm_Costpq A₂ q
+          (⟨(f : Lp ℂ p G.measure), hf₂⟩ :
+            WeakGridSpace.BesovishSpace A₂ q) ≤
+        C * WeakGridSpace.BesovishSpace.Norm_Costpq A₁ q f
+    refine le_iff_forall_pos_le_add.mpr ?_
+    intro ε hε
+    have hden : 0 < C + 1 := by linarith
+    have hδ : 0 < ε / (C + 1) := by positivity
+    rcases WeakGridSpace.BesovishSpace.exists_cost_lt_Norm_Costpq_add
+        (A := A₁) (q := q) hfinite₁ f hδ with
+      ⟨R, hRfin, hRlt⟩
+    let R₂ := scaledAtomInclusionRepresentation A₁ A₂ C hA₁A₂ R
+    have hR₂fin :
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R₂ :=
+      scaledAtomInclusionRepresentation_finitePQCost A₁ A₂ C hA₁A₂ R hRfin
+    let f₂ : WeakGridSpace.BesovishSpace A₂ q :=
+      ⟨(f : Lp ℂ p G.measure), ⟨R₂, hR₂fin⟩⟩
+    have hf_eq :
+        (⟨(f : Lp ℂ p G.measure), hf₂⟩ :
+          WeakGridSpace.BesovishSpace A₂ q) = f₂ := by
+      ext
+      rfl
+    have hnorm_le :
+        WeakGridSpace.BesovishSpace.Norm_Costpq A₂ q
+            (⟨(f : Lp ℂ p G.measure), hf₂⟩ :
+              WeakGridSpace.BesovishSpace A₂ q)
+          ≤ WeakGridSpace.LpGridRepresentation.pqCost (q := q) R₂ := by
+      simpa [hf_eq, f₂] using
+        WeakGridSpace.BesovishSpace.Norm_Costpq_le_cost
+          (A := A₂) (q := q) (g := f₂) R₂ hR₂fin
+    have hcost :
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) R₂ =
+          C * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
+      calc
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) R₂ =
+            WeakGridSpace.LpGridRepresentation.pqCost (q := q)
+              (WeakGridSpace.LpGridRepresentation.smul (A := A₁) (C : ℂ) R) :=
+          scaledAtomInclusionRepresentation_pqCost A₁ A₂ C hA₁A₂ R
+        _ = ‖(C : ℂ)‖ *
+              WeakGridSpace.LpGridRepresentation.pqCost (q := q) R :=
+          WeakGridSpace.LpGridRepresentation.pqCost_smul
+            (A := A₁) (q := q) (C : ℂ) R A₁.p_ne_top Fact.out hRfin
+        _ = C * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
+          rw [hnormC]
+    have hcost_le :
+        C * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R
+          ≤ C * (WeakGridSpace.BesovishSpace.Norm_Costpq A₁ q f + ε / (C + 1)) :=
+      mul_le_mul_of_nonneg_left (le_of_lt hRlt) hC_nonneg
+    have hsmall : C * (ε / (C + 1)) ≤ ε := by
+      have hfrac : C / (C + 1) ≤ (1 : ℝ) :=
+        (div_le_one hden).2 (by linarith)
+      have hε_nonneg : 0 ≤ ε := le_of_lt hε
+      have hmul := mul_le_mul_of_nonneg_right hfrac hε_nonneg
+      calc
+        C * (ε / (C + 1)) = (C / (C + 1)) * ε := by ring
+        _ ≤ 1 * ε := hmul
+        _ = ε := by ring
+    calc
+      WeakGridSpace.BesovishSpace.Norm_Costpq A₂ q
+          (⟨(f : Lp ℂ p G.measure), hf₂⟩ :
+            WeakGridSpace.BesovishSpace A₂ q)
+        ≤ WeakGridSpace.LpGridRepresentation.pqCost (q := q) R₂ := hnorm_le
+      _ = C * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := hcost
+      _ ≤ C * (WeakGridSpace.BesovishSpace.Norm_Costpq A₁ q f + ε / (C + 1)) :=
+        hcost_le
+      _ = C * WeakGridSpace.BesovishSpace.Norm_Costpq A₁ q f + C * (ε / (C + 1)) := by
+        ring
+      _ ≤ C * WeakGridSpace.BesovishSpace.Norm_Costpq A₁ q f + ε := by
+        exact add_le_add le_rfl hsmall
+
+private theorem cast_levelBlock_coeff
+    {G : WeakGridSpace.WeakGridSpace (α := α)} {s : ℝ} {p u : ℝ≥0∞}
+    {m n : ℕ} [Fact (1 ≤ p)]
+    (A : WeakGridSpace.AtomFamily G s p u) (h : m = n)
+    (B : WeakGridSpace.LevelBlock A m) (P : WeakGridSpace.LevelCell G n) :
+    (cast (congrArg (WeakGridSpace.LevelBlock A) h) B).coeff P =
+      B.coeff (cast (congrArg (WeakGridSpace.LevelCell G) h.symm) P) := by
+  subst h
+  rfl
+
+private theorem cast_levelCell_coe
+    {G : WeakGridSpace.WeakGridSpace (α := α)} {m n : ℕ}
+    (h : m = n) (P : WeakGridSpace.LevelCell G m) :
+    (cast (congrArg (WeakGridSpace.LevelCell G) h) P).1 = P.1 := by
+  subst h
+  rfl
+
 /--
 Besov-atom comparison theorem.
 
@@ -1690,7 +2433,7 @@ from the paper: the first follows from the lower inclusion, while the second
 comes from transmuting each Besov atom into Souza atoms with geometric decay
 `lambda2^(β-s)`.
 -/
-theorem souza_atoms_and_besov_atoms
+theorem atoms_between_souza_atoms_and_besov_atoms
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p u q qtilde : ℝ≥0∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ u)] [Fact (1 ≤ q)] [Fact (1 ≤ qtilde)]
     (hs : 0 < s) (hβ : 0 < β) (hβs : s < β) (hp_top : p ≠ ∞)
@@ -1725,10 +2468,301 @@ theorem souza_atoms_and_besov_atoms
                   (souzaAtomFamily G s p hs (Fact.out : 1 ≤ p) hp_top) q)
             ≤ (C2 / (1 - G.grid.lambda2 ^ (β - s))) *
               WeakGridSpace.BesovishSpace.Norm_Costpq A q f) := by
-  -- The second embedding is exactly the transmutation argument: expand each
-  -- Besov atom on the induced grid inside its support, rescale the resulting
-  -- `β`-Souza atoms to `s`-Souza atoms, and sum the geometric tail.
-  sorry
+  classical
+  rcases hSandwich with ⟨hC1_pos, hC2_pos, hSouza_to_A_raw, hA_to_Besov_raw⟩
+  let AS := souzaAtomFamily G s p hs (Fact.out : 1 ≤ p) hp_top
+  let AB := besovAtomFamily G s β p qtilde hs hβ (inferInstance : Fact (1 ≤ p)) hp_top
+  have hSouza_to_A_atoms :
+      ∀ Q φ, AS.IsAtom Q φ →
+        ∃ ψ, A.IsAtom Q ψ ∧
+          AS.toFunction Q φ = (C1 : ℂ) • A.toFunction Q ψ := by
+    intro Q φ hφ
+    rcases hSouza_to_A_raw Q φ hφ with ⟨ψ, hψ_atom, hψ_eq⟩
+    refine ⟨ψ, hψ_atom, ?_⟩
+    have hC1_ne : (C1 : ℂ) ≠ 0 := by
+      exact_mod_cast ne_of_gt hC1_pos
+    rw [hψ_eq]
+    ext x
+    simp [AS, Pi.smul_apply, hC1_ne]
+  have hSouza_to_A :
+      ∀ f : WeakGridSpace.BesovishSpace AS q,
+        ∃ hfA : WeakGridSpace.MemBesovishCoeffCost A q
+            (f : Lp ℂ p G.toWeakGridSpace.measure),
+          WeakGridSpace.BesovishSpace.Norm_Costpq A q
+              (⟨(f : Lp ℂ p G.toWeakGridSpace.measure), hfA⟩ :
+                WeakGridSpace.BesovishSpace A q)
+            ≤ C1 * WeakGridSpace.BesovishSpace.Norm_Costpq AS q f :=
+    scaledAtomInclusionEmbedding AS A C1 hC1_pos.le hSouza_to_A_atoms
+  have hA_to_Besov :
+      ∀ f : WeakGridSpace.BesovishSpace A q,
+        ∃ hfB : WeakGridSpace.MemBesovishCoeffCost AB q
+            (f : Lp ℂ p G.toWeakGridSpace.measure),
+          WeakGridSpace.BesovishSpace.Norm_Costpq AB q
+              (⟨(f : Lp ℂ p G.toWeakGridSpace.measure), hfB⟩ :
+                WeakGridSpace.BesovishSpace AB q)
+            ≤ C2 * WeakGridSpace.BesovishSpace.Norm_Costpq A q f :=
+    scaledAtomInclusionEmbedding A AB C2 hC2_pos.le hA_to_Besov_raw
+  let lamRoot : ℝ := G.grid.lambda2 ^ (β - s)
+  let lamClaim : ℝ := lamRoot ^ p.toReal
+  have hdelta_pos : 0 < β - s := sub_pos.mpr hβs
+  have hlambda2_pos : 0 < G.grid.lambda2 :=
+    lt_of_lt_of_le G.grid.hlambda1_pos G.grid.hlambda1_le_lambda2
+  have hlamRoot_pos : 0 < lamRoot := by
+    exact Real.rpow_pos_of_pos hlambda2_pos (β - s)
+  have hlamRoot_lt_one : lamRoot < 1 := by
+    exact Real.rpow_lt_one hlambda2_pos.le G.grid.hlambda2_lt_one hdelta_pos
+  have hp_toReal_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne' hp_top
+  have hlamClaim_pos : 0 < lamClaim := by
+    exact Real.rpow_pos_of_pos hlamRoot_pos p.toReal
+  have hlamClaim_lt_one : lamClaim < 1 := by
+    exact Real.rpow_lt_one hlamRoot_pos.le hlamRoot_lt_one hp_toReal_pos
+  have hG2Souza : WeakGridSpace.AssumptionG2 G.toWeakGridSpace s p ∞ q :=
+    souza_assumptionG2 G s p q hs (Fact.out : 1 ≤ p) hp_top
+  let Cclaim : ℝ := ((besovAtomConstant G β p qtilde)⁻¹) ^ p.toReal
+  have hCclaim_nonneg : 0 ≤ Cclaim := by
+    dsimp [Cclaim]
+    exact Real.rpow_nonneg
+      (inv_nonneg.mpr (besovAtomConstant_nonneg G β p qtilde)) _
+  have hBesov_to_Souza_atoms_claimC :
+      ∀ i : ℕ, ∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace i,
+      ∀ g : Lp ℂ p G.toWeakGridSpace.measure,
+        (∃ φ : (AB.localSpace (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace i Q)).carrier,
+          AB.IsAtom (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace i Q) φ ∧
+            g = WeakGridSpace.atomLp AB
+              (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace i Q) φ) →
+          ∃ Rg : WeakGridSpace.LpGridRepresentation AS g,
+            WeakGridSpace.CoeffFinitePQCost (p := p) (q := q) G.toWeakGridSpace
+              (fun j S => (Rg.block j).coeff S) ∧
+            (∀ j : ℕ, ∀ S : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+              (¬ S.1 ⊆ Q.1 → (Rg.block j).coeff S = 0) ∧
+              (j < i → (Rg.block j).coeff S = 0)) ∧
+            ∀ j : ℕ, i ≤ j → Rg.levelCoeffPower j ≤ Cclaim * lamClaim ^ (j - i) := by
+    intro i Q g hg
+    rcases hg with ⟨φ, hφ_atom, hg_eq⟩
+    subst g
+    let QG : GoodGridCell G := ⟨i, Q.1, Q.2⟩
+    have hφ_besov :
+        IsBesovAtom G s β p qtilde hβ (inferInstance : Fact (1 ≤ p)) hp_top QG
+          (AB.toFunction (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace i Q) φ) := by
+      simpa [AB, besovAtomFamily, WeakGridSpace.AtomFamily.IsAtom,
+        WeakGridSpace.AtomFamily.toFunction, QG] using hφ_atom
+    rcases besovAtom_to_induced_souzaS_representation_decay_claimC
+        G s β p qtilde hs hβ hβs hp_top QG hφ_besov with
+      ⟨haLp, Rind, hRind_decay⟩
+    let RA0 :=
+      WeakGridSpace.inducedRepresentationToAmbient G.toWeakGridSpace QG.toLevelCell AS Rind
+    have htoLp_atom :
+        haLp.toLp =
+          WeakGridSpace.atomLp AB
+            (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace i Q) φ := by
+      unfold WeakGridSpace.atomLp
+      exact MeasureTheory.MemLp.toLp_congr _ _
+        (Filter.Eventually.of_forall fun _ => rfl)
+    let Rg : WeakGridSpace.LpGridRepresentation AS
+        (WeakGridSpace.atomLp AB
+          (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace i Q) φ) :=
+      { block := RA0.block
+        hasSum := by
+          simpa [RA0, WeakGridSpace.inducedLpToAmbient, htoLp_atom] using RA0.hasSum }
+    have hRind_fin :
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Rind :=
+      finitePQCost_of_levelCoeffPower_geometric_decay
+        Rind Cclaim lamClaim hCclaim_nonneg hlamClaim_pos hlamClaim_lt_one hRind_decay
+    have hRg_fin :
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Rg := by
+      simpa [Rg, RA0] using
+        WeakGridSpace.inducedRepresentationToAmbient_finitePQCost
+          G.toWeakGridSpace QG.toLevelCell AS Rind hRind_fin
+    refine ⟨Rg, ?_, ?_, ?_⟩
+    · simpa [WeakGridSpace.CoeffFinitePQCost,
+        WeakGridSpace.LpGridRepresentation.FinitePQCost,
+        WeakGridSpace.LpGridRepresentation.levelCoeffPower] using hRg_fin
+    · intro j S
+      constructor
+      · intro hS
+        simpa [Rg, RA0, QG] using
+          WeakGridSpace.inducedRepresentationToAmbient_coeff_eq_zero_of_not_subset
+            G.toWeakGridSpace QG.toLevelCell AS Rind S hS
+      · intro hj
+        simpa [Rg, RA0, QG] using
+          WeakGridSpace.inducedRepresentationToAmbient_coeff_lt
+            G.toWeakGridSpace QG.toLevelCell AS Rind hj S
+    · intro j hij
+      let k : ℕ := j - i
+      have hj_eq : j = i + k := by
+        dsimp [k]
+        omega
+      calc
+        Rg.levelCoeffPower j =
+            Rind.levelCoeffPower k := by
+              rw [hj_eq]
+              change RA0.levelCoeffPower (i + k) = Rind.levelCoeffPower k
+              simpa [RA0, QG, k] using
+                WeakGridSpace.inducedRepresentationToAmbient_levelCoeffPower_add
+                  G.toWeakGridSpace QG.toLevelCell AS Rind
+        _ ≤ Cclaim * lamClaim ^ k := hRind_decay k
+        _ = Cclaim * lamClaim ^ (j - i) := by simp [k]
+  have hBesov_to_Souza_claimC :
+      ∀ f : WeakGridSpace.BesovishSpace AB q,
+        ∃ hfS : WeakGridSpace.MemBesovishCoeffCost AS q
+            (f : Lp ℂ p G.toWeakGridSpace.measure),
+          WeakGridSpace.BesovishSpace.Norm_Costpq AS q
+              (⟨(f : Lp ℂ p G.toWeakGridSpace.measure), hfS⟩ :
+                WeakGridSpace.BesovishSpace AS q) ≤
+            WeakGridSpace.transmutationClaimCEmbeddingConstant
+                G.toWeakGridSpace p q lamClaim Cclaim *
+              WeakGridSpace.BesovishSpace.Norm_Costpq AB q f := by
+    exact
+      (WeakGridSpace.Transmutation_of_Atoms_continuous_embedding_explicit
+        (G := G.toWeakGridSpace) (s := s) (p := p) (q := q)
+        (u1 := 1) (u2 := ∞) AB AS lamClaim hlamClaim_pos hlamClaim_lt_one
+        Cclaim hCclaim_nonneg hBesov_to_Souza_atoms_claimC hG2Souza hp_top hs).2
+  have hA_to_Souza_claimC :
+      ∀ f : WeakGridSpace.BesovishSpace A q,
+        ∃ hfS : WeakGridSpace.MemBesovishCoeffCost AS q
+            (f : Lp ℂ p G.toWeakGridSpace.measure),
+          WeakGridSpace.BesovishSpace.Norm_Costpq AS q
+              (⟨(f : Lp ℂ p G.toWeakGridSpace.measure), hfS⟩ :
+                WeakGridSpace.BesovishSpace AS q) ≤
+            WeakGridSpace.transmutationClaimCEmbeddingConstant
+                G.toWeakGridSpace p q lamClaim Cclaim *
+              C2 * WeakGridSpace.BesovishSpace.Norm_Costpq A q f := by
+    intro f
+    rcases hA_to_Besov f with ⟨hfB, hnormB⟩
+    let fB : WeakGridSpace.BesovishSpace AB q :=
+      ⟨(f : Lp ℂ p G.toWeakGridSpace.measure), hfB⟩
+    rcases hBesov_to_Souza_claimC fB with ⟨hfS, hnormS⟩
+    refine ⟨hfS, ?_⟩
+    have hconst_nonneg :
+        0 ≤ WeakGridSpace.transmutationClaimCEmbeddingConstant
+            G.toWeakGridSpace p q lamClaim Cclaim :=
+      (WeakGridSpace.Transmutation_of_Atoms_continuous_embedding_explicit
+        (G := G.toWeakGridSpace) (s := s) (p := p) (q := q)
+        (u1 := 1) (u2 := ∞) AB AS lamClaim hlamClaim_pos hlamClaim_lt_one
+        Cclaim hCclaim_nonneg hBesov_to_Souza_atoms_claimC hG2Souza hp_top hs).1
+    calc
+      WeakGridSpace.BesovishSpace.Norm_Costpq AS q
+          (⟨(f : Lp ℂ p G.toWeakGridSpace.measure), hfS⟩ :
+            WeakGridSpace.BesovishSpace AS q)
+        ≤ WeakGridSpace.transmutationClaimCEmbeddingConstant
+            G.toWeakGridSpace p q lamClaim Cclaim *
+          WeakGridSpace.BesovishSpace.Norm_Costpq AB q fB := hnormS
+      _ ≤ WeakGridSpace.transmutationClaimCEmbeddingConstant
+            G.toWeakGridSpace p q lamClaim Cclaim *
+          (C2 * WeakGridSpace.BesovishSpace.Norm_Costpq A q f) := by
+            exact mul_le_mul_of_nonneg_left hnormB hconst_nonneg
+      _ = WeakGridSpace.transmutationClaimCEmbeddingConstant
+            G.toWeakGridSpace p q lamClaim Cclaim *
+          C2 * WeakGridSpace.BesovishSpace.Norm_Costpq A q f := by
+            ring
+  have hAS_subset_A :
+      WeakGridSpace.BesovishSpace AS q ≤ WeakGridSpace.BesovishSpace A q := by
+    intro f hf
+    let fS : WeakGridSpace.BesovishSpace AS q := ⟨f, hf⟩
+    exact (hSouza_to_A fS).choose
+  have hA_subset_AB :
+      WeakGridSpace.BesovishSpace A q ≤ WeakGridSpace.BesovishSpace AB q := by
+    intro f hf
+    let fA : WeakGridSpace.BesovishSpace A q := ⟨f, hf⟩
+    exact (hA_to_Besov fA).choose
+  have hAB_subset_AS :
+      WeakGridSpace.BesovishSpace AB q ≤ WeakGridSpace.BesovishSpace AS q := by
+    intro f hf
+    let fB : WeakGridSpace.BesovishSpace AB q := ⟨f, hf⟩
+    exact (hBesov_to_Souza_claimC fB).choose
+  have hA_subset_AS :
+      WeakGridSpace.BesovishSpace A q ≤ WeakGridSpace.BesovishSpace AS q := by
+    intro f hf
+    exact hAB_subset_AS (hA_subset_AB hf)
+  have hAS_eq_A :
+      WeakGridSpace.BesovishSpace AS q = WeakGridSpace.BesovishSpace A q :=
+    le_antisymm hAS_subset_A hA_subset_AS
+  have hA_eq_AB :
+      WeakGridSpace.BesovishSpace A q = WeakGridSpace.BesovishSpace AB q := by
+    refine le_antisymm hA_subset_AB ?_
+    intro f hf
+    exact hAS_subset_A (hAB_subset_AS hf)
+  have hA_to_Souza_target :
+      ∀ f : WeakGridSpace.BesovishSpace A q,
+        ∃ hfS : WeakGridSpace.MemBesovishCoeffCost AS q
+            (f : Lp ℂ p G.toWeakGridSpace.measure),
+          WeakGridSpace.BesovishSpace.Norm_Costpq AS q
+              (⟨(f : Lp ℂ p G.toWeakGridSpace.measure), hfS⟩ :
+                WeakGridSpace.BesovishSpace AS q)
+            ≤ (C2 / (1 - G.grid.lambda2 ^ (β - s))) *
+              WeakGridSpace.BesovishSpace.Norm_Costpq A q f := by
+    intro f
+    rcases hA_to_Souza_claimC f with ⟨hfS, hnormS⟩
+    refine ⟨hfS, le_trans hnormS ?_⟩
+    have hp_pos : 0 < p.toReal :=
+      ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne'
+        hp_top
+    have hCba_one : 1 ≤ besovAtomConstant G β p qtilde :=
+      one_le_besovAtomConstant G β p qtilde hβ (inferInstance : Fact (1 ≤ p))
+        hp_top
+    have hCba_pos : 0 < besovAtomConstant G β p qtilde :=
+      zero_lt_one.trans_le hCba_one
+    have hCclaim_root :
+        Cclaim ^ (1 / p.toReal) = (besovAtomConstant G β p qtilde)⁻¹ := by
+      dsimp [Cclaim]
+      simpa [one_div] using
+        Real.rpow_rpow_inv (inv_nonneg.mpr hCba_pos.le) hp_pos.ne'
+    have hCclaim_root_le_one : Cclaim ^ (1 / p.toReal) ≤ 1 := by
+      rw [hCclaim_root]
+      exact inv_le_one_of_one_le₀ hCba_one
+    have hgeom_coeff :
+        WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+            (WeakGridSpace.transmutationKernelZ lamClaim 0 1)
+          = (1 - lamRoot)⁻¹ := by
+      simpa [lamClaim] using
+        WeakGridSpace.LpGridRepresentation.cCoefficientInt_transmutationKernelZ_zero_one
+          (p := p) hp_top (rho := lamRoot) hlamRoot_pos hlamRoot_lt_one
+    have hden_nonneg : 0 ≤ (1 - lamRoot)⁻¹ := by
+      exact inv_nonneg.mpr (sub_nonneg.mpr hlamRoot_lt_one.le)
+    have hclaim_const_eq :
+        WeakGridSpace.transmutationClaimCEmbeddingConstant
+            G.toWeakGridSpace p q lamClaim Cclaim =
+          Cclaim ^ (1 / p.toReal) * (1 - lamRoot)⁻¹ := by
+      simp [WeakGridSpace.transmutationClaimCEmbeddingConstant,
+        GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid, hgeom_coeff]
+    have hclaim_const_le :
+        WeakGridSpace.transmutationClaimCEmbeddingConstant
+            G.toWeakGridSpace p q lamClaim Cclaim
+          ≤ (1 - lamRoot)⁻¹ := by
+      rw [hclaim_const_eq]
+      calc
+        Cclaim ^ (1 / p.toReal) * (1 - lamRoot)⁻¹
+            ≤ 1 * (1 - lamRoot)⁻¹ :=
+              mul_le_mul_of_nonneg_right hCclaim_root_le_one hden_nonneg
+        _ = (1 - lamRoot)⁻¹ := by ring
+    have hconst_le :
+        WeakGridSpace.transmutationClaimCEmbeddingConstant
+            G.toWeakGridSpace p q lamClaim Cclaim * C2
+          ≤ C2 / (1 - lamRoot) := by
+      calc
+        WeakGridSpace.transmutationClaimCEmbeddingConstant
+            G.toWeakGridSpace p q lamClaim Cclaim * C2
+            ≤ (1 - lamRoot)⁻¹ * C2 :=
+              mul_le_mul_of_nonneg_right hclaim_const_le hC2_pos.le
+        _ = C2 / (1 - lamRoot) := by ring
+    have hnormA_nonneg :
+        0 ≤ WeakGridSpace.BesovishSpace.Norm_Costpq A q f :=
+      WeakGridSpace.BesovishSpace.Norm_Costpq_nonneg
+        (WeakGridSpace.BesovishSpace.hasFiniteCostRepresentations A q) f
+    calc
+      WeakGridSpace.transmutationClaimCEmbeddingConstant
+          G.toWeakGridSpace p q lamClaim Cclaim * C2 *
+            WeakGridSpace.BesovishSpace.Norm_Costpq A q f
+          ≤ (C2 / (1 - lamRoot)) *
+              WeakGridSpace.BesovishSpace.Norm_Costpq A q f :=
+            mul_le_mul_of_nonneg_right hconst_le hnormA_nonneg
+      _ = (C2 / (1 - G.grid.lambda2 ^ (β - s))) *
+              WeakGridSpace.BesovishSpace.Norm_Costpq A q f := by
+            simp [lamRoot]
+  simpa [AS, AB] using
+    And.intro hAS_eq_A
+      (And.intro hA_eq_AB (And.intro hSouza_to_A hA_to_Souza_target))
 
 end
 

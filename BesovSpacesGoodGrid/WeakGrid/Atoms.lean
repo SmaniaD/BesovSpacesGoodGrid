@@ -8,6 +8,15 @@ import Mathlib.Analysis.Convex.Basic
 import Mathlib.LinearAlgebra.FiniteDimensional.Basic
 import Mathlib.Topology.Sequences
 
+/-!
+# Atom families on weak grids
+
+This file defines the local objects used by atomic decompositions on a weak
+grid: grid cells, local vector spaces of functions, atom families, and the basic
+support and size estimates expected of atoms.  Later files build level blocks,
+Besov-ish spaces, and transmutation results on top of these definitions.
+-/
+
 
 
 
@@ -23,9 +32,7 @@ variable {α : Type u} [MeasurableSpace α]
 
 noncomputable section
 
-/--
-Uma célula de um Weak grid, agora usando WeakGridSpace como contexto.
--/
+/-- A cell of a weak grid, carrying both its level and the underlying set. -/
 structure WeakGridCell (G : WeakGridSpace (α := α)) where
   level : ℕ
   cell : Set α

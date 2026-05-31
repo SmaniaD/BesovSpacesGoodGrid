@@ -8,6 +8,16 @@ import Mathlib.Topology.Algebra.Module.Spaces.WeakDual
 import Mathlib.Analysis.LocallyConvex.SeparatingDual
 import Mathlib.Topology.Algebra.InfiniteSum.NatInt
 
+/-!
+# Completeness for weak-grid Besov-ish spaces
+
+This file proves the compactness and limiting tools needed to show that
+Besov-ish spaces are complete for the coefficient-cost gauge.  The main
+ingredients are uniform bounds for atomic representations, diagonal extraction
+of level blocks, passage to limits in `L^p`, and construction of a limiting
+representation with controlled `(p, q)` cost.
+-/
+
 
 
 
