@@ -31,6 +31,42 @@ fi
 critical_count=0
 warning_count=0
 
+strip_lean_comments() {
+  awk '
+    {
+      out = ""
+      i = 1
+      while (i <= length($0)) {
+        two = substr($0, i, 2)
+        if (depth > 0) {
+          if (two == "/-") {
+            depth++
+            out = out "  "
+            i += 2
+          } else if (two == "-/") {
+            depth--
+            out = out "  "
+            i += 2
+          } else {
+            out = out " "
+            i++
+          }
+        } else if (two == "--") {
+          break
+        } else if (two == "/-") {
+          depth++
+          out = out "  "
+          i += 2
+        } else {
+          out = out substr($0, i, 1)
+          i++
+        }
+      }
+      print out
+    }
+  ' "$1"
+}
+
 scan_pattern() {
   local title="$1"
   local severity="$2"
@@ -38,8 +74,26 @@ scan_pattern() {
 
   local tmp
   tmp="$(mktemp)"
+  : >"$tmp"
 
-  if rg -n --color never -e "$regex" "${lean_files[@]}" >"$tmp"; then
+  local file
+  local status
+  local matches
+  for file in "${lean_files[@]}"; do
+    if matches="$(strip_lean_comments "$file" | rg -n --color never -e "$regex")"; then
+      while IFS= read -r line; do
+        printf '%s:%s\n' "$file" "$line" >>"$tmp"
+      done <<<"$matches"
+    else
+      status=$?
+      if [ "$status" -ne 1 ]; then
+        rm -f "$tmp"
+        exit "$status"
+      fi
+    fi
+  done
+
+  if [ -s "$tmp" ]; then
     echo "[${severity}] ${title}"
     cat "$tmp"
     echo
