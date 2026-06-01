@@ -1,4 +1,5 @@
 import BesovSpacesGoodGrid.GoodGrid.BesovSpace
+import UnbalancedHaarWavelet.HaarWaveletsCoeffs
 import UnbalancedHaarWavelet.HaarWavelets_def_Martingale
 
 /-!
@@ -39,24 +40,15 @@ def support (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
   | .alpha => Set.univ
   | .wavelet i => i.branchSupport (GridOf G) F.toHaarSystem
 
-/-- The `L²` square norm of the non-normalized full Haar function. -/
-def l2NormSq (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
-    (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G)) :
-    F.Index → ℝ
-  | .alpha => 1 / (G.grid.μ Set.univ).toReal
-  | .wavelet i =>
-      1 / (G.grid.μ (UnbalancedHaarWavelet.branchSupport i.branch.1.1)).toReal +
-        1 / (G.grid.μ (UnbalancedHaarWavelet.branchSupport i.branch.1.2)).toReal
-
 /--
 The scalar that turns the concrete Haar function into an `L²`-normalized one.
 
 The dependency's wavelet is denoted here by `ψ_i`; this is `1 / ‖ψ_i‖₂`, using
-the explicit square norm above.
+the square norm supplied by `UnbalancedHaarWavelet`.
 -/
 def l2NormalizationFactor (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G)) (i : F.Index) : ℝ :=
-  (Real.sqrt (l2NormSq G F i))⁻¹
+  (Real.sqrt (F.indexL2NormSq (GridOf G) i))⁻¹
 
 /--
 The `L²`-normalized full Haar function `φ_i`.
@@ -72,26 +64,16 @@ def normalizedFunction (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (UnbalancedHaarWavelet.FullHaarSystem.function (GridOf G) F i x : ℂ)
 
 /--
-The Haar coefficient against the normalized Haar function.
+The Haar coefficient against the normalized Haar function, with the
+integrability hypothesis explicit in the API.
 
-This is the manuscript's convention `d_S^f = ∫ f φ_S dm`; since `φ_S` has
-`L²` norm `1`, no extra division by `‖ψ_S‖₂²` appears.
+This is the manuscript's convention `d_i^f = ∫ f φ_i dm`, as a complex integral.
+Since `φ_i` has `L²` norm `1`, no extra division by `‖ψ_i‖₂²` appears.
 -/
-def coeff (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+def Coeff (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G))
-    (f : α → ℂ) (i : F.Index) : ℂ :=
+    (f : α → ℂ) (_hf : Integrable f G.grid.μ) (i : F.Index) : ℂ :=
   ∫ x, f x * normalizedFunction G F i x ∂G.grid.μ
-
-/--
-The real-valued Haar coefficient against the normalized Haar function.
-
-This auxiliary definition avoids coercing the input function to complex values
-when comparing with real-valued statements from `UnbalancedHaarWavelet`.
--/
-def realCoeff (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
-    (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G))
-    (f : α → ℝ) (i : F.Index) : ℝ :=
-  ∫ x, f x * (normalizedFunction G F i x).re ∂G.grid.μ
 
 /--
 Wavelet indices whose parent cell is `Q`.
@@ -125,9 +107,10 @@ normalized Haar coefficient convention fixed above.
 -/
 def cellCoeffPower (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G))
-    (p : ℝ≥0∞) (f : α → ℂ) (Q : GoodGridCell G) : ℝ≥0∞ :=
+    (p : ℝ≥0∞) (f : α → ℂ) (hf : Integrable f G.grid.μ) (Q : GoodGridCell G) :
+    ℝ≥0∞ :=
   ∑ b ∈ indicesInCell G F Q,
-    ENNReal.ofReal (‖coeff G F f (.wavelet (indexOfCellBranch G F Q b))‖ ^ p.toReal)
+    ENNReal.ofReal (‖Coeff G F f hf (.wavelet (indexOfCellBranch G F Q b))‖ ^ p.toReal)
 
 /--
 The level-`k` Haar block appearing in `N_haar`.
@@ -137,10 +120,11 @@ It is
 -/
 def levelHaarBlock (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G))
-    (s : ℝ) (p : ℝ≥0∞) (f : α → ℂ) (k : ℕ) : ℝ≥0∞ :=
+    (s : ℝ) (p : ℝ≥0∞) (f : α → ℂ) (hf : Integrable f G.grid.μ) (k : ℕ) :
+    ℝ≥0∞ :=
   ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
     ENNReal.ofReal ((G.grid.μ Q.1).toReal ^ (1 - s * p.toReal - p.toReal / 2)) *
-      cellCoeffPower G F p f
+      cellCoeffPower G F p f hf
         { level := k
           cell := Q.1
           mem := Q.2 }
@@ -152,10 +136,10 @@ This is `μ(I)^(1/p - s - 1/2) |d_I^f|`, with `I = univ`.
 -/
 def fatherTerm (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G))
-    (s : ℝ) (p : ℝ≥0∞) (f : α → ℂ) : ℝ≥0∞ :=
+    (s : ℝ) (p : ℝ≥0∞) (f : α → ℂ) (hf : Integrable f G.grid.μ) : ℝ≥0∞ :=
   ENNReal.ofReal
     ((G.grid.μ Set.univ).toReal ^ (1 / p.toReal - s - 1 / 2) *
-      ‖coeff G F f .alpha‖)
+      ‖Coeff G F f hf .alpha‖)
 
 /--
 The Haar representation gauge from the paper, using `L²`-normalized Haar
@@ -163,12 +147,12 @@ functions.
 -/
 def haarL2RepresentationNorm (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G))
-    (s : ℝ) (p q : ℝ≥0∞) (f : α → ℂ) : ℝ≥0∞ :=
-  fatherTerm G F s p f +
+    (s : ℝ) (p q : ℝ≥0∞) (f : α → ℂ) (hf : Integrable f G.grid.μ) : ℝ≥0∞ :=
+  fatherTerm G F s p f hf +
     if q = ∞ then
-      sSup (Set.range fun k => (levelHaarBlock G F s p f k) ^ (1 / p.toReal))
+      sSup (Set.range fun k => (levelHaarBlock G F s p f hf k) ^ (1 / p.toReal))
     else
-      (∑' k, (levelHaarBlock G F s p f k) ^ (q.toReal / p.toReal)) ^
+      (∑' k, (levelHaarBlock G F s p f hf k) ^ (q.toReal / p.toReal)) ^
         (1 / q.toReal)
 
 end HaarRepresentation

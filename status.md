@@ -1,13 +1,14 @@
 # Repository Status
 
-Current branch: `Atomliner`
+Current branch: `main`
 
 Last verification:
 
-- `lake build` succeeds.
+- `lake build` succeeds as of 2026-06-01.
 - `lake build BesovSpacesGoodGrid.GoodGrid.BesovAtoms` succeeds.
 - A text search finds no Lean `sorry`, no `admit`, and no project-local
   `axiom` declarations.
+- `scripts/check-proof-sanity.sh` succeeds.
 - `docpdf/Documentation.pdf` was regenerated from `docpdf/Documentation.tex`.
 
 ## Main Goal
@@ -69,6 +70,23 @@ C2 / (1 - G.grid.lambda2 ^ (β - s)).
   coefficient-cost cases.
 - `README.md`, `docpdf/Documentation.tex`, and `docpdf/Documentation.pdf` have
   been updated to describe the current state.
+- The Haar representation norm layer now uses the upstream
+  `UnbalancedHaarWavelet` coefficient API directly through
+  `HaarRepresentation.Coeff`.
+- Haar coefficients for functions are formulated for integrable complex-valued
+  functions; the previous real-part coefficient aliases have been removed.
+- The standard atomic representation file defines the manuscript constant
+  `c₂` from the good-grid constants `lambda2` and `lambda1`.
+- `tildeAtom_isSouzaAtom` is proved: each averaged Haar atom
+  `\tilde{a}_P^f` is a Souza atom on the corresponding child cell.
+- `haarBlock_eq_sum_tildeCoeff_tildeAtom_pointwise` is proved: the Haar block
+  over the branches of a good-grid cell is equal pointwise to the sum over its
+  children of `\tilde{k}_P^f \tilde{a}_P^f`.
+- The proof of the Haar block identity uses explicit finite bookkeeping:
+  cancellation of `tildeCoeff`, summation over children, and the fact that the
+  two branch sides are unions of pairwise disjoint child cells.
+- The exponent in `branchCellAtom` was corrected to use the real exponent
+  `((1 : ℝ) / 2)`.
 
 ## Important Files
 
@@ -76,6 +94,13 @@ C2 / (1 - G.grid.lambda2 ^ (β - s)).
   induced grids, transmutation, and the good-grid Besov-atom comparison layer.
 - `BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean`: Besov atoms, the Besov-to-
   Souza representation theorem, and the main Souza/Besov atom comparison.
+- `BesovSpacesGoodGrid/GoodGrid/HaarRepresentationNorm.lean`: normalized Haar
+  functions, complex Haar coefficients for integrable functions, and the Haar
+  representation norm bookkeeping.
+- `BesovSpacesGoodGrid/GoodGrid/standardRepresentation.lean`: the standard
+  atomic representation bookkeeping, the constant `c₂`, the proof that
+  `tildeAtom` is a Souza atom, and the pointwise Haar-block decomposition into
+  `tildeCoeff * tildeAtom`.
 - `BesovSpacesGoodGrid/WeakGrid/Transmutation.lean`: Claims I, II, III, and the
   explicit Claim C embedding theorem.
 - `BesovSpacesGoodGrid/WeakGrid/InducedGrid.lean`: induced weak-grid API and
@@ -88,14 +113,17 @@ There is no remaining `sorry`-based proof obligation in the Lean files.
 
 Likely next steps are:
 
-1. Decide whether `GoodGrid/Distribution.lean` and `Sums.lean` should be
+1. Connect the finite standard atomic representation lemmas to any desired
+   global/infinite representation theorem, if that is the next manuscript
+   target.
+2. Decide whether `GoodGrid/Distribution.lean` and `Sums.lean` should be
    imported by the root module or kept as opt-in modules.
-2. Continue polishing public docstrings in the large proof files, especially
+3. Continue polishing public docstrings in the large proof files, especially
    `WeakGrid/Transmutation.lean`, `WeakGrid/Completeness.lean`, and
    `GoodGrid/BesovAtoms.lean`.
-3. Consider factoring large proof-heavy files into smaller topic-focused files
+4. Consider factoring large proof-heavy files into smaller topic-focused files
    if navigation or compilation time becomes an issue.
-4. Add downstream examples showing how the weak-grid theorems specialize to
+5. Add downstream examples showing how the weak-grid theorems specialize to
    concrete good-grid Besov spaces.
 
 ## Notes
