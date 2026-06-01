@@ -28,28 +28,16 @@ abbrev GridOf (G : GoodGridSpace (α := α)) : UnbalancedHaarWavelet.Grid (α :=
   G.grid.toGrid
 
 /--
-The set-theoretic support of a non-father Haar index.
-
-For an unbalanced Haar branch, the dependency stores the two children of the
-branch separately.  The support is their union, equivalently the branch support
-already attached to the index.
--/
-def waveletSupport (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
-    (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G))
-    (i : F.toHaarSystem.Index) : Set α :=
-  i.branchSupport (GridOf G) F.toHaarSystem
-
-/--
 The support used for full Haar indices.
 
 The father function is supported on the whole space.  A wavelet index uses its
-ordinary branch support.
+ordinary branch support from `UnbalancedHaarWavelet`.
 -/
 def support (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G)) :
     F.Index → Set α
   | .alpha => Set.univ
-  | .wavelet i => waveletSupport G F i
+  | .wavelet i => i.branchSupport (GridOf G) F.toHaarSystem
 
 /-- The `L²` square norm of the non-normalized full Haar function. -/
 def l2NormSq (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]

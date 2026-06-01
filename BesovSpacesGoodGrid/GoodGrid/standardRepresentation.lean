@@ -31,12 +31,15 @@ namespace StandardAtomicRepresentation
 Children of a good-grid cell at the next level.
 
 This is the formal version of the family
-`{P ∈ P^{k+1} | P ⊆ Q}`.
+`{P ∈ P^{k+1} | P ⊆ Q}`.  The underlying finite set is the
+`childrenFinset` already provided by `UnbalancedHaarWavelet`; this wrapper only
+repackages each child as a level cell of the weak grid induced by the good
+grid.
 -/
 def childrenOfCell (G : GoodGridSpace (α := α)) (Q : GoodGridCell G) :
-    Finset (WeakGridSpace.LevelCell G.toWeakGridSpace (Q.level + 1)) := by
-  classical
-  exact Finset.univ.filter fun P => P.1 ⊆ Q.cell
+    Finset (WeakGridSpace.LevelCell G.toWeakGridSpace (Q.level + 1)) :=
+  ((HaarRepresentation.GridOf G).childrenFinset Q.level Q.cell).attach.image fun P =>
+    ⟨P.1, ((HaarRepresentation.GridOf G).mem_childrenFinset_iff Q.level Q.cell P.1).1 P.2 |>.1⟩
 
 /-- A child level cell, repackaged as a `GoodGridCell`. -/
 def childToGoodGridCell {G : GoodGridSpace (α := α)} {Q : GoodGridCell G}
