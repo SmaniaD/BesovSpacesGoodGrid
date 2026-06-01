@@ -9,6 +9,7 @@ import BesovSpacesGoodGrid.WeakGrid.InducedGrid
 import BesovSpacesGoodGrid.GoodGrid.BesovAtoms
 import BesovSpacesGoodGrid.GoodGrid.HaarRepresentationNorm
 import BesovSpacesGoodGrid.GoodGrid.standardRepresentation
+import BesovSpacesGoodGrid.GoodGrid.MeanOscillationNorm
 
 /-!
 # Besov spaces over weak grids and good grids
