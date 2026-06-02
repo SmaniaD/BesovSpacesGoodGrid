@@ -2856,10 +2856,10 @@ def standardLevelCoeffPower (G : GoodGridSpace (α := α)) [DecidableEq (Set α)
 /--
 The standard atomic representation gauge `N_st`.
 
-This is exactly the generic `(p,q)` coefficient cost of the packaged standard
-Souza representation.  Keeping the definition as an alias to
-`WeakGridSpace.LpGridRepresentation.pqCost` makes the standard representation
-compatible with the rest of the weak-grid API by definition.
+This is exactly the extended generic `(p,q)` coefficient cost of the packaged
+standard Souza representation.  It takes values in `ℝ≥0∞`, so non-summable
+coefficient data is recorded as `∞`, matching the Haar gauges used elsewhere in
+the good-grid development.
 -/
 def standardRepresentationNorm
     (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
@@ -2868,9 +2868,9 @@ def standardRepresentationNorm
     (s : ℝ) (hs : 0 < s)
     (p : ℝ≥0∞) (hp_one : 1 < p) (hp_top : p < ∞)
     (q : ℝ≥0∞)
-    (f : α → ℂ) (hf : MemLp f p G.grid.μ) : ℝ :=
+    (f : α → ℂ) (hf : MemLp f p G.grid.μ) : ℝ≥0∞ :=
   letI : Fact (1 ≤ p) := ⟨le_of_lt hp_one⟩
-  WeakGridSpace.LpGridRepresentation.pqCost (q := q)
+  WeakGridSpace.LpGridRepresentation.pqCostENNReal (q := q)
     (standardLpGridRepresentation G F s hs p hp_one hp_top f hf)
 
 end StandardAtomicRepresentation

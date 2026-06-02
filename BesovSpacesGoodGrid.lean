@@ -9,6 +9,7 @@ import BesovSpacesGoodGrid.WeakGrid.InducedGrid
 import BesovSpacesGoodGrid.GoodGrid.BesovAtoms
 import BesovSpacesGoodGrid.GoodGrid.HaarRepresentationNorm
 import BesovSpacesGoodGrid.GoodGrid.HaarParametrizedRepresentation
+import BesovSpacesGoodGrid.GoodGrid.ComparingHaarRepresentationsl
 import BesovSpacesGoodGrid.GoodGrid.standardRepresentation
 import BesovSpacesGoodGrid.GoodGrid.MeanOscillationNorm
 
