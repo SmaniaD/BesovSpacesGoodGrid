@@ -2840,8 +2840,8 @@ def standardLpGridRepresentation
 /--
 The level contribution in the standard atomic gauge.
 
-Level `0` is handled by the father term in `standardRepresentationNorm`; this
-block records the child coefficients created from Haar blocks at level `k`.
+This records the child coefficients created from Haar blocks at parent level
+`k`; in the packaged representation they appear at level `k + 1`.
 -/
 def standardLevelCoeffPower (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
@@ -2856,18 +2856,22 @@ def standardLevelCoeffPower (G : GoodGridSpace (α := α)) [DecidableEq (Set α)
 /--
 The standard atomic representation gauge `N_st`.
 
-It is allowed to take the value `∞`, since the coefficient series need not be
-finite for an arbitrary input function.
+This is exactly the generic `(p,q)` coefficient cost of the packaged standard
+Souza representation.  Keeping the definition as an alias to
+`WeakGridSpace.LpGridRepresentation.pqCost` makes the standard representation
+compatible with the rest of the weak-grid API by definition.
 -/
-def standardRepresentationNorm (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+def standardRepresentationNorm
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
-    (s : ℝ) (p q : ℝ≥0∞) (f : α → ℂ) (hf : Integrable f G.grid.μ) : ℝ≥0∞ :=
-  ENNReal.ofReal ‖fatherCoeff G F s p f hf‖ +
-    if q = ∞ then
-      sSup (Set.range fun k => (standardLevelCoeffPower G F s p f hf k) ^ (1 / p.toReal))
-    else
-      (∑' k, (standardLevelCoeffPower G F s p f hf k) ^ (q.toReal / p.toReal)) ^
-        (1 / q.toReal)
+    [DecidableEq F.Index]
+    (s : ℝ) (hs : 0 < s)
+    (p : ℝ≥0∞) (hp_one : 1 < p) (hp_top : p < ∞)
+    (q : ℝ≥0∞)
+    (f : α → ℂ) (hf : MemLp f p G.grid.μ) : ℝ :=
+  letI : Fact (1 ≤ p) := ⟨le_of_lt hp_one⟩
+  WeakGridSpace.LpGridRepresentation.pqCost (q := q)
+    (standardLpGridRepresentation G F s hs p hp_one hp_top f hf)
 
 end StandardAtomicRepresentation
 
