@@ -1994,6 +1994,850 @@ def standardChildCoeff (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
         0
 
 /--
+The standard coefficient is the manuscript's finite Haar formula at the
+representative point of the child cell.
+
+This is mostly a naming lemma: `standardChildCoeff` was defined with the
+compatibility alias `normalizedFunction`, while the paper-facing notation in
+`HaarRepresentationNorm` is `L2normalizedHaar`.
+-/
+theorem standardChildCoeff_eq_sum_l2normalizedHaar_at_cellPoint
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (Q : GoodGridCell G)
+    (P : WeakGridSpace.LevelCell G.toWeakGridSpace (Q.level + 1)) :
+    standardChildCoeff G F s p f hf Q P = by
+      classical
+      exact
+        (((G.grid.μ P.1).toReal ^ (-(s - 1 / p.toReal)) : ℝ) : ℂ) *
+          ∑ b ∈ HaarRepresentation.indicesInCell G F Q,
+            if branchContainsCell G F Q P b then
+              HaarRepresentation.Coeff G F f hf
+                  (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)) *
+                HaarRepresentation.L2normalizedHaar G F
+                  (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))
+                  (cellPoint G (childToGoodGridCell (G := G) (Q := Q) P))
+            else
+              0 := by
+  classical
+  simp only [standardChildCoeff, HaarRepresentation.normalizedFunction,
+    HaarRepresentation.L2normalizedHaar]
+
+/--
+The same coefficient formula with the Haar coefficients expanded as concrete
+integrals.
+
+This is the finite-sum version of the kernel formula
+`∫ f · (Σ φ_S(x_P) φ_S)`.  Keeping the sum outside the integral makes the
+statement line up directly with `HaarRepresentation.Coeff`.
+-/
+theorem standardChildCoeff_eq_sum_integral_l2normalizedHaar_at_cellPoint
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (Q : GoodGridCell G)
+    (P : WeakGridSpace.LevelCell G.toWeakGridSpace (Q.level + 1)) :
+    standardChildCoeff G F s p f hf Q P = by
+      classical
+      exact
+        (((G.grid.μ P.1).toReal ^ (-(s - 1 / p.toReal)) : ℝ) : ℂ) *
+          ∑ b ∈ HaarRepresentation.indicesInCell G F Q,
+            if branchContainsCell G F Q P b then
+              (∫ x, f x *
+                HaarRepresentation.L2normalizedHaar G F
+                  (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)) x ∂G.grid.μ) *
+                HaarRepresentation.L2normalizedHaar G F
+                  (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))
+                  (cellPoint G (childToGoodGridCell (G := G) (Q := Q) P))
+            else
+              0 := by
+  rw [standardChildCoeff_eq_sum_l2normalizedHaar_at_cellPoint]
+  simp only [HaarRepresentation.Coeff]
+
+/--
+The `L¹` functional represented by the standard coefficient on a fixed child
+cell.
+
+The kernel is a finite linear combination of bounded normalized Haar functions,
+so the formula extends from concrete integrable functions to a continuous
+linear functional on `L¹`.
+-/
+def standardChildCoeffFunctionalL1
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞)
+    (Q : GoodGridCell G)
+    (P : WeakGridSpace.LevelCell G.toWeakGridSpace (Q.level + 1)) :
+    Lp ℂ (1 : ℝ≥0∞) G.grid.μ →L[ℂ] ℂ := by
+  classical
+  haveI : ENNReal.HolderConjugate (1 : ℝ≥0∞) (∞ : ℝ≥0∞) := by
+    rw [ENNReal.holderConjugate_iff]
+    simp
+  letI : Fact (1 ≤ (1 : ℝ≥0∞)) := ⟨le_rfl⟩
+  letI : Fact (1 ≤ (∞ : ℝ≥0∞)) := ⟨le_top⟩
+  exact
+    (((G.grid.μ P.1).toReal ^ (-(s - 1 / p.toReal)) : ℝ) : ℂ) •
+      ∑ b ∈ HaarRepresentation.indicesInCell G F Q,
+        if branchContainsCell G F Q P b then
+          HaarRepresentation.L2normalizedHaar G F
+              (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))
+              (cellPoint G (childToGoodGridCell (G := G) (Q := Q) P)) •
+            (((ContinuousLinearMap.mul ℂ ℂ).lpPairing G.grid.μ
+                  (1 : ℝ≥0∞) (∞ : ℝ≥0∞)).flip
+              ((HaarRepresentation.l2normalizedHaar_memLp G F (∞ : ℝ≥0∞)
+                    (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))).toLp
+                (HaarRepresentation.L2normalizedHaar G F
+                  (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)))))
+        else
+          0
+
+/--
+On an `L¹` representative, the continuous functional is the concrete standard
+coefficient `k_P^f`.
+-/
+theorem standardChildCoeffFunctionalL1_toLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (f : α → ℂ) (hf : MemLp f (1 : ℝ≥0∞) G.grid.μ)
+    (Q : GoodGridCell G)
+    (P : WeakGridSpace.LevelCell G.toWeakGridSpace (Q.level + 1)) :
+    standardChildCoeffFunctionalL1 G F s p Q P (hf.toLp f) =
+      (by
+        letI : IsFiniteMeasure G.grid.μ := G.grid.isFinite
+        exact standardChildCoeff G F s p f (hf.integrable le_rfl) Q P) := by
+  classical
+  letI : IsFiniteMeasure G.grid.μ := G.grid.isFinite
+  haveI : ENNReal.HolderConjugate (1 : ℝ≥0∞) (∞ : ℝ≥0∞) := by
+    rw [ENNReal.holderConjugate_iff]
+    simp
+  letI : Fact (1 ≤ (1 : ℝ≥0∞)) := ⟨le_rfl⟩
+  letI : Fact (1 ≤ (∞ : ℝ≥0∞)) := ⟨le_top⟩
+  have hpair
+      (b : {r : Finset (Set α) × Finset (Set α) //
+        r ∈ (F.toHaarSystem.binaryRefinement.tree Q.level Q.cell Q.mem).Branches}) :
+      (((ContinuousLinearMap.mul ℂ ℂ).lpPairing G.grid.μ
+            (1 : ℝ≥0∞) (∞ : ℝ≥0∞)).flip
+        ((HaarRepresentation.l2normalizedHaar_memLp G F (∞ : ℝ≥0∞)
+              (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))).toLp
+          (HaarRepresentation.L2normalizedHaar G F
+            (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)))))
+          (hf.toLp f) =
+        HaarRepresentation.Coeff G F f (hf.integrable le_rfl)
+          (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)) := by
+    rw [HaarRepresentation.Coeff]
+    change (ContinuousLinearMap.mul ℂ ℂ).lpPairing G.grid.μ
+        (1 : ℝ≥0∞) (∞ : ℝ≥0∞) (hf.toLp f)
+          ((HaarRepresentation.l2normalizedHaar_memLp G F (∞ : ℝ≥0∞)
+              (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))).toLp
+            (HaarRepresentation.L2normalizedHaar G F
+              (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)))) =
+        ∫ x, f x *
+          HaarRepresentation.L2normalizedHaar G F
+            (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)) x ∂G.grid.μ
+    rw [ContinuousLinearMap.lpPairing_eq_integral]
+    apply integral_congr_ae
+    filter_upwards
+      [MemLp.coeFn_toLp hf,
+        MemLp.coeFn_toLp
+          (HaarRepresentation.l2normalizedHaar_memLp G F (∞ : ℝ≥0∞)
+            (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)))] with x hxf hxhaar
+    simp [hxf, hxhaar]
+  rw [standardChildCoeff_eq_sum_l2normalizedHaar_at_cellPoint]
+  unfold standardChildCoeffFunctionalL1
+  simp only [ContinuousLinearMap.smul_apply, ContinuousLinearMap.sum_apply]
+  apply congrArg
+    (fun z : ℂ =>
+      (((G.grid.μ P.1).toReal ^ (-(s - 1 / p.toReal)) : ℝ) : ℂ) * z)
+  refine Finset.sum_congr rfl ?_
+  intro b hb
+  by_cases hbP : branchContainsCell G F Q P b
+  · simp [hbP, hpair b, mul_comm]
+  · simp [hbP]
+
+/--
+The canonical coefficient and the canonical Souza atom recover the older
+`tildeCoeff * tildeAtom` term.
+
+This is the formal version of replacing `\tilde{k}_P^f \tilde{a}_P^f` by
+`k_P^f a_P`, where `a_P` is the canonical Souza atom on `P`.
+-/
+theorem standardChildCoeff_mul_canonicalSouzaAtom_eq_tildeCoeff_mul_tildeAtom
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (Q : GoodGridCell G)
+    (P : WeakGridSpace.LevelCell G.toWeakGridSpace (Q.level + 1)) (x : α) :
+    standardChildCoeff G F s p f hf Q P *
+        canonicalSouzaAtom G s p (childToGoodGridCell (G := G) (Q := Q) P) x =
+      ((tildeCoeff G F (c₂ G) p s f hf Q P : ℝ) : ℂ) *
+        tildeAtom G F (c₂ G) p s f hf Q P x := by
+  classical
+  let Pcell := childToGoodGridCell (G := G) (Q := Q) P
+  by_cases hx : x ∈ P.1
+  · have hpoint : cellPoint G Pcell ∈ P.1 := by
+      simpa [Pcell] using cellPoint_mem G Pcell
+    have htilde_const :
+        tildeAtom G F (c₂ G) p s f hf Q P x =
+          tildeAtom G F (c₂ G) p s f hf Q P (cellPoint G Pcell) := by
+      rcases tildeAtom_isSouzaAtom G F p s f hf Q P with ⟨_, c, hc, _⟩
+      rw [hc x (by simpa [Pcell] using hx),
+        hc (cellPoint G Pcell) (by simpa [Pcell] using hpoint)]
+    have hsum_point :
+        ((tildeCoeff G F (c₂ G) p s f hf Q P : ℝ) : ℂ) *
+            tildeAtom G F (c₂ G) p s f hf Q P (cellPoint G Pcell) =
+          ∑ b ∈ HaarRepresentation.indicesInCell G F Q,
+            if branchContainsCell G F Q P b then
+              HaarRepresentation.Coeff G F f hf
+                  (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)) *
+                HaarRepresentation.normalizedFunction G F
+                  (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))
+                  (cellPoint G Pcell)
+            else
+              0 := by
+      rw [tildeCoeff_mul_tildeAtom_eq_sum_branchCell G F p s f hf Q P (cellPoint G Pcell)]
+      refine Finset.sum_congr rfl ?_
+      intro b hb
+      by_cases hbP : branchContainsCell G F Q P b
+      · simp [hbP, branchCellCoeff_mul_branchCellAtom_eq G F p s f hf Q P b hpoint]
+      · simp [hbP]
+    let m := (G.grid.μ P.1).toReal
+    let r := s - (p.toReal)⁻¹
+    have hm_pos : 0 < m := by
+      have hm_pos_en : 0 < G.grid.μ P.1 :=
+        G.grid.positive_measure (Q.level + 1) P.1 P.2
+      letI : IsFiniteMeasure G.grid.μ := G.grid.isFinite
+      have hm_ne_top : G.grid.μ P.1 ≠ ∞ :=
+        MeasureTheory.measure_ne_top G.grid.μ P.1
+      exact ENNReal.toReal_pos hm_pos_en.ne' hm_ne_top
+    have hcancelC :
+        (((m ^ (-r) : ℝ) : ℂ) * ((m ^ r : ℝ) : ℂ)) = 1 := by
+      norm_num [← Complex.ofReal_mul]
+      rw [← Real.rpow_add hm_pos]
+      ring_nf
+      simp
+    have hcanon_on :
+        canonicalSouzaAtom G s p Pcell x = (((m ^ r : ℝ) : ℂ)) := by
+      have hxPcell : x ∈ Pcell.cell := by
+        simpa [Pcell] using hx
+      simp [canonicalSouzaAtom, hxPcell, Pcell, m, r]
+      change (G.grid.μ P.1).toReal ^ (s - p.toReal⁻¹) =
+        (G.grid.μ P.1).toReal ^ (s - p.toReal⁻¹)
+      rfl
+    have hcoeff_def :
+        standardChildCoeff G F s p f hf Q P =
+          ((m ^ (-r) : ℝ) : ℂ) *
+            ∑ b ∈ HaarRepresentation.indicesInCell G F Q,
+              if branchContainsCell G F Q P b then
+                HaarRepresentation.Coeff G F f hf
+                    (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)) *
+                  HaarRepresentation.normalizedFunction G F
+                    (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))
+                    (cellPoint G Pcell)
+              else
+                0 := by
+      simp [standardChildCoeff, Pcell, m, r, one_div]
+    calc
+      standardChildCoeff G F s p f hf Q P *
+          canonicalSouzaAtom G s p Pcell x
+          =
+        (((m ^ (-r) : ℝ) : ℂ) *
+          ∑ b ∈ HaarRepresentation.indicesInCell G F Q,
+            if branchContainsCell G F Q P b then
+              HaarRepresentation.Coeff G F f hf
+                  (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)) *
+                HaarRepresentation.normalizedFunction G F
+                  (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))
+                  (cellPoint G Pcell)
+            else
+              0) * ((m ^ r : ℝ) : ℂ) := by
+            rw [hcanon_on, hcoeff_def]
+      _ =
+        ∑ b ∈ HaarRepresentation.indicesInCell G F Q,
+          if branchContainsCell G F Q P b then
+            HaarRepresentation.Coeff G F f hf
+                (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)) *
+              HaarRepresentation.normalizedFunction G F
+                (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))
+                (cellPoint G Pcell)
+          else
+            0 := by
+          rw [mul_assoc, mul_comm _ (((m ^ r : ℝ) : ℂ)), ← mul_assoc, hcancelC]
+          simp
+      _ =
+        ((tildeCoeff G F (c₂ G) p s f hf Q P : ℝ) : ℂ) *
+          tildeAtom G F (c₂ G) p s f hf Q P x := by
+          rw [htilde_const]
+          exact hsum_point.symm
+  · have hcanon :
+        canonicalSouzaAtom G s p Pcell x = 0 := by
+      have hxPcell : x ∉ Pcell.cell := by
+        simpa [Pcell] using hx
+      simp [canonicalSouzaAtom, hxPcell]
+    have htilde :
+        tildeAtom G F (c₂ G) p s f hf Q P x = 0 :=
+      tildeAtom_eq_zero_of_not_mem G F (c₂ G) p s f hf Q P hx
+    rw [hcanon, htilde]
+    simp
+
+/--
+The standard block over one parent cell, written with canonical Souza atoms.
+-/
+def canonicalStandardCellBlockFunction
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (Q : GoodGridCell G) (x : α) : ℂ :=
+  ∑ P ∈ childrenOfCell G Q,
+    standardChildCoeff G F s p f hf Q P *
+      canonicalSouzaAtom G s p (childToGoodGridCell (G := G) (Q := Q) P) x
+
+/--
+The canonical-Souza version of one parent-cell block agrees pointwise with the
+previous `tildeCoeff * tildeAtom` block.
+-/
+theorem canonicalStandardCellBlock_eq_standardCellBlock_pointwise
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (Q : GoodGridCell G) (x : α) :
+    canonicalStandardCellBlockFunction G F p s f hf Q x =
+      standardCellBlockFunction G F p s f hf Q x := by
+  classical
+  unfold canonicalStandardCellBlockFunction standardCellBlockFunction
+  refine Finset.sum_congr rfl ?_
+  intro P hP
+  exact standardChildCoeff_mul_canonicalSouzaAtom_eq_tildeCoeff_mul_tildeAtom
+    G F p s f hf Q P x
+
+/--
+The standard level block, written with canonical Souza atoms on the children of
+level-`k` cells.
+-/
+def canonicalStandardLevelBlockFunction
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (k : ℕ) (x : α) : ℂ :=
+  ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+    canonicalStandardCellBlockFunction G F p s f hf
+      ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) x
+
+/--
+The canonical-Souza level block agrees pointwise with the previous standard
+level block.
+-/
+theorem canonicalStandardLevelBlock_eq_standardLevelBlock_pointwise
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (k : ℕ) (x : α) :
+    canonicalStandardLevelBlockFunction G F p s f hf k x =
+      standardLevelBlockFunction G F p s f hf k x := by
+  classical
+  unfold canonicalStandardLevelBlockFunction standardLevelBlockFunction
+  refine Finset.sum_congr rfl ?_
+  intro Q hQ
+  exact canonicalStandardCellBlock_eq_standardCellBlock_pointwise G F p s f hf
+    ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) x
+
+/-- The canonical-Souza level block belongs to `L^β`. -/
+theorem canonicalStandardLevelBlock_memLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (k : ℕ) :
+    MemLp (canonicalStandardLevelBlockFunction G F p s f hf k) β G.grid.μ := by
+  refine (memLp_congr_ae ?_).1 (standardLevelBlock_memLp G F β p s f hf k)
+  exact Filter.Eventually.of_forall fun x =>
+    (canonicalStandardLevelBlock_eq_standardLevelBlock_pointwise G F p s f hf k x).symm
+
+/-- The canonical-Souza standard block at level `k`, viewed in `L^β`. -/
+def canonicalStandardLevelBlockToLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (k : ℕ) : Lp ℂ β G.grid.μ :=
+  (canonicalStandardLevelBlock_memLp G F β p s f hf k).toLp
+    (canonicalStandardLevelBlockFunction G F p s f hf k)
+
+/--
+The canonical-Souza `Lp` level block is the same vector as the earlier standard
+level block.
+-/
+theorem canonicalStandardLevelBlockToLp_eq_standardLevelBlockToLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (k : ℕ) :
+    canonicalStandardLevelBlockToLp G F β p s f hf k =
+      standardLevelBlockToLp G F β p s f hf k := by
+  refine MeasureTheory.MemLp.toLp_congr
+    (canonicalStandardLevelBlock_memLp G F β p s f hf k)
+    (standardLevelBlock_memLp G F β p s f hf k) ?_
+  exact Filter.Eventually.of_forall fun x =>
+    canonicalStandardLevelBlock_eq_standardLevelBlock_pointwise G F p s f hf k x
+
+/--
+The global standard expansion using canonical Souza atoms.
+
+The `none` term is the father Haar term; `some k` is the level-`k` sum of
+canonical Souza atoms.
+-/
+def canonicalStandardExpansionTermToLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ) :
+    Option ℕ → Lp ℂ β G.grid.μ
+  | none => fatherHaarTermToLp G F β f hf
+  | some k => canonicalStandardLevelBlockToLp G F β p s f hf k
+
+/--
+For `1 < β < ∞`, the father term plus the canonical-Souza standard blocks
+converge in `L^β` to `f`.
+-/
+theorem hasSum_canonicalStandardExpansionTermToLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    [DecidableEq F.Index]
+    (β : ℝ≥0∞) (hβ_one : 1 < β) (hβ_top : β < ∞)
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : MemLp f β G.grid.μ) :
+    letI : Fact (1 ≤ β) := ⟨le_of_lt hβ_one⟩
+    HasSum
+      (canonicalStandardExpansionTermToLp G F β p s f
+        (by
+          letI : IsFiniteMeasure G.grid.μ := (HaarRepresentation.GridOf G).isFinite
+          exact hf.integrable (le_of_lt hβ_one)))
+      (hf.toLp f) := by
+  classical
+  letI : Fact (1 ≤ β) := ⟨le_of_lt hβ_one⟩
+  let hfint : Integrable f G.grid.μ := by
+    letI : IsFiniteMeasure G.grid.μ := (HaarRepresentation.GridOf G).isFinite
+    exact hf.integrable (le_of_lt hβ_one)
+  have h :
+      canonicalStandardExpansionTermToLp G F β p s f hfint =
+        standardExpansionTermToLp G F β p s f hfint := by
+    funext ok
+    cases ok with
+    | none => rfl
+    | some k =>
+        exact canonicalStandardLevelBlockToLp_eq_standardLevelBlockToLp G F β p s f hfint k
+  rw [h]
+  exact hasSum_standardExpansionTermToLp G F β hβ_one hβ_top p s f hf
+
+/--
+The canonical Souza level block at level `k + 1` associated with the standard
+Haar block over parents at level `k`.
+
+For a child cell `P`, the coefficient is written as a finite sum over all
+level-`k` parents, with the summand zero unless `P` is a child of that parent.
+This avoids choosing a parent function and makes later finite-sum rewrites
+straightforward.
+-/
+def canonicalStandardPositiveLevelBlock
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) (k : ℕ) :
+    WeakGridSpace.LevelBlock (souzaAtomFamily G s p hs hp hp_top) (k + 1) where
+  coeff := fun P =>
+    ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+      let Qg : GoodGridCell G := { level := k, cell := Q.1, mem := Q.2 }
+      if hP : P ∈ childrenOfCell G Qg then
+        standardChildCoeff G F s p f hf Qg P
+      else
+        0
+  atom := fun P =>
+    (((G.grid.μ P.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ)
+  atom_mem := by
+    intro P
+    change ‖((((G.grid.μ P.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ))‖ ≤
+      (G.grid.μ P.1).toReal ^ (s - (p.toReal)⁻¹)
+    have hnonneg :
+        0 ≤ (G.grid.μ P.1).toReal ^ (s - (p.toReal)⁻¹) :=
+      Real.rpow_nonneg ENNReal.toReal_nonneg _
+    simp [Complex.norm_real, Real.norm_of_nonneg hnonneg]
+
+/--
+The pointwise function represented by the positive standard `LevelBlock` is the
+canonical-Souza level block already used in the Haar regrouping proof.
+-/
+theorem canonicalStandardPositiveLevelBlock_toFunLt
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) (k : ℕ) (x : α) :
+    (canonicalStandardPositiveLevelBlock G F s p hs hp hp_top f hf k).toFunLt
+        (souzaAtomFamily G s p hs hp hp_top) x =
+      canonicalStandardLevelBlockFunction G F p s f hf k x := by
+  classical
+  unfold WeakGridSpace.LevelBlock.toFunLt canonicalStandardPositiveLevelBlock
+    canonicalStandardLevelBlockFunction canonicalStandardCellBlockFunction
+  simp only [GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid,
+    WeakGridSpace.levelCellToWeakGridCell, WeakGridSpace.AtomFamily.toFunction,
+    souzaAtomFamily, souzaLocalVectorSpace]
+  simp_rw [Finset.sum_mul]
+  rw [Finset.sum_comm]
+  refine Finset.sum_congr rfl ?_
+  intro Q hQ
+  let Qg : GoodGridCell G := { level := k, cell := Q.1, mem := Q.2 }
+  have hchildren :
+      (∑ P : WeakGridSpace.LevelCell G.toWeakGridSpace (k + 1),
+          if P ∈ childrenOfCell G Qg then
+            standardChildCoeff G F s p f hf Qg P *
+              (Set.indicator P.1
+                (fun _ =>
+                  (((G.grid.μ P.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ)) x)
+          else
+            0) =
+        ∑ P ∈ childrenOfCell G Qg,
+          standardChildCoeff G F s p f hf Qg P *
+            canonicalSouzaAtom G s p (childToGoodGridCell (G := G) (Q := Qg) P) x := by
+    let term : WeakGridSpace.LevelCell G.toWeakGridSpace (k + 1) → ℂ := fun P =>
+      standardChildCoeff G F s p f hf Qg P *
+        (Set.indicator P.1
+          (fun _ => (((G.grid.μ P.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ)) x)
+    calc
+      (∑ P : WeakGridSpace.LevelCell G.toWeakGridSpace (k + 1),
+          if P ∈ childrenOfCell G Qg then term P else 0)
+          =
+        ∑ P ∈ (Finset.univ :
+            Finset (WeakGridSpace.LevelCell G.toWeakGridSpace (k + 1))),
+          if P ∈ childrenOfCell G Qg then term P else 0 := by
+          simp
+      _ =
+        ∑ P ∈ ((Finset.univ :
+            Finset (WeakGridSpace.LevelCell G.toWeakGridSpace (k + 1))).filter
+              (fun P => P ∈ childrenOfCell G Qg)),
+          term P := by
+          rw [Finset.sum_filter]
+      _ =
+        ∑ P ∈ childrenOfCell G Qg,
+          term P := by
+          refine Finset.sum_congr ?_ ?_
+          · ext P
+            simp
+          · intro P hP
+            rfl
+      _ =
+        ∑ P ∈ childrenOfCell G Qg,
+          standardChildCoeff G F s p f hf Qg P *
+            canonicalSouzaAtom G s p (childToGoodGridCell (G := G) (Q := Qg) P) x := by
+          refine Finset.sum_congr rfl ?_
+          intro P hP
+          simp [term, canonicalSouzaAtom, childToGoodGridCell, Set.indicator_apply]
+  have hleft :
+      (∑ P : WeakGridSpace.LevelCell G.toWeakGridSpace (k + 1),
+          (if hP : P ∈ childrenOfCell G Qg then
+            standardChildCoeff G F s p f hf Qg P
+          else
+            0) *
+            (Set.indicator P.1
+              (fun _ =>
+                (((G.grid.μ P.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ)) x)) =
+        ∑ P : WeakGridSpace.LevelCell G.toWeakGridSpace (k + 1),
+          if P ∈ childrenOfCell G Qg then
+            standardChildCoeff G F s p f hf Qg P *
+              (Set.indicator P.1
+                (fun _ =>
+                  (((G.grid.μ P.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ)) x)
+          else
+            0 := by
+    refine Finset.sum_congr rfl ?_
+    intro P hP
+    by_cases h : P ∈ childrenOfCell G Qg <;> simp [h]
+  change
+    (∑ P : WeakGridSpace.LevelCell G.toWeakGridSpace (k + 1),
+        (if hP : P ∈ childrenOfCell G Qg then
+          standardChildCoeff G F s p f hf Qg P
+        else
+          0) *
+          (Set.indicator P.1
+            (fun _ =>
+              (((G.grid.μ P.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ)) x)) =
+      ∑ P ∈ childrenOfCell G Qg,
+        standardChildCoeff G F s p f hf Qg P *
+          canonicalSouzaAtom G s p (childToGoodGridCell (G := G) (Q := Qg) P) x
+  rw [hleft]
+  exact hchildren
+
+/--
+The positive standard `LevelBlock` gives the same `Lp` element as the
+canonical-Souza level block used in the regrouped Haar expansion.
+-/
+theorem canonicalStandardPositiveLevelBlock_toLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) (k : ℕ) :
+    (canonicalStandardPositiveLevelBlock G F s p hs hp hp_top f hf k).toLp
+        (souzaAtomFamily G s p hs hp hp_top) =
+      canonicalStandardLevelBlockToLp G F p p s f hf k := by
+  apply MeasureTheory.Lp.ext
+  refine
+    (WeakGridSpace.LevelBlock.coeFn_toLp
+      (souzaAtomFamily G s p hs hp hp_top)
+      (canonicalStandardPositiveLevelBlock G F s p hs hp hp_top f hf k)).trans ?_
+  have hfun :
+      (canonicalStandardPositiveLevelBlock G F s p hs hp hp_top f hf k).toFunLt
+          (souzaAtomFamily G s p hs hp hp_top)
+        =ᵐ[G.grid.μ]
+      canonicalStandardLevelBlockFunction G F p s f hf k :=
+    Filter.Eventually.of_forall fun x =>
+      canonicalStandardPositiveLevelBlock_toFunLt G F s p hs hp hp_top f hf k x
+  exact hfun.trans
+    (MemLp.coeFn_toLp (canonicalStandardLevelBlock_memLp G F p p s f hf k)).symm
+
+private theorem l2normalizedHaar_alpha_const
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (x y : α) :
+    HaarRepresentation.L2normalizedHaar G F
+        (UnbalancedHaarWavelet.FullHaarSystem.Index.alpha : F.Index) x =
+      HaarRepresentation.L2normalizedHaar G F
+        (UnbalancedHaarWavelet.FullHaarSystem.Index.alpha : F.Index) y := by
+  simp [HaarRepresentation.L2normalizedHaar, HaarRepresentation.l2NormalizationFactor,
+    UnbalancedHaarWavelet.FullHaarSystem.function, F.alphaFunction_def,
+    UnbalancedHaarWavelet.normalizedAlphaFunction]
+
+/-- The Souza level block which represents the normalized Haar father term. -/
+def canonicalStandardFatherLevelBlock
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) :
+    WeakGridSpace.LevelBlock (souzaAtomFamily G s p hs hp hp_top) 0 where
+  coeff := fun Q =>
+    let Qg : GoodGridCell G := { level := 0, cell := Q.1, mem := Q.2 }
+    let r : ℝ := (G.grid.μ Q.1).toReal ^ (s - (p.toReal)⁻¹)
+    HaarRepresentation.Coeff G F f hf .alpha *
+      HaarRepresentation.L2normalizedHaar G F .alpha (cellPoint G Qg) / (r : ℂ)
+  atom := fun Q =>
+    (((G.grid.μ Q.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ)
+  atom_mem := by
+    intro Q
+    change ‖((((G.grid.μ Q.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ))‖ ≤
+      (G.grid.μ Q.1).toReal ^ (s - (p.toReal)⁻¹)
+    have hnonneg :
+        0 ≤ (G.grid.μ Q.1).toReal ^ (s - (p.toReal)⁻¹) :=
+      Real.rpow_nonneg ENNReal.toReal_nonneg _
+    simp [Complex.norm_real, Real.norm_of_nonneg hnonneg]
+
+/--
+The level-zero Souza block represents the father Haar term in `Lp`.
+-/
+theorem canonicalStandardFatherLevelBlock_toLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) :
+    (canonicalStandardFatherLevelBlock G F s p hs hp hp_top f hf).toLp
+        (souzaAtomFamily G s p hs hp hp_top) =
+      fatherHaarTermToLp G F p f hf := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let B := canonicalStandardFatherLevelBlock G F s p hs hp hp_top f hf
+  apply MeasureTheory.Lp.ext
+  refine (WeakGridSpace.LevelBlock.coeFn_toLp A B).trans ?_
+  have hpoint :
+      B.toFunLt A =ᵐ[G.grid.μ]
+        fun x =>
+          HaarRepresentation.Coeff G F f hf .alpha *
+            HaarRepresentation.L2normalizedHaar G F .alpha x := by
+    refine Filter.Eventually.of_forall ?_
+    intro x
+    unfold WeakGridSpace.LevelBlock.toFunLt
+    simp only [A, B, canonicalStandardFatherLevelBlock, GoodGridSpace.toWeakGridSpace,
+      GoodGridSpace.toWeakGrid, WeakGridSpace.levelCellToWeakGridCell,
+      WeakGridSpace.AtomFamily.toFunction, souzaAtomFamily, souzaLocalVectorSpace]
+    let Qw : WeakGridSpace.LevelCell G.toWeakGridSpace 0 :=
+      ⟨Set.univ, by
+        change Set.univ ∈ G.grid.grid.partitions 0
+        simp [G.grid.grid.first_partition_eq_univ]⟩
+    have hsum :
+        (∑ x_1 ∈ (G.grid.grid.partitions 0).attach,
+            HaarRepresentation.Coeff G F f hf .alpha *
+                  HaarRepresentation.L2normalizedHaar G F .alpha
+                    (cellPoint G { level := 0, cell := x_1.1, mem := x_1.2 }) /
+                (((G.grid.μ x_1.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ) *
+              Set.indicator x_1.1
+                (fun _ =>
+                  (((G.grid.μ x_1.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ)) x) =
+          HaarRepresentation.Coeff G F f hf .alpha *
+                HaarRepresentation.L2normalizedHaar G F .alpha
+                  (cellPoint G { level := 0, cell := Qw.1, mem := Qw.2 }) /
+              (((G.grid.μ Qw.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ) *
+            Set.indicator Qw.1
+              (fun _ =>
+                (((G.grid.μ Qw.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ)) x := by
+      exact Finset.sum_eq_single Qw
+        (by
+          intro P hP hne
+          have hP_univ : P.1 = Set.univ := by
+            have hP_mem : P.1 ∈ G.grid.grid.partitions 0 := P.2
+            rw [G.grid.grid.first_partition_eq_univ] at hP_mem
+            exact Finset.mem_singleton.mp hP_mem
+          exact False.elim (hne (Subtype.ext hP_univ))
+        )
+        (by
+          intro hnot
+          exact False.elim (hnot (Finset.mem_attach _ Qw))
+        )
+    change
+      (∑ x_1 ∈ (G.grid.grid.partitions 0).attach,
+          HaarRepresentation.Coeff G F f hf .alpha *
+                HaarRepresentation.L2normalizedHaar G F .alpha
+                  (cellPoint G { level := 0, cell := x_1.1, mem := x_1.2 }) /
+              (((G.grid.μ x_1.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ) *
+            Set.indicator x_1.1
+              (fun _ =>
+                (((G.grid.μ x_1.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ)) x) =
+        HaarRepresentation.Coeff G F f hf .alpha *
+          HaarRepresentation.L2normalizedHaar G F .alpha x
+    rw [hsum]
+    simp only [Qw, Set.mem_univ, Set.indicator_of_mem]
+    let Q : GoodGridCell G :=
+      { level := 0, cell := Set.univ,
+        mem := by simp [G.grid.grid.first_partition_eq_univ] }
+    let r : ℝ := (G.grid.μ Set.univ).toReal ^ (s - (p.toReal)⁻¹)
+    have hr_pos : 0 < r := by
+      have hμ_pos : 0 < G.grid.μ Set.univ :=
+        G.grid.positive_measure 0 Set.univ
+          (by simp [G.grid.grid.first_partition_eq_univ])
+      letI : IsFiniteMeasure G.grid.μ := G.grid.isFinite
+      have hμ_ne_top : G.grid.μ Set.univ ≠ ∞ :=
+        MeasureTheory.measure_ne_top G.grid.μ Set.univ
+      have hμ_toReal_pos : 0 < (G.grid.μ Set.univ).toReal :=
+        ENNReal.toReal_pos hμ_pos.ne' hμ_ne_top
+      exact Real.rpow_pos_of_pos hμ_toReal_pos _
+    have halpha :
+        HaarRepresentation.L2normalizedHaar G F .alpha (cellPoint G Q) =
+          HaarRepresentation.L2normalizedHaar G F .alpha x :=
+      l2normalizedHaar_alpha_const G F (cellPoint G Q) x
+    change
+      (HaarRepresentation.Coeff G F f hf .alpha *
+          HaarRepresentation.L2normalizedHaar G F .alpha (cellPoint G Q) / (r : ℂ)) *
+        (r : ℂ) =
+      HaarRepresentation.Coeff G F f hf .alpha *
+        HaarRepresentation.L2normalizedHaar G F .alpha x
+    rw [halpha]
+    field_simp [show (r : ℂ) ≠ 0 by exact_mod_cast (ne_of_gt hr_pos)]
+  have hfather :
+      (fatherHaarTermToLp G F p f hf : α → ℂ) =ᵐ[G.grid.μ]
+        fun x =>
+          HaarRepresentation.Coeff G F f hf .alpha *
+            HaarRepresentation.L2normalizedHaar G F .alpha x := by
+    unfold fatherHaarTermToLp
+    exact
+      (Lp.coeFn_smul (HaarRepresentation.Coeff G F f hf .alpha)
+        ((HaarRepresentation.l2normalizedHaar_memLp G F p .alpha).toLp
+          (HaarRepresentation.L2normalizedHaar G F .alpha))).trans
+        ((MemLp.coeFn_toLp
+          (HaarRepresentation.l2normalizedHaar_memLp G F p .alpha)).fun_const_smul
+            (HaarRepresentation.Coeff G F f hf .alpha))
+  exact hpoint.trans hfather.symm
+
+/-- Reindex the father term and positive levels as ordinary natural levels. -/
+private def natEquivOptionNat : ℕ ≃ Option ℕ where
+  toFun
+    | 0 => none
+    | k + 1 => some k
+  invFun
+    | none => 0
+    | some k => k + 1
+  left_inv := by
+    intro n
+    cases n with
+    | zero => rfl
+    | succ k => rfl
+  right_inv := by
+    intro ok
+    cases ok with
+    | none => rfl
+    | some k => rfl
+
+/--
+The standard Souza blocks indexed by the actual grid level.
+
+Level `0` is the father term; level `k + 1` is the canonical Souza form of the
+standard Haar block coming from parents at level `k`.
+-/
+def canonicalStandardLpGridBlock
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) :
+    (n : ℕ) → WeakGridSpace.LevelBlock (souzaAtomFamily G s p hs hp hp_top) n
+  | 0 => canonicalStandardFatherLevelBlock G F s p hs hp hp_top f hf
+  | k + 1 => canonicalStandardPositiveLevelBlock G F s p hs hp hp_top f hf k
+
+/--
+The natural-level blocks evaluate to the corresponding terms of the already
+proved `Option ℕ` expansion.
+-/
+theorem canonicalStandardLpGridBlock_toLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) (n : ℕ) :
+    (canonicalStandardLpGridBlock G F s p hs hp hp_top f hf n).toLp
+        (souzaAtomFamily G s p hs hp hp_top) =
+      canonicalStandardExpansionTermToLp G F p p s f hf (natEquivOptionNat n) := by
+  cases n with
+  | zero =>
+      exact canonicalStandardFatherLevelBlock_toLp G F s p hs hp hp_top f hf
+  | succ k =>
+      exact canonicalStandardPositiveLevelBlock_toLp G F s p hs hp hp_top f hf k
+
+/--
+For `1 < p < ∞`, the standard canonical-Souza blocks form an
+`LpGridRepresentation` of `f`.
+
+This is the packaged form of the standard representation: the level-zero block
+is the Haar father term, and each positive level is the regrouped Haar block
+written with canonical Souza atoms.
+-/
+def standardLpGridRepresentation
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    [DecidableEq F.Index]
+    (s : ℝ) (hs : 0 < s)
+    (p : ℝ≥0∞) (hp_one : 1 < p) (hp_top : p < ∞)
+    (f : α → ℂ) (hf : MemLp f p G.grid.μ) :
+    letI : Fact (1 ≤ p) := ⟨le_of_lt hp_one⟩
+    WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs (le_of_lt hp_one) (ne_of_lt hp_top))
+      (hf.toLp f) := by
+  classical
+  letI : Fact (1 ≤ p) := ⟨le_of_lt hp_one⟩
+  let hp : 1 ≤ p := le_of_lt hp_one
+  let hp_ne_top : p ≠ ∞ := ne_of_lt hp_top
+  let hfint : Integrable f G.grid.μ := by
+    letI : IsFiniteMeasure G.grid.μ := (HaarRepresentation.GridOf G).isFinite
+    exact hf.integrable (le_of_lt hp_one)
+  refine
+    { block := canonicalStandardLpGridBlock G F s p hs hp hp_ne_top f hfint
+      hasSum := ?_ }
+  have hoption :
+      HasSum (canonicalStandardExpansionTermToLp G F p p s f hfint) (hf.toLp f) := by
+    simpa [hfint] using
+      hasSum_canonicalStandardExpansionTermToLp G F p hp_one hp_top p s f hf
+  have hnat :
+      HasSum
+        (canonicalStandardExpansionTermToLp G F p p s f hfint ∘ natEquivOptionNat)
+        (hf.toLp f) :=
+    natEquivOptionNat.hasSum_iff.mpr hoption
+  exact hnat.congr_fun fun n =>
+    canonicalStandardLpGridBlock_toLp G F s p hs hp hp_ne_top f hfint n
+
+/--
 The level contribution in the standard atomic gauge.
 
 Level `0` is handled by the father term in `standardRepresentationNorm`; this
