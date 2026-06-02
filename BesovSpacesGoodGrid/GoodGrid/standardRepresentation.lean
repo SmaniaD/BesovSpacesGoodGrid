@@ -1,4 +1,5 @@
 import BesovSpacesGoodGrid.GoodGrid.HaarRepresentationNorm
+import Mathlib.Topology.Algebra.InfiniteSum.Constructions
 import UnbalancedHaarWavelet.HaarWaveletsLinearCombinations
 
 /-!
@@ -1350,6 +1351,469 @@ theorem haarBlock_eq_sum_tildeCoeff_tildeAtom_pointwise
           refine Finset.sum_congr rfl ?_
           intro b hb
           exact sum_children_branchCell_eq_coeff_normalizedFunction G F p s f hf Q b x
+
+/--
+The Haar block over the branches attached to one good-grid cell.
+
+This is the left-hand side of
+`haarBlock_eq_sum_tildeCoeff_tildeAtom_pointwise`, packaged as a reusable
+function.
+-/
+def haarCellBlockFunction (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) (Q : GoodGridCell G) (x : α) : ℂ :=
+  ∑ b ∈ HaarRepresentation.indicesInCell G F Q,
+    HaarRepresentation.Coeff G F f hf
+        (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)) *
+      HaarRepresentation.normalizedFunction G F
+        (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)) x
+
+/--
+The standard atomic block produced by one good-grid cell.
+
+For a cell `Q ∈ P^k`, this is the formal version of
+`∑_{P ∈ P^{k+1}, P ⊆ Q} \tilde{k}_P^f \tilde{a}_P^f`.
+-/
+def standardCellBlockFunction (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (Q : GoodGridCell G) (x : α) : ℂ :=
+  ∑ P ∈ childrenOfCell G Q,
+    ((tildeCoeff G F (c₂ G) p s f hf Q P : ℝ) : ℂ) *
+      tildeAtom G F (c₂ G) p s f hf Q P x
+
+/-- The one-cell Haar block belongs to `L^β`. -/
+theorem haarCellBlock_memLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) (Q : GoodGridCell G) :
+    MemLp (haarCellBlockFunction G F f hf Q) β G.grid.μ := by
+  classical
+  unfold haarCellBlockFunction
+  refine MeasureTheory.memLp_finsetSum _ ?_
+  intro b hb
+  simpa [HaarRepresentation.normalizedFunction, HaarRepresentation.L2normalizedHaar,
+    smul_eq_mul] using
+    (HaarRepresentation.l2normalizedHaar_memLp G F β
+      (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))).const_smul
+        (HaarRepresentation.Coeff G F f hf
+          (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)))
+
+/--
+The standard one-cell block belongs to `L^β`.
+
+The proof deliberately transports membership from the corresponding finite
+Haar block using the pointwise block identity.
+-/
+theorem standardCellBlock_memLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (Q : GoodGridCell G) :
+    MemLp (standardCellBlockFunction G F p s f hf Q) β G.grid.μ := by
+  classical
+  refine (memLp_congr_ae ?_).1 (haarCellBlock_memLp G F β f hf Q)
+  exact Filter.Eventually.of_forall fun x => by
+    exact (haarBlock_eq_sum_tildeCoeff_tildeAtom_pointwise G F p s f hf Q x)
+
+/--
+In `L^β`, the Haar block attached to `Q` is the standard atomic block attached
+to `Q`.
+
+This is the `Lp` form of `haarBlock_eq_sum_tildeCoeff_tildeAtom_pointwise` and
+is the main intermediate step for converting the unconditional Haar
+representation into the standard representation.
+-/
+theorem haarCellBlock_toLp_eq_standardCellBlock_toLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (Q : GoodGridCell G) :
+    (haarCellBlock_memLp G F β f hf Q).toLp (haarCellBlockFunction G F f hf Q) =
+      (standardCellBlock_memLp G F β p s f hf Q).toLp
+        (standardCellBlockFunction G F p s f hf Q) := by
+  classical
+  refine MeasureTheory.MemLp.toLp_congr
+    (haarCellBlock_memLp G F β f hf Q)
+    (standardCellBlock_memLp G F β p s f hf Q) ?_
+  exact Filter.Eventually.of_forall fun x => by
+    exact (haarBlock_eq_sum_tildeCoeff_tildeAtom_pointwise G F p s f hf Q x)
+
+/--
+The `Lp` representative of one Haar cell block is the finite sum of the
+corresponding individual Haar basis vectors.
+-/
+theorem haarCellBlock_toLp_eq_finsetSum
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) (Q : GoodGridCell G) :
+    (haarCellBlock_memLp G F β f hf Q).toLp (haarCellBlockFunction G F f hf Q) =
+      ∑ b ∈ HaarRepresentation.indicesInCell G F Q,
+        HaarRepresentation.Coeff G F f hf
+            (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)) •
+          (HaarRepresentation.l2normalizedHaar_memLp G F β
+              (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))).toLp
+            (HaarRepresentation.L2normalizedHaar G F
+              (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))) := by
+  classical
+  rw [UnbalancedHaarWavelet.toLp_finsetSum_const_smul_complex β
+    (HaarRepresentation.indicesInCell G F Q)
+    (fun b => HaarRepresentation.L2normalizedHaar G F
+      (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)))
+    (fun b => HaarRepresentation.l2normalizedHaar_memLp G F β
+      (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)))
+    (fun b => HaarRepresentation.Coeff G F f hf
+      (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)))]
+  apply MeasureTheory.MemLp.toLp_congr
+  exact Filter.Eventually.of_forall fun x => by
+    simp [haarCellBlockFunction, HaarRepresentation.normalizedFunction,
+      HaarRepresentation.L2normalizedHaar]
+
+/-- The Haar wavelet block at one level of the grid. -/
+def haarLevelBlockFunction (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) (k : ℕ) (x : α) : ℂ :=
+  ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+    haarCellBlockFunction G F f hf
+      ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) x
+
+/-- The standard atomic block at one level of the grid. -/
+def standardLevelBlockFunction (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (k : ℕ) (x : α) : ℂ :=
+  ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+    standardCellBlockFunction G F p s f hf
+      ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) x
+
+/-- The Haar level block belongs to `L^β`. -/
+theorem haarLevelBlock_memLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) (k : ℕ) :
+    MemLp (haarLevelBlockFunction G F f hf k) β G.grid.μ := by
+  classical
+  unfold haarLevelBlockFunction
+  refine MeasureTheory.memLp_finsetSum _ ?_
+  intro Q hQ
+  exact haarCellBlock_memLp G F β f hf
+    ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G)
+
+/-- The standard level block belongs to `L^β`. -/
+theorem standardLevelBlock_memLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (k : ℕ) :
+    MemLp (standardLevelBlockFunction G F p s f hf k) β G.grid.μ := by
+  classical
+  refine (memLp_congr_ae ?_).1 (haarLevelBlock_memLp G F β f hf k)
+  exact Filter.Eventually.of_forall fun x => by
+    unfold haarLevelBlockFunction standardLevelBlockFunction
+    refine Finset.sum_congr rfl ?_
+    intro Q hQ
+    exact haarBlock_eq_sum_tildeCoeff_tildeAtom_pointwise G F p s f hf
+      ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) x
+
+/--
+In `L^β`, the Haar level block is the standard atomic level block.
+
+After applying this lemma at every level, the only remaining global step is to
+group the unconditional Haar expansion by level and add the father term.
+-/
+theorem haarLevelBlock_toLp_eq_standardLevelBlock_toLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (k : ℕ) :
+    (haarLevelBlock_memLp G F β f hf k).toLp (haarLevelBlockFunction G F f hf k) =
+      (standardLevelBlock_memLp G F β p s f hf k).toLp
+        (standardLevelBlockFunction G F p s f hf k) := by
+  classical
+  refine MeasureTheory.MemLp.toLp_congr
+    (haarLevelBlock_memLp G F β f hf k)
+    (standardLevelBlock_memLp G F β p s f hf k) ?_
+  exact Filter.Eventually.of_forall fun x => by
+    unfold haarLevelBlockFunction standardLevelBlockFunction
+    refine Finset.sum_congr rfl ?_
+    intro Q hQ
+    exact haarBlock_eq_sum_tildeCoeff_tildeAtom_pointwise G F p s f hf
+      ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) x
+
+/--
+The `Lp` representative of one Haar level block is the finite sum, over all
+cells in that level and all branches in each cell, of the corresponding Haar
+basis vectors.
+-/
+theorem haarLevelBlock_toLp_eq_finsetSum
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) (k : ℕ) :
+    (haarLevelBlock_memLp G F β f hf k).toLp (haarLevelBlockFunction G F f hf k) =
+      ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        ∑ b ∈ HaarRepresentation.indicesInCell G F
+            ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G),
+          HaarRepresentation.Coeff G F f hf
+              (.wavelet (HaarRepresentation.indexOfCellBranch G F
+                ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) b)) •
+            (HaarRepresentation.l2normalizedHaar_memLp G F β
+                (.wavelet (HaarRepresentation.indexOfCellBranch G F
+                  ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) b))).toLp
+              (HaarRepresentation.L2normalizedHaar G F
+                (.wavelet (HaarRepresentation.indexOfCellBranch G F
+                  ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) b))) := by
+  classical
+  let cellFun :
+      WeakGridSpace.LevelCell G.toWeakGridSpace k → α → ℂ := fun Q =>
+    haarCellBlockFunction G F f hf
+      ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G)
+  let cellMem :
+      ∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k, MemLp (cellFun Q) β G.grid.μ := fun Q =>
+    haarCellBlock_memLp G F β f hf
+      ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G)
+  have hcongr :
+      (haarLevelBlock_memLp G F β f hf k).toLp (haarLevelBlockFunction G F f hf k) =
+        ((MeasureTheory.memLp_finsetSum
+          (Finset.univ : Finset (WeakGridSpace.LevelCell G.toWeakGridSpace k))
+          (fun Q _ => (cellMem Q).const_smul (1 : ℂ)))).toLp
+          (fun x =>
+            ∑ Q ∈ (Finset.univ : Finset (WeakGridSpace.LevelCell G.toWeakGridSpace k)),
+              (1 : ℂ) * cellFun Q x) := by
+    apply MeasureTheory.MemLp.toLp_congr
+    exact Filter.Eventually.of_forall fun x => by
+      simp [haarLevelBlockFunction, cellFun]
+  rw [hcongr]
+  rw [← UnbalancedHaarWavelet.toLp_finsetSum_const_smul_complex β
+    (Finset.univ : Finset (WeakGridSpace.LevelCell G.toWeakGridSpace k))
+    cellFun
+    cellMem
+    (fun _ => (1 : ℂ))]
+  simp only [one_smul]
+  refine Finset.sum_congr rfl ?_
+  intro Q hQ
+  dsimp [cellFun, cellMem]
+  exact haarCellBlock_toLp_eq_finsetSum G F β f hf
+    ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G)
+
+/--
+Fibers for the global standard expansion.
+
+The `none` fiber contains the father Haar function.  The `some k` fiber
+contains all branches attached to cells in level `k`.
+-/
+def standardExpansionFiber (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G)) :
+    Option ℕ → Sort (max (u + 1) 1)
+  | none => PUnit.{u + 1}
+  | some k =>
+      Σ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        {b : Finset (Set α) × Finset (Set α) //
+          b ∈ (F.toHaarSystem.binaryRefinement.tree k Q.1 Q.2).Branches}
+
+/--
+The global standard-expansion indices are equivalent to the full Haar indices.
+
+This is only bookkeeping: `none` corresponds to `.alpha`, and a branch in a
+level cell corresponds to the matching wavelet index.
+-/
+noncomputable def standardExpansionIndexEquiv
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G)) :
+    (Σ ok : Option ℕ, standardExpansionFiber G F ok) ≃ F.Index where
+  toFun i :=
+    match i with
+    | ⟨none, _⟩ => .alpha
+    | ⟨some k, ⟨Q, b⟩⟩ =>
+        .wavelet
+          (HaarRepresentation.indexOfCellBranch G F
+            ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) b)
+  invFun i :=
+    match i with
+    | .alpha => ⟨none, PUnit.unit⟩
+    | .wavelet j => ⟨some j.level, ⟨⟨j.cell, j.hcell⟩, j.branch⟩⟩
+  left_inv i := by
+    cases i with
+    | mk ok fiber =>
+        cases ok with
+        | none =>
+            cases fiber
+            rfl
+        | some k =>
+            rcases fiber with ⟨Q, b⟩
+            rcases Q with ⟨cell, hcell⟩
+            rfl
+  right_inv i := by
+    cases i with
+    | alpha => rfl
+    | wavelet j =>
+        cases j
+        rfl
+
+@[simp]
+theorem standardExpansionIndexEquiv_none
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G)) :
+    (standardExpansionIndexEquiv G F) ⟨none, PUnit.unit⟩ =
+      (UnbalancedHaarWavelet.FullHaarSystem.Index.alpha : F.Index) := rfl
+
+@[simp]
+theorem standardExpansionIndexEquiv_some
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k)
+    (b : {r : Finset (Set α) × Finset (Set α) //
+      r ∈ (F.toHaarSystem.binaryRefinement.tree k Q.1 Q.2).Branches}) :
+    (standardExpansionIndexEquiv G F) ⟨some k, ⟨Q, b⟩⟩ =
+      .wavelet
+        (HaarRepresentation.indexOfCellBranch G F
+          ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) b) := rfl
+
+/-- The father term of the normalized Haar expansion, viewed in `L^β`. -/
+def fatherHaarTermToLp (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) : Lp ℂ β G.grid.μ :=
+  HaarRepresentation.Coeff G F f hf .alpha •
+    (HaarRepresentation.l2normalizedHaar_memLp G F β .alpha).toLp
+      (HaarRepresentation.L2normalizedHaar G F .alpha)
+
+/-- The standard atomic block at level `k`, viewed in `L^β`. -/
+def standardLevelBlockToLp (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (k : ℕ) : Lp ℂ β G.grid.μ :=
+  (standardLevelBlock_memLp G F β p s f hf k).toLp
+    (standardLevelBlockFunction G F p s f hf k)
+
+/--
+The global standard expansion indexed by `Option ℕ`.
+
+The `none` term is the father Haar term; `some k` is the standard atomic block
+at level `k`.
+-/
+def standardExpansionTermToLp (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (β : ℝ≥0∞) [Fact (1 ≤ β)]
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ) :
+    Option ℕ → Lp ℂ β G.grid.μ
+  | none => fatherHaarTermToLp G F β f hf
+  | some k => standardLevelBlockToLp G F β p s f hf k
+
+/--
+For `1 < β < ∞`, the father term plus the standard atomic blocks converge in
+`L^β` to `f`.
+
+This is the standard representation obtained by grouping the unconditional
+Haar expansion by level and replacing each Haar cell block by the corresponding
+standard atomic block.
+-/
+theorem hasSum_standardExpansionTermToLp
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    [DecidableEq F.Index]
+    (β : ℝ≥0∞) (hβ_one : 1 < β) (hβ_top : β < ∞)
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : MemLp f β G.grid.μ) :
+    letI : Fact (1 ≤ β) := ⟨le_of_lt hβ_one⟩
+    HasSum
+      (standardExpansionTermToLp G F β p s f
+        (by
+          letI : IsFiniteMeasure G.grid.μ := (HaarRepresentation.GridOf G).isFinite
+          exact hf.integrable (le_of_lt hβ_one)))
+      (hf.toLp f) := by
+  classical
+  letI : Fact (1 ≤ β) := ⟨le_of_lt hβ_one⟩
+  let hfint : Integrable f G.grid.μ := by
+    letI : IsFiniteMeasure G.grid.μ := (HaarRepresentation.GridOf G).isFinite
+    exact hf.integrable (le_of_lt hβ_one)
+  let haarTerm : F.Index → Lp ℂ β G.grid.μ := fun i =>
+    HaarRepresentation.Coeff G F f hfint i •
+      (HaarRepresentation.l2normalizedHaar_memLp G F β i).toLp
+        (HaarRepresentation.L2normalizedHaar G F i)
+  let indexedTerm :
+      (Σ ok : Option ℕ, standardExpansionFiber G F ok) → Lp ℂ β G.grid.μ := fun i =>
+    haarTerm ((standardExpansionIndexEquiv G F) i)
+  have hhaar :
+      HasSum haarTerm (hf.toLp f) := by
+    simpa [haarTerm, hfint] using
+      HaarRepresentation.hasSum_coeff_smul_l2normalizedHaar_toLp
+        G F β hβ_one hβ_top f hf
+  have hindexed :
+      HasSum indexedTerm (hf.toLp f) := by
+    simpa [indexedTerm, haarTerm, Function.comp_def] using
+      ((standardExpansionIndexEquiv G F).hasSum_iff).2 hhaar
+  refine hindexed.sigma ?_
+  intro ok
+  cases ok with
+  | none =>
+      letI : Fintype (standardExpansionFiber G F none) := by
+        dsimp [standardExpansionFiber]
+        infer_instance
+      letI : Unique (standardExpansionFiber G F none) := by
+        dsimp [standardExpansionFiber]
+        infer_instance
+      have hsum :
+          (∑ u : standardExpansionFiber G F none, indexedTerm ⟨none, u⟩) =
+            standardExpansionTermToLp G F β p s f hfint none := by
+        rw [Fintype.sum_unique]
+        change indexedTerm ⟨none, PUnit.unit⟩ =
+          standardExpansionTermToLp G F β p s f hfint none
+        dsimp [indexedTerm, haarTerm, standardExpansionTermToLp, fatherHaarTermToLp]
+      convert
+        (hasSum_fintype
+          (fun u : standardExpansionFiber G F none => indexedTerm ⟨none, u⟩))
+        using 1
+      exact hsum.symm
+  | some k =>
+      letI : Fintype (standardExpansionFiber G F (some k)) := by
+        dsimp [standardExpansionFiber]
+        infer_instance
+      have hsum :
+          (∑ u : standardExpansionFiber G F (some k), indexedTerm ⟨some k, u⟩) =
+            (standardLevelBlockToLp G F β p s f hfint k) := by
+        calc
+          (∑ u : standardExpansionFiber G F (some k), indexedTerm ⟨some k, u⟩)
+              =
+            (haarLevelBlock_memLp G F β f hfint k).toLp
+              (haarLevelBlockFunction G F f hfint k) := by
+                rw [haarLevelBlock_toLp_eq_finsetSum G F β f hfint k]
+                change
+                  (∑ u :
+                    (Σ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+                      {b : Finset (Set α) × Finset (Set α) //
+                        b ∈ (F.toHaarSystem.binaryRefinement.tree k Q.1 Q.2).Branches}),
+                    indexedTerm ⟨some k, u⟩) =
+                    ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+                      ∑ b ∈ HaarRepresentation.indicesInCell G F
+                          ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G),
+                        HaarRepresentation.Coeff G F f hfint
+                            (.wavelet (HaarRepresentation.indexOfCellBranch G F
+                              ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) b)) •
+                          (HaarRepresentation.l2normalizedHaar_memLp G F β
+                              (.wavelet (HaarRepresentation.indexOfCellBranch G F
+                                ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) b))).toLp
+                            (HaarRepresentation.L2normalizedHaar G F
+                              (.wavelet (HaarRepresentation.indexOfCellBranch G F
+                                ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) b)))
+                rw [Fintype.sum_sigma]
+                dsimp [indexedTerm, haarTerm]
+                rfl
+          _ = standardLevelBlockToLp G F β p s f hfint k := by
+                rw [haarLevelBlock_toLp_eq_standardLevelBlock_toLp G F β p s f hfint k]
+                rfl
+      convert
+        (hasSum_fintype
+          (fun u : standardExpansionFiber G F (some k) => indexedTerm ⟨some k, u⟩))
+        using 1
+      exact hsum.symm
 
 /--
 The size estimate needed for the averaged atom.
