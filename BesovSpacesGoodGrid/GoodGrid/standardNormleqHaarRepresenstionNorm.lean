@@ -30,6 +30,169 @@ noncomputable section
 
 namespace StandardAtomicRepresentation
 
+private theorem children_pairwiseDisjoint
+    (G : GoodGridSpace (α := α)) (Q : GoodGridCell G) :
+    Set.PairwiseDisjoint
+      (↑((HaarRepresentation.GridOf G).childrenFinset Q.level Q.cell) : Set (Set α)) id := by
+  intro A hA B hB hAB
+  have hA_child :
+      A ∈ (HaarRepresentation.GridOf G).children Q.level Q.cell :=
+    ((HaarRepresentation.GridOf G).mem_childrenFinset_iff Q.level Q.cell A).1 hA
+  have hB_child :
+      B ∈ (HaarRepresentation.GridOf G).children Q.level Q.cell :=
+    ((HaarRepresentation.GridOf G).mem_childrenFinset_iff Q.level Q.cell B).1 hB
+  exact G.grid.grid.disjoint (Q.level + 1) A B hA_child.1 hB_child.1 hAB
+
+private theorem children_iUnion_eq_cell
+    (G : GoodGridSpace (α := α)) (Q : GoodGridCell G) :
+    (⋃ s ∈ (↑((HaarRepresentation.GridOf G).childrenFinset Q.level Q.cell) : Set (Set α)), s) =
+      Q.cell := by
+  apply Set.Subset.antisymm
+  · intro x hx
+    rcases (by simpa using hx) with ⟨s, hs, hxs⟩
+    have hs_child :
+        s ∈ (HaarRepresentation.GridOf G).children Q.level Q.cell :=
+      ((HaarRepresentation.GridOf G).mem_childrenFinset_iff Q.level Q.cell s).1 hs
+    exact hs_child.2 hxs
+  · intro x hx
+    have hx' :
+        x ∈ ⋃ s ∈ (HaarRepresentation.GridOf G).children Q.level Q.cell, s :=
+      (HaarRepresentation.GridOf G).covering_by_children Q.level Q.cell Q.mem hx
+    rcases (by simpa using hx') with ⟨s, hs, hxs⟩
+    have hs_fin :
+        s ∈ (HaarRepresentation.GridOf G).childrenFinset Q.level Q.cell :=
+      ((HaarRepresentation.GridOf G).mem_childrenFinset_iff Q.level Q.cell s).2 hs
+    exact by
+      simpa using (show x ∈ ⋃ s ∈
+        (↑((HaarRepresentation.GridOf G).childrenFinset Q.level Q.cell) : Set (Set α)), s from
+          Set.mem_iUnion.2 ⟨s, Set.mem_iUnion.2 ⟨hs_fin, hxs⟩⟩)
+
+private theorem children_measure_toReal_sum_eq
+    (G : GoodGridSpace (α := α)) (Q : GoodGridCell G) :
+    (∑ s ∈ (HaarRepresentation.GridOf G).childrenFinset Q.level Q.cell,
+        (G.grid.μ s).toReal) =
+      (G.grid.μ Q.cell).toReal := by
+  classical
+  let C := (HaarRepresentation.GridOf G).childrenFinset Q.level Q.cell
+  have hmeasure :
+      G.grid.μ Q.cell = ∑ s ∈ C, G.grid.μ s := by
+    rw [← children_iUnion_eq_cell G Q]
+    exact (MeasureTheory.measure_biUnion_finset
+      (μ := G.grid.μ)
+      (children_pairwiseDisjoint G Q)
+      (fun s hs => G.grid.grid.measurable (Q.level + 1) s
+        (((HaarRepresentation.GridOf G).mem_childrenFinset_iff Q.level Q.cell s).1 hs).1)).symm
+  have hfinite : ∀ s ∈ C, G.grid.μ s ≠ ∞ := by
+    intro s hs
+    exact MeasureTheory.measure_ne_top G.grid.μ s
+  calc
+    (∑ s ∈ C, (G.grid.μ s).toReal)
+        = (∑ s ∈ C, G.grid.μ s).toReal := by
+          rw [ENNReal.toReal_sum hfinite]
+    _ = (G.grid.μ Q.cell).toReal := by
+          rw [← hmeasure]
+
+private theorem children_card_le_of_lt_inv_lambda1
+    (G : GoodGridSpace (α := α)) (Q : GoodGridCell G)
+    {N : ℕ} (hN : 1 / G.grid.lambda1 < (N : ℝ)) :
+    ((HaarRepresentation.GridOf G).childrenFinset Q.level Q.cell).card ≤ N := by
+  classical
+  let C := (HaarRepresentation.GridOf G).childrenFinset Q.level Q.cell
+  have hQ_pos :
+      0 < (G.grid.μ Q.cell).toReal :=
+    ENNReal.toReal_pos (GoodGridCell.measure_pos Q).ne' (GoodGridCell.measure_ne_top Q)
+  have hchild_lower :
+      ∀ s ∈ C, G.grid.lambda1 * (G.grid.μ Q.cell).toReal ≤ (G.grid.μ s).toReal := by
+    intro s hs
+    have hs_child :
+        s ∈ (HaarRepresentation.GridOf G).children Q.level Q.cell :=
+      ((HaarRepresentation.GridOf G).mem_childrenFinset_iff Q.level Q.cell s).1 hs
+    have hs_lower :
+        ENNReal.ofReal G.grid.lambda1 * G.grid.μ Q.cell ≤ G.grid.μ s :=
+      G.grid.ratio_lower Q.level s Q.cell hs_child.1 Q.mem hs_child.2
+    have htoReal :=
+      ENNReal.toReal_mono (MeasureTheory.measure_ne_top G.grid.μ s) hs_lower
+    simpa [ENNReal.toReal_mul, ENNReal.toReal_ofReal G.grid.hlambda1_pos.le,
+      GoodGridCell.measure_ne_top Q] using htoReal
+  have hsum_lower :
+      (C.card : ℝ) * (G.grid.lambda1 * (G.grid.μ Q.cell).toReal) ≤
+        (G.grid.μ Q.cell).toReal := by
+    calc
+      (C.card : ℝ) * (G.grid.lambda1 * (G.grid.μ Q.cell).toReal)
+          = ∑ s ∈ C, G.grid.lambda1 * (G.grid.μ Q.cell).toReal := by
+              rw [Finset.sum_const, nsmul_eq_mul]
+      _ ≤ ∑ s ∈ C, (G.grid.μ s).toReal := by
+              exact Finset.sum_le_sum hchild_lower
+      _ = (G.grid.μ Q.cell).toReal := children_measure_toReal_sum_eq G Q
+  have hcard_mul_le_one :
+      (C.card : ℝ) * G.grid.lambda1 ≤ 1 := by
+    have h :=
+      (mul_le_mul_iff_of_pos_right hQ_pos).1 ?_
+    · simpa [mul_assoc, mul_comm, mul_left_comm] using h
+    · simpa [mul_assoc, mul_comm, mul_left_comm] using hsum_lower
+  have hcard_lt_N : (C.card : ℝ) < (N : ℝ) := by
+    have hλ_pos := G.grid.hlambda1_pos
+    have hcard_le_inv : (C.card : ℝ) ≤ 1 / G.grid.lambda1 := by
+      exact (le_div_iff₀ hλ_pos).2 (by simpa [mul_comm] using hcard_mul_le_one)
+    exact lt_of_le_of_lt hcard_le_inv hN
+  exact Nat.le_of_lt_succ (by exact_mod_cast hcard_lt_N)
+
+private theorem branch_incidence_sum_le_of_children_card_le
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (Q : GoodGridCell G) {N : ℕ}
+    (hN : ((HaarRepresentation.GridOf G).childrenFinset Q.level Q.cell).card ≤ N) :
+    (∑ b ∈ HaarRepresentation.indicesInCell G F Q,
+      (branchCells (G := G) (F := F) (Q := Q) b).card) ≤
+        (2 ^ N * 2 ^ N) * N := by
+  classical
+  let T := F.toHaarSystem.binaryRefinement.tree Q.level Q.cell Q.mem
+  let C := (HaarRepresentation.GridOf G).childrenFinset Q.level Q.cell
+  have hT_childs : T.Childs = C := by
+    ext s
+    exact F.toHaarSystem.binaryRefinement.childs_are_children Q.level Q.cell Q.mem s |>.trans
+      ((HaarRepresentation.GridOf G).mem_childrenFinset_iff Q.level Q.cell s).symm
+  have hbranch_card_le : ∀ p ∈ T.Branches, (p.1 ∪ p.2).card ≤ N := by
+    intro p hp
+    have hp_childs : p.1 ⊆ T.Childs ∧ p.2 ⊆ T.Childs :=
+      T.TreeStructureChilds p hp
+    have hsubset : p.1 ∪ p.2 ⊆ C := by
+      rw [← hT_childs]
+      exact Finset.union_subset hp_childs.1 hp_childs.2
+    exact (Finset.card_le_card hsubset).trans hN
+  have hbranches_card_le :
+      T.Branches.card ≤ 2 ^ N * 2 ^ N := by
+    have hsubset :
+        T.Branches ⊆ T.Childs.powerset.product T.Childs.powerset := by
+      intro p hp
+      have hp_childs := T.TreeStructureChilds p hp
+      simp [Finset.mem_product, Finset.mem_powerset, hp_childs.1, hp_childs.2]
+    calc
+      T.Branches.card ≤ (T.Childs.powerset.product T.Childs.powerset).card :=
+        Finset.card_le_card hsubset
+      _ = 2 ^ T.Childs.card * 2 ^ T.Childs.card := by
+        simp [Finset.card_product, Finset.card_powerset]
+      _ ≤ 2 ^ N * 2 ^ N := by
+        have hchilds_card : T.Childs.card ≤ N := by
+          simpa [hT_childs] using hN
+        exact Nat.mul_le_mul (Nat.pow_le_pow_right (by norm_num) hchilds_card)
+          (Nat.pow_le_pow_right (by norm_num) hchilds_card)
+  calc
+    (∑ b ∈ HaarRepresentation.indicesInCell G F Q,
+      (branchCells (G := G) (F := F) (Q := Q) b).card)
+        ≤ ∑ b ∈ HaarRepresentation.indicesInCell G F Q, N := by
+          refine Finset.sum_le_sum ?_
+          intro b hb
+          exact hbranch_card_le b.1 b.2
+    _ = (HaarRepresentation.indicesInCell G F Q).card * N := by
+          rw [Finset.sum_const_nat]
+          intro b hb
+          rfl
+    _ = T.Branches.card * N := by
+          simp [HaarRepresentation.indicesInCell, T]
+    _ ≤ (2 ^ N * 2 ^ N) * N := by
+          exact Nat.mul_le_mul_right N hbranches_card_le
+
 /--
 Uniform bound for the finite incidence number in one parent cell.
 
@@ -45,7 +208,11 @@ theorem exists_branchIncidenceBound
         (∑ b ∈ HaarRepresentation.indicesInCell G F Q,
           (branchCells (G := G) (F := F) (Q := Q) b).card) ≤ M := by
   classical
-  sorry
+  rcases exists_nat_gt (1 / G.grid.lambda1) with ⟨N, hN⟩
+  refine ⟨(2 ^ N * 2 ^ N) * N, ?_⟩
+  intro Q
+  exact branch_incidence_sum_le_of_children_card_le G F Q
+    (children_card_le_of_lt_inv_lambda1 G Q hN)
 
 /--
 The standard child coefficient is bounded by the positive coefficient mass
