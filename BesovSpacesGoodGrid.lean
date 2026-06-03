@@ -11,6 +11,7 @@ import BesovSpacesGoodGrid.GoodGrid.HaarRepresentationNorm
 import BesovSpacesGoodGrid.GoodGrid.HaarParametrizedRepresentation
 import BesovSpacesGoodGrid.GoodGrid.ComparingHaarRepresentationsl
 import BesovSpacesGoodGrid.GoodGrid.standardRepresentation
+import BesovSpacesGoodGrid.GoodGrid.standardNormleqHaarRepresenstionNorm
 import BesovSpacesGoodGrid.GoodGrid.MeanOscillationNorm
 
 /-!

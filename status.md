@@ -4,12 +4,16 @@ Current branch: `main`
 
 Last verification:
 
-- `lake build` succeeds as of 2026-06-01.
+- `lake build` succeeds as of 2026-06-03.
 - `lake build BesovSpacesGoodGrid.GoodGrid.BesovAtoms` succeeds.
-- A text search finds no Lean `sorry`, no `admit`, and no project-local
-  `axiom` declarations.
-- `scripts/check-proof-sanity.sh` succeeds.
-- `docpdf/Documentation.pdf` was regenerated from `docpdf/Documentation.tex`.
+- The new standard-vs-Haar norm comparison file currently contains four
+  planned Lean `sorry`s.  A text search should no longer be expected to find
+  zero `sorry`s until those comparison sublemmas are completed.
+- No `admit` or project-local `axiom` declarations are expected.
+- `scripts/check-proof-sanity.sh` was not rerun for this status update and is
+  not expected to pass unchanged while the planned `sorry`s remain.
+- `docpdf/Documentation.pdf` was previously regenerated from
+  `docpdf/Documentation.tex`.
 
 ## Main Goal
 
@@ -87,6 +91,22 @@ C2 / (1 - G.grid.lambda2 ^ (β - s)).
   two branch sides are unions of pairwise disjoint child cells.
 - The exponent in `branchCellAtom` was corrected to use the real exponent
   `((1 : ℝ) / 2)`.
+- `GoodGrid/standardNormleqHaarRepresenstionNorm.lean` has been added and is
+  imported by the root module.  It states the main one-sided comparison:
+  finite `haarL2RepresentationNorm` controls `standardRepresentationNorm`.
+- The local coefficient estimate
+  `norm_standardChildCoeff_le_tildeCoeff` is proved.  This is the pointwise
+  step that evaluates the canonical Souza atom at a child-cell point, uses
+  `standardChildCoeff_mul_canonicalSouzaAtom_eq_tildeCoeff_mul_tildeAtom`, and
+  cancels the positive Souza normalization.
+- The remaining comparison lemmas were adjusted to the correct rooted form:
+  the global `(p,q)` gauge uses
+  `(levelCoeffPower k) ^ (1 / p.toReal)`, so level estimates are now stated for
+  coefficient roots rather than raw coefficient powers.
+- The main theorem
+  `exists_standardRepresentationNorm_le_const_mul_haarL2RepresentationNorm`
+  now has no internal `sorry`; it is a clean assembly of the father estimate,
+  positive-level estimate, and global gauge bookkeeping lemma.
 
 ## Important Files
 
@@ -101,6 +121,9 @@ C2 / (1 - G.grid.lambda2 ^ (β - s)).
   atomic representation bookkeeping, the constant `c₂`, the proof that
   `tildeAtom` is a Souza atom, and the pointwise Haar-block decomposition into
   `tildeCoeff * tildeAtom`.
+- `BesovSpacesGoodGrid/GoodGrid/standardNormleqHaarRepresenstionNorm.lean`:
+  the in-progress comparison between the standard atomic norm and the
+  `L²`-normalized Haar representation norm.
 - `BesovSpacesGoodGrid/WeakGrid/Transmutation.lean`: Claims I, II, III, and the
   explicit Claim C embedding theorem.
 - `BesovSpacesGoodGrid/WeakGrid/InducedGrid.lean`: induced weak-grid API and
@@ -109,26 +132,38 @@ C2 / (1 - G.grid.lambda2 ^ (β - s)).
 
 ## Remaining Work
 
-There is no remaining `sorry`-based proof obligation in the Lean files.
+The current standard-vs-Haar norm comparison file has four `sorry`-based proof
+obligations:
 
 Likely next steps are:
 
-1. Connect the finite standard atomic representation lemmas to any desired
-   global/infinite representation theorem, if that is the next manuscript
-   target.
-2. Decide whether `GoodGrid/Distribution.lean` and `Sums.lean` should be
+1. Prove `exists_branchIncidenceBound`: the combinatorial incidence bound
+   corresponding to
+   `sup_Q sum_{S in H_Q} #(S_1 union S_2) <= menor^{-2}`.
+2. Prove `exists_standardPositiveLevelCoeffRoot_le_const_mul_levelHaarBlockRoot`:
+   the manuscript's positive-level estimate, in rooted `(p,q)` form.
+3. Prove `exists_standardFatherLevelCoeffRoot_le_const_mul_fatherTerm`: the
+   level-zero/father contribution estimate.  Some analogous facts already
+   exist privately in `ComparingHaarRepresentationsl.lean`, so a clean next
+   move may be to factor reusable father-term lemmas out of that file.
+4. Prove `standardRepresentationNorm_le_of_level_bounds`: the global
+   `q = infinity` / `q < infinity` bookkeeping step from levelwise rooted
+   estimates to the full extended coefficient gauge.
+5. Decide whether `GoodGrid/Distribution.lean` and `Sums.lean` should be
    imported by the root module or kept as opt-in modules.
-3. Continue polishing public docstrings in the large proof files, especially
+6. Continue polishing public docstrings in the large proof files, especially
    `WeakGrid/Transmutation.lean`, `WeakGrid/Completeness.lean`, and
    `GoodGrid/BesovAtoms.lean`.
-4. Consider factoring large proof-heavy files into smaller topic-focused files
+7. Consider factoring large proof-heavy files into smaller topic-focused files
    if navigation or compilation time becomes an issue.
-5. Add downstream examples showing how the weak-grid theorems specialize to
+8. Add downstream examples showing how the weak-grid theorems specialize to
    concrete good-grid Besov spaces.
 
 ## Notes
 
-- The build currently succeeds with warnings only.  The warnings are existing
-  linter or LaTeX layout warnings, not proof failures.
+- The build currently succeeds with warnings only.  The new warnings in
+  `GoodGrid/standardNormleqHaarRepresenstionNorm.lean` are the four planned
+  `sorry` declarations listed above; other warnings are existing linter or
+  LaTeX layout warnings, not proof failures.
 - The working tree is intentionally dirty from the current development pass;
   do not assume uncommitted changes are disposable.
