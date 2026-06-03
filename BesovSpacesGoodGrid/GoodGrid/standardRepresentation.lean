@@ -2854,24 +2854,56 @@ def standardLevelCoeffPower (G : GoodGridSpace (α := α)) [DecidableEq (Set α)
           ({ level := k, cell := Q.1, mem := Q.2 } : GoodGridCell G) P‖ ^ p.toReal)
 
 /--
-The standard atomic representation gauge `N_st`.
+Level coefficient power of the formal standard block sequence.
 
-This is exactly the extended generic `(p,q)` coefficient cost of the packaged
-standard Souza representation.  It takes values in `ℝ≥0∞`, so non-summable
-coefficient data is recorded as `∞`, matching the Haar gauges used elsewhere in
-the good-grid development.
+Unlike `standardLpGridRepresentation`, this only uses the coefficients of the
+canonical standard blocks; it does not assert that the blocks sum to `f` in
+`L^p`.  This is the right object for endpoint bookkeeping such as `p = 1`.
+-/
+def standardBlockCoeffPower
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (hs : 0 < s)
+    (p : ℝ≥0∞) [Fact (1 ≤ p)] (hp_top : p < ∞)
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) (k : ℕ) : ℝ :=
+  ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+    ‖(canonicalStandardLpGridBlock G F s p hs Fact.out (ne_of_lt hp_top) f hf k).coeff Q‖ ^
+      p.toReal
+
+/-- The formal standard level coefficient power is nonnegative. -/
+theorem standardBlockCoeffPower_nonneg
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (hs : 0 < s)
+    (p : ℝ≥0∞) [Fact (1 ≤ p)] (hp_top : p < ∞)
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) (k : ℕ) :
+    0 ≤ standardBlockCoeffPower G F s hs p hp_top f hf k := by
+  unfold standardBlockCoeffPower
+  exact Finset.sum_nonneg fun _ _ => Real.rpow_nonneg (norm_nonneg _) _
+
+/--
+The abstract standard atomic coefficient gauge `N_st`.
+
+This is the extended `(p,q)` coefficient cost of the formal canonical standard
+block sequence.  It only requires the Haar coefficients of `f`, hence an
+integrable function, and does not require the blocks to be packaged as an
+`LpGridRepresentation` with a `HasSum` proof.
 -/
 def standardRepresentationNorm
     (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
     (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
     [DecidableEq F.Index]
     (s : ℝ) (hs : 0 < s)
-    (p : ℝ≥0∞) (hp_one : 1 < p) (hp_top : p < ∞)
+    (p : ℝ≥0∞) [Fact (1 ≤ p)] (hp_top : p < ∞)
     (q : ℝ≥0∞)
-    (f : α → ℂ) (hf : MemLp f p G.grid.μ) : ℝ≥0∞ :=
-  letI : Fact (1 ≤ p) := ⟨le_of_lt hp_one⟩
-  WeakGridSpace.LpGridRepresentation.pqCostENNReal (q := q)
-    (standardLpGridRepresentation G F s hs p hp_one hp_top f hf)
+    (f : α → ℂ) (hf : Integrable f G.grid.μ) : ℝ≥0∞ :=
+  if q = ∞ then
+      sSup (Set.range fun k =>
+        ENNReal.ofReal ((standardBlockCoeffPower G F s hs p hp_top f hf k) ^
+          (1 / p.toReal)))
+    else
+      (∑' k, ENNReal.ofReal ((standardBlockCoeffPower G F s hs p hp_top f hf k) ^
+        (q.toReal / p.toReal))) ^ (1 / q.toReal)
 
 end StandardAtomicRepresentation
 

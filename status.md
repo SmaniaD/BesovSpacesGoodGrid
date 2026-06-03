@@ -1,169 +1,230 @@
 # Repository Status
 
-Current branch: `main`
+Last updated: 2026-06-03.
 
-Last verification:
+Current branch: `main`.
 
-- `lake build` succeeds as of 2026-06-03.
-- `lake build BesovSpacesGoodGrid.GoodGrid.BesovAtoms` succeeds.
-- The new standard-vs-Haar norm comparison file currently contains four
-  planned Lean `sorry`s.  A text search should no longer be expected to find
-  zero `sorry`s until those comparison sublemmas are completed.
-- No `admit` or project-local `axiom` declarations are expected.
-- `scripts/check-proof-sanity.sh` was not rerun for this status update and is
-  not expected to pass unchanged while the planned `sorry`s remain.
-- `docpdf/Documentation.pdf` was previously regenerated from
-  `docpdf/Documentation.tex`.
+The working tree is intentionally dirty from the current development pass.
+Treat uncommitted changes as meaningful unless explicitly told otherwise.
 
-## Main Goal
+## Verification
 
-The main comparison between Souza atoms and Besov atoms on a good grid is now
-formalized.
+Recently checked successfully:
 
-The proved theorem is:
+- `lake build BesovSpacesGoodGrid.GoodGrid.FiniteStandardNormimpliesBesov`
+- `lake build BesovSpacesGoodGrid.GoodGrid.FiniteHaarNormimpliesLp`
+- `lake build BesovSpacesGoodGrid.GoodGrid.OscillationNormleqBesovNorm`
+- `lake env lean BesovSpacesGoodGrid.lean`
+
+The oscillation module builds with one known `sorry`, described below.  The
+other checked modules above have no new `sorry`.
+
+## Current Main Line
+
+The current formalization path is:
+
+1. Haar representation norm controls the standard atomic representation norm.
+2. Finite standard norm gives a genuine `L^p` standard representation and
+   Souza-Besov membership.
+3. The `L^p` part of the mean-oscillation norm is controlled by the standard
+   norm.
+4. It remains to prove the oscillation seminorm estimate, which will complete
+   the mean-oscillation comparison.
+
+## Recently Added Or Renamed Files
+
+- `BesovSpacesGoodGrid/GoodGrid/FiniteStandardNormimpliesBesov.lean`
+
+  This replaces the old `FiniteStandardNormimpliesLp.lean` name.  The new name
+  reflects the stronger result now proved in the file: finite standard norm
+  gives not only `L^p` membership, but also a canonical Souza-Besov
+  representation with finite `(p,q)` cost.
+
+- `BesovSpacesGoodGrid/GoodGrid/FiniteHaarNormimpliesLp.lean`
+
+  Uses the standard-norm comparison to prove the finite Haar norm endpoint.
+
+- `BesovSpacesGoodGrid/GoodGrid/OscillationNormleqBesovNorm.lean`
+
+  Contains the current oscillation/standard-norm comparison work.  The filename
+  is the grammatically corrected version of the requested
+  `OscillationNormLeStandardRepresentationNorm` direction.
+
+The root module `BesovSpacesGoodGrid.lean` imports these current filenames.
+There should be no source imports of `FiniteStandardNormimpliesLp`.
+
+## Proven Standard-Norm Results
+
+In `FiniteStandardNormimpliesBesov.lean`:
+
+- `canonicalStandardBlockSeq`
+
+  The canonical standard block sequence associated to an integrable function.
+
+- `abstractFinitePQCost_canonicalStandardBlockSeq_of_standardRepresentationNorm_ne_top`
+
+  If `standardRepresentationNorm G F s hs p hp_top q f hf ≠ ∞`, then the
+  bare canonical standard block sequence has finite abstract `(p,q)` cost.
+
+- `finite_standardRepresentationNorm_has_Lp_standard_limit`
+
+  Finite standard norm gives an `L^p` limit for the canonical standard block
+  sequence.
+
+- `finite_standardRepresentationNorm_implies_memLp_and_hasSum`
+
+  If `f ∈ L^1` and `standardRepresentationNorm` is finite, then in fact
+  `f ∈ L^p`, and the canonical standard block sequence has sum `f` in `L^p`.
+
+- `finite_standardRepresentationNorm_implies_memBesov_and_standardRepresentation`
+
+  Finite standard norm gives a Souza-Besov element representing `f`, together
+  with the canonical standard `LpGridRepresentation`.  The theorem also proves:
+
+  - the representation has finite `FinitePQCost`;
+  - its extended cost `pqCostENNReal` is exactly `standardRepresentationNorm`;
+  - its real cost `pqCost` is bounded by `standardRepresentationNorm.toReal`;
+  - the abstract Besov cost `Norm_Costpq` is bounded by
+    `standardRepresentationNorm.toReal`.
+
+## Proven Haar Endpoint Results
+
+In `FiniteHaarNormimpliesLp.lean`:
+
+- finite `haarL2RepresentationNorm` implies finite `standardRepresentationNorm`;
+- finite Haar norm implies `MemLp f p`;
+- the Haar representation has sum `f` in `L^p`;
+- the endpoint `p = 1` is handled through the existing `L^β` embedding route,
+  so the theorem does not require `p > 1`.
+
+## Proven Oscillation-Norm Results
+
+In `OscillationNormleqBesovNorm.lean`:
+
+- almost-minimizing Souza-Besov representations are available in both additive
+  and multiplicative forms;
+- finite standard norm gives a Souza-Besov representation of `f` in the form
+  needed by the oscillation estimates;
+- the `L^p` term
+
+  ```text
+  μ(I)^(-s) * ‖f‖_p
+  ```
+
+  is bounded by a finite constant times `standardRepresentationNorm`;
+- the final mean-oscillation theorem is assembled from the `L^p` term and the
+  oscillation seminorm estimate.
+
+## Known Remaining Sorry
+
+There is currently one planned `sorry`:
+
+- `exists_oscillationSeminorm_le_const_mul_standardRepresentationNorm`
+  in `BesovSpacesGoodGrid/GoodGrid/OscillationNormleqBesovNorm.lean`.
+
+Mathematically, this is the discrete convolution estimate from the preprint:
+for each cell `J ∈ P^k0`, choose a constant value from the low-frequency part
+of the standard representation, bound the oscillation by the tail
+
+```text
+sum_{k > k0} sum_{R ∈ P^k, R ⊆ J} k_R a_R,
+```
+
+then sum over cells and levels to obtain convolution with the geometric kernel
+`lambda2^(s * (k - k0))`.  The expected constant is of the form
+
+```text
+1 / (1 - G.grid.lambda2 ^ s)
+```
+
+up to the already-existing embedding/constants infrastructure.
+
+The supporting Lean work still needed for this `sorry` is likely:
+
+1. basic lemmas for `osc` and `levelOscillationBlock`, especially bounding
+   `osc G p f J` by a chosen constant on `J`;
+2. a clean statement identifying the low-frequency part of the standard
+   representation as constant on a level-`k0` cell;
+3. a tail estimate for the standard representation restricted to descendants
+   of a fixed cell;
+4. an `ℓ^q` convolution/geometric-kernel estimate in the current `ENNReal`
+   norm format.
+
+## Older Completed Main Comparison
+
+The main Souza/Besov atom comparison is already formalized:
 
 - `GoodGridSpace.atoms_between_souza_atoms_and_besov_atoms`
 
 It states that if an atom family `A` is sandwiched between Souza atoms and
 Besov atoms, then the Besov-ish spaces generated by Souza atoms, by `A`, and
-by Besov atoms coincide.  It also gives the expected norm bounds, including
-the paper's geometric constant
+by Besov atoms coincide, with the expected norm bounds and the geometric
+constant
 
 ```text
 C2 / (1 - G.grid.lambda2 ^ (β - s)).
 ```
 
-## Current State
+The standard-vs-Haar comparison is also complete:
 
-- `LocalBanachSpace` has been renamed to `LocalVectorSpace`.
-- `LocalVectorSpace` now only requires complex vector-space structure:
-  `AddCommGroup` and `Module ℂ`.
-- `besovAtomFamily` is defined as an `AtomFamily`.
-- The local carrier for Besov atoms is the subspace of concrete functions
-  `a : α → ℂ` that are in `MemLp a p μ` and are supported on the cell.
-- `IsBesovAtom` is a predicate on concrete representatives, using an
-  existential `MemLp` proof to pass to the corresponding `Lp` class.
-- `zero_isBesovAtom`, `convex_isBesovAtom`, and
-  `isBesovAtom_smul_of_norm_eq_one` are proved.
-- `isBesovAtom_eLpNorm_le` is proved.
-- `besovAtom_is_sp_one_atom` is now a short consequence of
-  `isBesovAtom_eLpNorm_le`.
-- `besovAtom_to_souza_representation_decay` is proved.
-- The induced-grid representation lemmas needed to move from a cell-local
-  representation back to the ambient weak grid are available in
-  `WeakGrid/InducedGrid.lean`.
-- The conversion from induced Souza-`β` representations to induced Souza-`s`
-  representations is implemented in `GoodGrid/BesovAtoms.lean`.
-- `besovAtom_to_induced_souzaS_representation_decay_claimC` packages the
-  single-Besov-atom representation in the exact form needed by Claim C.
-- Claim C now has an explicit continuous-embedding interface:
-  `Transmutation_of_Atoms_Claim_C_explicit` and
-  `Transmutation_of_Atoms_continuous_embedding_explicit`.
-- The older existential wrappers
-  `Transmutation_of_Atoms_Claim_C` and
-  `Transmutation_of_Atoms_continuous_embedding` were removed.
-- `transmutationClaimCEmbeddingConstant` is simplified for the identity level
-  map: the factors that are equal to `1` in this case have been removed.
-- The identity-level Claim C kernel coefficient is computed by
-  `LpGridRepresentation.cCoefficientInt_transmutationKernelZ_zero_one`.
-- `besovAtomConstant` uses the conjugate exponent `qtilde'` in the geometric
-  factor, while `qtilde` remains the coefficient-cost exponent.
-- `one_le_besovAtomConstant` is proved and is used to simplify the final
-  embedding constant.
-- `[Fact (1 ≤ qtilde)]` is included where needed to rule out degenerate
-  coefficient-cost cases.
-- `README.md`, `docpdf/Documentation.tex`, and `docpdf/Documentation.pdf` have
-  been updated to describe the current state.
-- The Haar representation norm layer now uses the upstream
-  `UnbalancedHaarWavelet` coefficient API directly through
-  `HaarRepresentation.Coeff`.
-- Haar coefficients for functions are formulated for integrable complex-valued
-  functions; the previous real-part coefficient aliases have been removed.
-- The standard atomic representation file defines the manuscript constant
-  `c₂` from the good-grid constants `lambda2` and `lambda1`.
-- `tildeAtom_isSouzaAtom` is proved: each averaged Haar atom
-  `\tilde{a}_P^f` is a Souza atom on the corresponding child cell.
-- `haarBlock_eq_sum_tildeCoeff_tildeAtom_pointwise` is proved: the Haar block
-  over the branches of a good-grid cell is equal pointwise to the sum over its
-  children of `\tilde{k}_P^f \tilde{a}_P^f`.
-- The proof of the Haar block identity uses explicit finite bookkeeping:
-  cancellation of `tildeCoeff`, summation over children, and the fact that the
-  two branch sides are unions of pairwise disjoint child cells.
-- The exponent in `branchCellAtom` was corrected to use the real exponent
-  `((1 : ℝ) / 2)`.
-- `GoodGrid/standardNormleqHaarRepresenstionNorm.lean` has been added and is
-  imported by the root module.  It states the main one-sided comparison:
-  finite `haarL2RepresentationNorm` controls `standardRepresentationNorm`.
-- The local coefficient estimate
-  `norm_standardChildCoeff_le_tildeCoeff` is proved.  This is the pointwise
-  step that evaluates the canonical Souza atom at a child-cell point, uses
-  `standardChildCoeff_mul_canonicalSouzaAtom_eq_tildeCoeff_mul_tildeAtom`, and
-  cancels the positive Souza normalization.
-- The remaining comparison lemmas were adjusted to the correct rooted form:
-  the global `(p,q)` gauge uses
-  `(levelCoeffPower k) ^ (1 / p.toReal)`, so level estimates are now stated for
-  coefficient roots rather than raw coefficient powers.
-- The main theorem
-  `exists_standardRepresentationNorm_le_const_mul_haarL2RepresentationNorm`
-  now has no internal `sorry`; it is a clean assembly of the father estimate,
-  positive-level estimate, and global gauge bookkeeping lemma.
+- `exists_standardRepresentationNorm_le_const_mul_haarL2RepresentationNorm`
+
+in `GoodGrid/standardNormleqHaarRepresenstionNorm.lean` has no internal
+`sorry`.
 
 ## Important Files
 
-- `BesovSpacesGoodGrid.lean`: root module.  It imports the weak-grid layer,
-  induced grids, transmutation, and the good-grid Besov-atom comparison layer.
-- `BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean`: Besov atoms, the Besov-to-
-  Souza representation theorem, and the main Souza/Besov atom comparison.
-- `BesovSpacesGoodGrid/GoodGrid/HaarRepresentationNorm.lean`: normalized Haar
-  functions, complex Haar coefficients for integrable functions, and the Haar
-  representation norm bookkeeping.
-- `BesovSpacesGoodGrid/GoodGrid/standardRepresentation.lean`: the standard
-  atomic representation bookkeeping, the constant `c₂`, the proof that
-  `tildeAtom` is a Souza atom, and the pointwise Haar-block decomposition into
-  `tildeCoeff * tildeAtom`.
-- `BesovSpacesGoodGrid/GoodGrid/standardNormleqHaarRepresenstionNorm.lean`:
-  the in-progress comparison between the standard atomic norm and the
-  `L²`-normalized Haar representation norm.
-- `BesovSpacesGoodGrid/WeakGrid/Transmutation.lean`: Claims I, II, III, and the
-  explicit Claim C embedding theorem.
-- `BesovSpacesGoodGrid/WeakGrid/InducedGrid.lean`: induced weak-grid API and
-  ambient representation conversion.
-- `README.md` and `docpdf/Documentation.tex`: narrative status documentation.
+- `BesovSpacesGoodGrid.lean`
 
-## Remaining Work
+  Root module.  Imports the weak-grid layer, good-grid atom comparison,
+  standard/Haar comparisons, finite-norm endpoint files, and the current
+  oscillation comparison file.
 
-The current standard-vs-Haar norm comparison file has four `sorry`-based proof
-obligations:
+- `BesovSpacesGoodGrid/GoodGrid/standardRepresentation.lean`
 
-Likely next steps are:
+  Standard atomic representation bookkeeping, standard coefficients, and
+  `standardRepresentationNorm`.
 
-1. Prove `exists_branchIncidenceBound`: the combinatorial incidence bound
-   corresponding to
-   `sup_Q sum_{S in H_Q} #(S_1 union S_2) <= menor^{-2}`.
-2. Prove `exists_standardPositiveLevelCoeffRoot_le_const_mul_levelHaarBlockRoot`:
-   the manuscript's positive-level estimate, in rooted `(p,q)` form.
-3. Prove `exists_standardFatherLevelCoeffRoot_le_const_mul_fatherTerm`: the
-   level-zero/father contribution estimate.  Some analogous facts already
-   exist privately in `ComparingHaarRepresentationsl.lean`, so a clean next
-   move may be to factor reusable father-term lemmas out of that file.
-4. Prove `standardRepresentationNorm_le_of_level_bounds`: the global
-   `q = infinity` / `q < infinity` bookkeeping step from levelwise rooted
-   estimates to the full extended coefficient gauge.
-5. Decide whether `GoodGrid/Distribution.lean` and `Sums.lean` should be
-   imported by the root module or kept as opt-in modules.
-6. Continue polishing public docstrings in the large proof files, especially
-   `WeakGrid/Transmutation.lean`, `WeakGrid/Completeness.lean`, and
-   `GoodGrid/BesovAtoms.lean`.
-7. Consider factoring large proof-heavy files into smaller topic-focused files
-   if navigation or compilation time becomes an issue.
-8. Add downstream examples showing how the weak-grid theorems specialize to
-   concrete good-grid Besov spaces.
+- `BesovSpacesGoodGrid/GoodGrid/standardNormleqHaarRepresenstionNorm.lean`
+
+  Main comparison showing Haar representation norm controls the standard
+  representation norm.
+
+- `BesovSpacesGoodGrid/GoodGrid/FiniteStandardNormimpliesBesov.lean`
+
+  Finite standard norm implies `L^p`, canonical standard `LpGridRepresentation`,
+  finite cost, and Souza-Besov membership.
+
+- `BesovSpacesGoodGrid/GoodGrid/FiniteHaarNormimpliesLp.lean`
+
+  Finite Haar representation norm implies `L^p` membership and Haar expansion
+  convergence to `f`.
+
+- `BesovSpacesGoodGrid/GoodGrid/OscillationNormleqBesovNorm.lean`
+
+  Current file for proving the oscillation norm is controlled by the standard
+  representation norm.  Contains one planned `sorry`.
+
+- `BesovSpacesGoodGrid/GoodGrid/MeanOscillationNorm.lean`
+
+  Definitions of `osc`, `levelOscillationBlock`, `oscillationSeminorm`, and
+  `meanOscillationNorm`.
+
+## Next Steps
+
+1. Prove `exists_oscillationSeminorm_le_const_mul_standardRepresentationNorm`.
+2. After that, the assembled theorem
+   `exists_meanOscillationNorm_le_const_mul_standardRepresentationNorm` should
+   become sorry-free.
+3. Consider factoring reusable oscillation lemmas into `MeanOscillationNorm.lean`
+   if they are not specific to the standard representation.
+4. Run a full `lake build` after closing the remaining oscillation `sorry`.
 
 ## Notes
 
-- The build currently succeeds with warnings only.  The new warnings in
-  `GoodGrid/standardNormleqHaarRepresenstionNorm.lean` are the four planned
-  `sorry` declarations listed above; other warnings are existing linter or
-  LaTeX layout warnings, not proof failures.
-- The working tree is intentionally dirty from the current development pass;
-  do not assume uncommitted changes are disposable.
+- No destructive git operation has been used.
+- Existing unrelated dirty files such as `README.md`, `standardRepresentation.lean`,
+  and `standardNormleqHaarRepresenstionNorm.lean` were treated as intentional
+  worktree state.
+- The project still has many pre-existing warnings in older modules; these are
+  separate from the current endpoint/oscillation work.

@@ -30,6 +30,9 @@ The formalization currently includes:
   and atom-family abstraction used for atomic decompositions.
 - `LevelBlock` and `LpGridRepresentation`: levelwise atomic blocks and
   `L^p` representations with finite `(p,q)` coefficient cost.
+- `standardRepresentationNorm`: the abstract `(p,q)` cost of the canonical
+  standard coefficients for an integrable function, without requiring a
+  packaged `L^p` representation or a `HasSum` proof.
 - `BesovishSpace` and `BesovishSpace.Norm_Costpq`: the Besov-ish subspace of
   `L^p`, together with its coefficient-cost gauge.
 - Structural theorems showing that `Norm_Costpq` is nonnegative, subadditive,
@@ -53,8 +56,10 @@ The formalization currently includes:
   and Besov atoms, and Besov atoms themselves, with the norm constants from
   the paper.
 
-At this snapshot, a search finds no Lean `sorry`, no `admit`, and no
-project-local `axiom` declarations.
+At this snapshot, the standard-vs-Haar norm comparison file has no remaining
+Lean `sorry`.  The new finite-standard-norm endpoint file contains two planned
+Lean `sorry`s isolating the `L^1` uniqueness/identification step.  A search
+finds no `admit` and no project-local `axiom` declarations.
 
 ## Build
 

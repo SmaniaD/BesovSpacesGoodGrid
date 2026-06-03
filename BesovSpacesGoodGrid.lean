@@ -12,7 +12,10 @@ import BesovSpacesGoodGrid.GoodGrid.HaarParametrizedRepresentation
 import BesovSpacesGoodGrid.GoodGrid.ComparingHaarRepresentationsl
 import BesovSpacesGoodGrid.GoodGrid.standardRepresentation
 import BesovSpacesGoodGrid.GoodGrid.standardNormleqHaarRepresenstionNorm
+import BesovSpacesGoodGrid.GoodGrid.FiniteStandardNormimpliesBesov
+import BesovSpacesGoodGrid.GoodGrid.FiniteHaarNormimpliesLp
 import BesovSpacesGoodGrid.GoodGrid.MeanOscillationNorm
+import BesovSpacesGoodGrid.GoodGrid.OscillationNormleqBesovNorm
 
 /-!
 # Besov spaces over weak grids and good grids
