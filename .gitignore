@@ -9,3 +9,8 @@ docs/Documentation.synctex.gz
 docs/Documentation.toc
 
 /latex
+*.aux
+*.log
+*.out
+latex_source_files/besovish-2020-07-18.synctex.gz
+*.toc

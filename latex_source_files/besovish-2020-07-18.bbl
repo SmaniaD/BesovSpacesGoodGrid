@@ -1,0 +1,300 @@
+\def\cprime{$'$}
+\begin{thebibliography}{10}
+
+\bibitem{sharp}
+R.~Alvarado and M.~Mitrea.
+\newblock {\em Hardy spaces on {A}hlfors-regular quasi metric spaces}, volume
+  2142 of {\em Lecture Notes in Mathematics}.
+\newblock Springer, Cham, 2015.
+\newblock A sharp theory.
+
+\bibitem{bb}
+V.~Baladi.
+\newblock {\em Positive transfer operators and decay of correlations},
+  volume~16 of {\em Advanced Series in Nonlinear Dynamics}.
+\newblock World Scientific Publishing Co., Inc., River Edge, NJ, 2000.
+
+\bibitem{besov2}
+O.~Besov and G.~Kalyabin.
+\newblock Spaces of differentiable functions.
+\newblock In {\em Function spaces, differential operators and nonlinear
+  analysis ({T}eistungen, 2001)}, pages 3--21. Birkh\"auser, Basel, 2003.
+
+\bibitem{besov}
+O.~V. Besov.
+\newblock On some families of functional spaces. {I}mbedding and extension
+  theorems.
+\newblock {\em Dokl. Akad. Nauk SSSR}, 126:1163--1165, 1959.
+
+\bibitem{k0}
+G.~Bourdaud and D.~Kateb.
+\newblock Calcul fonctionnel dans certains espaces de {B}esov.
+\newblock {\em Ann. Inst. Fourier (Grenoble)}, 40(1):153--162, 1990.
+
+\bibitem{k1}
+G.~Bourdaud and D.~Kateb.
+\newblock Fonctions qui op\'erent sur les espaces de {B}esov.
+\newblock {\em Proc. Amer. Math. Soc.}, 112(4):1067--1076, 1991.
+
+\bibitem{kateb1}
+G.~Bourdaud and D.~Kateb.
+\newblock Fonctions qui op\`erent sur les espaces de {B}esov.
+\newblock {\em Math. Ann.}, 303(4):653--675, 1995.
+
+\bibitem{broise}
+A.~Broise.
+\newblock Transformations dilatantes de l'intervalle et th\'{e}or\`emes
+  limites.
+\newblock {\em Ast\'{e}risque}, (238):1--109, 1996.
+\newblock \'{E}tudes spectrales d'op\'{e}rateurs de transfert et applications.
+
+\bibitem{christ}
+M.~Christ.
+\newblock A {$T(b)$} theorem with remarks on analytic capacity and the {C}auchy
+  integral.
+\newblock {\em Colloq. Math.}, 60/61(2):601--628, 1990.
+
+\bibitem{spline1}
+Z.~Ciesielski.
+\newblock Constructive function theory and spline systems.
+\newblock {\em Studia Math.}, 53(3):277--302, 1975.
+
+\bibitem{coifman}
+R.~R. Coifman.
+\newblock A real variable characterization of {$H^{p}$}.
+\newblock {\em Studia Math.}, 51:269--274, 1974.
+
+\bibitem{cw}
+R.~R. Coifman and G.~Weiss.
+\newblock {\em Analyse harmonique non-commutative sur certains espaces
+  homog\`enes}.
+\newblock Lecture Notes in Mathematics, Vol. 242. Springer-Verlag, Berlin-New
+  York, 1971.
+\newblock \'Etude de certaines int\'egrales singuli\`eres.
+
+\bibitem{examples}
+R.~R. Coifman and G.~Weiss.
+\newblock Extensions of {H}ardy spaces and their use in analysis.
+\newblock {\em Bull. Amer. Math. Soc.}, 83(4):569--645, 1977.
+
+\bibitem{souzao1}
+G.~S. de~Souza.
+\newblock The atomic decomposition of {B}esov-{B}ergman-{L}ipschitz spaces.
+\newblock {\em Proc. Amer. Math. Soc.}, 94(4):682--686, 1985.
+
+\bibitem{souzao2}
+G.~S. de~Souza.
+\newblock Two more characterizations of {B}esov-{B}ergman-{L}ipschitz spaces.
+\newblock {\em Real Anal. Exchange}, 11(1):75--79, 1985/86.
+\newblock The ninth summer real analysis symposium (Louisville, Ky., 1985).
+
+\bibitem{sn}
+G.~S. de~Souza, R.~O'Neil, and G.~Sampson.
+\newblock Several characterizations for the special atom spaces with
+  applications.
+\newblock {\em Rev. Mat. Iberoamericana}, 2(3):333--355, 1986.
+
+\bibitem{deng}
+D.~Deng and Y.~Han.
+\newblock {\em Harmonic analysis on spaces of homogeneous type}, volume 1966 of
+  {\em Lecture Notes in Mathematics}.
+\newblock Springer-Verlag, Berlin, 2009.
+\newblock With a preface by Yves Meyer.
+
+\bibitem{spline2}
+R.~A. DeVore and V.~A. Popov.
+\newblock Interpolation of {B}esov spaces.
+\newblock {\em Trans. Amer. Math. Soc.}, 305(1):397--414, 1988.
+
+\bibitem{mo}
+J.~R. Dorronsoro.
+\newblock Mean oscillation and {B}esov spaces.
+\newblock {\em Canad. Math. Bull.}, 28(4):474--480, 1985.
+
+\bibitem{et}
+D.~E. Edmunds and H.~Triebel.
+\newblock {\em Function spaces, entropy numbers, differential operators},
+  volume 120 of {\em Cambridge Tracts in Mathematics}.
+\newblock Cambridge University Press, Cambridge, 1996.
+
+\bibitem{faraco}
+D.~Faraco and K.~M. Rogers.
+\newblock The {S}obolev norm of characteristic functions with applications to
+  the {C}alder\'on inverse problem.
+\newblock {\em Q. J. Math.}, 64(1):133--147, 2013.
+
+\bibitem{fj}
+M.~Frazier and B.~Jawerth.
+\newblock Decomposition of {B}esov spaces.
+\newblock {\em Indiana Univ. Math. J.}, 34(4):777--799, 1985.
+
+\bibitem{fj2}
+M.~Frazier and B.~Jawerth.
+\newblock A discrete transform and decompositions of distribution spaces.
+\newblock {\em J. Funct. Anal.}, 93(1):34--170, 1990.
+
+\bibitem{gw}
+M.~Girardi and W.~Sweldens.
+\newblock A new class of unbalanced {H}aar wavelets that form an unconditional
+  basis for {$L_p$} on general measure spaces.
+\newblock {\em J. Fourier Anal. Appl.}, 3(4):457--474, 1997.
+
+\bibitem{martingale}
+C.~Gu and M.~Taibleson.
+\newblock Besov spaces on nonhomogeneous martingales.
+\newblock In {\em Harmonic analysis and discrete potential theory ({F}rascati,
+  1991)}, pages 69--84. Plenum, New York, 1992.
+
+\bibitem{haar}
+A.~Haar.
+\newblock Zur {T}heorie der orthogonalen {F}unktionensysteme.
+\newblock {\em Math. Ann.}, 69(3):331--371, 1910.
+
+\bibitem{han2}
+Y.~Han, S.~Lu, and D.~Yang.
+\newblock Inhomogeneous {B}esov and {T}riebel-{L}izorkin spaces on spaces of
+  homogeneous type.
+\newblock {\em Approx. Theory Appl. (N.S.)}, 15(3):37--65, 1999.
+
+\bibitem{hs}
+Y.~S. Han and E.~T. Sawyer.
+\newblock Littlewood-{P}aley theory on spaces of homogeneous type and the
+  classical function spaces.
+\newblock {\em Mem. Amer. Math. Soc.}, 110(530):vi+126, 1994.
+
+\bibitem{hk3}
+F.~Hofbauer and G.~Keller.
+\newblock Ergodic properties of invariant measures for piecewise monotonic
+  transformations.
+\newblock {\em Math. Z.}, 180(1):119--140, 1982.
+
+\bibitem{jaffard}
+S.~Jaffard.
+\newblock D\'ecompositions en ondelettes.
+\newblock In {\em Development of mathematics 1950--2000}, pages 609--634.
+  Birkh\"auser, Basel, 2000.
+
+\bibitem{jaffard2}
+S.~Jaffard, Y.~Meyer, and R.~D. Ryan.
+\newblock {\em Wavelets}.
+\newblock Society for Industrial and Applied Mathematics (SIAM), Philadelphia,
+  PA, revised edition, 2001.
+\newblock Tools for science \& technology.
+
+\bibitem{ka}
+A.~Kairema, J.~Li, M.~C. Pereyra, and L.~A. Ward.
+\newblock Haar bases on quasi-metric measure spaces, and dyadic structure
+  theorems for function spaces on product spaces of homogeneous type.
+\newblock {\em J. Funct. Anal.}, 271(7):1793--1843, 2016.
+
+\bibitem{koskela2}
+P.~Koskela, D.~Yang, and Y.~Zhou.
+\newblock Pointwise characterizations of {B}esov and {T}riebel-{L}izorkin
+  spaces and quasiconformal mappings.
+\newblock {\em Adv. Math.}, 226(4):3579--3621, 2011.
+
+\bibitem{ly}
+A.~Lasota and J.~A. Yorke.
+\newblock On the existence of invariant measures for piecewise monotonic
+  transformations.
+\newblock {\em Trans. Amer. Math. Soc.}, 186:481--488 (1974), 1973.
+
+\bibitem{latter}
+R.~H. Latter.
+\newblock A characterization of {$H^{p}({\bf R}^{n})$} in terms of atoms.
+\newblock {\em Studia Math.}, 62(1):93--101, 1978.
+
+\bibitem{sob}
+V.~G. Maz'ya and T.~O. Shaposhnikova.
+\newblock {\em Theory of {S}obolev multipliers}, volume 337 of {\em Grundlehren
+  der Mathematischen Wissenschaften [Fundamental Principles of Mathematical
+  Sciences]}.
+\newblock Springer-Verlag, Berlin, 2009.
+\newblock With applications to differential and integral operators.
+
+\bibitem{oswald0}
+P.~Oswald.
+\newblock On function spaces related to finite element approximation theory.
+\newblock {\em Z. Anal. Anwendungen}, 9(1):43--64, 1990.
+
+\bibitem{oswald}
+P.~Oswald.
+\newblock {\em Multilevel finite element approximation}.
+\newblock Teubner Skripten zur Numerik. [Teubner Scripts on Numerical
+  Mathematics]. B. G. Teubner, Stuttgart, 1994.
+\newblock Theory and applications.
+
+\bibitem{peetre}
+J.~Peetre.
+\newblock {\em New thoughts on {B}esov spaces}.
+\newblock Mathematics Department, Duke University, Durham, N.C., 1976.
+\newblock Duke University Mathematics Series, No. 1.
+
+\bibitem{corjan}
+C.~Schneider and J.~Vyb\'\i{ral}.
+\newblock Non-smooth atomic decompositions, traces on {L}ipschitz domains, and
+  pointwise multipliers in function spaces.
+\newblock {\em J. Funct. Anal.}, 264(5):1197--1237, 2013.
+
+\bibitem{sickel}
+W.~Sickel.
+\newblock Pointwise multipliers of {L}izorkin-{T}riebel spaces.
+\newblock In {\em The {M}az$\prime$ya anniversary collection, {V}ol. 2
+  ({R}ostock, 1998)}, volume 110 of {\em Oper. Theory Adv. Appl.}, pages
+  295--321. Birkh\"auser, Basel, 1999.
+
+\bibitem{smania-homo}
+D.~Smania.
+\newblock Classic and exotic {B}esov spaces induced by good grids.
+\newblock {\em J. Geom. Anal.}, 2020,
+  \url{https://doi.org/10.1007/s12220-020-00361-x}.
+
+\bibitem{stein}
+E.~M. Stein.
+\newblock {\em Singular integrals and differentiability properties of
+  functions}.
+\newblock Princeton Mathematical Series, No. 30. Princeton University Press,
+  Princeton, N.J., 1970.
+
+\bibitem{multi}
+H.~Triebel.
+\newblock Multiplication properties of {B}esov spaces.
+\newblock {\em Ann. Mat. Pura Appl. (4)}, 114:87--102, 1977.
+
+\bibitem{ns}
+H.~Triebel.
+\newblock Non-smooth atoms and pointwise multipliers in function spaces.
+\newblock {\em Ann. Mat. Pura Appl. (4)}, 182(4):457--486, 2003.
+
+\bibitem{fractal2}
+H.~Triebel.
+\newblock A new approach to function spaces on quasi-metric spaces.
+\newblock {\em Rev. Mat. Complut.}, 18(1):7--48, 2005.
+
+\bibitem{tbook}
+H.~Triebel.
+\newblock {\em Theory of function spaces}.
+\newblock Modern Birkh\"auser Classics. Birkh\"auser/Springer Basel AG, Basel,
+  2010.
+\newblock Reprint of 1983 edition [MR0730762], Also published in 1983 by
+  Birkh\"auser Verlag [MR0781540].
+
+\bibitem{fractal}
+H.~Triebel.
+\newblock {\em Fractals and spectra}.
+\newblock Modern Birkh\"auser Classics. Birkh\"auser Verlag, Basel, 2011.
+\newblock Related to Fourier analysis and function spaces.
+
+\bibitem{martin}
+D.~Williams.
+\newblock {\em Probability with martingales}.
+\newblock Cambridge Mathematical Textbooks. Cambridge University Press,
+  Cambridge, 1991.
+
+\bibitem{ysy}
+W.~Yuan, W.~Sickel, and D.~Yang.
+\newblock {\em Morrey and {C}ampanato meet {B}esov, {L}izorkin and {T}riebel},
+  volume 2005 of {\em Lecture Notes in Mathematics}.
+\newblock Springer-Verlag, Berlin, 2010.
+
+\end{thebibliography}
