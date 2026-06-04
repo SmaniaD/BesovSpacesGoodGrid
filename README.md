@@ -14,11 +14,12 @@ DOI: <https://doi.org/10.2140/apde.2022.15.123>
 
 ## Current State
 
-The root module is `BesovSpacesGoodGrid.lean`.  It currently imports the weak
-grid API, atom families, Besov-ish spaces, scale inclusions, completeness
-theorems, induced grids, weak-grid transmutation, and the current good-grid
-Besov-atom comparison layer.  The repository also contains auxiliary
-indexed-sum infrastructure.
+The aggregate root module is `BesovSpacesGoodGrid.lean`.  Its source imports
+the weak-grid API, atom families, Besov-ish spaces, scale inclusions,
+completeness theorems, induced grids, weak-grid transmutation, the good-grid
+Besov-atom comparison layer, and the current Haar/standard/oscillation
+comparison files.  The repository also contains auxiliary indexed-sum
+infrastructure.
 
 The formalization currently includes:
 
@@ -55,31 +56,53 @@ The formalization currently includes:
   spaces associated to Souza atoms, any atom family sandwiched between Souza
   and Besov atoms, and Besov atoms themselves, with the norm constants from
   the paper.
+- Haar and standard representation gauges on good grids, including the
+  comparison
+  `exists_standardRepresentationNorm_le_const_mul_haarL2RepresentationNorm`.
+- Finite-norm endpoint results showing that finite standard norm gives
+  `L^p` membership, a canonical standard representation, finite cost, and
+  Souza-Besov membership, and that finite Haar norm gives `L^p` membership
+  and Haar expansion convergence.
+- Mean-oscillation results connecting the standard representation norm,
+  `meanOscillationNorm`, and the Haar representation norm by finite-constant
+  comparison theorems.
 
-At this snapshot, the standard-vs-Haar norm comparison file has no remaining
-Lean `sorry`.  The new finite-standard-norm endpoint file contains two planned
-Lean `sorry`s isolating the `L^1` uniqueness/identification step.  A search
-finds no `admit` and no project-local `axiom` declarations.
+At this snapshot, project Lean files outside `.lake/packages` contain no Lean
+`sorry`, no Lean `admit`, and no project-local `axiom` or `constant`
+declarations.  The main comparison modules check individually.  The aggregate
+root module currently has a known import/name organization issue involving
+`GoodGridSpace.GoodGridCell.toLevelCell`; see `status.md` for the current
+verification log.
 
 ## Build
 
 This project uses the Lean toolchain pinned in `lean-toolchain`, currently
 `leanprover/lean4:v4.30.0-rc2`, and mathlib through Lake.
 
+The intended full-project check is:
+
 ```sh
 lake build
 ```
 
-For a quick check of the root module:
+At the current snapshot, the aggregate root import still needs the
+`GoodGridCell.toLevelCell` issue recorded in `status.md` to be resolved before
+that full build is expected to pass.
+
+For focused checks of the most recent comparison modules:
 
 ```sh
-lake env lean BesovSpacesGoodGrid.lean
+lake env lean BesovSpacesGoodGrid/GoodGrid/OscillationNormleqBesovNorm.lean
+lake env lean BesovSpacesGoodGrid/GoodGrid/HaarNormleqOscillationNorm.lean
 ```
+
+The aggregate root check is the intended final smoke test, but it currently
+needs the import/name issue recorded in `status.md` to be resolved first.
 
 ## Project Files
 
-- `BesovSpacesGoodGrid.lean`: library entry point for the main weak-grid
-  development.
+- `BesovSpacesGoodGrid.lean`: aggregate library entry point for the weak-grid,
+  good-grid, Haar, standard-representation, and oscillation layers.
 - `BesovSpacesGoodGrid/GoodGrid/Definition.lean`: good grids with quantitative
   parent-child measure-ratio bounds.
 - `BesovSpacesGoodGrid/WeakGrid/Definition.lean`: weak grids and overlap
@@ -100,6 +123,23 @@ lake env lean BesovSpacesGoodGrid.lean
   Besov-space consequences.
 - `BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean`: Besov atoms on good grids and
   the Souza/Besov atom comparison theorem.
+- `BesovSpacesGoodGrid/GoodGrid/HaarRepresentationNorm.lean`: normalized Haar
+  coefficients and the Haar representation gauge.
+- `BesovSpacesGoodGrid/GoodGrid/standardRepresentation.lean`: standard atomic
+  coefficients and the standard representation gauge.
+- `BesovSpacesGoodGrid/GoodGrid/standardNormleqHaarRepresenstionNorm.lean`:
+  control of the standard representation norm by the Haar representation norm.
+- `BesovSpacesGoodGrid/GoodGrid/FiniteStandardNormimpliesBesov.lean`: finite
+  standard norm implies `L^p`, a canonical representation, finite cost, and
+  Souza-Besov membership.
+- `BesovSpacesGoodGrid/GoodGrid/FiniteHaarNormimpliesLp.lean`: finite Haar norm
+  implies `L^p` membership and Haar expansion convergence.
+- `BesovSpacesGoodGrid/GoodGrid/MeanOscillationNorm.lean`: mean-oscillation
+  definitions and reusable oscillation lemmas.
+- `BesovSpacesGoodGrid/GoodGrid/OscillationNormleqBesovNorm.lean`: control of
+  mean oscillation by the standard representation norm.
+- `BesovSpacesGoodGrid/GoodGrid/HaarNormleqOscillationNorm.lean`: control of
+  the Haar representation norm by mean oscillation.
 - `BesovSpacesGoodGrid/GoodGrid/Distribution.lean`: test functions
   and distributions associated with a good grid.
 - `BesovSpacesGoodGrid/Sums.lean`: reusable block-index and block-sum
@@ -114,11 +154,13 @@ lake env lean BesovSpacesGoodGrid.lean
 
 Likely next steps are:
 
+- resolve the aggregate root import/name collision around
+  `GoodGridSpace.GoodGridCell.toLevelCell`;
+- run a full `lake build` once the root module imports cleanly;
 - decide whether `GoodGrid.Distribution` and `Sums` should be imported by the
   root module or kept as opt-in modules;
 - continue polishing public docstrings around the large transmutation and
   completeness files;
 - factor large proof-heavy files into smaller topic-focused modules if
   compilation time or navigation becomes cumbersome;
-- add downstream examples showing how the weak-grid theorems specialize to
-  concrete good-grid Besov spaces.
+- clean deprecation/style warnings in the new comparison files.

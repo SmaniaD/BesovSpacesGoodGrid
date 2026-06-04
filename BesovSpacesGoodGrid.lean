@@ -16,6 +16,7 @@ import BesovSpacesGoodGrid.GoodGrid.FiniteStandardNormimpliesBesov
 import BesovSpacesGoodGrid.GoodGrid.FiniteHaarNormimpliesLp
 import BesovSpacesGoodGrid.GoodGrid.MeanOscillationNorm
 import BesovSpacesGoodGrid.GoodGrid.OscillationNormleqBesovNorm
+import BesovSpacesGoodGrid.GoodGrid.HaarNormleqOscillationNorm
 
 /-!
 # Besov spaces over weak grids and good grids

@@ -32,7 +32,7 @@
 \title{\textbf{Besov Spaces over Good Grids}\\
   \large Current Lean 4 Formalization}
 \author{Daniel Smania}
-\date{May 2026}
+\date{June 2026}
 
 \begin{document}
 
@@ -45,6 +45,9 @@ weak-grid framework for atomic Besov-ish spaces, proves scale inclusions,
 representation-limit and compactness theorems, proves completeness for the
 coefficient-cost norm, and formalizes a substantial weak-grid transmutation
 pipeline.  It also contains a good-grid specialization based on Souza atoms.
+The current good-grid layer also relates the standard atomic representation
+norm, the \(L^2\)-normalized Haar representation norm, and the mean-oscillation
+norm by finite-constant comparison theorems.
 The principal public results are summarized in
 Section~\ref{sec:main-theorems}.
 \end{abstract}
@@ -68,8 +71,8 @@ and good-grid/Souza spaces are then obtained as a specialization.
 
 \subsection{Current Pipeline}
 
-The root Lean file \verb|BesovSpacesGoodGrid.lean| currently imports the
-following pipeline:
+The aggregate Lean file \verb|BesovSpacesGoodGrid.lean| is intended to import
+the following pipeline:
 
 \begin{enumerate}
   \item define quantitative good grids and general weak grids;
@@ -85,12 +88,15 @@ following pipeline:
   \item prove transmutation claims moving atomic representations from one weak
     grid to another;
   \item specialize the transmutation machinery to compare Souza atoms, Besov
-    atoms, and atom families sandwiched between them on good grids.
+    atoms, and atom families sandwiched between them on good grids;
+  \item introduce Haar and standard representation gauges on good grids and
+    compare them with the mean-oscillation norm.
 \end{enumerate}
 
 The repository also contains good-grid Souza-space results and auxiliary
-block-sum notation.  The good-grid Souza and Besov-atom layers are imported by
-the root module; some auxiliary files remain opt-in.
+block-sum notation.  At the date of this document the newest comparison modules
+check individually, while the aggregate root module still has an import/name
+organization issue involving \verb|GoodGridSpace.GoodGridCell.toLevelCell|.
 
 \newpage
 
@@ -673,6 +679,83 @@ The second inequality is obtained by applying explicit Claim C and the
 geometric-sum constant computation above.
 \end{theorem}
 
+\subsection{Haar, Standard, and Mean-Oscillation Norms}
+
+The newer good-grid files formalize three analytic gauges associated with an
+integrable function \(f\):
+\begin{itemize}
+  \item the standard atomic representation norm
+    \verb|standardRepresentationNorm|;
+  \item the \(L^2\)-normalized Haar representation norm
+    \verb|haarL2RepresentationNorm|;
+  \item the mean-oscillation norm \verb|meanOscillationNorm|, built from a
+    global \(L^p\) term and levelwise local oscillations.
+\end{itemize}
+
+\begin{theorem}[Haar controls standard]
+The theorem
+\begin{center}
+\verb|exists_standardRepresentationNorm_le_const_mul_haarL2RepresentationNorm|
+\end{center}
+states that, for fixed good-grid data and parameters, the standard atomic
+representation norm is bounded by a finite constant times the Haar
+representation norm.
+\end{theorem}
+
+\begin{theorem}[Finite standard norm endpoint]
+The theorem
+\begin{center}
+\verb|finite_standardRepresentationNorm_implies_memBesov_and_standardRepresentation|
+\end{center}
+packages the endpoint consequence of finite standard norm.  It gives \(L^p\)
+membership, the canonical standard \verb|LpGridRepresentation|, finite
+\((p,q)\)-coefficient cost, and membership in the Souza Besov space, with the
+expected cost bounds.
+\end{theorem}
+
+\begin{theorem}[Finite Haar norm endpoint]
+The theorem
+\begin{center}
+\verb|finite_haarL2RepresentationNorm_implies_memLp_and_hasSum|
+\end{center}
+states that finite Haar representation norm implies \(f\in L^p\) and that the
+normalized Haar expansion has sum \(f\) in \(L^p\).
+\end{theorem}
+
+\begin{theorem}[Standard controls mean oscillation]
+The theorem
+\begin{center}
+\verb|exists_meanOscillationNorm_le_const_mul_standardRepresentationNorm|
+\end{center}
+proves the manuscript direction in which the standard representation norm
+controls the mean-oscillation norm.  The proof separates the \(L^p\) term from
+the oscillation seminorm.  The oscillation estimate uses the fact that
+low-frequency Souza blocks are constant on finer cells, so local oscillation is
+controlled by the high-frequency tail, followed by a geometric discrete
+convolution estimate.
+\end{theorem}
+
+\begin{theorem}[Mean oscillation controls Haar]
+The theorem
+\begin{center}
+\verb|exists_haarL2RepresentationNorm_le_const_mul_meanOscillationNorm|
+\end{center}
+proves the reverse analytic comparison from mean oscillation to Haar norm.  The
+cellwise estimate is the Lean analogue of testing \(f-c_Q\) against the
+zero-mean Haar wavelets over a parent cell \(Q\):
+\[
+  |d_S|
+    \le
+    C\,\operatorname{osc}_p(f,Q)\,\mu(Q)^{1/p' - 1/2}.
+\]
+After summing over branches and levels, this gives a finite constant \(C\) such
+that
+\[
+  \|f\|_{\mathrm{Haar}}
+    \le C\,\|f\|_{\mathrm{mean\ osc}}.
+\]
+\end{theorem}
+
 \newpage
 
 \section{Auxiliary Files}
@@ -703,12 +786,20 @@ block sums:
 
 \subsection{Repository Status}
 
-At this snapshot, a text search finds no Lean \verb|sorry|, no \verb|admit|,
-and no project-local \verb|axiom| declarations.  The former Besov-atom
-comparison target is now proved as
+At this snapshot, project Lean files outside \verb|.lake/packages| contain no
+Lean \verb|sorry|, no Lean \verb|admit|, no project-local \verb|axiom|
+declarations, and no project-local \verb|constant| declarations.  The former
+Besov-atom comparison target is proved as
 \verb|atoms_between_souza_atoms_and_besov_atoms| in
-\verb|GoodGrid/BesovAtoms.lean|.  The file \verb|Basic.lean| currently contains
-only the placeholder definition \verb|hello|.
+\verb|GoodGrid/BesovAtoms.lean|.  The newest oscillation and Haar comparison
+modules also check individually.
+
+The aggregate root file \verb|BesovSpacesGoodGrid.lean| currently has a known
+import/name organization issue: when checked directly, Lean reports that the
+environment already contains
+\verb|GoodGridSpace.GoodGridCell.toLevelCell| from
+\verb|GoodGrid/BesovSpace.lean| while importing \verb|GoodGrid/BesovAtoms.lean|.
+This is recorded in \verb|status.md| as the next repository-level cleanup item.
 
 \newpage
 
@@ -748,6 +839,24 @@ The most important public results currently include:
     \verb|souzaBesovSpace_dense|, and
     \verb|souzaBesovSpace_dense_inL1|:
     good-grid/Souza consequences.
+  \item
+    \verb|exists_standardRepresentationNorm_le_const_mul_haarL2RepresentationNorm|:
+    the Haar representation norm controls the standard atomic representation
+    norm.
+  \item
+    \verb|finite_standardRepresentationNorm_implies_memBesov_and_standardRepresentation|:
+    finite standard norm gives \(L^p\), a canonical representation, finite
+    cost, and Souza-Besov membership.
+  \item
+    \verb|finite_haarL2RepresentationNorm_implies_memLp_and_hasSum|:
+    finite Haar norm gives \(L^p\) membership and convergence of the normalized
+    Haar expansion to \(f\).
+  \item
+    \verb|exists_meanOscillationNorm_le_const_mul_standardRepresentationNorm|:
+    standard representation norm controls the mean-oscillation norm.
+  \item
+    \verb|exists_haarL2RepresentationNorm_le_const_mul_meanOscillationNorm|:
+    mean oscillation controls the Haar representation norm.
 \end{itemize}
 
 \section{File Guide}
@@ -772,6 +881,21 @@ The most important public results currently include:
   \item \verb|GoodGrid/BesovSpace.lean|: Souza atoms and good-grid Besov spaces.
   \item \verb|GoodGrid/BesovAtoms.lean|: Besov atoms on good grids and the
     Souza/Besov atom comparison theorem.
+  \item \verb|GoodGrid/HaarRepresentationNorm.lean|: normalized Haar
+    coefficients and the Haar representation gauge.
+  \item \verb|GoodGrid/standardRepresentation.lean|: standard atomic
+    coefficients and the standard representation gauge.
+  \item \verb|GoodGrid/standardNormleqHaarRepresenstionNorm.lean|: control of
+    the standard representation norm by the Haar representation norm.
+  \item \verb|GoodGrid/FiniteStandardNormimpliesBesov.lean|: finite standard
+    norm endpoint and Souza-Besov membership.
+  \item \verb|GoodGrid/FiniteHaarNormimpliesLp.lean|: finite Haar norm endpoint.
+  \item \verb|GoodGrid/MeanOscillationNorm.lean|: mean-oscillation definitions
+    and reusable local oscillation lemmas.
+  \item \verb|GoodGrid/OscillationNormleqBesovNorm.lean|: control of mean
+    oscillation by the standard representation norm.
+  \item \verb|GoodGrid/HaarNormleqOscillationNorm.lean|: control of the Haar
+    representation norm by mean oscillation.
   \item \verb|GoodGrid/Distribution.lean|: test functions and
     distributions.
   \item \verb|Sums.lean|: block-index and block-sum infrastructure.
@@ -782,8 +906,10 @@ The most important public results currently include:
 The repository now contains a substantial weak-grid atomic-decomposition
 library: it defines Besov-ish spaces, develops their coefficient-cost norm,
 proves scale, compactness, completeness, and transmutation statements, and
-specializes the theory to Souza atoms on good grids.  The most reusable API is
-currently the weak-grid layer; the good-grid files show how the abstract
-machinery is intended to specialize to concrete Besov spaces.
+specializes the theory to Souza atoms on good grids.  The good-grid layer now
+also contains the main finite-constant comparisons among the standard atomic
+norm, Haar representation norm, and mean-oscillation norm.  The most reusable
+API is currently the weak-grid layer; the good-grid files show how the
+abstract machinery is intended to specialize to concrete Besov spaces.
 
 \end{document}
