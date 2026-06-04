@@ -26,27 +26,21 @@ examples.  Those are not proof holes in this project.
 
 Recently checked successfully:
 
+- `lake build`
+- `lake build BesovSpacesGoodGrid.GoodGrid.BesovAtoms`
 - `lake env lean BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean`
 - `lake env lean BesovSpacesGoodGrid/GoodGrid/OscillationNormleqBesovNorm.lean`
 - `lake env lean BesovSpacesGoodGrid/GoodGrid/HaarNormleqOscillationNorm.lean`
+- `lake env lean BesovSpacesGoodGrid.lean`
 
 The last file currently reports only deprecation warnings for
 `mul_le_mul_left'`/`mul_le_mul_right'`.  `BesovAtoms.lean` reports one
 style-only `unnecessarySimpa` warning.
 
-Current known verification issue:
-
-- `lake env lean BesovSpacesGoodGrid.lean` fails at the entry point with
-
-  ```text
-  import BesovSpacesGoodGrid.GoodGrid.BesovAtoms failed,
-  environment already contains 'GoodGridSpace.GoodGridCell.toLevelCell'
-  from BesovSpacesGoodGrid.GoodGrid.BesovSpace
-  ```
-
-  The involved modules check individually; this appears to be an import/name
-  organization issue at the aggregate root module rather than a remaining
-  mathematical proof hole.
+The previous aggregate-root collision around
+`GoodGridSpace.GoodGridCell.toLevelCell` has been resolved by rebuilding the
+stale `BesovAtoms` artifact after the definition was centralized in
+`GoodGrid/BesovSpace.lean`.  The root module now imports cleanly.
 
 ## Current Main Line
 
@@ -174,8 +168,7 @@ C2 / (1 - G.grid.lambda2 ^ (β - s)).
 
   Aggregate root module.  The source imports the weak-grid layer, good-grid
   atom comparison, standard/Haar comparisons, finite-norm endpoint files, and
-  oscillation/Haar comparison files.  Its current Lean check is blocked by the
-  `GoodGridCell.toLevelCell` import/name issue noted above.
+  oscillation/Haar comparison files.  Its current Lean check succeeds.
 
 - `BesovSpacesGoodGrid/GoodGrid/standardRepresentation.lean`
 
@@ -212,11 +205,8 @@ C2 / (1 - G.grid.lambda2 ^ (β - s)).
 
 ## Next Steps
 
-1. Resolve the aggregate root import/name collision around
-   `GoodGridSpace.GoodGridCell.toLevelCell`.
-2. Run a full `lake build` after the root module imports cleanly.
-3. Clean deprecation/style warnings in the new comparison files.
-4. Consider factoring large proof-heavy comparison files into smaller
+1. Clean deprecation/style warnings in the new comparison files.
+2. Consider factoring large proof-heavy comparison files into smaller
    topic-focused modules if compilation or navigation becomes cumbersome.
 
 ## Notes
