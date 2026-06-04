@@ -15,6 +15,10 @@ Recently checked successfully:
 - `lake build BesovSpacesGoodGrid.GoodGrid.FiniteHaarNormimpliesLp`
 - `lake build BesovSpacesGoodGrid.GoodGrid.OscillationNormleqBesovNorm`
 - `lake env lean BesovSpacesGoodGrid.lean`
+- `lake build BesovSpacesGoodGrid.WeakGrid.InducedGrid`
+- `lake build BesovSpacesGoodGrid.GoodGrid.BesovSpace`
+- `lake env lean BesovSpacesGoodGrid/GoodGrid/MeanOscillationNorm.lean`
+- `lake env lean BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean`
 
 The oscillation module builds with one known `sorry`, described below.  The
 other checked modules above have no new `sorry`.
@@ -130,8 +134,17 @@ of the standard representation, bound the oscillation by the tail
 sum_{k > k0} sum_{R ∈ P^k, R ⊆ J} k_R a_R,
 ```
 
-then sum over cells and levels to obtain convolution with the geometric kernel
-`lambda2^(s * (k - k0))`.  The expected constant is of the form
+then prove the levelwise estimate
+
+```text
+(sum_{J ∈ P^k0} μ(J)^(-s p) osc_p(f,J)^p)^(1/p)
+  ≤ sum_{k > k0} lambda2^(s * (k - k0))
+      (sum_{R ∈ P^k} |k_R|^p)^(1/p).
+```
+
+Summing this estimate over `k0` gives the final discrete convolution with the
+geometric kernel `lambda2^(s * n)`.  The expected oscillation constant is of
+the form
 
 ```text
 1 / (1 - G.grid.lambda2 ^ s)
@@ -139,14 +152,55 @@ then sum over cells and levels to obtain convolution with the geometric kernel
 
 up to the already-existing embedding/constants infrastructure.
 
+Nine reusable local-oscillation lemmas have now been added to
+`BesovSpacesGoodGrid/GoodGrid/MeanOscillationNorm.lean`:
+
+- `osc_le_eLpNorm_sub_const`
+- `osc_le_eLpNorm_of_sub_eq_on_cell`
+- `osc_congr_ae`
+- `osc_eq_zero_of_ae_eq_const`
+- `osc_eq_zero_of_eq_const_on_cell`
+- `souzaLevelBlock_toFunLt_eq_on_finer_cell`
+- `souzaFiniteBlockSum_toFunLt_eq_on_finer_cell`
+- `osc_eq_zero_souzaFiniteBlockSum_of_levels_le`
+- `osc_souzaFiniteBlockSum_add_tail_le_tail_eLpNorm`
+
+Additional induced-grid infrastructure has now been added:
+
+- in `BesovSpacesGoodGrid/WeakGrid/InducedGrid.lean`,
+  `ambientLevelBlockToInduced` restricts an ambient block on level `k0+i` to
+  the descendants of a parent level-`k0` cell, and
+  `ambientLevelBlockToInduced_coeffPower_le` bounds the restricted coefficient
+  power by the full ambient coefficient power;
+- in `BesovSpacesGoodGrid/GoodGrid/MeanOscillationNorm.lean`,
+  `souzaAmbientLevelBlockToInduced_toFunLt_eq_on_parent` proves that, on the
+  parent cell, a Souza block agrees pointwise with this induced restriction.
+
+The relative good-grid measure estimate
+
+```text
+μ(P) ≤ lambda2^k * μ(Q)
+```
+
+for `P ∈ P^(Q.level+k)` and `P ⊆ Q` is now public as
+`cell_measure_le_lambda2_pow_mul_cell` in
+`BesovSpacesGoodGrid/GoodGrid/BesovSpace.lean`.
+
+The induced-grid mesh estimates needed for local tail bounds are now public in
+`BesovSpacesGoodGrid/GoodGrid/BesovSpace.lean`:
+
+- `GoodGridCell.toLevelCell`;
+- `induced_levelMesh_le_geometric`;
+- `induced_levelMeasureWeight_le_geometric`.
+
 The supporting Lean work still needed for this `sorry` is likely:
 
-1. basic lemmas for `osc` and `levelOscillationBlock`, especially bounding
-   `osc G p f J` by a chosen constant on `J`;
-2. a clean statement identifying the low-frequency part of the standard
-   representation as constant on a level-`k0` cell;
-3. a tail estimate for the standard representation restricted to descendants
-   of a fixed cell;
+1. connect the low-frequency constancy lemmas above to the concrete initial
+   segment of a standard/Souza `LpGridRepresentation`;
+2. turn the induced-grid block restriction into the local `L^p` tail estimate
+   for descendants of a fixed cell;
+3. the levelwise estimate displayed above, using
+   `cell_measure_le_lambda2_pow_mul_cell` for the geometric measure-ratio step;
 4. an `ℓ^q` convolution/geometric-kernel estimate in the current `ENNReal`
    norm format.
 

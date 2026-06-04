@@ -390,6 +390,79 @@ theorem inducedLevelBlockToAmbient_weakContraction
   ⟨inducedLevelBlockToAmbient_toLp G Q A B,
     inducedLevelBlockToAmbient_levelCoeffPower G Q A B⟩
 
+/--
+Restrict an ambient level block to the descendants of a parent cell.
+
+If `Q` is a level-`k₀` cell and `B` lives on ambient level `k₀+i`, this keeps
+exactly the coefficients and atoms on cells contained in `Q`, now regarded as a
+level-`i` block for the induced grid on `Q`.
+-/
+def ambientLevelBlockToInduced
+    (G : WeakGridSpace (α := α)) {k₀ i : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} (A : AtomFamily G s p u)
+    (B : LevelBlock A (k₀ + i)) :
+    LevelBlock (inducedAtomFamily G Q A) i where
+  coeff P := B.coeff (inducedLevelCellToAmbient G Q P)
+  atom P := B.atom (inducedLevelCellToAmbient G Q P)
+  atom_mem P := by
+    simpa [inducedAtomFamily, inducedWeakGridCellToAmbient_levelCellToWeakGridCell]
+      using B.atom_mem (inducedLevelCellToAmbient G Q P)
+
+@[simp]
+theorem ambientLevelBlockToInduced_coeff
+    (G : WeakGridSpace (α := α)) {k₀ i : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} (A : AtomFamily G s p u)
+    (B : LevelBlock A (k₀ + i))
+    (P : LevelCell (inducedWeakGridSpace G Q) i) :
+    (ambientLevelBlockToInduced G Q A B).coeff P =
+      B.coeff (inducedLevelCellToAmbient G Q P) :=
+  rfl
+
+@[simp]
+theorem ambientLevelBlockToInduced_atom
+    (G : WeakGridSpace (α := α)) {k₀ i : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} (A : AtomFamily G s p u)
+    (B : LevelBlock A (k₀ + i))
+    (P : LevelCell (inducedWeakGridSpace G Q) i) :
+    (ambientLevelBlockToInduced G Q A B).atom P =
+      B.atom (inducedLevelCellToAmbient G Q P) :=
+  rfl
+
+/--
+The coefficient power of the block restricted to an induced cell is bounded by
+the coefficient power of the full ambient block.
+-/
+theorem ambientLevelBlockToInduced_coeffPower_le
+    (G : WeakGridSpace (α := α)) {k₀ i : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} (A : AtomFamily G s p u)
+    (B : LevelBlock A (k₀ + i)) :
+    (∑ P : LevelCell (inducedWeakGridSpace G Q) i,
+        ‖(ambientLevelBlockToInduced G Q A B).coeff P‖ ^ p.toReal)
+      ≤ ∑ P : LevelCell G (k₀ + i), ‖B.coeff P‖ ^ p.toReal := by
+  classical
+  let F : LevelCell G (k₀ + i) → ℝ := fun P => ‖B.coeff P‖ ^ p.toReal
+  have hsub :
+      (∑ P : LevelCell (inducedWeakGridSpace G Q) i,
+          ‖(ambientLevelBlockToInduced G Q A B).coeff P‖ ^ p.toReal)
+        =
+          ∑ P : {P : LevelCell G (k₀ + i) // P.1 ⊆ Q.1}, F P := by
+    refine Fintype.sum_equiv (inducedLevelCellEquivSubtype G Q)
+      (fun P : LevelCell (inducedWeakGridSpace G Q) i =>
+        ‖(ambientLevelBlockToInduced G Q A B).coeff P‖ ^ p.toReal)
+      (fun P : {P : LevelCell G (k₀ + i) // P.1 ⊆ Q.1} => F P.1) ?_
+    intro P
+    rfl
+  have hsplit :
+      (∑ P : LevelCell G (k₀ + i), F P) =
+        (∑ P : {P : LevelCell G (k₀ + i) // P.1 ⊆ Q.1}, F P) +
+          ∑ P : {P : LevelCell G (k₀ + i) // ¬ P.1 ⊆ Q.1}, F P := by
+    rw [Fintype.sum_subtype_add_sum_subtype (fun P : LevelCell G (k₀ + i) => P.1 ⊆ Q.1) F]
+  have hcomp_nonneg :
+      0 ≤ ∑ P : {P : LevelCell G (k₀ + i) // ¬ P.1 ⊆ Q.1}, F P :=
+    Finset.sum_nonneg fun P _ => Real.rpow_nonneg (norm_nonneg _) _
+  rw [hsub, hsplit]
+  exact le_add_of_nonneg_right hcomp_nonneg
+
 /-- Transporting a `LevelBlock` along an equality of levels does not change its `L^p` value. -/
 @[simp]
 theorem cast_levelBlock_toLp

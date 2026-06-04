@@ -28,11 +28,6 @@ variable {α : Type u} [MeasurableSpace α]
 
 noncomputable section
 
-/-- A `GoodGridCell` as a level cell of the weak grid induced by the good grid. -/
-def GoodGridCell.toLevelCell {G : GoodGridSpace (α := α)} (Q : GoodGridCell G) :
-    WeakGridSpace.LevelCell G.toWeakGridSpace Q.level :=
-  ⟨Q.cell, Q.mem⟩
-
 /--
 The conjugate exponent used in the geometric part of the Besov-atom
 normalization.
@@ -76,116 +71,6 @@ theorem besovAtomConstant_nonneg
     (fun k => Real.rpow_nonneg
       (Real.rpow_nonneg
         (pow_nonneg (le_trans G.grid.hlambda1_pos.le G.grid.hlambda1_le_lambda2) k) _) _)
-
-private theorem cell_measure_le_lambda2_pow_mul_cell
-    (G : GoodGridSpace (α := α)) (Q : GoodGridCell G) :
-    ∀ (k : ℕ) (P : Set α),
-      P ∈ G.grid.grid.partitions (Q.level + k) → P ⊆ Q.cell →
-        G.grid.μ P ≤ (ENNReal.ofReal G.grid.lambda2) ^ k * G.grid.μ Q.cell
-  | 0, P, hP, hPQ => by
-      have hP_nonempty : P.Nonempty := G.grid.partition_nonempty Q.level P (by simpa using hP)
-      have hPQeq : P = Q.cell := by
-        by_contra hne
-        have hdisj := G.grid.grid.disjoint Q.level P Q.cell (by simpa using hP) Q.mem hne
-        rcases hP_nonempty with ⟨x, hxP⟩
-        exact (Set.disjoint_left.mp hdisj hxP (hPQ hxP)).elim
-      subst hPQeq
-      simp
-  | k + 1, P, hP, hPQ => by
-      have hP' : P ∈ G.grid.grid.partitions ((Q.level + k) + 1) := by
-        simpa [Nat.add_assoc] using hP
-      obtain ⟨S, hS, hPS⟩ := G.grid.grid.nested (Q.level + k) P hP'
-      have hS_subset_Q : S ⊆ Q.cell := by
-        rcases G.grid.partition_subset_or_disjoint_of_le Q.level (Q.level + k)
-            (Nat.le_add_right Q.level k) Q.cell Q.mem S hS with hsub | hdisj
-        · exact hsub
-        · exfalso
-          have hP_nonempty : P.Nonempty :=
-            G.grid.partition_nonempty (Q.level + (k + 1)) P hP
-          rcases hP_nonempty with ⟨x, hxP⟩
-          exact (Set.disjoint_left.mp hdisj (hPS hxP) (hPQ hxP)).elim
-      have hstep :
-          G.grid.μ P ≤ ENNReal.ofReal G.grid.lambda2 * G.grid.μ S :=
-        G.grid.ratio_upper (Q.level + k) P S hP' hS hPS
-      have hind :
-          G.grid.μ S ≤ (ENNReal.ofReal G.grid.lambda2) ^ k * G.grid.μ Q.cell :=
-        cell_measure_le_lambda2_pow_mul_cell G Q k S hS hS_subset_Q
-      calc
-        G.grid.μ P ≤ ENNReal.ofReal G.grid.lambda2 * G.grid.μ S := hstep
-        _ ≤ ENNReal.ofReal G.grid.lambda2 *
-              ((ENNReal.ofReal G.grid.lambda2) ^ k * G.grid.μ Q.cell) := by
-            gcongr
-        _ = (ENNReal.ofReal G.grid.lambda2) ^ (k + 1) * G.grid.μ Q.cell := by
-            simp [pow_succ, mul_assoc, mul_comm]
-
-private theorem induced_levelMesh_le_geometric
-    (G : GoodGridSpace (α := α)) (Q : GoodGridCell G) (k : ℕ) :
-    sSup (Set.range fun P :
-      WeakGridSpace.LevelCell
-        (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell) k =>
-        ((WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).measure P.1).toReal)
-      ≤ G.grid.lambda2 ^ k * (G.grid.μ Q.cell).toReal := by
-  classical
-  let W := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell
-  let S : Set ℝ := Set.range fun P : WeakGridSpace.LevelCell W k =>
-    (W.measure P.1).toReal
-  have hlam_nonneg : 0 ≤ G.grid.lambda2 :=
-    le_trans G.grid.hlambda1_pos.le G.grid.hlambda1_le_lambda2
-  change sSup S ≤ G.grid.lambda2 ^ k * (G.grid.μ Q.cell).toReal
-  have hQ_ne_top : G.grid.μ Q.cell ≠ ∞ := by
-    letI : MeasureTheory.IsFiniteMeasure G.grid.μ := G.grid.isFinite
-    exact MeasureTheory.measure_ne_top G.grid.μ Q.cell
-  have hbound : ∀ x ∈ S, x ≤ G.grid.lambda2 ^ k * (G.grid.μ Q.cell).toReal := by
-    intro x hx
-    rcases hx with ⟨P, rfl⟩
-    have hP_mem :
-        P.1 ∈ G.grid.grid.partitions (Q.level + k) := by
-      simpa [W, WeakGridSpace.inducedWeakGridSpace, WeakGridSpace.inducedWeakGrid,
-        WeakGridSpace.inducedPartitions, GoodGridSpace.toWeakGridSpace,
-        GoodGridSpace.toWeakGrid] using
-        ((WeakGridSpace.mem_inducedPartitions_iff G.toWeakGridSpace Q.toLevelCell).mp P.2).1
-    have hP_subset : P.1 ⊆ Q.cell := by
-      simpa using
-        ((WeakGridSpace.mem_inducedPartitions_iff G.toWeakGridSpace Q.toLevelCell).mp P.2).2
-    have hPμ :=
-      cell_measure_le_lambda2_pow_mul_cell G Q k P.1 hP_mem hP_subset
-    have hbound_ne_top :
-        (ENNReal.ofReal G.grid.lambda2) ^ k * G.grid.μ Q.cell ≠ ∞ := by
-      exact ENNReal.mul_ne_top (by simp) hQ_ne_top
-    have htoReal := ENNReal.toReal_mono hbound_ne_top hPμ
-    simpa [S, W, GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid,
-      WeakGridSpace.WeakGridSpace.measure, ENNReal.toReal_mul, hQ_ne_top,
-      hlam_nonneg] using htoReal
-  exact Real.sSup_le hbound (mul_nonneg (pow_nonneg hlam_nonneg k) ENNReal.toReal_nonneg)
-
-private theorem induced_levelMeasureWeight_le_geometric
-    (G : GoodGridSpace (α := α)) (Q : GoodGridCell G)
-    (β : ℝ) (p : ℝ≥0∞) (hβ : 0 < β) (k : ℕ) :
-    WeakGridSpace.LpGridRepresentation.levelMeasureWeight
-        (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell)
-        β p p k
-      ≤ (G.grid.μ Q.cell).toReal ^ β * (G.grid.lambda2 ^ k) ^ β := by
-  let W := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell
-  have hlam_nonneg : 0 ≤ G.grid.lambda2 :=
-    le_trans G.grid.hlambda1_pos.le G.grid.hlambda1_le_lambda2
-  have hQ_nonneg : 0 ≤ (G.grid.μ Q.cell).toReal := ENNReal.toReal_nonneg
-  have hmesh_nonneg :
-      0 ≤ sSup (Set.range fun P : WeakGridSpace.LevelCell W k =>
-        (W.measure P.1).toReal) := by
-    refine Real.sSup_nonneg ?_
-    intro x hx
-    rcases hx with ⟨P, rfl⟩
-    exact ENNReal.toReal_nonneg
-  calc
-    WeakGridSpace.LpGridRepresentation.levelMeasureWeight W β p p k
-        = (sSup (Set.range fun P : WeakGridSpace.LevelCell W k =>
-            (W.measure P.1).toReal)) ^ β := by
-            simp [W, WeakGridSpace.LpGridRepresentation.levelMeasureWeight]
-    _ ≤ (G.grid.lambda2 ^ k * (G.grid.μ Q.cell).toReal) ^ β := by
-          exact Real.rpow_le_rpow hmesh_nonneg
-            (induced_levelMesh_le_geometric G Q k) hβ.le
-    _ = (G.grid.μ Q.cell).toReal ^ β * (G.grid.lambda2 ^ k) ^ β := by
-          rw [Real.mul_rpow (pow_nonneg hlam_nonneg k) hQ_nonneg, mul_comm]
 
 private theorem besovAtomGeometric_cCoefficientFinite
     (G : GoodGridSpace (α := α)) (β : ℝ) (p qtilde : ℝ≥0∞)
