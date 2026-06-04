@@ -841,12 +841,74 @@ theorem initialSegment_block_toLp
   by_cases hk : k < N <;> simp [initialSegment, hk]
 
 @[simp]
+theorem tail_block
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (N k : ℕ) :
+    (tail R N).block k =
+      if k < N then LevelBlock.zero A k else R.block k := by
+  by_cases hk : k < N <;> simp [tail, hk]
+
+@[simp]
 theorem tail_block_toLp
     {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
     (R : LpGridRepresentation A g) (N k : ℕ) :
     ((tail R N).block k).toLp A =
       if k < N then 0 else (R.block k).toLp A := by
   by_cases hk : k < N <;> simp [tail, hk]
+
+/--
+A representation consisting of a single level block.
+
+This helper lets estimates stated for representations be applied to an
+individual block without duplicating the one-block analytic argument.
+-/
+noncomputable def singleBlockRepresentation
+    {A : AtomFamily G s p u} {k : ℕ}
+    (B : LevelBlock A k) :
+    LpGridRepresentation A (B.toLp A) := by
+  classical
+  refine
+    { block := fun n =>
+        if h : n = k then
+          cast (congrArg (LevelBlock A) h.symm) B
+        else
+          LevelBlock.zero A n
+      hasSum := ?_ }
+  have hfinite :
+      HasSum
+        (fun n : ℕ =>
+          (if h : n = k then
+            cast (congrArg (LevelBlock A) h.symm) B
+          else
+            LevelBlock.zero A n).toLp A)
+        (∑ n ∈ ({k} : Finset ℕ),
+          (if h : n = k then
+            cast (congrArg (LevelBlock A) h.symm) B
+          else
+            LevelBlock.zero A n).toLp A) := by
+    refine hasSum_sum_of_ne_finset_zero ?_
+    intro n hn
+    have hne : n ≠ k := by
+      intro hnk
+      exact hn (by simpa [hnk])
+    simp [hne]
+  convert hfinite using 1
+  simp
+
+@[simp]
+theorem singleBlockRepresentation_block_self
+    {A : AtomFamily G s p u} {k : ℕ}
+    (B : LevelBlock A k) :
+    (singleBlockRepresentation (G := G) (A := A) B).block k = B := by
+  simp [singleBlockRepresentation]
+
+@[simp]
+theorem singleBlockRepresentation_levelCoeffPower_self
+    {A : AtomFamily G s p u} {k : ℕ}
+    (B : LevelBlock A k) :
+    (singleBlockRepresentation (G := G) (A := A) B).levelCoeffPower k =
+      ∑ Q : LevelCell G k, ‖B.coeff Q‖ ^ p.toReal := by
+  simp [LpGridRepresentation.levelCoeffPower]
 
 @[simp]
 theorem initialSegment_levelCoeffPower
@@ -1887,6 +1949,131 @@ theorem lt_norm_levelBlock_le
   intro g R k
   exact lt_norm_levelBlock_le_of_atom_bound
     (A := A) (t := t) hp_ne_top ht_ne_top hp_le_t ht_le_pu hs_nonneg R k
+
+/--
+Levelwise `eLpNorm` estimate for the pointwise representative of one atomic
+block.
+
+This is the `eLpNorm` form of `lt_norm_levelBlock_le`, useful when a later
+argument works with concrete representatives rather than bundled `Lp` values.
+-/
+theorem eLpNorm_levelBlock_toFunLt_le
+    {A : AtomFamily G s p u} {t : ℝ≥0∞}
+    [Fact (1 ≤ t)]
+    (hp_ne_top : p ≠ ∞) (ht_ne_top : t ≠ ∞)
+    (hp_le_t : p ≤ t) (ht_le_pu : t ≤ p * u)
+    (hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / t.toReal) :
+    ∃ C : ℝ, 0 ≤ C ∧
+      ∀ {g : Lp ℂ p G.measure} (R : LpGridRepresentation A g) (k : ℕ),
+        MeasureTheory.eLpNorm ((R.block k).toFunLt A) t G.measure ≤
+          ENNReal.ofReal
+            (C * levelMeasureWeight G s p t k *
+              (R.levelCoeffPower k) ^ (1 / p.toReal)) := by
+  rcases lt_norm_levelBlock_le
+      (A := A) (t := t) hp_ne_top ht_ne_top hp_le_t ht_le_pu hs_nonneg with
+    ⟨C, hC_nonneg, hC⟩
+  refine ⟨C, hC_nonneg, ?_⟩
+  intro g R k
+  let B := R.block k
+  have hmem : MeasureTheory.MemLp (B.toFunLt A) t G.measure :=
+    LevelBlock.toFunLt_memLp A ht_le_pu B
+  have hcoe :
+      ((B.toLt (t := t) A ht_le_pu : Lp ℂ t G.measure) : α → ℂ)
+        =ᵐ[G.measure] B.toFunLt A :=
+    LevelBlock.coeFn_toLt A ht_le_pu B
+  have htarget_nonneg :
+      0 ≤ C * levelMeasureWeight G s p t k *
+          (R.levelCoeffPower k) ^ (1 / p.toReal) := by
+    exact mul_nonneg
+      (mul_nonneg hC_nonneg (levelMeasureWeight_nonneg G s p t k))
+      (Real.rpow_nonneg (R.levelCoeffPower_nonneg k) _)
+  refine (ENNReal.le_ofReal_iff_toReal_le hmem.eLpNorm_ne_top htarget_nonneg).2 ?_
+  calc
+    (MeasureTheory.eLpNorm (B.toFunLt A) t G.measure).toReal
+        =
+          ‖B.toLt (t := t) A ht_le_pu‖ := by
+            rw [← MeasureTheory.eLpNorm_congr_ae hcoe]
+            rw [Lp.norm_def]
+    _ ≤ C * levelMeasureWeight G s p t k *
+          (R.levelCoeffPower k) ^ (1 / p.toReal) := hC R k
+
+/--
+Levelwise `eLpNorm` estimate for a single atomic block.
+
+This is a block-level wrapper around `eLpNorm_levelBlock_toFunLt_le`.
+-/
+theorem eLpNorm_levelBlock_toFunLt_le'
+    {A : AtomFamily G s p u} {t : ℝ≥0∞}
+    [Fact (1 ≤ t)]
+    (hp_ne_top : p ≠ ∞) (ht_ne_top : t ≠ ∞)
+    (hp_le_t : p ≤ t) (ht_le_pu : t ≤ p * u)
+    (hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / t.toReal) :
+    ∃ C : ℝ, 0 ≤ C ∧
+      ∀ {k : ℕ} (B : LevelBlock A k),
+        MeasureTheory.eLpNorm (B.toFunLt A) t G.measure ≤
+          ENNReal.ofReal
+            (C * levelMeasureWeight G s p t k *
+              (∑ Q : LevelCell G k, ‖B.coeff Q‖ ^ p.toReal) ^ (1 / p.toReal)) := by
+  rcases eLpNorm_levelBlock_toFunLt_le
+      (A := A) (t := t) hp_ne_top ht_ne_top hp_le_t ht_le_pu hs_nonneg with
+    ⟨C, hC_nonneg, hC⟩
+  refine ⟨C, hC_nonneg, ?_⟩
+  intro k B
+  simpa using
+    hC (singleBlockRepresentation (G := G) (A := A) B) k
+
+/--
+Explicit-constant version of `eLpNorm_levelBlock_toFunLt_le'`.
+-/
+theorem eLpNorm_levelBlock_toFunLt_le_of_atom_bound
+    {A : AtomFamily G s p u} {t : ℝ≥0∞}
+    [Fact (1 ≤ t)]
+    (hp_ne_top : p ≠ ∞) (ht_ne_top : t ≠ ∞)
+    (hp_le_t : p ≤ t) (ht_le_pu : t ≤ p * u)
+    (hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / t.toReal)
+    {k : ℕ} (B : LevelBlock A k) :
+    MeasureTheory.eLpNorm (B.toFunLt A) t G.measure ≤
+      ENNReal.ofReal
+        (((G.grid.Cmult1 : ℝ) ^ (1 + 1 / t.toReal)) *
+          levelMeasureWeight G s p t k *
+          (∑ Q : LevelCell G k, ‖B.coeff Q‖ ^ p.toReal) ^ (1 / p.toReal)) := by
+  let R := singleBlockRepresentation (G := G) (A := A) B
+  have hmem : MeasureTheory.MemLp (B.toFunLt A) t G.measure :=
+    LevelBlock.toFunLt_memLp A ht_le_pu B
+  have hcoe :
+      ((B.toLt (t := t) A ht_le_pu : Lp ℂ t G.measure) : α → ℂ)
+        =ᵐ[G.measure] B.toFunLt A :=
+    LevelBlock.coeFn_toLt A ht_le_pu B
+  have htarget_nonneg :
+      0 ≤ ((G.grid.Cmult1 : ℝ) ^ (1 + 1 / t.toReal)) *
+          levelMeasureWeight G s p t k *
+          (∑ Q : LevelCell G k, ‖B.coeff Q‖ ^ p.toReal) ^ (1 / p.toReal) := by
+    exact mul_nonneg
+      (mul_nonneg (by positivity) (levelMeasureWeight_nonneg G s p t k))
+      (Real.rpow_nonneg
+        (Finset.sum_nonneg fun Q _ => Real.rpow_nonneg (norm_nonneg _) _) _)
+  refine (ENNReal.le_ofReal_iff_toReal_le hmem.eLpNorm_ne_top htarget_nonneg).2 ?_
+  have hblock : R.block k = B := by
+    simp [R]
+  calc
+    (MeasureTheory.eLpNorm (B.toFunLt A) t G.measure).toReal
+        =
+          ‖B.toLt (t := t) A ht_le_pu‖ := by
+            rw [← MeasureTheory.eLpNorm_congr_ae hcoe]
+            rw [Lp.norm_def]
+    _ =
+          ‖(R.block k).toLt (t := t) A ht_le_pu‖ := by
+            rw [hblock]
+    _ ≤ ((G.grid.Cmult1 : ℝ) ^ (1 + 1 / t.toReal)) *
+          levelMeasureWeight G s p t k *
+          (R.levelCoeffPower k) ^ (1 / p.toReal) :=
+        lt_norm_levelBlock_le_of_atom_bound
+          (A := A) (t := t) hp_ne_top ht_ne_top hp_le_t ht_le_pu hs_nonneg R k
+    _ =
+        ((G.grid.Cmult1 : ℝ) ^ (1 + 1 / t.toReal)) *
+          levelMeasureWeight G s p t k *
+          (∑ Q : LevelCell G k, ‖B.coeff Q‖ ^ p.toReal) ^ (1 / p.toReal) := by
+        simp [R]
 
 /--
 The real exponent `q / (q - 1)` is Hölder conjugate to `q` when `1 < q < ∞`.
