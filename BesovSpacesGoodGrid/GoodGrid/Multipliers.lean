@@ -109,14 +109,170 @@ def RepresentsAtom (A : AtomFamily G s p u)
 The atom tests used in the `selfs` condition.
 
 The paper takes a supremum over Souza atoms.  Here we phrase the same idea in
-the quotient model: an admissible test is a Besov-ish vector represented by an
-atom and whose coefficient-cost gauge is at most one.
+the quotient model: an admissible test is a Besov-ish vector represented by one
+atom.  The coefficient-cost normalization is a theorem, not part of the
+definition.
 -/
 def AtomicUnit
     (A : AtomFamily G s p u) (q : ℝ≥0∞) [Fact (1 ≤ q)]
     (x : BesovishSpace A q) : Prop :=
-  RepresentsAtom (G := G) (p := p) A (x : Lp ℂ p G.measure) ∧
-    BesovishSpace.Norm_Costpq A q x ≤ 1
+  RepresentsAtom (G := G) (p := p) A (x : Lp ℂ p G.measure)
+
+private theorem pqCost_single_level_one_le
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (k : ℕ)
+    (hlevel : ∀ n : ℕ, R.levelCoeffPower n = if n = k then 1 else 0) :
+    LpGridRepresentation.pqCost (q := q) R ≤ 1 := by
+  classical
+  have hp_pos : 0 < p.toReal :=
+    (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+  by_cases hq_top : q = ∞
+  · rw [LpGridRepresentation.pqCost, if_pos hq_top]
+    refine csSup_le ?_ ?_
+    · refine ⟨1, ?_⟩
+      refine ⟨k, ?_⟩
+      change (R.levelCoeffPower k) ^ (1 / p.toReal) = 1
+      rw [hlevel k]
+      simp
+    · rintro x ⟨n, rfl⟩
+      change (R.levelCoeffPower n) ^ (1 / p.toReal) ≤ 1
+      rw [hlevel n]
+      by_cases hn : n = k
+      · simp [hn]
+      · rw [if_neg hn]
+        rw [Real.zero_rpow (div_pos one_pos hp_pos).ne']
+        norm_num
+  · have hq_pos : 0 < q.toReal := by
+      exact ENNReal.toReal_pos
+        (zero_lt_one.trans_le (Fact.out : 1 ≤ q)).ne' hq_top
+    have hpow_pos : 0 < q.toReal / p.toReal := div_pos hq_pos hp_pos
+    have hterm :
+        (fun n : ℕ => (R.levelCoeffPower n) ^ (q.toReal / p.toReal)) =
+          fun n => if n = k then 1 else 0 := by
+      funext n
+      rw [hlevel n]
+      by_cases hn : n = k
+      · simp [hn]
+      · simp [hn, Real.zero_rpow hpow_pos.ne']
+    have hsum :
+        (∑' n : ℕ, (R.levelCoeffPower n) ^ (q.toReal / p.toReal)) = 1 := by
+      rw [hterm]
+      exact (hasSum_ite_eq k (1 : ℝ)).tsum_eq
+    rw [LpGridRepresentation.pqCost, if_neg hq_top, hsum]
+    rw [Real.one_rpow]
+
+private theorem finitePQCost_single_level_one
+    {A : AtomFamily G s p u} {g : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g) (k : ℕ)
+    (hlevel : ∀ n : ℕ, R.levelCoeffPower n = if n = k then 1 else 0) :
+    LpGridRepresentation.FinitePQCost (q := q) R := by
+  classical
+  have hp_pos : 0 < p.toReal :=
+    (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+  by_cases hq_top : q = ∞
+  · rw [LpGridRepresentation.FinitePQCost, if_pos hq_top]
+    exact ⟨1, by
+      rintro x ⟨n, rfl⟩
+      change (R.levelCoeffPower n) ^ (1 / p.toReal) ≤ 1
+      rw [hlevel n]
+      by_cases hn : n = k
+      · simp [hn]
+      · rw [if_neg hn]
+        rw [Real.zero_rpow (div_pos one_pos hp_pos).ne']
+        norm_num⟩
+  · have hq_pos : 0 < q.toReal := by
+      exact ENNReal.toReal_pos
+        (zero_lt_one.trans_le (Fact.out : 1 ≤ q)).ne' hq_top
+    have hpow_pos : 0 < q.toReal / p.toReal := div_pos hq_pos hp_pos
+    rw [LpGridRepresentation.FinitePQCost, if_neg hq_top]
+    refine summable_of_hasFiniteSupport ?_
+    rw [Function.HasFiniteSupport]
+    refine (Set.finite_singleton k).subset ?_
+    intro n hn
+    contrapose! hn
+    have hnk : n ≠ k := by
+      intro h
+      exact hn (by simp [h])
+    rw [Function.mem_support]
+    rw [hlevel n]
+    simp [hnk, Real.zero_rpow hpow_pos.ne']
+
+/--
+A Besov-ish vector represented by a single atom has coefficient-cost norm at
+most one.
+
+This is the formal replacement for building normalization into `AtomicUnit`:
+one coefficient equal to `1` gives a one-term atomic representation with
+`pqCost ≤ 1`, and the Besov gauge is the infimum of all such costs.
+-/
+theorem AtomicUnit.norm_Costpq_le_one
+    {A : AtomFamily G s p u} {x : BesovishSpace A q}
+    (hx : AtomicUnit (A := A) q x) :
+    BesovishSpace.Norm_Costpq A q x ≤ 1 := by
+  classical
+  rcases hx with ⟨Q, φ, hφ, hxrep⟩
+  rcases Q with ⟨k, cell, hcell⟩
+  let Qk : LevelCell G k := ⟨cell, hcell⟩
+  let B : LevelBlock A k :=
+    { coeff := fun P => if P = Qk then 1 else 0
+      atom := fun P => by
+        by_cases hP : P = Qk
+        · subst P
+          exact φ
+        · exact Classical.choose (A.atoms_nonempty_on (levelCellToWeakGridCell G k P))
+      atom_mem := by
+        intro P
+        by_cases hP : P = Qk
+        · subst P
+          simpa using hφ
+        · simpa [hP] using
+            Classical.choose_spec (A.atoms_nonempty_on (levelCellToWeakGridCell G k P)) }
+  let z : BesovishSpace A q :=
+    ⟨B.toLp A, levelBlock_toLp_mem_besovish (A := A) (q := q) B⟩
+  have hBrep :
+      RepresentsFunction (G := G) (p := p)
+        (A.toFunction (levelCellToWeakGridCell G k Qk) φ) (B.toLp A) := by
+    refine (LevelBlock.coeFn_toLp A B).trans ?_
+    refine Filter.Eventually.of_forall ?_
+    intro a
+    unfold LevelBlock.toFunLt
+    rw [Finset.sum_eq_single Qk]
+    · simp [B]
+    · intro P _ hPQ
+      simp [B, hPQ]
+    · intro hQ
+      exact False.elim (hQ (by simp))
+  have hz_eq_x : z = x := by
+    apply Subtype.ext
+    apply Lp.ext
+    exact hBrep.trans hxrep.symm
+  let R : LpGridRepresentation A (z : Lp ℂ p G.measure) :=
+    LpGridRepresentation.singleBlockRepresentation (G := G) (A := A) B
+  have hp_pos : 0 < p.toReal :=
+    (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+  have hlevel : ∀ n : ℕ, R.levelCoeffPower n = if n = k then 1 else 0 := by
+    intro n
+    by_cases hn : n = k
+    · subst n
+      rw [LpGridRepresentation.singleBlockRepresentation_levelCoeffPower_self]
+      rw [Finset.sum_eq_single Qk]
+      · simp [B]
+      · intro P _ hPQ
+        simp [B, hPQ, Real.zero_rpow hp_pos.ne']
+      · intro hQ
+        exact False.elim (hQ (by simp))
+    · unfold R
+      unfold LpGridRepresentation.singleBlockRepresentation
+      simp [hn, LpGridRepresentation.levelCoeffPower, LevelBlock.zero,
+        Real.zero_rpow hp_pos.ne']
+  have hRfin : LpGridRepresentation.FinitePQCost (q := q) R :=
+    finitePQCost_single_level_one (A := A) (q := q) R k hlevel
+  have hnorm_le :
+      BesovishSpace.Norm_Costpq A q z ≤ LpGridRepresentation.pqCost (q := q) R :=
+    BesovishSpace.Norm_Costpq_le_cost (A := A) (q := q) (g := z) R hRfin
+  have hcost_le : LpGridRepresentation.pqCost (q := q) R ≤ 1 :=
+    pqCost_single_level_one_le (A := A) (q := q) R k hlevel
+  simpa [hz_eq_x] using hnorm_le.trans hcost_le
 
 /--
 A real number `C` bounds the Triebel-style `selfs` tests for `m`.
@@ -183,7 +339,7 @@ theorem PointwiseMultiplierBound.selfsBound
   calc
     BesovishSpace.Norm_Costpq A q y
         ≤ C * BesovishSpace.Norm_Costpq A q x := hy
-    _ ≤ C * 1 := mul_le_mul_of_nonneg_left hx.2 hC_nonneg
+    _ ≤ C * 1 := mul_le_mul_of_nonneg_left hx.norm_Costpq_le_one hC_nonneg
     _ = C := by rw [mul_one]
 
 /--
@@ -212,6 +368,140 @@ theorem pointwiseSelfsNorm_le_of_multiplierBound
     intro D hD
     exact hD.1
   exact csInf_le hbdd hC.selfsBound
+
+/--
+In the endpoint `p = q = 1`, the representation cost is exactly the iterated
+sum of the absolute values of the coefficients.
+
+This is the formal version of the paper's quantity
+`∑ₖ ∑_{Q ∈ Pᵏ} |c_Q|`.
+-/
+theorem LpGridRepresentation.pqCost_one_one_eq_tsum_levelCoeffPower
+    {A : AtomFamily G s (1 : ℝ≥0∞) u}
+    {g : Lp ℂ (1 : ℝ≥0∞) G.measure}
+    (R : LpGridRepresentation A g) :
+    LpGridRepresentation.pqCost (q := (1 : ℝ≥0∞)) R =
+      ∑' k : ℕ, ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ := by
+  simp [LpGridRepresentation.pqCost, LpGridRepresentation.levelCoeffPower]
+
+/--
+Finite `(1,1)` cost is the same as summability of the levelwise coefficient
+mass.
+-/
+theorem LpGridRepresentation.finitePQCost_one_one_iff
+    {A : AtomFamily G s (1 : ℝ≥0∞) u}
+    {g : Lp ℂ (1 : ℝ≥0∞) G.measure}
+    (R : LpGridRepresentation A g) :
+    LpGridRepresentation.FinitePQCost (q := (1 : ℝ≥0∞)) R ↔
+      Summable fun k : ℕ => ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ := by
+  simp [LpGridRepresentation.FinitePQCost, LpGridRepresentation.levelCoeffPower]
+
+private theorem summable_Ico_tail_tendsto_zero
+    {a : ℕ → ℝ} (ha_nonneg : ∀ k, 0 ≤ a k) (ha : Summable a) :
+    ∀ ε > 0, ∃ N₀, ∀ N ≥ N₀, ∀ M ≥ N,
+      ∑ k ∈ Finset.Ico N M, a k < ε := by
+  have htail :
+      Filter.Tendsto (fun N => ∑' k : ℕ, a (k + N)) Filter.atTop (𝓝 0) :=
+    tendsto_sum_nat_add a
+  rw [Metric.tendsto_atTop] at htail
+  intro ε hε
+  rcases htail ε hε with ⟨N₀, hN₀⟩
+  refine ⟨N₀, ?_⟩
+  intro N hN M hNM
+  have htail_lt_abs : dist (∑' k : ℕ, a (k + N)) 0 < ε := hN₀ N hN
+  rw [Real.dist_eq] at htail_lt_abs
+  have htail_nonneg : 0 ≤ ∑' k : ℕ, a (k + N) :=
+    tsum_nonneg fun k => ha_nonneg (k + N)
+  have htail_lt : (∑' k : ℕ, a (k + N)) < ε := by
+    rwa [sub_zero, abs_of_nonneg htail_nonneg] at htail_lt_abs
+  have hshift : Summable fun k : ℕ => a (k + N) :=
+    (summable_nat_add_iff N).2 ha
+  have hsum_le :
+      (∑ k ∈ Finset.range (M - N), a (k + N)) ≤
+        ∑' k : ℕ, a (k + N) :=
+    hshift.sum_le_tsum (Finset.range (M - N)) fun k hk => ha_nonneg (k + N)
+  have hwindow_eq :
+      (∑ k ∈ Finset.Ico N M, a k) =
+        ∑ k ∈ Finset.range (M - N), a (k + N) := by
+    rw [Finset.sum_Ico_eq_sum_range]
+    simp [add_comm]
+  exact lt_of_le_of_lt (by simpa [hwindow_eq] using hsum_le) htail_lt
+
+/--
+Convergence to zero in the coefficient-cost gauge implies convergence to zero
+in the ambient `L^p` space.
+
+This is the reusable bridge supplied by the Besov-to-`L^p` embedding:
+`‖g‖_p ≤ C ‖g‖_Besov`.
+-/
+theorem BesovishSpace.tendsto_Lp_zero_of_tendsto_Norm_Costpq_zero
+    {A : AtomFamily G s p u}
+    (hp_top : p ≠ ∞)
+    (hCco_fin : LpGridRepresentation.cCoefficientFinite p q (fun k =>
+      (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal))
+    (zseq : ℕ → BesovishSpace A q)
+    (hcost : ∀ ε > 0, ∃ N, ∀ n ≥ N,
+      BesovishSpace.Norm_Costpq A q (zseq n) < ε) :
+    Filter.Tendsto
+      (fun n => ((zseq n : BesovishSpace A q) : Lp ℂ p G.measure))
+      Filter.atTop
+      (𝓝 (0 : Lp ℂ p G.measure)) := by
+  let C : ℝ :=
+    ((G.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)) *
+      LpGridRepresentation.cCoefficient p q
+        (fun k => (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal)
+  have hC_nonneg : 0 ≤ C := by
+    dsimp [C]
+    exact mul_nonneg
+      (by positivity)
+      (LpGridRepresentation.cCoefficient_nonneg p q
+        (fun k => (LpGridRepresentation.levelMeasureWeight G s p p k) ^ p.toReal)
+        (fun k => Real.rpow_nonneg
+          (LpGridRepresentation.levelMeasureWeight_nonneg G s p p k) _))
+  have hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / p.toReal := by
+    linarith [A.s_pos.le]
+  have hp_le_pu : p ≤ p * u := by
+    calc
+      p = p * 1 := by rw [mul_one]
+      _ ≤ p * u := by exact mul_le_mul_right A.one_le_u p
+  refine (@Metric.tendsto_atTop (Lp ℂ p G.measure) ℕ inferInstance _ _
+    (fun n => ((zseq n : BesovishSpace A q) : Lp ℂ p G.measure))
+    (0 : Lp ℂ p G.measure)).mpr ?_
+  intro ε hε
+  have hden : 0 < C + 1 := by linarith
+  have hδ : 0 < ε / (C + 1) := by positivity
+  rcases hcost (ε / (C + 1)) hδ with ⟨N, hN⟩
+  refine ⟨N, ?_⟩
+  intro n hn
+  have hLp :
+      ‖((zseq n : BesovishSpace A q) : Lp ℂ p G.measure)‖ ≤
+        C * BesovishSpace.Norm_Costpq A q (zseq n) := by
+    calc
+      ‖((zseq n : BesovishSpace A q) : Lp ℂ p G.measure)‖
+          = (MeasureTheory.eLpNorm
+              (((zseq n : BesovishSpace A q) : Lp ℂ p G.measure) : α → ℂ)
+              p G.measure).toReal := by
+            rw [Lp.norm_def]
+      _ ≤ C * BesovishSpace.Norm_Costpq A q (zseq n) := by
+            simpa [C] using
+              BesovishSpace.lp_norm_le_const_mul_Norm_Costpq
+                (G := G) (s := s) (p := p) (u := u) (q := q) (A := A) (t := p)
+                hp_top hp_top le_rfl hp_le_pu hs_nonneg hCco_fin
+                (BesovishSpace.hasFiniteCostRepresentations (A := A) q) (zseq n)
+  have hsmall :
+      C * BesovishSpace.Norm_Costpq A q (zseq n) < ε := by
+    have hzn := hN n hn
+    have hnorm_nonneg : 0 ≤ BesovishSpace.Norm_Costpq A q (zseq n) :=
+      BesovishSpace.Norm_Costpq_nonneg
+        (A := A) (q := q) (BesovishSpace.hasFiniteCostRepresentations (A := A) q) (zseq n)
+    calc
+      C * BesovishSpace.Norm_Costpq A q (zseq n)
+          ≤ (C + 1) * BesovishSpace.Norm_Costpq A q (zseq n) := by
+            exact mul_le_mul_of_nonneg_right (by linarith) hnorm_nonneg
+      _ < (C + 1) * (ε / (C + 1)) := by
+            exact mul_lt_mul_of_pos_left hzn hden
+      _ = ε := by field_simp [hden.ne']
+  simpa [dist_eq_norm] using lt_of_le_of_lt hLp hsmall
 
 omit [Fact (1 ≤ p)] in
 /-- The zero vector represents the zero pointwise product. -/
@@ -266,6 +556,91 @@ theorem RepresentsPointwiseProduct.smul
     _ = m z * ((c • (x : α → ℂ)) z) := by simp
     _ = m z * (((c • x : Lp ℂ p G.measure) : α → ℂ) z) := by
         rw [hx]
+
+omit [Fact (1 ≤ p)] in
+/--
+Pointwise-product representatives are unique as `L^p` vectors.
+-/
+theorem RepresentsPointwiseProduct.eq_right
+    {m : α → ℂ} {x y₁ y₂ : Lp ℂ p G.measure}
+    (h₁ : RepresentsPointwiseProduct (G := G) (p := p) m x y₁)
+    (h₂ : RepresentsPointwiseProduct (G := G) (p := p) m x y₂) :
+    y₁ = y₂ := by
+  apply Lp.ext
+  exact h₁.trans h₂.symm
+
+omit [Fact (1 ≤ p)] in
+/--
+Pointwise-product representatives are compatible with subtraction in `L^p`.
+-/
+theorem RepresentsPointwiseProduct.sub
+    {m : α → ℂ} {x₁ x₂ y₁ y₂ : Lp ℂ p G.measure}
+    (h₁ : RepresentsPointwiseProduct (G := G) (p := p) m x₁ y₁)
+    (h₂ : RepresentsPointwiseProduct (G := G) (p := p) m x₂ y₂) :
+    RepresentsPointwiseProduct (G := G) (p := p) m (x₁ - x₂) (y₁ - y₂) := by
+  simpa [sub_eq_add_neg] using h₁.add (h₂.smul (-1 : ℂ))
+
+/--
+The relation of representing a pointwise product is closed under simultaneous
+`L^p` limits.
+
+The proof passes to an a.e.-convergent subsequence for the source sequence and
+then to a further a.e.-convergent subsequence for the product sequence.
+-/
+theorem RepresentsPointwiseProduct.of_tendsto_Lp
+    {m : α → ℂ} {xseq yseq : ℕ → Lp ℂ p G.measure}
+    {x y : Lp ℂ p G.measure}
+    (hx : Filter.Tendsto xseq Filter.atTop (𝓝 x))
+    (hy : Filter.Tendsto yseq Filter.atTop (𝓝 y))
+    (hprod : ∀ n,
+      RepresentsPointwiseProduct (G := G) (p := p) m (xseq n) (yseq n)) :
+    RepresentsPointwiseProduct (G := G) (p := p) m x y := by
+  classical
+  have hxm :
+      TendstoInMeasure G.measure (fun n => xseq n) Filter.atTop x :=
+    tendstoInMeasure_of_tendsto_Lp hx
+  rcases hxm.exists_seq_tendsto_ae with ⟨φ, hφ_mono, hx_ae⟩
+  have hy_subseq :
+      Filter.Tendsto (fun n => yseq (φ n)) Filter.atTop (𝓝 y) :=
+    hy.comp hφ_mono.tendsto_atTop
+  have hym :
+      TendstoInMeasure G.measure (fun n => yseq (φ n)) Filter.atTop y :=
+    tendstoInMeasure_of_tendsto_Lp hy_subseq
+  rcases hym.exists_seq_tendsto_ae with ⟨ψ, hψ_mono, hy_ae⟩
+  have hprod_ae :
+      ∀ᵐ z ∂G.measure, ∀ n : ℕ,
+        (yseq (φ (ψ n)) : α → ℂ) z =
+          m z * (xseq (φ (ψ n)) : α → ℂ) z := by
+    have hsets :
+        (⋂ n : ℕ, {z : α |
+          (yseq (φ (ψ n)) : α → ℂ) z =
+            m z * (xseq (φ (ψ n)) : α → ℂ) z}) ∈
+          ae G.measure := by
+      exact countable_iInter_mem.mpr fun n => hprod (φ (ψ n))
+    filter_upwards [hsets] with z hz n
+    exact Set.mem_iInter.mp hz n
+  filter_upwards [hx_ae, hy_ae, hprod_ae] with z hxz hyz hprod_z
+  have hxz_sub :
+      Filter.Tendsto
+        (fun n => (xseq (φ (ψ n)) : α → ℂ) z)
+        Filter.atTop
+        (𝓝 ((x : α → ℂ) z)) :=
+    hxz.comp hψ_mono.tendsto_atTop
+  have hyz_product :
+      Filter.Tendsto
+        (fun n => m z * (xseq (φ (ψ n)) : α → ℂ) z)
+        Filter.atTop
+        (𝓝 ((y : α → ℂ) z)) := by
+    convert hyz using 1
+    ext n
+    exact (hprod_z n).symm
+  have hmul_limit :
+      Filter.Tendsto
+        (fun n => m z * (xseq (φ (ψ n)) : α → ℂ) z)
+        Filter.atTop
+        (𝓝 (m z * (x : α → ℂ) z)) :=
+    tendsto_const_nhds.mul hxz_sub
+  exact tendsto_nhds_unique hyz_product hmul_limit
 
 /--
 The `selfs` bound controls scalar multiples of normalized atom tests.
@@ -439,6 +814,557 @@ private theorem singleAtomBesovish_representsAtom
   simpa [singleAtomBesovish] using
     singleAtomLevelBlock_representsFunction (G := G) (p := p) A Q φ hφ
 
+private theorem singleAtomBesovish_toLp_eq_atom_toLp
+    (A : AtomFamily G s p u) (q : ℝ≥0∞) [Fact (1 ≤ q)]
+    {k : ℕ} (Q : LevelCell G k)
+    (φ : (A.localSpace (levelCellToWeakGridCell G k Q)).carrier)
+    (hφ : A.IsAtom (levelCellToWeakGridCell G k Q) φ) :
+    (singleAtomBesovish A q Q φ hφ : Lp ℂ p G.measure) =
+      MemLp.toLp
+        (A.toFunction (levelCellToWeakGridCell G k Q) φ)
+        (A.local_memLp_p (levelCellToWeakGridCell G k Q) φ) := by
+  apply Lp.ext
+  exact (singleAtomLevelBlock_representsFunction
+    (G := G) (p := p) A Q φ hφ).trans
+      (MemLp.coeFn_toLp
+        (A.local_memLp_p (levelCellToWeakGridCell G k Q) φ)).symm
+
+/--
+A level block is the finite sum of its isolated single-atom terms.
+-/
+private theorem levelBlock_toLp_eq_sum_singleAtomBesovish
+    (A : AtomFamily G s p u) (q : ℝ≥0∞) [Fact (1 ≤ q)]
+    {k : ℕ} (B : LevelBlock A k) :
+    B.toLp A =
+      ∑ Q : LevelCell G k,
+        B.coeff Q •
+          (singleAtomBesovish A q Q (B.atom Q) (B.atom_mem Q) :
+            Lp ℂ p G.measure) := by
+  classical
+  simp [LevelBlock.toLp, LevelBlock.term, singleAtomBesovish_toLp_eq_atom_toLp]
+
+/--
+The `selfs` bound controls the product of an initial segment of any
+`(1,1)` atomic representation.
+-/
+theorem PointwiseSelfsBound.initialSegment_one_one
+    {A : AtomFamily G s (1 : ℝ≥0∞) u} {m : α → ℂ} {C : ℝ}
+    (hC : PointwiseSelfsBound (A := A) (1 : ℝ≥0∞) m C)
+    {g : Lp ℂ (1 : ℝ≥0∞) G.measure}
+    (R : LpGridRepresentation A g) (N : ℕ) :
+    ∃ y : BesovishSpace A (1 : ℝ≥0∞),
+      RepresentsPointwiseProduct (G := G) (p := (1 : ℝ≥0∞)) m
+        (∑ k ∈ Finset.range N, (R.block k).toLp A)
+        (y : Lp ℂ (1 : ℝ≥0∞) G.measure) ∧
+      BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) y ≤
+        C * ∑ k ∈ Finset.range N,
+          ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ := by
+  classical
+  let S : Finset (Σ k : ℕ, LevelCell G k) :=
+    (Finset.range N).sigma fun k => (Finset.univ : Finset (LevelCell G k))
+  let c : (Σ k : ℕ, LevelCell G k) → ℂ :=
+    fun iQ => (R.block iQ.1).coeff iQ.2
+  let x : (Σ k : ℕ, LevelCell G k) → BesovishSpace A (1 : ℝ≥0∞) :=
+    fun iQ =>
+      singleAtomBesovish A (1 : ℝ≥0∞) iQ.2
+        ((R.block iQ.1).atom iQ.2) ((R.block iQ.1).atom_mem iQ.2)
+  have hx : ∀ iQ ∈ S, AtomicUnit (A := A) (1 : ℝ≥0∞) (x iQ) := by
+    intro iQ hiQ
+    exact singleAtomBesovish_representsAtom
+      (G := G) (p := (1 : ℝ≥0∞)) A (1 : ℝ≥0∞) iQ.2
+      ((R.block iQ.1).atom iQ.2) ((R.block iQ.1).atom_mem iQ.2)
+  rcases hC.finite_atomic_sum S c x hx with ⟨y, hprod, hy⟩
+  have hsource :
+      (∑ iQ ∈ S, c iQ • (x iQ : Lp ℂ (1 : ℝ≥0∞) G.measure)) =
+        ∑ k ∈ Finset.range N, (R.block k).toLp A := by
+    dsimp [S, c, x]
+    rw [Finset.sum_sigma]
+    refine Finset.sum_congr rfl ?_
+    intro k hk
+    exact (levelBlock_toLp_eq_sum_singleAtomBesovish
+      (G := G) (p := (1 : ℝ≥0∞)) A (1 : ℝ≥0∞) (R.block k)).symm
+  have hcoeff :
+      (∑ iQ ∈ S, ‖c iQ‖) =
+        ∑ k ∈ Finset.range N,
+          ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ := by
+    dsimp [S, c]
+    rw [Finset.sum_sigma]
+  refine ⟨y, ?_, ?_⟩
+  · simpa [hsource] using hprod
+  · simpa [hcoeff] using hy
+
+/--
+The `selfs` bound controls the product of any finite set of levels from a
+`(1,1)` atomic representation.
+-/
+theorem PointwiseSelfsBound.finsetLevels_one_one
+    {A : AtomFamily G s (1 : ℝ≥0∞) u} {m : α → ℂ} {C : ℝ}
+    (hC : PointwiseSelfsBound (A := A) (1 : ℝ≥0∞) m C)
+    {g : Lp ℂ (1 : ℝ≥0∞) G.measure}
+    (R : LpGridRepresentation A g) (T : Finset ℕ) :
+    ∃ y : BesovishSpace A (1 : ℝ≥0∞),
+      RepresentsPointwiseProduct (G := G) (p := (1 : ℝ≥0∞)) m
+        (∑ k ∈ T, (R.block k).toLp A)
+        (y : Lp ℂ (1 : ℝ≥0∞) G.measure) ∧
+      BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) y ≤
+        C * ∑ k ∈ T,
+          ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ := by
+  classical
+  let S : Finset (Σ k : ℕ, LevelCell G k) :=
+    T.sigma fun k => (Finset.univ : Finset (LevelCell G k))
+  let c : (Σ k : ℕ, LevelCell G k) → ℂ :=
+    fun iQ => (R.block iQ.1).coeff iQ.2
+  let x : (Σ k : ℕ, LevelCell G k) → BesovishSpace A (1 : ℝ≥0∞) :=
+    fun iQ =>
+      singleAtomBesovish A (1 : ℝ≥0∞) iQ.2
+        ((R.block iQ.1).atom iQ.2) ((R.block iQ.1).atom_mem iQ.2)
+  have hx : ∀ iQ ∈ S, AtomicUnit (A := A) (1 : ℝ≥0∞) (x iQ) := by
+    intro iQ hiQ
+    exact singleAtomBesovish_representsAtom
+      (G := G) (p := (1 : ℝ≥0∞)) A (1 : ℝ≥0∞) iQ.2
+      ((R.block iQ.1).atom iQ.2) ((R.block iQ.1).atom_mem iQ.2)
+  rcases hC.finite_atomic_sum S c x hx with ⟨y, hprod, hy⟩
+  have hsource :
+      (∑ iQ ∈ S, c iQ • (x iQ : Lp ℂ (1 : ℝ≥0∞) G.measure)) =
+        ∑ k ∈ T, (R.block k).toLp A := by
+    dsimp [S, c, x]
+    rw [Finset.sum_sigma]
+    refine Finset.sum_congr rfl ?_
+    intro k hk
+    exact (levelBlock_toLp_eq_sum_singleAtomBesovish
+      (G := G) (p := (1 : ℝ≥0∞)) A (1 : ℝ≥0∞) (R.block k)).symm
+  have hcoeff :
+      (∑ iQ ∈ S, ‖c iQ‖) =
+        ∑ k ∈ T,
+          ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ := by
+    dsimp [S, c]
+    rw [Finset.sum_sigma]
+  refine ⟨y, ?_, ?_⟩
+  · simpa [hsource] using hprod
+  · simpa [hcoeff] using hy
+
+/--
+The endpoint `selfs` bound controls differences of products of two initial
+segments of the same atomic representation.
+
+This is the tail estimate used in the Cauchy step of the converse multiplier
+direction for `p = q = 1`.
+-/
+theorem PointwiseSelfsBound.initialSegment_sub_one_one
+    {A : AtomFamily G s (1 : ℝ≥0∞) u} {m : α → ℂ} {C : ℝ}
+    (hC : PointwiseSelfsBound (A := A) (1 : ℝ≥0∞) m C)
+    {g : Lp ℂ (1 : ℝ≥0∞) G.measure}
+    (R : LpGridRepresentation A g) {N M : ℕ} (hNM : N ≤ M)
+    {yN yM : BesovishSpace A (1 : ℝ≥0∞)}
+    (hN : RepresentsPointwiseProduct (G := G) (p := (1 : ℝ≥0∞)) m
+      (∑ k ∈ Finset.range N, (R.block k).toLp A)
+      (yN : Lp ℂ (1 : ℝ≥0∞) G.measure))
+    (hM : RepresentsPointwiseProduct (G := G) (p := (1 : ℝ≥0∞)) m
+      (∑ k ∈ Finset.range M, (R.block k).toLp A)
+      (yM : Lp ℂ (1 : ℝ≥0∞) G.measure)) :
+    BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yM - yN) ≤
+      C * ∑ k ∈ Finset.Ico N M,
+        ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ := by
+  classical
+  rcases hC.finsetLevels_one_one R (Finset.Ico N M) with ⟨z, hzprod, hz⟩
+  have hwindow :
+      (∑ k ∈ Finset.range M, (R.block k).toLp A) -
+          (∑ k ∈ Finset.range N, (R.block k).toLp A) =
+        ∑ k ∈ Finset.Ico N M, (R.block k).toLp A := by
+    simpa [windowSum] using
+      partialSum_sub_eq_windowSum (A := A) R.block hNM
+  have hprod_sub :
+      RepresentsPointwiseProduct (G := G) (p := (1 : ℝ≥0∞)) m
+        (∑ k ∈ Finset.Ico N M, (R.block k).toLp A)
+        ((yM - yN : BesovishSpace A (1 : ℝ≥0∞)) :
+          Lp ℂ (1 : ℝ≥0∞) G.measure) := by
+    have h := hM.sub hN
+    simpa [hwindow] using h
+  have hyz : yM - yN = z := by
+    apply Subtype.ext
+    exact hprod_sub.eq_right hzprod
+  rw [hyz]
+  exact hz
+
+/--
+Products of the initial segments of a finite-cost `(1,1)` representation are
+Cauchy in the Besov coefficient-cost gauge, in the ordered-tail form.
+
+The point is that the difference between the `M`-th and `N`-th products is
+controlled by the coefficient mass on the window `N ≤ k < M`.
+-/
+theorem PointwiseSelfsBound.initialSegment_products_ordered_cauchy_one_one
+    {A : AtomFamily G s (1 : ℝ≥0∞) u} {m : α → ℂ} {C : ℝ}
+    (hC : PointwiseSelfsBound (A := A) (1 : ℝ≥0∞) m C)
+    {g : Lp ℂ (1 : ℝ≥0∞) G.measure}
+    (R : LpGridRepresentation A g)
+    (hRfin : LpGridRepresentation.FinitePQCost (q := (1 : ℝ≥0∞)) R) :
+    ∃ yseq : ℕ → BesovishSpace A (1 : ℝ≥0∞),
+      (∀ N,
+        RepresentsPointwiseProduct (G := G) (p := (1 : ℝ≥0∞)) m
+          (∑ k ∈ Finset.range N, (R.block k).toLp A)
+          (yseq N : Lp ℂ (1 : ℝ≥0∞) G.measure)) ∧
+      (∀ N,
+        BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq N) ≤
+          C * ∑ k ∈ Finset.range N,
+            ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖) ∧
+      ∀ ε > 0, ∃ N₀, ∀ N ≥ N₀, ∀ M ≥ N,
+        BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq M - yseq N) < ε := by
+  classical
+  let yseq : ℕ → BesovishSpace A (1 : ℝ≥0∞) :=
+    fun N => Classical.choose (hC.initialSegment_one_one R N)
+  have yseq_spec : ∀ N,
+      RepresentsPointwiseProduct (G := G) (p := (1 : ℝ≥0∞)) m
+        (∑ k ∈ Finset.range N, (R.block k).toLp A)
+        (yseq N : Lp ℂ (1 : ℝ≥0∞) G.measure) ∧
+      BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq N) ≤
+        C * ∑ k ∈ Finset.range N,
+          ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ := by
+    intro N
+    exact Classical.choose_spec (hC.initialSegment_one_one R N)
+  have hprod : ∀ N,
+      RepresentsPointwiseProduct (G := G) (p := (1 : ℝ≥0∞)) m
+        (∑ k ∈ Finset.range N, (R.block k).toLp A)
+        (yseq N : Lp ℂ (1 : ℝ≥0∞) G.measure) := by
+    intro N
+    exact (yseq_spec N).1
+  have hbound : ∀ N,
+      BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq N) ≤
+        C * ∑ k ∈ Finset.range N,
+          ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ := by
+    intro N
+    exact (yseq_spec N).2
+  let a : ℕ → ℝ :=
+    fun k => ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖
+  have ha_nonneg : ∀ k, 0 ≤ a k := by
+    intro k
+    exact Finset.sum_nonneg fun Q hQ => norm_nonneg ((R.block k).coeff Q)
+  have ha_sum : Summable a := by
+    simpa [a] using (LpGridRepresentation.finitePQCost_one_one_iff R).1 hRfin
+  refine ⟨yseq, hprod, hbound, ?_⟩
+  intro ε hε
+  have hCplus_pos : 0 < C + 1 := by
+    linarith [hC.1]
+  rcases summable_Ico_tail_tendsto_zero ha_nonneg ha_sum
+      (ε / (C + 1)) (div_pos hε hCplus_pos) with
+    ⟨N₀, htail⟩
+  refine ⟨N₀, ?_⟩
+  intro N hN M hNM
+  have htail_small : ∑ k ∈ Finset.Ico N M, a k < ε / (C + 1) :=
+    htail N hN M hNM
+  have htail_nonneg : 0 ≤ ∑ k ∈ Finset.Ico N M, a k :=
+    Finset.sum_nonneg fun k hk => ha_nonneg k
+  have hdiff :
+      BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq M - yseq N) ≤
+        C * ∑ k ∈ Finset.Ico N M,
+          ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ :=
+    hC.initialSegment_sub_one_one R hNM (hprod N) (hprod M)
+  calc
+    BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq M - yseq N)
+        ≤ C * ∑ k ∈ Finset.Ico N M,
+            ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ := hdiff
+    _ = C * ∑ k ∈ Finset.Ico N M, a k := by rfl
+    _ ≤ (C + 1) * ∑ k ∈ Finset.Ico N M, a k := by
+          exact mul_le_mul_of_nonneg_right (by linarith [hC.1]) htail_nonneg
+    _ < (C + 1) * (ε / (C + 1)) := by
+          exact mul_lt_mul_of_pos_left htail_small hCplus_pos
+    _ = ε := by
+          field_simp [hCplus_pos.ne']
+
+/--
+Products of the initial segments of a finite-cost `(1,1)` representation form
+a Cauchy sequence in the Besov coefficient-cost gauge.
+-/
+theorem PointwiseSelfsBound.initialSegment_products_cauchy_one_one
+    {A : AtomFamily G s (1 : ℝ≥0∞) u} {m : α → ℂ} {C : ℝ}
+    (hC : PointwiseSelfsBound (A := A) (1 : ℝ≥0∞) m C)
+    {g : Lp ℂ (1 : ℝ≥0∞) G.measure}
+    (R : LpGridRepresentation A g)
+    (hRfin : LpGridRepresentation.FinitePQCost (q := (1 : ℝ≥0∞)) R) :
+    ∃ yseq : ℕ → BesovishSpace A (1 : ℝ≥0∞),
+      (∀ N,
+        RepresentsPointwiseProduct (G := G) (p := (1 : ℝ≥0∞)) m
+          (∑ k ∈ Finset.range N, (R.block k).toLp A)
+          (yseq N : Lp ℂ (1 : ℝ≥0∞) G.measure)) ∧
+      (∀ N,
+        BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq N) ≤
+          C * ∑ k ∈ Finset.range N,
+            ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖) ∧
+      ∀ ε > 0, ∃ N₀, ∀ M ≥ N₀, ∀ N ≥ N₀,
+        BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq N - yseq M) < ε := by
+  classical
+  rcases hC.initialSegment_products_ordered_cauchy_one_one R hRfin with
+    ⟨yseq, hprod, hbound, hordered⟩
+  refine ⟨yseq, hprod, hbound, ?_⟩
+  intro ε hε
+  rcases hordered ε hε with ⟨N₀, hN₀⟩
+  refine ⟨N₀, ?_⟩
+  intro M hM N hN
+  by_cases hMN : M ≤ N
+  · exact hN₀ M hM N hMN
+  · have hNM : N ≤ M := Nat.le_of_not_ge hMN
+    have hrev :
+        BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq M - yseq N) < ε :=
+      hN₀ N hN M hNM
+    have hneg : yseq N - yseq M = (-1 : ℂ) • (yseq M - yseq N) := by
+      calc
+        yseq N - yseq M = -(yseq M - yseq N) := by
+          simp
+        _ = (-1 : ℂ) • (yseq M - yseq N) := by
+          simp
+    have hnorm_eq :
+        BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq N - yseq M) =
+          BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq M - yseq N) := by
+      rw [hneg]
+      rw [BesovishSpace.Norm_Costpq_smul_eq
+        (A := A) (q := (1 : ℝ≥0∞)) A.p_ne_top
+        (BesovishSpace.hasFiniteCostRepresentations (A := A) (1 : ℝ≥0∞))]
+      simp
+    simpa [hnorm_eq] using hrev
+
+/--
+Completeness turns the Cauchy sequence of products of initial segments into a
+Besov limit.
+
+This is still an abstract weak-grid statement: the Souza specialization supplies
+`AssumptionG2` and `AssumptionA5` from the good-grid hypotheses.
+-/
+theorem PointwiseSelfsBound.initialSegment_products_tendsto_one_one
+    {A : AtomFamily G s (1 : ℝ≥0∞) u} [Fact (1 ≤ u)]
+    {m : α → ℂ} {C : ℝ}
+    (hC : PointwiseSelfsBound (A := A) (1 : ℝ≥0∞) m C)
+    (hG2 : AssumptionG2 G s (1 : ℝ≥0∞) u (1 : ℝ≥0∞))
+    (hA5 : AssumptionA5 A)
+    {g : Lp ℂ (1 : ℝ≥0∞) G.measure}
+    (R : LpGridRepresentation A g)
+    (hRfin : LpGridRepresentation.FinitePQCost (q := (1 : ℝ≥0∞)) R) :
+    ∃ yseq : ℕ → BesovishSpace A (1 : ℝ≥0∞),
+      (∀ N,
+        RepresentsPointwiseProduct (G := G) (p := (1 : ℝ≥0∞)) m
+          (∑ k ∈ Finset.range N, (R.block k).toLp A)
+          (yseq N : Lp ℂ (1 : ℝ≥0∞) G.measure)) ∧
+      (∀ N,
+        BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq N) ≤
+          C * ∑ k ∈ Finset.range N,
+            ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖) ∧
+      ∃ y : BesovishSpace A (1 : ℝ≥0∞),
+        ∀ ε > 0, ∃ N₀, ∀ N ≥ N₀,
+          BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (y - yseq N) < ε := by
+  classical
+  rcases hC.initialSegment_products_cauchy_one_one R hRfin with
+    ⟨yseq, hprod, hbound, hcauchy⟩
+  rcases besovishSpace_Norm_Costpq_cauchySeq_tendsto
+      (G := G) (s := s) (p := (1 : ℝ≥0∞)) (u := u) (q := (1 : ℝ≥0∞))
+      A.p_ne_top A.s_pos (Fact.out : 1 ≤ u) A hG2 hA5 yseq hcauchy with
+    ⟨y, hy⟩
+  exact ⟨yseq, hprod, hbound, y, hy⟩
+
+/--
+For a fixed finite-cost `(1,1)` atomic representation, the endpoint `selfs`
+bound produces a Besov representative of the full pointwise product.
+-/
+theorem PointwiseSelfsBound.exists_product_for_representation_one_one
+    {A : AtomFamily G s (1 : ℝ≥0∞) u} [Fact (1 ≤ u)]
+    {m : α → ℂ} {C : ℝ}
+    (hC : PointwiseSelfsBound (A := A) (1 : ℝ≥0∞) m C)
+    (hG2 : AssumptionG2 G s (1 : ℝ≥0∞) u (1 : ℝ≥0∞))
+    (hA5 : AssumptionA5 A)
+    {g : Lp ℂ (1 : ℝ≥0∞) G.measure}
+    (R : LpGridRepresentation A g)
+    (hRfin : LpGridRepresentation.FinitePQCost (q := (1 : ℝ≥0∞)) R) :
+    ∃ y : BesovishSpace A (1 : ℝ≥0∞),
+      RepresentsPointwiseProduct (G := G) (p := (1 : ℝ≥0∞)) m g
+        (y : Lp ℂ (1 : ℝ≥0∞) G.measure) ∧
+      BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) y ≤
+        C * LpGridRepresentation.pqCost (q := (1 : ℝ≥0∞)) R := by
+  classical
+  rcases hC.initialSegment_products_tendsto_one_one hG2 hA5 R hRfin with
+    ⟨yseq, hprod, hbound, y, hycost⟩
+  let partialSum : ℕ → Lp ℂ (1 : ℝ≥0∞) G.measure :=
+    fun N => ∑ k ∈ Finset.range N, (R.block k).toLp A
+  have hx_tendsto :
+      Filter.Tendsto partialSum Filter.atTop (𝓝 g) := by
+    simpa [partialSum] using R.hasSum.tendsto_sum_nat
+  let zseq : ℕ → BesovishSpace A (1 : ℝ≥0∞) := fun N => y - yseq N
+  have hz_cost : ∀ ε > 0, ∃ N₀, ∀ N ≥ N₀,
+      BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (zseq N) < ε := by
+    intro ε hε
+    simpa [zseq] using hycost ε hε
+  have hz_Lp :
+      Filter.Tendsto
+        (fun N => ((zseq N : BesovishSpace A (1 : ℝ≥0∞)) :
+          Lp ℂ (1 : ℝ≥0∞) G.measure))
+        Filter.atTop
+        (𝓝 (0 : Lp ℂ (1 : ℝ≥0∞) G.measure)) :=
+    BesovishSpace.tendsto_Lp_zero_of_tendsto_Norm_Costpq_zero
+      (G := G) (s := s) (p := (1 : ℝ≥0∞)) (u := u) (q := (1 : ℝ≥0∞))
+      (A := A) A.p_ne_top hG2.1 zseq hz_cost
+  have hy_Lp :
+      Filter.Tendsto
+        (fun N => (yseq N : Lp ℂ (1 : ℝ≥0∞) G.measure))
+        Filter.atTop
+        (𝓝 (y : Lp ℂ (1 : ℝ≥0∞) G.measure)) := by
+    have h :=
+      (tendsto_const_nhds
+        (x := (y : Lp ℂ (1 : ℝ≥0∞) G.measure))).sub hz_Lp
+    simpa [zseq] using h
+  have hclosed :
+      RepresentsPointwiseProduct (G := G) (p := (1 : ℝ≥0∞)) m g
+        (y : Lp ℂ (1 : ℝ≥0∞) G.measure) :=
+    RepresentsPointwiseProduct.of_tendsto_Lp
+      (G := G) (p := (1 : ℝ≥0∞)) (m := m)
+      (xseq := partialSum)
+      (yseq := fun N => (yseq N : Lp ℂ (1 : ℝ≥0∞) G.measure))
+      (x := g) (y := (y : Lp ℂ (1 : ℝ≥0∞) G.measure))
+      hx_tendsto hy_Lp hprod
+  let a : ℕ → ℝ :=
+    fun k => ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖
+  have ha_nonneg : ∀ k, 0 ≤ a k := by
+    intro k
+    exact Finset.sum_nonneg fun Q hQ => norm_nonneg ((R.block k).coeff Q)
+  have ha_sum : Summable a := by
+    simpa [a] using (LpGridRepresentation.finitePQCost_one_one_iff R).1 hRfin
+  have hpq_eq :
+      LpGridRepresentation.pqCost (q := (1 : ℝ≥0∞)) R = ∑' k : ℕ, a k := by
+    simpa [a] using
+      LpGridRepresentation.pqCost_one_one_eq_tsum_levelCoeffPower R
+  have hy_bound :
+      BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) y ≤
+        C * LpGridRepresentation.pqCost (q := (1 : ℝ≥0∞)) R := by
+    rw [hpq_eq]
+    refine le_iff_forall_pos_le_add.mpr ?_
+    intro ε hε
+    rcases hycost ε hε with ⟨N, hN⟩
+    have hpartial_le_tsum :
+        (∑ k ∈ Finset.range N, a k) ≤ ∑' k : ℕ, a k :=
+      ha_sum.sum_le_tsum (Finset.range N) fun k hk => ha_nonneg k
+    have hyseq_le_tsum :
+        BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq N) ≤
+          C * (∑' k : ℕ, a k) := by
+      calc
+        BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq N)
+            ≤ C * ∑ k ∈ Finset.range N,
+                ∑ Q : LevelCell G k, ‖(R.block k).coeff Q‖ := hbound N
+        _ = C * ∑ k ∈ Finset.range N, a k := by rfl
+        _ ≤ C * (∑' k : ℕ, a k) :=
+              mul_le_mul_of_nonneg_left hpartial_le_tsum hC.1
+    have htri :
+        BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) y ≤
+          BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (y - yseq N) +
+            BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq N) := by
+      have h :=
+        BesovishSpace.Norm_Costpq_add_le
+          (A := A) (q := (1 : ℝ≥0∞)) A.p_ne_top
+          (BesovishSpace.hasFiniteCostRepresentations (A := A) (1 : ℝ≥0∞))
+          (y - yseq N) (yseq N)
+      have hy_eq : y = (y - yseq N) + yseq N := by
+        abel
+      calc
+        BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) y
+            = BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) ((y - yseq N) + yseq N) := by
+                exact congrArg (fun w =>
+                  BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) w) hy_eq
+        _ ≤ BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (y - yseq N) +
+              BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq N) := h
+    calc
+      BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) y
+          ≤ BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (y - yseq N) +
+              BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (yseq N) := htri
+      _ ≤ BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) (y - yseq N) +
+            C * (∑' k : ℕ, a k) := add_le_add_right hyseq_le_tsum _
+      _ ≤ ε + C * (∑' k : ℕ, a k) := by
+            exact add_le_add_left (le_of_lt (hN N le_rfl)) _
+      _ = C * (∑' k : ℕ, a k) + ε := by ring
+  exact ⟨y, hclosed, hy_bound⟩
+
+/--
+At the endpoint `(p,q) = (1,1)`, the abstract `selfs` bound gives a genuine
+pointwise multiplier bound.
+
+The operator constant is enlarged from `C` to `C + 1` to avoid needing an
+attaining representation for the Besov coefficient-cost infimum.
+-/
+theorem PointwiseSelfsBound.toPointwiseMultiplierBound_one_one
+    {A : AtomFamily G s (1 : ℝ≥0∞) u} [Fact (1 ≤ u)]
+    {m : α → ℂ} {C : ℝ}
+    (hC : PointwiseSelfsBound (A := A) (1 : ℝ≥0∞) m C)
+    (hG2 : AssumptionG2 G s (1 : ℝ≥0∞) u (1 : ℝ≥0∞))
+    (hA5 : AssumptionA5 A) :
+    PointwiseMultiplierBound (A := A) (1 : ℝ≥0∞) m (C + 1) := by
+  classical
+  refine ⟨by linarith [hC.1], ?_⟩
+  intro x
+  let normx : ℝ := BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) x
+  have hnorm_nonneg : 0 ≤ normx :=
+    BesovishSpace.Norm_Costpq_nonneg
+      (A := A) (q := (1 : ℝ≥0∞))
+      (BesovishSpace.hasFiniteCostRepresentations (A := A) (1 : ℝ≥0∞)) x
+  by_cases hnorm_zero : normx = 0
+  · have hx_zero : x = 0 :=
+      BesovishSpace.eq_zero_of_Norm_Costpq_eq_zero
+        (A := A) (q := (1 : ℝ≥0∞)) A.p_ne_top hG2.1
+        (BesovishSpace.hasFiniteCostRepresentations (A := A) (1 : ℝ≥0∞))
+        hnorm_zero
+    refine ⟨0, ?_, ?_⟩
+    · subst x
+      simpa using representsPointwiseProduct_zero
+        (G := G) (p := (1 : ℝ≥0∞)) m
+    · have hzero :
+          BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞)
+            (0 : BesovishSpace A (1 : ℝ≥0∞)) = 0 := by
+        have hsmul := BesovishSpace.Norm_Costpq_smul_eq
+          (A := A) (q := (1 : ℝ≥0∞)) A.p_ne_top
+          (BesovishSpace.hasFiniteCostRepresentations (A := A) (1 : ℝ≥0∞))
+          (0 : ℂ) (0 : BesovishSpace A (1 : ℝ≥0∞))
+        simp at hsmul
+        exact hsmul
+      simp [hzero, hnorm_zero, normx]
+  · have hnorm_pos : 0 < normx := lt_of_le_of_ne' hnorm_nonneg hnorm_zero
+    have hCplus_pos : 0 < C + 1 := by
+      linarith [hC.1]
+    let δ : ℝ := normx / (C + 1)
+    have hδ_pos : 0 < δ := div_pos hnorm_pos hCplus_pos
+    rcases BesovishSpace.exists_cost_lt_Norm_Costpq_add
+        (A := A) (q := (1 : ℝ≥0∞))
+        (BesovishSpace.hasFiniteCostRepresentations (A := A) (1 : ℝ≥0∞))
+        x hδ_pos with
+      ⟨R, hRfin, hRcost⟩
+    rcases hC.exists_product_for_representation_one_one hG2 hA5 R hRfin with
+      ⟨y, hprod, hy⟩
+    refine ⟨y, hprod, ?_⟩
+    have hfrac_le_one : C / (C + 1) ≤ 1 := by
+      rw [div_le_one hCplus_pos]
+      linarith [hC.1]
+    have hcoef :
+        C + C / (C + 1) ≤ C + 1 := by
+      simpa [add_comm] using add_le_add_left hfrac_le_one C
+    calc
+      BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) y
+          ≤ C * LpGridRepresentation.pqCost (q := (1 : ℝ≥0∞)) R := hy
+      _ ≤ C * (normx + δ) :=
+            mul_le_mul_of_nonneg_left (le_of_lt hRcost) hC.1
+      _ = (C + C / (C + 1)) * normx := by
+            dsimp [δ]
+            ring
+      _ ≤ (C + 1) * normx :=
+            mul_le_mul_of_nonneg_right hcoef hnorm_nonneg
+      _ = (C + 1) * BesovishSpace.Norm_Costpq A (1 : ℝ≥0∞) x := by
+            rfl
+
+/--
+At the endpoint `(p,q) = (1,1)`, the abstract `selfs` class is contained in
+the pointwise multiplier class.
+-/
+theorem isPointwiseMultiplier_of_pointwiseSelfsClass_one_one
+    {A : AtomFamily G s (1 : ℝ≥0∞) u} [Fact (1 ≤ u)]
+    {m : α → ℂ}
+    (hm : PointwiseSelfsClass (A := A) (1 : ℝ≥0∞) m)
+    (hG2 : AssumptionG2 G s (1 : ℝ≥0∞) u (1 : ℝ≥0∞))
+    (hA5 : AssumptionA5 A) :
+    IsPointwiseMultiplier (A := A) (1 : ℝ≥0∞) m := by
+  rcases hm with ⟨_, ⟨C, hC⟩⟩
+  exact ⟨C + 1, hC.toPointwiseMultiplierBound_one_one hG2 hA5⟩
+
 private instance instFactOneLeOneENNReal : Fact (1 ≤ (1 : ℝ≥0∞)) :=
   ⟨le_rfl⟩
 
@@ -524,6 +1450,106 @@ noncomputable abbrev souzaPointwiseSelfsNorm
     (m : α → ℂ) : ℝ :=
   WeakGridSpace.pointwiseSelfsNorm
     (A := souzaAtomFamily G s p hs hp hp_top) q m
+
+/--
+For Souza atoms, every pointwise multiplier belongs to the `selfs` class.
+
+The abstract theorem needs a separate hypothesis saying that the multiplier
+itself is represented by a Besov-ish vector.  In the Souza space this follows
+from applying the multiplier to the constant function `1`, which belongs to the
+space as the indicator of the root grid cell.
+-/
+theorem souzaPointwiseSelfsClass_of_souzaPointwiseMultiplier
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    {m : α → ℂ}
+    (hm : SouzaPointwiseMultiplier G s p q hs hp hp_top m) :
+    SouzaPointwiseSelfsClass G s p q hs hp hp_top m := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  rcases hm with ⟨C, hC⟩
+  have hselfs : WeakGridSpace.PointwiseSelfsBound (A := A) q m C :=
+    hC.selfsBound
+  let Q0 : GoodGridCell G :=
+    { level := 0
+      cell := Set.univ
+      mem := by
+        rw [G.grid.grid.first_partition_eq_univ]
+        exact Finset.mem_singleton_self Set.univ }
+  let oneLp : Lp ℂ p G.toWeakGridSpace.measure :=
+    MeasureTheory.indicatorConstLp (μ := G.toWeakGridSpace.measure) p
+      (G.grid.grid.measurable Q0.level Q0.cell Q0.mem)
+      (GoodGridCell.measure_ne_top Q0) (1 : ℂ)
+  have hone_mem : oneLp ∈ SouzaBesovSpace G s p q hs hp hp_top := by
+    simpa [oneLp] using
+      indicatorConstLp_cell_mem_souzaBesov G s p q hs hp hp_top Q0 (1 : ℂ)
+  let x : WeakGridSpace.BesovishSpace A q :=
+    ⟨oneLp, by simpa [A, SouzaBesovSpace] using hone_mem⟩
+  have hx_one : ((x : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ)
+      =ᵐ[G.toWeakGridSpace.measure] fun _ => (1 : ℂ) := by
+    change ((oneLp : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ)
+      =ᵐ[G.toWeakGridSpace.measure] fun _ => (1 : ℂ)
+    refine (MeasureTheory.indicatorConstLp_coeFn
+      (μ := G.toWeakGridSpace.measure) (p := p)
+      (hs := G.grid.grid.measurable Q0.level Q0.cell Q0.mem)
+      (hμs := GoodGridCell.measure_ne_top Q0) (c := (1 : ℂ))).trans ?_
+    refine Filter.Eventually.of_forall ?_
+    intro a
+    simp [Q0]
+  rcases hC.2 x with ⟨y, hprod, -⟩
+  have hmem : ∃ y : WeakGridSpace.BesovishSpace A q,
+      WeakGridSpace.RepresentsFunction (G := G.toWeakGridSpace) (p := p) m
+        (y : Lp ℂ p G.toWeakGridSpace.measure) := by
+    refine ⟨y, ?_⟩
+    have hmul_one :
+        (fun z => m z * ((x : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) z)
+          =ᵐ[G.toWeakGridSpace.measure] m :=
+      hx_one.mono fun z hz => by simp [hz]
+    exact hprod.trans hmul_one
+  exact ⟨hmem, ⟨C, hselfs⟩⟩
+
+/--
+For Souza atoms on a good grid, the endpoint `selfs` class is contained in the
+pointwise multiplier class.
+
+This is the converse direction of the multiplier theorem at `p = q = 1`.
+-/
+theorem souzaPointwiseMultiplier_of_souzaPointwiseSelfsClass_one_one
+    (G : GoodGridSpace (α := α)) (s : ℝ)
+    (hs : 0 < s) {m : α → ℂ}
+    (hm : SouzaPointwiseSelfsClass G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
+      hs le_rfl ENNReal.one_ne_top m) :
+    SouzaPointwiseMultiplier G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
+      hs le_rfl ENNReal.one_ne_top m := by
+  classical
+  let A := souzaAtomFamily G s (1 : ℝ≥0∞) hs le_rfl ENNReal.one_ne_top
+  exact WeakGridSpace.isPointwiseMultiplier_of_pointwiseSelfsClass_one_one
+    (G := G.toWeakGridSpace) (s := s) (u := ∞) (A := A) (m := m)
+    hm
+    (souza_assumptionG2 G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
+      hs le_rfl ENNReal.one_ne_top)
+    (souza_assumptionA5 G s (1 : ℝ≥0∞) hs le_rfl ENNReal.one_ne_top)
+
+/--
+Endpoint Souza multiplier theorem: for `p = q = 1`, pointwise multipliers are
+exactly the functions satisfying the Souza atom `selfs` tests.
+-/
+theorem souzaPointwiseMultiplier_iff_souzaPointwiseSelfsClass_one_one
+    (G : GoodGridSpace (α := α)) (s : ℝ)
+    (hs : 0 < s) {m : α → ℂ} :
+    SouzaPointwiseMultiplier G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
+      hs le_rfl ENNReal.one_ne_top m ↔
+    SouzaPointwiseSelfsClass G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
+      hs le_rfl ENNReal.one_ne_top m := by
+  constructor
+  · intro hm
+    exact souzaPointwiseSelfsClass_of_souzaPointwiseMultiplier
+      G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
+      hs le_rfl ENNReal.one_ne_top hm
+  · intro hm
+    exact souzaPointwiseMultiplier_of_souzaPointwiseSelfsClass_one_one
+      G s hs hm
 
 end
 
