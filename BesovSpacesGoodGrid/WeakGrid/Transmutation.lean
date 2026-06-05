@@ -179,6 +179,76 @@ def PartialSumLevels
     (N : ℕ) : Lp ℂ p W.measure :=
   ∑ i ∈ Finset.range N, (G.grid.partitions i).attach.sum (fun Q => c i Q • h i Q)
 
+/--
+The difference between two source truncations is the sum over the level window
+between them.
+-/
+theorem PartialSumLevels_sub_eq_Ico
+    (G W : WeakGridSpace (α := α))
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    {M N : ℕ} (hMN : M ≤ N) :
+    PartialSumLevels G W h c N - PartialSumLevels G W h c M =
+      ∑ i ∈ Finset.Ico M N,
+        (G.grid.partitions i).attach.sum (fun Q => c i Q • h i Q) := by
+  classical
+  let F : ℕ → Lp ℂ p W.measure :=
+    fun i => (G.grid.partitions i).attach.sum (fun Q => c i Q • h i Q)
+  simpa [PartialSumLevels, F] using
+    (Finset.sum_Ico_eq_sub (f := F) hMN).symm
+
+/--
+If a coefficient family is restricted to a level window, its `PartialSumLevels`
+up to the right endpoint is exactly the corresponding difference of the
+original truncations.
+-/
+theorem PartialSumLevels_window_eq_sub
+    (G W : WeakGridSpace (α := α))
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    {M N : ℕ} (hMN : M ≤ N) :
+    PartialSumLevels G W h
+        (fun i Q => if M ≤ i ∧ i < N then c i Q else 0) N =
+      PartialSumLevels G W h c N - PartialSumLevels G W h c M := by
+  classical
+  let F : ℕ → Lp ℂ p W.measure :=
+    fun i => (G.grid.partitions i).attach.sum (fun Q => c i Q • h i Q)
+  have hleft :
+      PartialSumLevels G W h
+          (fun i Q => if M ≤ i ∧ i < N then c i Q else 0) N =
+        ∑ i ∈ (Finset.range N).filter (fun i => M ≤ i), F i := by
+    rw [PartialSumLevels]
+    rw [Finset.sum_filter]
+    refine Finset.sum_congr rfl ?_
+    intro i hi
+    have hiN : i < N := by simpa using hi
+    by_cases hMi : M ≤ i
+    · simp [F, hMi, hiN]
+    · simp [F, hMi]
+  have hfilter : (Finset.range N).filter (fun i => M ≤ i) = Finset.Ico M N := by
+    ext i
+    simp [Finset.mem_Ico, and_comm]
+  rw [hleft, hfilter, PartialSumLevels_sub_eq_Ico G W h c hMN]
+
+/--
+The coefficient `p`-mass of a level-windowed coefficient family is unchanged
+inside the window and zero outside it.
+-/
+theorem CoeffPLevel_window
+    (G : WeakGridSpace (α := α))
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (M N i : ℕ) (hp_ne_top : p ≠ ∞) :
+    CoeffPLevel (p := p) G
+        (fun j Q => if M ≤ j ∧ j < N then c j Q else 0) i =
+      if M ≤ i ∧ i < N then CoeffPLevel (p := p) G c i else 0 := by
+  classical
+  have hp_ne_zero : p ≠ 0 := by
+    exact ne_of_gt (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ p))
+  have hp_pos : 0 < p.toReal := ENNReal.toReal_pos hp_ne_zero hp_ne_top
+  have hzero_rpow : (0 : ℝ) ^ p.toReal = 0 := Real.zero_rpow hp_pos.ne'
+  by_cases hi : M ≤ i ∧ i < N
+  · simp [CoeffPLevel, hi]
+  · simp [CoeffPLevel, hi, hzero_rpow]
 
 
 
@@ -3604,6 +3674,62 @@ private theorem ClaimII
           (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
           (∑' i, vL i ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) := by ring
 
+/--
+Public wrapper for Claim II in the finite-`q` case.
+
+For every truncation level `N`, the transmutation blocks form an atomic
+representation of `PartialSumLevels G W h c N`, and its `(p,q)` coefficient
+cost is controlled by the source coefficient cost with the explicit
+transmutation constant.
+-/
+theorem Transmutation_of_Atoms_initialSegment_representation
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (hc : CoeffFinitePQCost (p := p) (q := q) G c)
+    (N : ℕ)
+    (hq_ne_top : q ≠ ∞)
+    (hG2_W : AssumptionG2 W s p u q)
+    (hp_ne_top : p ≠ ∞)
+    (hs_pos : 0 < s) :
+    ∃ Rtrunc : LpGridRepresentation AW (PartialSumLevels G W h c N),
+      LpGridRepresentation.FinitePQCost (q := q) Rtrunc ∧
+      LpGridRepresentation.pqCost (q := q) Rtrunc ≤
+        (G.grid.Cmult1 : ℝ) *
+        C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
+        CoeffPQCost (p := p) (q := q) G c := by
+  classical
+  have hk0 : AlmostLinearSequence k := ⟨A_als, B_als, r_als, hr_als, hk_bound⟩
+  let Rtrunc : LpGridRepresentation AW (PartialSumLevels G W h c N) :=
+    { block := TransmutationBlock G W AW h R c N
+      hasSum := (ClaimII G W AW k A_als B_als r_als hr_als hk_bound
+        lam hlam_pos hlam_lt C hC h R hR c hc N hq_ne_top hG2_W hp_ne_top hs_pos).1 }
+  refine ⟨Rtrunc, ?_, ?_⟩
+  · simpa [Rtrunc, LpGridRepresentation.FinitePQCost, AbstractFinitePQCost,
+      blockLvlCoeff_eq_levelCoeffPower] using
+      (transmutationBlock_abstractFinitePQCost
+        (p := p) (q := q) G W AW k hk0 lam hlam_pos hlam_lt C hC h R hR c hc
+        N hp_ne_top hq_ne_top)
+  · simpa [Rtrunc, LpGridRepresentation.pqCost, CoeffPQCost, TransmutationBlock] using
+      (ClaimII G W AW k A_als B_als r_als hr_als hk_bound
+        lam hlam_pos hlam_lt C hC h R hR c hc N hq_ne_top hG2_W hp_ne_top hs_pos).2
+
 /-- Endpoint `q = ∞` version of **Claim II**, not stated explicitly in the text.
 
 For every `N`, the transmutation blocks form a representation of the truncated
@@ -3857,6 +3983,148 @@ lemma transmutationBlock_abstractFinitePQCost_top
     rintro x ⟨j, rfl⟩
     exact hroot_bound j
   simpa [AbstractFinitePQCost, uL, blockLvlCoeff, CoeffPLevel, TransmutationBlock] using hroot_bdd
+
+/--
+Public wrapper for Claim II in the endpoint `q = ∞` case.
+-/
+theorem Transmutation_of_Atoms_initialSegment_representation_top
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := ∞) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (hc : CoeffFinitePQCost (p := p) (q := ∞) G c)
+    (N : ℕ)
+    (hG2_W : AssumptionG2 W s p u ∞)
+    (hp_ne_top : p ≠ ∞)
+    (hs_pos : 0 < s) :
+    ∃ Rtrunc : LpGridRepresentation AW (PartialSumLevels G W h c N),
+      LpGridRepresentation.FinitePQCost (q := ∞) Rtrunc ∧
+      LpGridRepresentation.pqCost (q := ∞) Rtrunc ≤
+        (G.grid.Cmult1 : ℝ) *
+        C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        CoeffPQCost (p := p) (q := ∞) G c := by
+  classical
+  let Rtrunc : LpGridRepresentation AW (PartialSumLevels G W h c N) :=
+    { block := TransmutationBlock G W AW h R c N
+      hasSum := (ClaimII_top G W AW k A_als B_als r_als hr_als hk_bound
+        lam hlam_pos hlam_lt C hC h R hR c hc N hG2_W hp_ne_top hs_pos).1 }
+  refine ⟨Rtrunc, ?_, ?_⟩
+  · simpa [Rtrunc, LpGridRepresentation.FinitePQCost, AbstractFinitePQCost,
+      blockLvlCoeff_eq_levelCoeffPower] using
+      (transmutationBlock_abstractFinitePQCost_top
+        (p := p) G W AW k A_als B_als r_als hr_als hk_bound
+        lam hlam_pos hlam_lt C hC h R hR c hc N hp_ne_top)
+  · simpa [Rtrunc, LpGridRepresentation.pqCost, CoeffPQCost, TransmutationBlock] using
+      (ClaimII_top G W AW k A_als B_als r_als hr_als hk_bound
+        lam hlam_pos hlam_lt C hC h R hR c hc N hG2_W hp_ne_top hs_pos).2
+
+/--
+Finite-`q` transmutation truncation as an element of the target Besov-ish
+space, with the induced coefficient-cost norm bound.
+-/
+theorem Transmutation_of_Atoms_initialSegment_besovish
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (hc : CoeffFinitePQCost (p := p) (q := q) G c)
+    (N : ℕ)
+    (hq_ne_top : q ≠ ∞)
+    (hG2_W : AssumptionG2 W s p u q)
+    (hp_ne_top : p ≠ ∞)
+    (hs_pos : 0 < s) :
+    ∃ y : BesovishSpace AW q,
+      (y : Lp ℂ p W.measure) = PartialSumLevels G W h c N ∧
+      BesovishSpace.Norm_Costpq AW q y ≤
+        (G.grid.Cmult1 : ℝ) *
+        C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
+        CoeffPQCost (p := p) (q := q) G c := by
+  classical
+  rcases Transmutation_of_Atoms_initialSegment_representation
+      G W AW k A_als B_als r_als hr_als hk_bound lam hlam_pos hlam_lt
+      C hC h R hR c hc N hq_ne_top hG2_W hp_ne_top hs_pos with
+    ⟨Rtrunc, hRfin, hRcost⟩
+  have hy_mem : PartialSumLevels G W h c N ∈ BesovishSpace AW q := by
+    exact ⟨Rtrunc, hRfin⟩
+  let y : BesovishSpace AW q := ⟨PartialSumLevels G W h c N, hy_mem⟩
+  refine ⟨y, rfl, ?_⟩
+  exact (BesovishSpace.Norm_Costpq_le_cost (A := AW) (q := q) (g := y)
+    Rtrunc hRfin).trans hRcost
+
+/--
+Endpoint `q = ∞` transmutation truncation as an element of the target
+Besov-ish space, with the induced coefficient-cost norm bound.
+-/
+theorem Transmutation_of_Atoms_initialSegment_besovish_top
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := ∞) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (hc : CoeffFinitePQCost (p := p) (q := ∞) G c)
+    (N : ℕ)
+    (hG2_W : AssumptionG2 W s p u ∞)
+    (hp_ne_top : p ≠ ∞)
+    (hs_pos : 0 < s) :
+    ∃ y : BesovishSpace AW ∞,
+      (y : Lp ℂ p W.measure) = PartialSumLevels G W h c N ∧
+      BesovishSpace.Norm_Costpq AW ∞ y ≤
+        (G.grid.Cmult1 : ℝ) *
+        C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        CoeffPQCost (p := p) (q := ∞) G c := by
+  classical
+  rcases Transmutation_of_Atoms_initialSegment_representation_top
+      G W AW k A_als B_als r_als hr_als hk_bound lam hlam_pos hlam_lt
+      C hC h R hR c hc N hG2_W hp_ne_top hs_pos with
+    ⟨Rtrunc, hRfin, hRcost⟩
+  have hy_mem : PartialSumLevels G W h c N ∈ BesovishSpace AW ∞ := by
+    exact ⟨Rtrunc, hRfin⟩
+  let y : BesovishSpace AW ∞ := ⟨PartialSumLevels G W h c N, hy_mem⟩
+  refine ⟨y, rfl, ?_⟩
+  exact (BesovishSpace.Norm_Costpq_le_cost (A := AW) (q := ∞) (g := y)
+    Rtrunc hRfin).trans hRcost
 
 /-- The `N = ∞` block of the transmuted representation.  At level `j`, its
 coefficients are the stable values `m_{P,∞}` and its atoms are the stable local
