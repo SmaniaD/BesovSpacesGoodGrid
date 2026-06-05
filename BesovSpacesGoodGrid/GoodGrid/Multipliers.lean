@@ -311,15 +311,12 @@ noncomputable def pointwiseSelfsNorm
 /--
 The Triebel-style `selfs` class from the paper.
 
-It consists of functions that are themselves represented by a Besov-ish vector
-and have a finite uniform atom-test bound.
+It consists of functions with a finite uniform atom-test bound.
 -/
 def PointwiseSelfsClass
     (A : AtomFamily G s p u) (q : ℝ≥0∞) [Fact (1 ≤ q)]
     (m : α → ℂ) : Prop :=
-  (∃ x : BesovishSpace A q,
-      RepresentsFunction (G := G) (p := p) m (x : Lp ℂ p G.measure)) ∧
-    ∃ C : ℝ, PointwiseSelfsBound (A := A) q m C
+  ∃ C : ℝ, PointwiseSelfsBound (A := A) q m C
 
 /--
 Every operator bound for a multiplier also bounds the `selfs` atom tests.
@@ -343,17 +340,14 @@ theorem PointwiseMultiplierBound.selfsBound
     _ = C := by rw [mul_one]
 
 /--
-If `m` is a pointwise multiplier and is itself represented by a Besov-ish
-vector, then `m` belongs to the `selfs` class.
+Every pointwise multiplier belongs to the `selfs` class.
 -/
 theorem pointwiseSelfsClass_of_isPointwiseMultiplier
     {A : AtomFamily G s p u} {m : α → ℂ}
-    (hm : IsPointwiseMultiplier (A := A) q m)
-    (hmem : ∃ x : BesovishSpace A q,
-      RepresentsFunction (G := G) (p := p) m (x : Lp ℂ p G.measure)) :
+    (hm : IsPointwiseMultiplier (A := A) q m) :
     PointwiseSelfsClass (A := A) q m := by
   rcases hm with ⟨C, hC⟩
-  exact ⟨hmem, ⟨C, hC.selfsBound⟩⟩
+  exact ⟨C, hC.selfsBound⟩
 
 /--
 Any concrete multiplier bound gives the same concrete upper bound for the
@@ -1362,7 +1356,7 @@ theorem isPointwiseMultiplier_of_pointwiseSelfsClass_one_one
     (hG2 : AssumptionG2 G s (1 : ℝ≥0∞) u (1 : ℝ≥0∞))
     (hA5 : AssumptionA5 A) :
     IsPointwiseMultiplier (A := A) (1 : ℝ≥0∞) m := by
-  rcases hm with ⟨_, ⟨C, hC⟩⟩
+  rcases hm with ⟨C, hC⟩
   exact ⟨C + 1, hC.toPointwiseMultiplierBound_one_one hG2 hA5⟩
 
 private instance instFactOneLeOneENNReal : Fact (1 ≤ (1 : ℝ≥0∞)) :=
@@ -1453,11 +1447,6 @@ noncomputable abbrev souzaPointwiseSelfsNorm
 
 /--
 For Souza atoms, every pointwise multiplier belongs to the `selfs` class.
-
-The abstract theorem needs a separate hypothesis saying that the multiplier
-itself is represented by a Besov-ish vector.  In the Souza space this follows
-from applying the multiplier to the constant function `1`, which belongs to the
-space as the indicator of the root grid cell.
 -/
 theorem souzaPointwiseSelfsClass_of_souzaPointwiseMultiplier
     (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
@@ -1466,48 +1455,9 @@ theorem souzaPointwiseSelfsClass_of_souzaPointwiseMultiplier
     {m : α → ℂ}
     (hm : SouzaPointwiseMultiplier G s p q hs hp hp_top m) :
     SouzaPointwiseSelfsClass G s p q hs hp hp_top m := by
-  classical
-  let A := souzaAtomFamily G s p hs hp hp_top
-  rcases hm with ⟨C, hC⟩
-  have hselfs : WeakGridSpace.PointwiseSelfsBound (A := A) q m C :=
-    hC.selfsBound
-  let Q0 : GoodGridCell G :=
-    { level := 0
-      cell := Set.univ
-      mem := by
-        rw [G.grid.grid.first_partition_eq_univ]
-        exact Finset.mem_singleton_self Set.univ }
-  let oneLp : Lp ℂ p G.toWeakGridSpace.measure :=
-    MeasureTheory.indicatorConstLp (μ := G.toWeakGridSpace.measure) p
-      (G.grid.grid.measurable Q0.level Q0.cell Q0.mem)
-      (GoodGridCell.measure_ne_top Q0) (1 : ℂ)
-  have hone_mem : oneLp ∈ SouzaBesovSpace G s p q hs hp hp_top := by
-    simpa [oneLp] using
-      indicatorConstLp_cell_mem_souzaBesov G s p q hs hp hp_top Q0 (1 : ℂ)
-  let x : WeakGridSpace.BesovishSpace A q :=
-    ⟨oneLp, by simpa [A, SouzaBesovSpace] using hone_mem⟩
-  have hx_one : ((x : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ)
-      =ᵐ[G.toWeakGridSpace.measure] fun _ => (1 : ℂ) := by
-    change ((oneLp : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ)
-      =ᵐ[G.toWeakGridSpace.measure] fun _ => (1 : ℂ)
-    refine (MeasureTheory.indicatorConstLp_coeFn
-      (μ := G.toWeakGridSpace.measure) (p := p)
-      (hs := G.grid.grid.measurable Q0.level Q0.cell Q0.mem)
-      (hμs := GoodGridCell.measure_ne_top Q0) (c := (1 : ℂ))).trans ?_
-    refine Filter.Eventually.of_forall ?_
-    intro a
-    simp [Q0]
-  rcases hC.2 x with ⟨y, hprod, -⟩
-  have hmem : ∃ y : WeakGridSpace.BesovishSpace A q,
-      WeakGridSpace.RepresentsFunction (G := G.toWeakGridSpace) (p := p) m
-        (y : Lp ℂ p G.toWeakGridSpace.measure) := by
-    refine ⟨y, ?_⟩
-    have hmul_one :
-        (fun z => m z * ((x : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) z)
-          =ᵐ[G.toWeakGridSpace.measure] m :=
-      hx_one.mono fun z hz => by simp [hz]
-    exact hprod.trans hmul_one
-  exact ⟨hmem, ⟨C, hselfs⟩⟩
+  exact WeakGridSpace.pointwiseSelfsClass_of_isPointwiseMultiplier
+    (G := G.toWeakGridSpace) (s := s) (p := p) (u := ∞) (q := q)
+    (A := souzaAtomFamily G s p hs hp hp_top) (m := m) hm
 
 /--
 For Souza atoms on a good grid, the endpoint `selfs` class is contained in the
