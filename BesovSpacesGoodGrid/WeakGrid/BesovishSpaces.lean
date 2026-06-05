@@ -856,6 +856,23 @@ theorem tail_block_toLp
       if k < N then 0 else (R.block k).toLp A := by
   by_cases hk : k < N <;> simp [tail, hk]
 
+/-- The zero atomic representation. -/
+noncomputable def zero (A : AtomFamily G s p u) :
+    LpGridRepresentation A (0 : Lp ℂ p G.measure) where
+  block := fun k => LevelBlock.zero A k
+  hasSum := by simp
+
+@[simp]
+theorem zero_block (A : AtomFamily G s p u) (k : ℕ) :
+    (zero (G := G) A).block k = LevelBlock.zero A k := rfl
+
+@[simp]
+theorem zero_levelCoeffPower (A : AtomFamily G s p u) (k : ℕ) :
+    (zero (G := G) A).levelCoeffPower k = 0 := by
+  have hp_pos : 0 < p.toReal := (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+  simp [zero, LpGridRepresentation.levelCoeffPower, LevelBlock.zero,
+    Real.zero_rpow hp_pos.ne']
+
 /--
 A representation consisting of a single level block.
 
@@ -909,6 +926,85 @@ theorem singleBlockRepresentation_levelCoeffPower_self
     (singleBlockRepresentation (G := G) (A := A) B).levelCoeffPower k =
       ∑ Q : LevelCell G k, ‖B.coeff Q‖ ^ p.toReal := by
   simp [LpGridRepresentation.levelCoeffPower]
+
+end LpGridRepresentation
+
+/--
+A level block with one prescribed active cell.
+
+The active cell `Q` has coefficient `c` and atom `φ`; all other cells have
+zero coefficient and arbitrary atoms chosen from nonemptiness.  This is useful
+for explicit one-cell atomic representations.
+-/
+noncomputable def LevelBlock.singleAtom
+    (A : AtomFamily G s p u) {k : ℕ} (Q : LevelCell G k)
+    (c : ℂ)
+    (φ : (A.localSpace (levelCellToWeakGridCell G k Q)).carrier)
+    (hφ : A.IsAtom (levelCellToWeakGridCell G k Q) φ) :
+    LevelBlock A k where
+  coeff := fun P => if P = Q then c else 0
+  atom := fun P => by
+    by_cases hP : P = Q
+    · subst P
+      exact φ
+    · exact Classical.choose (A.atoms_nonempty_on (levelCellToWeakGridCell G k P))
+  atom_mem := by
+    intro P
+    by_cases hP : P = Q
+    · subst P
+      simpa using hφ
+    · simpa [hP] using
+        Classical.choose_spec (A.atoms_nonempty_on (levelCellToWeakGridCell G k P))
+
+omit [Fact (1 ≤ p)] in
+@[simp]
+theorem LevelBlock.singleAtom_coeff_self
+    (A : AtomFamily G s p u) {k : ℕ} (Q : LevelCell G k)
+    (c : ℂ)
+    (φ : (A.localSpace (levelCellToWeakGridCell G k Q)).carrier)
+    (hφ : A.IsAtom (levelCellToWeakGridCell G k Q) φ) :
+    (LevelBlock.singleAtom A Q c φ hφ).coeff Q = c := by
+  simp [LevelBlock.singleAtom]
+
+theorem LevelBlock.singleAtom_levelCoeffPower
+    (A : AtomFamily G s p u) {k : ℕ} (Q : LevelCell G k)
+    (c : ℂ)
+    (φ : (A.localSpace (levelCellToWeakGridCell G k Q)).carrier)
+    (hφ : A.IsAtom (levelCellToWeakGridCell G k Q) φ) :
+    (LpGridRepresentation.singleBlockRepresentation
+      (G := G) (A := A) (LevelBlock.singleAtom A Q c φ hφ)).levelCoeffPower k =
+      ‖c‖ ^ p.toReal := by
+  classical
+  have hp_pos : 0 < p.toReal := (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+  rw [LpGridRepresentation.singleBlockRepresentation_levelCoeffPower_self]
+  rw [Finset.sum_eq_single Q]
+  · simp [LevelBlock.singleAtom]
+  · intro P _ hPQ
+    simp [LevelBlock.singleAtom, hPQ, Real.zero_rpow hp_pos.ne']
+  · intro hQ
+    exact False.elim (hQ (by simp))
+
+/-- The one-atom representation has coefficient power only at its active level. -/
+theorem LevelBlock.singleAtom_singleBlock_levelCoeffPower
+    (A : AtomFamily G s p u) {k : ℕ} (Q : LevelCell G k)
+    (c : ℂ)
+    (φ : (A.localSpace (levelCellToWeakGridCell G k Q)).carrier)
+    (hφ : A.IsAtom (levelCellToWeakGridCell G k Q) φ) :
+    ∀ n : ℕ,
+      (LpGridRepresentation.singleBlockRepresentation
+        (G := G) (A := A) (LevelBlock.singleAtom A Q c φ hφ)).levelCoeffPower n =
+        if n = k then ‖c‖ ^ p.toReal else 0 := by
+  classical
+  have hp_pos : 0 < p.toReal := (ENNReal.toReal_pos_iff_ne_top p).2 A.p_ne_top
+  intro n
+  by_cases hn : n = k
+  · subst n
+    simpa using LevelBlock.singleAtom_levelCoeffPower A Q c φ hφ
+  · unfold LpGridRepresentation.singleBlockRepresentation
+    simp [hn, LpGridRepresentation.levelCoeffPower, LevelBlock.zero,
+      Real.zero_rpow hp_pos.ne']
+
+namespace LpGridRepresentation
 
 @[simp]
 theorem initialSegment_levelCoeffPower
@@ -1298,6 +1394,30 @@ theorem LevelBlock.coeFn_toLp
       simp only [Finset.sum_insert hQS]
       exact (Lp.coeFn_add _ _).trans <|
         (LevelBlock.coeFn_term A B Q).add ih
+
+omit [Fact (1 ≤ p)] in
+/--
+The one-cell level block agrees almost everywhere with `c` times the chosen atom.
+-/
+theorem LevelBlock.singleAtom_ae_eq
+    (A : AtomFamily G s p u) {k : ℕ} (Q : LevelCell G k)
+    (c : ℂ)
+    (φ : (A.localSpace (levelCellToWeakGridCell G k Q)).carrier)
+    (hφ : A.IsAtom (levelCellToWeakGridCell G k Q) φ) :
+    (((LevelBlock.singleAtom A Q c φ hφ).toLp A : α → ℂ) =ᵐ[G.measure]
+      fun x => c * A.toFunction (levelCellToWeakGridCell G k Q) φ x) := by
+  classical
+  let B := LevelBlock.singleAtom A Q c φ hφ
+  refine (LevelBlock.coeFn_toLp A B).trans ?_
+  refine Filter.Eventually.of_forall ?_
+  intro x
+  unfold LevelBlock.toFunLt
+  rw [Finset.sum_eq_single Q]
+  · simp [B, LevelBlock.singleAtom]
+  · intro P _ hPQ
+    simp [B, LevelBlock.singleAtom, hPQ]
+  · intro hQ
+    exact False.elim (hQ (by simp))
 
 omit [Fact (1 ≤ p)] in
 /-- The coefficient function of a single `L^t` cell term is the expected scalar atom. -/

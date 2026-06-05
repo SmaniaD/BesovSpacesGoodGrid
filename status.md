@@ -1,6 +1,6 @@
 # Repository Status
 
-Last updated: 2026-06-04.
+Last updated: 2026-06-05.
 
 Current branch: `main`.
 
@@ -26,6 +26,9 @@ examples.  Those are not proof holes in this project.
 
 Recently checked successfully:
 
+- `lake build BesovSpacesGoodGrid.GoodGrid.Multipliers`
+- `lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers.lean`
+- `lake env lean BesovSpacesGoodGrid/WeakGrid/BesovishSpaces.lean`
 - `lake build`
 - `lake build BesovSpacesGoodGrid.GoodGrid.BesovAtoms`
 - `lake env lean BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean`
@@ -41,6 +44,110 @@ The previous aggregate-root collision around
 `GoodGridSpace.GoodGridCell.toLevelCell` has been resolved by rebuilding the
 stale `BesovAtoms` artifact after the definition was centralized in
 `GoodGrid/BesovSpace.lean`.  The root module now imports cleanly.
+
+## Current Pass: Multipliers And Restriction
+
+The current active development pass is the restriction lemma for good-grid cells
+and Souza atoms, aiming toward the statement that the cell indicator `1_W` is a
+pointwise multiplier.
+
+Modified files in this pass:
+
+- `BesovSpacesGoodGrid/WeakGrid/Transmutation.lean`
+- `BesovSpacesGoodGrid/WeakGrid/BesovishSpaces.lean`
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers.lean`
+
+### What Was Done
+
+In `WeakGrid/Transmutation.lean`:
+
+- Added reusable window/partial-sum coefficient lemmas around
+  `PartialSumLevels`, including the identity of a window with a difference of
+  initial segments.
+- Added q=1 window-cost lemmas:
+  `CoeffFinitePQCost_window_one` and `CoeffPQCost_window_one_eq_Ico`.
+- Added bridge lemmas applying the abstract transmutation theorem to initial
+  segments and windows.
+
+In `WeakGrid/BesovishSpaces.lean`:
+
+- Added `LevelBlock.singleAtom`, a level block supported on one prescribed cell.
+- Proved that the corresponding one-block representation agrees a.e. with the
+  scalar atom:
+  `LevelBlock.singleAtom_ae_eq`.
+- Proved the coefficient power is concentrated at the active level:
+  `LevelBlock.singleAtom_levelCoeffPower` and
+  `LevelBlock.singleAtom_singleBlock_levelCoeffPower`.
+- Added the public zero representation:
+  `LpGridRepresentation.zero`, with zero level coefficient power.
+
+In `GoodGrid/Multipliers.lean`:
+
+- Added the induced restriction level map
+  `GoodGridCell.restrictionLevel W i = i - W.level`.
+- Proved this level map is almost linear:
+  `GoodGridCell.restrictionLevel_almostLinear`.
+- Added a real-power monotonicity helper for non-positive exponent:
+  if `0 < x <= y` and `e <= 0`, then `y^e <= x^e`.
+- Proved the two local Souza atom transport lemmas:
+  - `souzaAtom_mem_inducedCell_of_subset` for `Q ⊆ W`;
+  - `souzaAtom_mem_inducedRoot_of_subset` for `W ⊆ Q`, assuming
+    `s <= (p.toReal)⁻¹`.
+- Proved the key local representation lemma
+  `restrict_souzaAtomFamily_toFunction_oneBlockRepresentation`:
+  each restricted Souza atom `1_W a_Q` has an induced representation
+  concentrated in at most one level, with level coefficient power bounded by
+  `1`.
+
+### Mathematical Status
+
+The local geometry of restricting one Souza atom is now formalized:
+
+- If `Q ∩ W = ∅`, then the restriction is represented by the zero
+  representation.
+- If `Q ⊆ W`, then the atom is transported to the corresponding induced cell at
+  level `Q.level - W.level`.
+- If `W ⊆ Q`, then the restriction is represented on the induced root cell.
+  This case needs the natural hypothesis
+  `s <= 1 / p.toReal`, because Souza atoms scale like
+  `μ(Q)^(s - 1/p)`, and the exponent must be non-positive to pass from `Q` to
+  the smaller cell `W` with uniform coefficient.
+
+The abstract functional-analytic/transmutation bridge is already present:
+
+- `souzaIndicatorPointwiseMultiplier_of_initialSegmentRestrictionWindowBound_one`
+- `souzaIndicatorPointwiseMultiplier_of_transmutationInitialSegments_one`
+- `souzaIndicatorPointwiseMultiplier_of_transmutationAtomData_one`
+
+These bridges compile and reduce the multiplier theorem to constructing the
+global transmutation data from the local atom-restriction representations.
+
+### What Remains
+
+1. Build the global families `h` and `Rt` from
+   `restrict_souzaAtomFamily_toFunction_oneBlockRepresentation`, for every
+   source level `i` and source cell `Q`.
+2. Prove the resulting `Rt` satisfies `RepresentationWsubGandALS` with
+   `k = W.restrictionLevel`, `A = -W.level`, `B = 0`, and `r = 1`.
+3. Prove the support condition in `RepresentationWsubGandALS`:
+   nonzero induced coefficients occur only on induced cells `P` satisfying
+   `P ⊆ Q`.
+4. Prove the cutoff condition:
+   coefficients vanish below `W.restrictionLevel i`.
+5. Prove the decay condition:
+   since the local representations are one-block/zero representations, the
+   coefficient power is `0` off the active level and `<= 1` at the active level;
+   this should give the geometric bound with a simple choice such as
+   `C = 1`.
+6. Prove the identity of restricted initial segments:
+   the `PartialSumLevels` built from the local representatives equals
+   pointwise multiplication by `1_W` of the ambient initial segment.
+7. Feed this `hdata` into
+   `souzaIndicatorPointwiseMultiplier_of_transmutationAtomData_one`.
+
+The next Lean target should be a theorem packaging the global `h`, `Rt`, and
+`RepresentationWsubGandALS` data under the hypothesis
+`s <= (p.toReal)⁻¹`.
 
 ## Current Main Line
 
@@ -205,8 +312,15 @@ C2 / (1 - G.grid.lambda2 ^ (β - s)).
 
 ## Next Steps
 
-1. Clean deprecation/style warnings in the new comparison files.
-2. Consider factoring large proof-heavy comparison files into smaller
+1. Finish the global `h`/`Rt` construction for the GoodGrid/Souza restriction
+   lemma.
+2. Close the `RepresentationWsubGandALS` proof using the one-block local
+   representation theorem.
+3. Prove the restricted-initial-segment identity and call the existing
+   transmutation bridge.
+4. Clean deprecation/style warnings in the new comparison and transmutation
+   files.
+5. Consider factoring large proof-heavy comparison files into smaller
    topic-focused modules if compilation or navigation becomes cumbersome.
 
 ## Notes

@@ -1,4 +1,5 @@
 import BesovSpacesGoodGrid.WeakGrid.Multipliers
+import BesovSpacesGoodGrid.WeakGrid.Transmutation
 import BesovSpacesGoodGrid.GoodGrid.BesovSpace
 
 /-!
@@ -57,6 +58,147 @@ def GoodGridCell.toInducedLevelCellOfSubset
       (W.level + (Q.level - W.level)) :=
     ⟨Q.cell, by simpa [Nat.add_sub_of_le hlevel] using Q.mem⟩
   exact WeakGridSpace.ambientLevelCellToInduced G.toWeakGridSpace W.toLevelCell P hsub
+
+/-- The induced level naturally attached to an ambient level after restricting to `W`. -/
+def GoodGridCell.restrictionLevel
+    {G : GoodGridSpace (α := α)} (W : GoodGridCell G) (i : ℕ) : ℕ :=
+  i - W.level
+
+/--
+The level map `i ↦ i - W.level` is almost linear with slope `1`.
+
+This is the level bookkeeping used for the one-block representations of
+restricted Souza atoms.
+-/
+theorem GoodGridCell.restrictionLevel_bound
+    {G : GoodGridSpace (α := α)} (W : GoodGridCell G) :
+    ∀ i : ℕ,
+      ((W.restrictionLevel i : ℕ) : NNReal) ≤
+          (1 : ℝ) * (i : NNReal) + 0 ∧
+        (1 : ℝ) * (i : NNReal) + (-(W.level : ℝ)) ≤
+          ((W.restrictionLevel i : ℕ) : NNReal) := by
+  intro i
+  constructor
+  · unfold GoodGridCell.restrictionLevel
+    simpa using
+      (show (((i - W.level : ℕ) : NNReal) : ℝ) ≤ (i : ℝ) by
+        exact_mod_cast Nat.sub_le i W.level)
+  · unfold GoodGridCell.restrictionLevel
+    suffices (i : ℝ) + (-(W.level : ℝ)) ≤ (((i - W.level : ℕ) : NNReal) : ℝ) by
+      simpa using this
+    by_cases hWi : W.level ≤ i
+    · have hcast : (((i - W.level : ℕ) : NNReal) : ℝ) = (i : ℝ) - W.level := by
+        exact_mod_cast Nat.cast_sub hWi
+      rw [hcast]
+      exact le_rfl
+    · have hiW : i < W.level := Nat.lt_of_not_ge hWi
+      have hsub : i - W.level = 0 := Nat.sub_eq_zero_of_le hiW.le
+      have hcast : (((i - W.level : ℕ) : NNReal) : ℝ) = 0 := by
+        simp [hsub]
+      have hle : (i : ℝ) - W.level ≤ 0 := by
+        have hle_nat : i ≤ W.level := Nat.le_of_lt hiW
+        have hle_real : (i : ℝ) ≤ W.level := by exact_mod_cast hle_nat
+        linarith
+      rw [hcast]
+      linarith
+
+/-- The level map `i ↦ i - W.level` is almost linear. -/
+theorem GoodGridCell.restrictionLevel_almostLinear
+    {G : GoodGridSpace (α := α)} (W : GoodGridCell G) :
+    WeakGridSpace.AlmostLinearSequence W.restrictionLevel :=
+  ⟨-(W.level : ℝ), 0, 1, by norm_num, W.restrictionLevel_bound⟩
+
+/-- Real powers are antitone in the base when the exponent is non-positive. -/
+private theorem rpow_le_rpow_of_nonpos_exponent
+    {x y e : ℝ} (hx : 0 < x) (hxy : x ≤ y) (he : e ≤ 0) :
+    y ^ e ≤ x ^ e := by
+  have hy : 0 < y := lt_of_lt_of_le hx hxy
+  have hne_nonneg : 0 ≤ -e := by linarith
+  have hpow : x ^ (-e) ≤ y ^ (-e) :=
+    Real.rpow_le_rpow hx.le hxy hne_nonneg
+  have hxpow : 0 < x ^ (-e) := Real.rpow_pos_of_pos hx _
+  calc
+    y ^ e = (y ^ (-e))⁻¹ := by
+      simpa using Real.rpow_neg hy.le (-e)
+    _ ≤ (x ^ (-e))⁻¹ := by
+      simpa [one_div] using one_div_le_one_div_of_le hxpow hpow
+    _ = x ^ e := by
+      simpa using (Real.rpow_neg hx.le (-e)).symm
+
+/--
+If `W ⊆ Q` and `s ≤ 1 / p`, then every Souza atom constant on `Q` is also an
+atom on the root cell of the grid induced on `W`.
+-/
+theorem souzaAtom_mem_inducedRoot_of_subset
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {W Q : GoodGridCell G}
+    (hs_le_inv : s ≤ (p.toReal)⁻¹)
+    (hsub : W.cell ⊆ Q.cell)
+    (c : ℂ)
+    (hc : (souzaAtomFamily G s p hs hp hp_top).IsAtom Q.toWeakGridCell c) :
+    (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+      (souzaAtomFamily G s p hs hp hp_top)).IsAtom
+        (WeakGridSpace.levelCellToWeakGridCell
+          (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+          0 W.inducedRootLevelCell)
+        c := by
+  classical
+  have hc_bound :
+      ‖c‖ ≤ (G.grid.μ Q.cell).toReal ^ (s - (p.toReal)⁻¹) := by
+    simpa [souzaAtomFamily, souzaAtomsSet, GoodGridCell.toWeakGridCell,
+      WeakGridSpace.AtomFamily.IsAtom] using hc
+  have hμ_le : G.grid.μ W.cell ≤ G.grid.μ Q.cell :=
+    MeasureTheory.measure_mono hsub
+  have hQ_ne_top : G.grid.μ Q.cell ≠ ∞ := by
+    letI : MeasureTheory.IsFiniteMeasure G.grid.μ := G.grid.isFinite
+    exact MeasureTheory.measure_ne_top G.grid.μ Q.cell
+  have hμ_toReal_le :
+      (G.grid.μ W.cell).toReal ≤ (G.grid.μ Q.cell).toReal :=
+    ENNReal.toReal_mono hQ_ne_top hμ_le
+  have hW_pos_en : 0 < G.grid.μ W.cell :=
+    G.grid.positive_measure W.level W.cell W.mem
+  have hW_ne_top : G.grid.μ W.cell ≠ ∞ := by
+    letI : MeasureTheory.IsFiniteMeasure G.grid.μ := G.grid.isFinite
+    exact MeasureTheory.measure_ne_top G.grid.μ W.cell
+  have hW_pos : 0 < (G.grid.μ W.cell).toReal :=
+    ENNReal.toReal_pos hW_pos_en.ne' hW_ne_top
+  have hexp_nonpos : s - (p.toReal)⁻¹ ≤ 0 := by linarith
+  have hpow :
+      (G.grid.μ Q.cell).toReal ^ (s - (p.toReal)⁻¹) ≤
+        (G.grid.μ W.cell).toReal ^ (s - (p.toReal)⁻¹) :=
+    rpow_le_rpow_of_nonpos_exponent hW_pos hμ_toReal_le hexp_nonpos
+  change ‖c‖ ≤ (G.grid.μ W.cell).toReal ^ (s - (p.toReal)⁻¹)
+  exact hc_bound.trans hpow
+
+/--
+If `Q ⊆ W`, a Souza atom on `Q` is the same atom on the corresponding cell of
+the grid induced on `W`.
+-/
+theorem souzaAtom_mem_inducedCell_of_subset
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (W Q : GoodGridCell G)
+    (hlevel : W.level ≤ Q.level) (hsub : Q.cell ⊆ W.cell)
+    (c : ℂ)
+    (hc : (souzaAtomFamily G s p hs hp hp_top).IsAtom Q.toWeakGridCell c) :
+    (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+      (souzaAtomFamily G s p hs hp hp_top)).IsAtom
+        (WeakGridSpace.levelCellToWeakGridCell
+          (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+          (Q.level - W.level)
+          (W.toInducedLevelCellOfSubset Q hlevel hsub))
+        c := by
+  classical
+  simpa [souzaAtomFamily, souzaAtomsSet, GoodGridCell.toWeakGridCell,
+    GoodGridCell.toInducedLevelCellOfSubset,
+    WeakGridSpace.inducedAtomFamily, WeakGridSpace.inducedWeakGridCellToAmbient,
+    WeakGridSpace.ambientLevelCellToInduced,
+    WeakGridSpace.AtomFamily.IsAtom] using hc
 
 /--
 If two cells are disjoint, restricting a canonical Souza atom on `Q` to `W`
@@ -165,6 +307,141 @@ theorem indicator_mul_cellIndicator_eq_indicator_of_superset
   · have hxQ : x ∈ Q.cell := hsub hxW
     simp [hxW, hxQ]
   · simp [hxW]
+
+/--
+Restricting a single Souza atom to `W` has an induced atomic representation
+concentrated at the natural level `i - W.level`, with coefficient power at most
+`1`.
+-/
+theorem restrict_souzaAtomFamily_toFunction_oneBlockRepresentation
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (hs_le_inv : s ≤ (p.toReal)⁻¹)
+    (W : GoodGridCell G) {i : ℕ}
+    (Q : WeakGridSpace.LevelCell G.toWeakGridSpace i)
+    (c : ℂ)
+    (hc : (souzaAtomFamily G s p hs hp hp_top).IsAtom
+      (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace i Q) c) :
+    ∃ y : Lp ℂ p
+        (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell).measure,
+    ∃ R : WeakGridSpace.LpGridRepresentation
+        (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+          (souzaAtomFamily G s p hs hp hp_top)) y,
+      WeakGridSpace.RepresentsFunction
+        (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+        (p := p)
+        (fun x => W.cell.indicator (fun _ => (1 : ℂ)) x *
+          (souzaAtomFamily G s p hs hp hp_top).toFunction
+            (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace i Q) c x)
+        y ∧
+      ∀ n : ℕ, R.levelCoeffPower n ≤
+        if n = W.restrictionLevel i then 1 else 0 := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let Wi := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell
+  let Ai := WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell A
+  let Qg : GoodGridCell G := ⟨i, Q.1, Q.2⟩
+  have hcQg : A.IsAtom Qg.toWeakGridCell c := by
+    simpa [A, Qg, GoodGridCell.toWeakGridCell] using hc
+  rcases le_total W.level i with hWi | hiW
+  · rcases W.subset_or_disjoint_of_le Qg hWi with hsub | hdisj
+    · let P := W.toInducedLevelCellOfSubset Qg hWi hsub
+      have hAtom : Ai.IsAtom (WeakGridSpace.levelCellToWeakGridCell Wi (i - W.level) P) c := by
+        simpa [A, Ai, Wi, Qg, P] using
+          souzaAtom_mem_inducedCell_of_subset
+            G s p hs hp hp_top W Qg hWi hsub c hcQg
+      let B : WeakGridSpace.LevelBlock Ai (i - W.level) :=
+        WeakGridSpace.LevelBlock.singleAtom Ai P (1 : ℂ) c hAtom
+      let y : Lp ℂ p Wi.measure := B.toLp Ai
+      let R : WeakGridSpace.LpGridRepresentation Ai y :=
+        WeakGridSpace.LpGridRepresentation.singleBlockRepresentation (G := Wi) (A := Ai) B
+      refine ⟨y, R, ?_, ?_⟩
+      · have hB := WeakGridSpace.LevelBlock.singleAtom_ae_eq Ai P (1 : ℂ) c hAtom
+        refine hB.trans (Filter.Eventually.of_forall ?_)
+        intro x
+        have hprod :=
+          congrFun (indicator_mul_cellIndicator_eq_self_of_subset W Qg c hsub) x
+        simpa [A, Ai, Wi, Qg, P, B, WeakGridSpace.AtomFamily.toFunction,
+          WeakGridSpace.inducedAtomFamily, WeakGridSpace.inducedWeakGridCellToAmbient,
+          GoodGridCell.toInducedLevelCellOfSubset, WeakGridSpace.ambientLevelCellToInduced,
+          GoodGridCell.toWeakGridCell, souzaAtomFamily, souzaLocalVectorSpace,
+          WeakGridSpace.levelCellToWeakGridCell, one_mul] using hprod.symm
+      · intro n
+        have hlevel :=
+          WeakGridSpace.LevelBlock.singleAtom_singleBlock_levelCoeffPower
+            Ai P (1 : ℂ) c hAtom n
+        rw [hlevel]
+        have hone : ‖(1 : ℂ)‖ ^ p.toReal = (1 : ℝ) := by simp
+        convert
+          (show (if n = i - W.level then (1 : ℝ) else 0) ≤
+              if n = i - W.level then (1 : ℝ) else 0 from le_rfl)
+          using 1
+        simp [Qg]
+    · refine ⟨0, WeakGridSpace.LpGridRepresentation.zero Ai, ?_, ?_⟩
+      · have hprod := indicator_mul_cellIndicator_eq_zero_of_disjoint W Qg c hdisj
+        have htarget :
+            (fun x => W.cell.indicator (fun _ => (1 : ℂ)) x *
+              A.toFunction (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace i Q) c x) =
+              fun _ => 0 := by
+          simpa [A, Qg, WeakGridSpace.AtomFamily.toFunction,
+            GoodGridCell.toWeakGridCell, souzaAtomFamily, souzaLocalVectorSpace,
+            WeakGridSpace.levelCellToWeakGridCell] using hprod
+        rw [WeakGridSpace.RepresentsFunction, htarget]
+        exact MeasureTheory.Lp.coeFn_zero ℂ p Wi.measure
+      · intro n
+        rw [WeakGridSpace.LpGridRepresentation.zero_levelCoeffPower]
+        by_cases hn : n = W.restrictionLevel i <;> simp [hn]
+  · rcases Qg.subset_or_disjoint_of_le W hiW with hsub | hdisj
+    · let P := W.inducedRootLevelCell
+      have hAtom : Ai.IsAtom (WeakGridSpace.levelCellToWeakGridCell Wi 0 P) c := by
+        simpa [A, Ai, Wi, Qg, P] using
+          souzaAtom_mem_inducedRoot_of_subset
+            G s p hs hp hp_top hs_le_inv hsub c hcQg
+      let B : WeakGridSpace.LevelBlock Ai 0 :=
+        WeakGridSpace.LevelBlock.singleAtom Ai P (1 : ℂ) c hAtom
+      let y : Lp ℂ p Wi.measure := B.toLp Ai
+      let R : WeakGridSpace.LpGridRepresentation Ai y :=
+        WeakGridSpace.LpGridRepresentation.singleBlockRepresentation (G := Wi) (A := Ai) B
+      refine ⟨y, R, ?_, ?_⟩
+      · have hB := WeakGridSpace.LevelBlock.singleAtom_ae_eq Ai P (1 : ℂ) c hAtom
+        refine hB.trans (Filter.Eventually.of_forall ?_)
+        intro x
+        have hprod :=
+          congrFun (indicator_mul_cellIndicator_eq_indicator_of_superset W Qg c hsub) x
+        simpa [A, Ai, Wi, Qg, P, B, WeakGridSpace.AtomFamily.toFunction,
+          WeakGridSpace.inducedAtomFamily, WeakGridSpace.inducedWeakGridCellToAmbient,
+          GoodGridCell.inducedRootLevelCell, GoodGridCell.toWeakGridCell,
+          souzaAtomFamily, souzaLocalVectorSpace,
+          WeakGridSpace.levelCellToWeakGridCell, one_mul] using hprod.symm
+      · intro n
+        have hlevel :=
+          WeakGridSpace.LevelBlock.singleAtom_singleBlock_levelCoeffPower
+            Ai P (1 : ℂ) c hAtom n
+        rw [hlevel]
+        have hlev_zero : W.restrictionLevel i = 0 := Nat.sub_eq_zero_of_le hiW
+        have hone : ‖(1 : ℂ)‖ ^ p.toReal = (1 : ℝ) := by simp
+        convert
+          (show (if n = 0 then (1 : ℝ) else 0) ≤
+              if n = 0 then (1 : ℝ) else 0 from le_rfl)
+          using 1
+        · simp
+        · rw [hlev_zero]
+    · refine ⟨0, WeakGridSpace.LpGridRepresentation.zero Ai, ?_, ?_⟩
+      · have hprod := indicator_mul_cellIndicator_eq_zero_of_disjoint W Qg c hdisj.symm
+        have htarget :
+            (fun x => W.cell.indicator (fun _ => (1 : ℂ)) x *
+              A.toFunction (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace i Q) c x) =
+              fun _ => 0 := by
+          simpa [A, Qg, WeakGridSpace.AtomFamily.toFunction,
+            GoodGridCell.toWeakGridCell, souzaAtomFamily, souzaLocalVectorSpace,
+            WeakGridSpace.levelCellToWeakGridCell] using hprod
+        rw [WeakGridSpace.RepresentsFunction, htarget]
+        exact MeasureTheory.Lp.coeFn_zero ℂ p Wi.measure
+      · intro n
+        rw [WeakGridSpace.LpGridRepresentation.zero_levelCoeffPower]
+        by_cases hn : n = W.restrictionLevel i <;> simp [hn]
 
 /--
 Pointwise multiplier bound specialized to the Souza atom Besov space on a good
@@ -1757,6 +2034,286 @@ theorem souzaIndicatorPointwiseMultiplier_of_initialSegmentRestrictionWindowBoun
             calc
               K * (η / (K + 1)) = (K / (K + 1)) * η := by ring
               _ < η := by simpa using hmul
+
+/--
+Transmutation data for the restricted Souza atoms imply the endpoint
+cell-indicator multiplier theorem.
+
+This is the bridge between the geometric part of the restriction lemma and the
+functional-analytic criterion above.  The remaining geometric task is to
+construct the data requested by `hdata`, uniformly in the cell `W`.
+-/
+theorem souzaIndicatorPointwiseMultiplier_of_transmutationInitialSegments_one
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (W : GoodGridCell G)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    {K : ℝ} (hK : 0 ≤ K)
+    (hKdom :
+      (G.toWeakGridSpace.grid.Cmult1 : ℝ) *
+        C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+          (WeakGridSpace.transmutationKernelZ lam A_als r_als) *
+        (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / (1 : ℝ≥0∞).toReal) ≤ K)
+    (hdata :
+      ∀ {g : Lp ℂ p G.toWeakGridSpace.measure},
+      ∀ R : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top) g,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := (1 : ℝ≥0∞)) R →
+      ∃ h : (i : ℕ) → WeakGridSpace.LevelCell G.toWeakGridSpace i →
+          Lp ℂ p
+            (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell).measure,
+      ∃ Rt : (i : ℕ) → (Q : WeakGridSpace.LevelCell G.toWeakGridSpace i) →
+          WeakGridSpace.LpGridRepresentation
+            (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+              (souzaAtomFamily G s p hs hp hp_top)) (h i Q),
+        WeakGridSpace.RepresentationWsubGandALS
+          (p := p) (q := (1 : ℝ≥0∞))
+          G.toWeakGridSpace
+          (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+          (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+            (souzaAtomFamily G s p hs hp hp_top))
+          k ⟨A_als, B_als, r_als, hr_als, hk_bound⟩
+          lam hlam_pos hlam_lt C hC h Rt ∧
+        (∀ N,
+          WeakGridSpace.RepresentsPointwiseProduct
+            (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+            (p := p)
+            (W.cell.indicator fun _ => (1 : ℂ))
+            ((∑ i ∈ Finset.range N,
+                (R.block i).toLp (souzaAtomFamily G s p hs hp hp_top)) :
+              Lp ℂ p G.toWeakGridSpace.measure)
+            (WeakGridSpace.PartialSumLevels
+              G.toWeakGridSpace
+              (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+              h (fun i Q => (R.block i).coeff Q) N)) ∧
+        (∀ M N, M ≤ N →
+          ∃ ywin : WeakGridSpace.BesovishSpace
+              (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+                (souzaAtomFamily G s p hs hp hp_top)) (1 : ℝ≥0∞),
+            (ywin : Lp ℂ p
+              (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell).measure) =
+              WeakGridSpace.PartialSumLevels
+                G.toWeakGridSpace
+                (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+                h
+                (fun i Q => if M ≤ i ∧ i < N then (R.block i).coeff Q else 0)
+                N ∧
+            WeakGridSpace.BesovishSpace.Norm_Costpq
+              (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+                (souzaAtomFamily G s p hs hp hp_top)) (1 : ℝ≥0∞) ywin ≤
+              K * ∑ i ∈ Finset.Ico M N,
+                (R.levelCoeffPower i) ^ (1 / p.toReal))) :
+    SouzaPointwiseMultiplier G s p (1 : ℝ≥0∞) hs hp hp_top
+      (W.cell.indicator fun _ => (1 : ℂ)) := by
+  classical
+  let Gi := G.toWeakGridSpace
+  let Wi := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let Ai := WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell A
+  let Ktr : ℝ :=
+    (G.toWeakGridSpace.grid.Cmult1 : ℝ) *
+      C ^ (1 / p.toReal) *
+      lam ^ (-(B_als : ℝ) / p.toReal) *
+      WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+        (WeakGridSpace.transmutationKernelZ lam A_als r_als) *
+      (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / (1 : ℝ≥0∞).toReal)
+  refine souzaIndicatorPointwiseMultiplier_of_initialSegmentRestrictionWindowBound_one
+    G s p hs hp hp_top W hK ?_
+  intro g R hRfin
+  rcases hdata R hRfin with ⟨h, Rt, hRt, hprod, hwindow⟩
+  let c : (i : ℕ) → WeakGridSpace.LevelCell Gi i → ℂ :=
+    fun i Q => (R.block i).coeff Q
+  have hc : WeakGridSpace.CoeffFinitePQCost
+      (p := p) (q := (1 : ℝ≥0∞)) Gi c := by
+    simpa [Gi, c, WeakGridSpace.CoeffFinitePQCost,
+      WeakGridSpace.CoeffPLevel, WeakGridSpace.LpGridRepresentation.FinitePQCost,
+      WeakGridSpace.LpGridRepresentation.levelCoeffPower] using hRfin
+  have hcost_eq :
+      WeakGridSpace.CoeffPQCost (p := p) (q := (1 : ℝ≥0∞)) Gi c =
+        WeakGridSpace.LpGridRepresentation.pqCost (q := (1 : ℝ≥0∞)) R := by
+    simp [Gi, c, WeakGridSpace.CoeffPQCost, WeakGridSpace.CoeffPLevel,
+      WeakGridSpace.LpGridRepresentation.pqCost,
+      WeakGridSpace.LpGridRepresentation.levelCoeffPower]
+  have htrans :
+      ∀ N,
+        ∃ y : WeakGridSpace.BesovishSpace Ai (1 : ℝ≥0∞),
+          (y : Lp ℂ p Wi.measure) =
+            WeakGridSpace.PartialSumLevels Gi Wi h c N ∧
+          WeakGridSpace.BesovishSpace.Norm_Costpq Ai (1 : ℝ≥0∞) y ≤
+            Ktr * WeakGridSpace.CoeffPQCost
+              (p := p) (q := (1 : ℝ≥0∞)) Gi c := by
+    intro N
+    simpa [Gi, Wi, Ai, A, Ktr, c] using
+      WeakGridSpace.Transmutation_of_Atoms_initialSegment_besovish
+        (G := Gi) (W := Wi) (AW := Ai)
+        (p := p) (q := (1 : ℝ≥0∞)) (u := ∞)
+        k A_als B_als r_als hr_als hk_bound
+        lam hlam_pos hlam_lt C hC h Rt hRt c hc N
+        ENNReal.one_ne_top
+        (induced_souza_assumptionG2 G s p (1 : ℝ≥0∞) hs hp hp_top W)
+        hp_top hs
+  let yseq : ℕ → WeakGridSpace.BesovishSpace Ai (1 : ℝ≥0∞) :=
+    fun N => Classical.choose (htrans N)
+  have hyseq :
+      ∀ N,
+        (yseq N : Lp ℂ p Wi.measure) =
+          WeakGridSpace.PartialSumLevels Gi Wi h c N ∧
+        WeakGridSpace.BesovishSpace.Norm_Costpq Ai (1 : ℝ≥0∞) (yseq N) ≤
+          Ktr * WeakGridSpace.CoeffPQCost
+            (p := p) (q := (1 : ℝ≥0∞)) Gi c :=
+    fun N => Classical.choose_spec (htrans N)
+  refine ⟨yseq, ?_, ?_, ?_⟩
+  · intro N
+    have hprodN := hprod N
+    simpa [Gi, Wi, A, Ai, c, (hyseq N).1] using hprodN
+  · intro N
+    calc
+      WeakGridSpace.BesovishSpace.Norm_Costpq Ai (1 : ℝ≥0∞) (yseq N)
+          ≤ Ktr * WeakGridSpace.CoeffPQCost
+              (p := p) (q := (1 : ℝ≥0∞)) Gi c := (hyseq N).2
+      _ = Ktr * WeakGridSpace.LpGridRepresentation.pqCost
+              (q := (1 : ℝ≥0∞)) R := by rw [hcost_eq]
+      _ ≤ K * WeakGridSpace.LpGridRepresentation.pqCost
+              (q := (1 : ℝ≥0∞)) R := by
+            exact mul_le_mul_of_nonneg_right hKdom
+              (WeakGridSpace.LpGridRepresentation.pqCost_nonneg R)
+  · intro M N hMN
+    rcases hwindow M N hMN with ⟨ywin, hywin_eq, hywin_bound⟩
+    have hsub_eq : yseq N - yseq M = ywin := by
+      apply Subtype.ext
+      change ((yseq N : Lp ℂ p Wi.measure) - (yseq M : Lp ℂ p Wi.measure)) =
+        (ywin : Lp ℂ p Wi.measure)
+      rw [(hyseq N).1, (hyseq M).1, hywin_eq]
+      exact (WeakGridSpace.PartialSumLevels_window_eq_sub
+        (G := Gi) (W := Wi) h c hMN).symm
+    rw [hsub_eq]
+    simpa [Gi, Wi, A, Ai, c] using hywin_bound
+
+/--
+Stronger transmutation bridge: the window estimates are obtained by applying
+the same transmutation theorem to the coefficient family cut to `M ≤ i < N`.
+-/
+theorem souzaIndicatorPointwiseMultiplier_of_transmutationAtomData_one
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (W : GoodGridCell G)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    {K : ℝ} (hK : 0 ≤ K)
+    (hKdom :
+      (G.toWeakGridSpace.grid.Cmult1 : ℝ) *
+        C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+          (WeakGridSpace.transmutationKernelZ lam A_als r_als) *
+        (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / (1 : ℝ≥0∞).toReal) ≤ K)
+    (hdata :
+      ∀ {g : Lp ℂ p G.toWeakGridSpace.measure},
+      ∀ R : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top) g,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := (1 : ℝ≥0∞)) R →
+      ∃ h : (i : ℕ) → WeakGridSpace.LevelCell G.toWeakGridSpace i →
+          Lp ℂ p
+            (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell).measure,
+      ∃ Rt : (i : ℕ) → (Q : WeakGridSpace.LevelCell G.toWeakGridSpace i) →
+          WeakGridSpace.LpGridRepresentation
+            (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+              (souzaAtomFamily G s p hs hp hp_top)) (h i Q),
+        WeakGridSpace.RepresentationWsubGandALS
+          (p := p) (q := (1 : ℝ≥0∞))
+          G.toWeakGridSpace
+          (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+          (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+            (souzaAtomFamily G s p hs hp hp_top))
+          k ⟨A_als, B_als, r_als, hr_als, hk_bound⟩
+          lam hlam_pos hlam_lt C hC h Rt ∧
+        (∀ N,
+          WeakGridSpace.RepresentsPointwiseProduct
+            (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+            (p := p)
+            (W.cell.indicator fun _ => (1 : ℂ))
+            ((∑ i ∈ Finset.range N,
+                (R.block i).toLp (souzaAtomFamily G s p hs hp hp_top)) :
+              Lp ℂ p G.toWeakGridSpace.measure)
+            (WeakGridSpace.PartialSumLevels
+              G.toWeakGridSpace
+              (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+              h (fun i Q => (R.block i).coeff Q) N))) :
+    SouzaPointwiseMultiplier G s p (1 : ℝ≥0∞) hs hp hp_top
+      (W.cell.indicator fun _ => (1 : ℂ)) := by
+  classical
+  let Gi := G.toWeakGridSpace
+  let Wi := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let Ai := WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell A
+  let Ktr : ℝ :=
+    (G.toWeakGridSpace.grid.Cmult1 : ℝ) *
+      C ^ (1 / p.toReal) *
+      lam ^ (-(B_als : ℝ) / p.toReal) *
+      WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+        (WeakGridSpace.transmutationKernelZ lam A_als r_als) *
+      (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / (1 : ℝ≥0∞).toReal)
+  refine souzaIndicatorPointwiseMultiplier_of_transmutationInitialSegments_one
+    G s p hs hp hp_top W k A_als B_als r_als hr_als hk_bound
+    lam hlam_pos hlam_lt C hC hK hKdom ?_
+  intro g R hRfin
+  rcases hdata R hRfin with ⟨h, Rt, hRt, hprod⟩
+  refine ⟨h, Rt, hRt, hprod, ?_⟩
+  intro M N hMN
+  let c : (i : ℕ) → WeakGridSpace.LevelCell Gi i → ℂ :=
+    fun i Q => (R.block i).coeff Q
+  let cwin : (i : ℕ) → WeakGridSpace.LevelCell Gi i → ℂ :=
+    fun i Q => if M ≤ i ∧ i < N then c i Q else 0
+  have hcwin : WeakGridSpace.CoeffFinitePQCost
+      (p := p) (q := (1 : ℝ≥0∞)) Gi cwin := by
+    simpa [Gi, c, cwin] using
+      WeakGridSpace.CoeffFinitePQCost_window_one
+        (G := Gi) (p := p) c M N hp_top
+  rcases WeakGridSpace.Transmutation_of_Atoms_initialSegment_besovish
+      (G := Gi) (W := Wi) (AW := Ai)
+      (p := p) (q := (1 : ℝ≥0∞)) (u := ∞)
+      k A_als B_als r_als hr_als hk_bound
+      lam hlam_pos hlam_lt C hC h Rt hRt cwin hcwin N
+      ENNReal.one_ne_top
+      (induced_souza_assumptionG2 G s p (1 : ℝ≥0∞) hs hp hp_top W)
+      hp_top hs with
+    ⟨ywin, hywin_eq, hywin_bound⟩
+  refine ⟨ywin, by simpa [Gi, Wi, A, Ai, c, cwin] using hywin_eq, ?_⟩
+  have hsum_nonneg :
+      0 ≤ ∑ i ∈ Finset.Ico M N, (R.levelCoeffPower i) ^ (1 / p.toReal) := by
+    exact Finset.sum_nonneg fun i _ =>
+      Real.rpow_nonneg (R.levelCoeffPower_nonneg i) _
+  calc
+    WeakGridSpace.BesovishSpace.Norm_Costpq Ai (1 : ℝ≥0∞) ywin
+        ≤ Ktr * WeakGridSpace.CoeffPQCost
+            (p := p) (q := (1 : ℝ≥0∞)) Gi cwin := by
+          simpa [Gi, Wi, A, Ai, Ktr, c, cwin] using hywin_bound
+    _ = Ktr * ∑ i ∈ Finset.Ico M N,
+          (R.levelCoeffPower i) ^ (1 / p.toReal) := by
+          rw [WeakGridSpace.CoeffPQCost_window_one_eq_Ico
+            (G := Gi) (p := p) c M N hp_top]
+          simp [Gi, c, WeakGridSpace.CoeffPLevel,
+            WeakGridSpace.LpGridRepresentation.levelCoeffPower]
+    _ ≤ K * ∑ i ∈ Finset.Ico M N,
+          (R.levelCoeffPower i) ^ (1 / p.toReal) := by
+          exact mul_le_mul_of_nonneg_right hKdom hsum_nonneg
 
 /--
 The `selfs` atom-test class for the Souza Besov space on a good grid.
