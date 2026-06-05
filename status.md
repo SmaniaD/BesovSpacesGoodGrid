@@ -97,7 +97,21 @@ In `GoodGrid/Multipliers.lean`:
   `restrict_souzaAtomFamily_toFunction_oneBlockRepresentation`:
   each restricted Souza atom `1_W a_Q` has an induced representation
   concentrated in at most one level, with level coefficient power bounded by
-  `1`.
+  `1`, together with the support/cutoff vanishing conditions needed by
+  transmutation.
+- Packaged the local one-atom representations into global transmutation data:
+  `restrict_souzaRepresentation_transmutationAtomData_one`.
+- Proved the finite-sum identity saying these local representatives represent
+  pointwise multiplication by `1_W` on each ambient initial segment:
+  `restrict_souzaRepresentation_partialSum_representsPointwiseProduct_one`.
+- Combined both ingredients into the exact `hdata` input required by the
+  abstract transmutation bridge:
+  `restrict_souzaRepresentation_transmutationData_one`.
+- Added
+  `souzaIndicatorPointwiseMultiplier_of_restrictionTransmutation_one`, which
+  feeds this `hdata` into the abstract bridge and proves that `1_W` is a Souza
+  pointwise multiplier, choosing internally the named explicit constant
+  `souzaRestrictionMultiplierConstant G p W lam`.
 
 ### Mathematical Status
 
@@ -113,41 +127,26 @@ The local geometry of restricting one Souza atom is now formalized:
   `μ(Q)^(s - 1/p)`, and the exponent must be non-positive to pass from `Q` to
   the smaller cell `W` with uniform coefficient.
 
-The abstract functional-analytic/transmutation bridge is already present:
+The abstract functional-analytic/transmutation bridge is already present and
+has now been connected to the concrete Souza restriction construction:
 
 - `souzaIndicatorPointwiseMultiplier_of_initialSegmentRestrictionWindowBound_one`
 - `souzaIndicatorPointwiseMultiplier_of_transmutationInitialSegments_one`
 - `souzaIndicatorPointwiseMultiplier_of_transmutationAtomData_one`
 
-These bridges compile and reduce the multiplier theorem to constructing the
-global transmutation data from the local atom-restriction representations.
+The concrete bridge now uses `k i = i - W.level`, `A = -W.level`, `B = 0`,
+`r = 1`, and `C = 1`.  The corresponding simplified constant is named
+`souzaRestrictionMultiplierConstant` and is
+`G.Cmult1 * cCoefficientInt p ∞ (transmutationKernelZ lam (-W.level) 1)`.
 
 ### What Remains
 
-1. Build the global families `h` and `Rt` from
-   `restrict_souzaAtomFamily_toFunction_oneBlockRepresentation`, for every
-   source level `i` and source cell `Q`.
-2. Prove the resulting `Rt` satisfies `RepresentationWsubGandALS` with
-   `k = W.restrictionLevel`, `A = -W.level`, `B = 0`, and `r = 1`.
-3. Prove the support condition in `RepresentationWsubGandALS`:
-   nonzero induced coefficients occur only on induced cells `P` satisfying
-   `P ⊆ Q`.
-4. Prove the cutoff condition:
-   coefficients vanish below `W.restrictionLevel i`.
-5. Prove the decay condition:
-   since the local representations are one-block/zero representations, the
-   coefficient power is `0` off the active level and `<= 1` at the active level;
-   this should give the geometric bound with a simple choice such as
-   `C = 1`.
-6. Prove the identity of restricted initial segments:
-   the `PartialSumLevels` built from the local representatives equals
-   pointwise multiplication by `1_W` of the ambient initial segment.
-7. Feed this `hdata` into
-   `souzaIndicatorPointwiseMultiplier_of_transmutationAtomData_one`.
-
-The next Lean target should be a theorem packaging the global `h`, `Rt`, and
-`RepresentationWsubGandALS` data under the hypothesis
-`s <= (p.toReal)⁻¹`.
+1. If a quantitative final statement is desired, add a `PointwiseMultiplierBound`
+   version of the transmutation bridge so the named constant can be exposed as
+   the bound rather than only used internally to prove multiplier membership.
+2. Connect this cell-indicator multiplier theorem to the final desired
+   continuity/restriction lemma for all Besov functions, if that is the next
+   mathematical target.
 
 ## Current Main Line
 
