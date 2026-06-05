@@ -1359,6 +1359,25 @@ theorem isPointwiseMultiplier_of_pointwiseSelfsClass_one_one
   rcases hm with ⟨C, hC⟩
   exact ⟨C + 1, hC.toPointwiseMultiplierBound_one_one hG2 hA5⟩
 
+/--
+At the endpoint `(p,q) = (1,1)`, pointwise multipliers are exactly the
+functions satisfying the abstract atom `selfs` tests.
+-/
+theorem isPointwiseMultiplier_iff_pointwiseSelfsClass_one_one
+    {A : AtomFamily G s (1 : ℝ≥0∞) u} [Fact (1 ≤ u)]
+    {m : α → ℂ}
+    (hG2 : AssumptionG2 G s (1 : ℝ≥0∞) u (1 : ℝ≥0∞))
+    (hA5 : AssumptionA5 A) :
+    IsPointwiseMultiplier (A := A) (1 : ℝ≥0∞) m ↔
+    PointwiseSelfsClass (A := A) (1 : ℝ≥0∞) m := by
+  constructor
+  · intro hm
+    exact pointwiseSelfsClass_of_isPointwiseMultiplier
+      (A := A) (q := (1 : ℝ≥0∞)) (m := m) hm
+  · intro hm
+    exact isPointwiseMultiplier_of_pointwiseSelfsClass_one_one
+      (A := A) (m := m) hm hG2 hA5
+
 private instance instFactOneLeOneENNReal : Fact (1 ≤ (1 : ℝ≥0∞)) :=
   ⟨le_rfl⟩
 
@@ -1492,14 +1511,13 @@ theorem souzaPointwiseMultiplier_iff_souzaPointwiseSelfsClass_one_one
       hs le_rfl ENNReal.one_ne_top m ↔
     SouzaPointwiseSelfsClass G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
       hs le_rfl ENNReal.one_ne_top m := by
-  constructor
-  · intro hm
-    exact souzaPointwiseSelfsClass_of_souzaPointwiseMultiplier
-      G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
-      hs le_rfl ENNReal.one_ne_top hm
-  · intro hm
-    exact souzaPointwiseMultiplier_of_souzaPointwiseSelfsClass_one_one
-      G s hs hm
+  exact WeakGridSpace.isPointwiseMultiplier_iff_pointwiseSelfsClass_one_one
+    (G := G.toWeakGridSpace) (s := s) (u := ∞)
+    (A := souzaAtomFamily G s (1 : ℝ≥0∞) hs le_rfl ENNReal.one_ne_top)
+    (m := m)
+    (souza_assumptionG2 G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
+      hs le_rfl ENNReal.one_ne_top)
+    (souza_assumptionA5 G s (1 : ℝ≥0∞) hs le_rfl ENNReal.one_ne_top)
 
 end
 
