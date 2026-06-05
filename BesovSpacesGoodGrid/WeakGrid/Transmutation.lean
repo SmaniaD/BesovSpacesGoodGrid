@@ -374,6 +374,61 @@ theorem CoeffPQCost_window_one_eq_Ico
   rw [htsum_inv]
   simp
 
+/--
+For finite `q`, the cost of a level-windowed coefficient family is exactly the
+finite `(p,q)` cost over that window.
+-/
+theorem CoeffPQCost_window_eq_Ico
+    (G : WeakGridSpace (α := α))
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (M N : ℕ) (hp_ne_top : p ≠ ∞) (hq_ne_top : q ≠ ∞) :
+    CoeffPQCost (p := p) (q := q) G
+      (fun i Q => if M ≤ i ∧ i < N then c i Q else 0) =
+      (∑ i ∈ Finset.Ico M N,
+        (CoeffPLevel (p := p) G c i) ^ (q.toReal / p.toReal)) ^
+          (1 / q.toReal) := by
+  classical
+  have hp_ne_zero : p ≠ 0 := by
+    exact ne_of_gt (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ p))
+  have hp_pos : 0 < p.toReal := ENNReal.toReal_pos hp_ne_zero hp_ne_top
+  have hq_ne_zero : q ≠ 0 := by
+    exact ne_of_gt (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ q))
+  have hq_pos : 0 < q.toReal := ENNReal.toReal_pos hq_ne_zero hq_ne_top
+  have hpow_pos : q.toReal / p.toReal ≠ 0 :=
+    div_ne_zero hq_pos.ne' hp_pos.ne'
+  have hzero_qp : (0 : ℝ) ^ (q.toReal / p.toReal) = 0 :=
+    Real.zero_rpow hpow_pos
+  let cwin : (i : ℕ) → LevelCell G i → ℂ :=
+    fun i Q => if M ≤ i ∧ i < N then c i Q else 0
+  let f : ℕ → ℝ := fun i =>
+    (CoeffPLevel (p := p) G cwin i) ^ (q.toReal / p.toReal)
+  have hzero : ∀ i ∉ Finset.Ico M N, f i = 0 := by
+    intro i hi
+    have hnot : ¬ (M ≤ i ∧ i < N) := by
+      simpa [Finset.mem_Ico] using hi
+    simp [f, cwin, CoeffPLevel_window G c M N i hp_ne_top, hnot,
+      hzero_qp]
+  have htsum :
+      (∑' i, f i) = ∑ i ∈ Finset.Ico M N, f i :=
+    tsum_eq_sum hzero
+  have hsum :
+      (∑ i ∈ Finset.Ico M N, f i) =
+        ∑ i ∈ Finset.Ico M N,
+          (CoeffPLevel (p := p) G c i) ^ (q.toReal / p.toReal) := by
+    refine Finset.sum_congr rfl ?_
+    intro i hi
+    have hmem : M ≤ i ∧ i < N := by
+      simpa [Finset.mem_Ico] using hi
+    simp [f, cwin, CoeffPLevel_window G c M N i hp_ne_top, hmem]
+  have htsum' :
+      (∑' i, (CoeffPLevel (p := p) G cwin i) ^ (q.toReal / p.toReal)) =
+        ∑ i ∈ Finset.Ico M N,
+          (CoeffPLevel (p := p) G c i) ^ (q.toReal / p.toReal) := by
+    simpa [f] using htsum.trans hsum
+  rw [CoeffPQCost]
+  simp only [hq_ne_top, if_false]
+  rw [htsum']
+
 
 
 /-- Structural hypothesis saying that each source atom admits a representation on
@@ -4328,9 +4383,20 @@ theorem Transmutation_of_Atoms_Claim_A
     (hp_ne_top : p ≠ ∞)
     (hs_pos : 0 < s) :
     ∃ gLim : Lp ℂ p W.measure,
-      HasSum (fun j => (TransmutationBlockLimit G W AW h R c A_als r_als j).toLp AW) gLim ∧
+      ∃ hsum :
+        HasSum (fun j => (TransmutationBlockLimit G W AW h R c A_als r_als j).toLp AW) gLim,
       MemBesovishCoeffCost AW q gLim ∧
-      Tendsto (fun N => PartialSumLevels G W h c N) atTop (𝓝 gLim) := by
+      Tendsto (fun N => PartialSumLevels G W h c N) atTop (𝓝 gLim) ∧
+      LpGridRepresentation.pqCost (q := q)
+        ({ block := TransmutationBlockLimit G W AW h R c A_als r_als
+           hasSum := hsum } : LpGridRepresentation AW gLim) ≤
+        (G.grid.Cmult1 : ℝ) *
+        C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        (Nat.ceil (r_als : ℝ) : ℝ) ^ (1 / q.toReal) *
+        CoeffPQCost (p := p) (q := q) G c := by
   let K : ℝ :=
     (G.grid.Cmult1 : ℝ) *
     C ^ (1 / p.toReal) *
@@ -4402,7 +4468,7 @@ theorem Transmutation_of_Atoms_Claim_A
       hp_ne_top hs_pos Fact.out AW hG2_W Rseq hK_nonneg huniform Rlim
       hcoeff_tendsto hatom_tendsto with
     ⟨gLim, hRlim, hmem, hfin, hcost, hg_tendsto⟩
-  exact ⟨gLim, hRlim, hmem, hg_tendsto⟩
+  exact ⟨gLim, hRlim, hmem, hg_tendsto, by simpa [K, Rlim] using hcost⟩
 
 /-- Endpoint `q = ∞` version of **Claim III**. -/
 theorem Transmutation_of_Atoms_Claim_A_top
@@ -4426,9 +4492,22 @@ theorem Transmutation_of_Atoms_Claim_A_top
     (hp_ne_top : p ≠ ∞)
     (hs_pos : 0 < s) :
     ∃ gLim : Lp ℂ p W.measure,
-      HasSum (fun j => (TransmutationBlockLimit G W AW h R c A_als r_als j).toLp AW) gLim ∧
+      ∃ hsum :
+        HasSum (fun j => (TransmutationBlockLimit G W AW h R c A_als r_als j).toLp AW) gLim,
       MemBesovishCoeffCost AW ∞ gLim ∧
-      Tendsto (fun N => PartialSumLevels G W h c N) atTop (𝓝 gLim) := by
+      LpGridRepresentation.FinitePQCost (q := ∞)
+        ({ block := TransmutationBlockLimit G W AW h R c A_als r_als
+           hasSum := hsum } : LpGridRepresentation AW gLim) ∧
+      Tendsto (fun N => PartialSumLevels G W h c N) atTop (𝓝 gLim) ∧
+      LpGridRepresentation.pqCost (q := ∞)
+        ({ block := TransmutationBlockLimit G W AW h R c A_als r_als
+           hasSum := hsum } : LpGridRepresentation AW gLim) ≤
+        (G.grid.Cmult1 : ℝ) *
+        C ^ (1 / p.toReal) *
+        lam ^ (-(B_als : ℝ) / p.toReal) *
+        LpGridRepresentation.cCoefficientInt p ∞
+          (transmutationKernelZ lam A_als r_als) *
+        CoeffPQCost (p := p) (q := ∞) G c := by
   haveI : Fact ((1 : ℝ≥0∞) ≤ (∞ : ℝ≥0∞)) := ⟨by simp⟩
   let K : ℝ :=
     (G.grid.Cmult1 : ℝ) *
@@ -4499,7 +4578,7 @@ theorem Transmutation_of_Atoms_Claim_A_top
       hp_ne_top hs_pos Fact.out AW hG2_W Rseq hK_nonneg huniform Rlim
       hcoeff_tendsto hatom_tendsto with
     ⟨gLim, hRlim, hmem, hfin, hcost, hg_tendsto⟩
-  exact ⟨gLim, hRlim, hmem, hg_tendsto⟩
+  exact ⟨gLim, hRlim, hmem, hfin, hg_tendsto, by simpa [K, Rlim] using hcost⟩
 
 
 /-- The coefficient `m_P` from Claim B, for a fixed target cell `P`.
@@ -4980,10 +5059,14 @@ theorem Transmutation_of_Atoms_Claim_B (G W : WeakGridSpace (α := α))
   constructor
   · by_cases hq_top : q = ∞
     · subst q
-      exact Transmutation_of_Atoms_Claim_A_top G W AW k A_als B_als r_als hr_als hk_bound
-        lam hlam_pos hlam_lt C hC h R hR_plain c hc hG2_W hp_ne_top hs_pos
-    · exact Transmutation_of_Atoms_Claim_A G W AW k A_als B_als r_als hr_als hk_bound
-        lam hlam_pos hlam_lt C hC h R hR_plain c hc hq_top hG2_W hp_ne_top hs_pos
+      rcases Transmutation_of_Atoms_Claim_A_top G W AW k A_als B_als r_als hr_als hk_bound
+          lam hlam_pos hlam_lt C hC h R hR_plain c hc hG2_W hp_ne_top hs_pos with
+        ⟨gLim, hsum, hmem, _hfin, htendsto, _hcost⟩
+      exact ⟨gLim, hsum, hmem, htendsto⟩
+    · rcases Transmutation_of_Atoms_Claim_A G W AW k A_als B_als r_als hr_als hk_bound
+          lam hlam_pos hlam_lt C hC h R hR_plain c hc hq_top hG2_W hp_ne_top hs_pos with
+        ⟨gLim, hsum, hmem, htendsto, _hcost⟩
+      exact ⟨gLim, hsum, hmem, htendsto⟩
   · intro j P hm _hd_nonzero
     rcases transmutationCoeff_support_witness G W AW k A_als B_als r_als hr_als hk_bound
       lam hlam_pos hlam_lt C hC h R hR c

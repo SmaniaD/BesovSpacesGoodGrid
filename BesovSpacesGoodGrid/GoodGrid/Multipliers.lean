@@ -498,6 +498,78 @@ theorem restrict_souzaAtomFamily_toFunction_oneBlockRepresentation
 If a representation has coefficient power supported at one level, then its
 coefficient family has finite `(p,1)` cost.
 -/
+private theorem coeffFinitePQCost_of_levelCoeffPower_le_singleton
+    {s : ℝ} {p u : ℝ≥0∞}
+    (G : WeakGridSpace.WeakGridSpace (α := α))
+    (A : WeakGridSpace.AtomFamily G s p u)
+    (q : ℝ≥0∞)
+    (hp_ne_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    [Fact (1 ≤ q)]
+    {y : Lp ℂ p G.measure}
+    (R : WeakGridSpace.LpGridRepresentation A y)
+    (k : ℕ)
+    (hlevel : ∀ n : ℕ, R.levelCoeffPower n ≤ if n = k then 1 else 0) :
+    WeakGridSpace.CoeffFinitePQCost
+      (p := p) (q := q) G
+      (fun j S => ((R.block j).coeff S)) := by
+  classical
+  have hp_ne_zero : p ≠ 0 := by
+    exact ne_of_gt (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ p))
+  have hp_pos : 0 < p.toReal := ENNReal.toReal_pos hp_ne_zero hp_ne_top
+  by_cases hq_top : q = ∞
+  · rw [WeakGridSpace.CoeffFinitePQCost, if_pos hq_top]
+    let f : ℕ → ℝ := fun n =>
+      (WeakGridSpace.CoeffPLevel
+        (p := p) G (fun j S => ((R.block j).coeff S)) n) ^ (1 / p.toReal)
+    have hzero_inv : (0 : ℝ) ^ p.toReal⁻¹ = 0 :=
+      Real.zero_rpow (inv_ne_zero hp_pos.ne')
+    have hzero : ∀ n, n ≠ k → f n = 0 := by
+      intro n hnk
+      have hle0 : R.levelCoeffPower n ≤ 0 := by
+        simpa [hnk] using hlevel n
+      have hlevel_zero : R.levelCoeffPower n = 0 :=
+        le_antisymm hle0 (R.levelCoeffPower_nonneg n)
+      have hcoeff_zero :
+          WeakGridSpace.CoeffPLevel
+            (p := p) G (fun j S => ((R.block j).coeff S)) n = 0 := by
+        simpa [WeakGridSpace.CoeffPLevel,
+          WeakGridSpace.LpGridRepresentation.levelCoeffPower] using hlevel_zero
+      simp [f, hcoeff_zero, hzero_inv, one_div]
+    have hfinite_range : (Set.range f).Finite := by
+      refine ((Set.finite_singleton 0).union
+        ((Set.finite_singleton k).image f)).subset ?_
+      intro x hx
+      rcases hx with ⟨n, rfl⟩
+      by_cases hnk : n = k
+      · exact Or.inr ⟨n, by simpa [hnk], rfl⟩
+      · exact Or.inl (hzero n hnk)
+    simpa [f] using hfinite_range.bddAbove
+  · rw [WeakGridSpace.CoeffFinitePQCost, if_neg hq_top]
+    have hq_ne_zero : q ≠ 0 := by
+      exact ne_of_gt (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ q))
+    have hq_pos : 0 < q.toReal := ENNReal.toReal_pos hq_ne_zero hq_top
+    have hzero_qp : (0 : ℝ) ^ (q.toReal / p.toReal) = 0 :=
+      Real.zero_rpow (div_ne_zero hq_pos.ne' hp_pos.ne')
+    refine summable_of_hasFiniteSupport ?_
+    rw [Function.HasFiniteSupport]
+    refine (Set.finite_singleton k).subset ?_
+    intro n hn
+    contrapose! hn
+    rw [Function.mem_support]
+    have hnk : n ≠ k := by
+      simpa using hn
+    have hle0 : R.levelCoeffPower n ≤ 0 := by
+      simpa [hnk] using hlevel n
+    have hlevel_zero : R.levelCoeffPower n = 0 :=
+      le_antisymm hle0 (R.levelCoeffPower_nonneg n)
+    have hcoeff_zero :
+        WeakGridSpace.CoeffPLevel
+          (p := p) G (fun j S => ((R.block j).coeff S)) n = 0 := by
+      simpa [WeakGridSpace.CoeffPLevel,
+        WeakGridSpace.LpGridRepresentation.levelCoeffPower] using hlevel_zero
+    simp [hcoeff_zero, hzero_qp]
+
 private theorem coeffFinitePQCost_one_of_levelCoeffPower_le_singleton
     {s : ℝ} {p u : ℝ≥0∞}
     (G : WeakGridSpace.WeakGridSpace (α := α))
@@ -511,31 +583,9 @@ private theorem coeffFinitePQCost_one_of_levelCoeffPower_le_singleton
     WeakGridSpace.CoeffFinitePQCost
       (p := p) (q := (1 : ℝ≥0∞)) G
       (fun j S => ((R.block j).coeff S)) := by
-  classical
-  have hp_ne_zero : p ≠ 0 := by
-    exact ne_of_gt (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ p))
-  have hp_pos : 0 < p.toReal := ENNReal.toReal_pos hp_ne_zero hp_ne_top
-  have hzero_inv : (0 : ℝ) ^ p.toReal⁻¹ = 0 :=
-    Real.zero_rpow (inv_ne_zero hp_pos.ne')
-  simp [WeakGridSpace.CoeffFinitePQCost]
-  refine summable_of_hasFiniteSupport ?_
-  rw [Function.HasFiniteSupport]
-  refine (Set.finite_singleton k).subset ?_
-  intro n hn
-  contrapose! hn
-  rw [Function.mem_support]
-  have hnk : n ≠ k := by
-    simpa using hn
-  have hle0 : R.levelCoeffPower n ≤ 0 := by
-    simpa [hnk] using hlevel n
-  have hlevel_zero : R.levelCoeffPower n = 0 :=
-    le_antisymm hle0 (R.levelCoeffPower_nonneg n)
-  have hcoeff_zero :
-      WeakGridSpace.CoeffPLevel
-        (p := p) G (fun j S => ((R.block j).coeff S)) n = 0 := by
-    simpa [WeakGridSpace.CoeffPLevel,
-      WeakGridSpace.LpGridRepresentation.levelCoeffPower] using hlevel_zero
-  simp [hcoeff_zero, hzero_inv]
+  simpa using
+    coeffFinitePQCost_of_levelCoeffPower_le_singleton
+      G A (1 : ℝ≥0∞) hp_ne_top R k hlevel
 
 /--
 The one-level coefficient-power bound gives the geometric decay required in
@@ -569,11 +619,11 @@ This theorem packages the local one-atom restriction result into global
 families `h` and `Rt`.  The finite-sum pointwise-product identity is proved
 separately from these data.
 -/
-theorem restrict_souzaRepresentation_transmutationAtomData_one
+theorem restrict_souzaRepresentation_transmutationAtomData
     (G : GoodGridSpace (α := α))
-    (s : ℝ) (p : ℝ≥0∞)
+    (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
-    [Fact (1 ≤ p)]
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
     (hs_le_inv : s ≤ (p.toReal)⁻¹)
     (W : GoodGridCell G)
     (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
@@ -588,7 +638,7 @@ theorem restrict_souzaRepresentation_transmutationAtomData_one
           (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
             (souzaAtomFamily G s p hs hp hp_top)) (h i Q),
       WeakGridSpace.RepresentationWsubGandALS
-        (p := p) (q := (1 : ℝ≥0∞))
+        (p := p) (q := q)
         G.toWeakGridSpace
         (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
         (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
@@ -655,13 +705,52 @@ theorem restrict_souzaRepresentation_transmutationAtomData_one
   refine ⟨h, Rt, ?_, ?_⟩
   · intro i Q
     refine ⟨?_, ?_, ?_⟩
-    · exact coeffFinitePQCost_one_of_levelCoeffPower_le_singleton
-        Wi Ai hp_top (Rt i Q) (W.restrictionLevel i) (hspec i Q).2.2
+    · exact coeffFinitePQCost_of_levelCoeffPower_le_singleton
+        Wi Ai q hp_top (Rt i Q) (W.restrictionLevel i) (hspec i Q).2.2
     · exact (hspec i Q).2.1
     · exact levelCoeffPower_le_geometric_of_singleton_bound
         (Rt i Q) (W.restrictionLevel i) lam hlam_pos (hspec i Q).2.2
   · intro i Q
     exact (hspec i Q).1
+
+theorem restrict_souzaRepresentation_transmutationAtomData_one
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (hs_le_inv : s ≤ (p.toReal)⁻¹)
+    (W : GoodGridCell G)
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    {g : Lp ℂ p G.toWeakGridSpace.measure}
+    (R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) g) :
+    ∃ h : (i : ℕ) → WeakGridSpace.LevelCell G.toWeakGridSpace i →
+        Lp ℂ p
+          (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell).measure,
+    ∃ Rt : (i : ℕ) → (Q : WeakGridSpace.LevelCell G.toWeakGridSpace i) →
+        WeakGridSpace.LpGridRepresentation
+          (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+            (souzaAtomFamily G s p hs hp hp_top)) (h i Q),
+      WeakGridSpace.RepresentationWsubGandALS
+        (p := p) (q := (1 : ℝ≥0∞))
+        G.toWeakGridSpace
+        (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+        (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+          (souzaAtomFamily G s p hs hp hp_top))
+        W.restrictionLevel W.restrictionLevel_almostLinear
+        lam hlam_pos hlam_lt 1 (by norm_num) h Rt ∧
+      ∀ i : ℕ, ∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace i,
+        WeakGridSpace.RepresentsFunction
+          (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+          (p := p)
+          (fun x => W.cell.indicator (fun _ => (1 : ℂ)) x *
+            (souzaAtomFamily G s p hs hp hp_top).toFunction
+              (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace i Q)
+              ((R.block i).atom Q) x)
+          (h i Q) := by
+  simpa using
+    restrict_souzaRepresentation_transmutationAtomData
+      G s p (1 : ℝ≥0∞) hs hp hp_top hs_le_inv W lam hlam_pos hlam_lt R
 
 /-- Finite sums preserve pointwise-product representations. -/
 private theorem representsPointwiseProduct_finset_sum
@@ -873,6 +962,52 @@ theorem restrict_souzaRepresentation_partialSum_representsPointwiseProduct_one
 Complete atom-data input for the abstract transmutation bridge, with
 `k i = i - W.level` and constant `C = 1`.
 -/
+theorem restrict_souzaRepresentation_transmutationData
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_le_inv : s ≤ (p.toReal)⁻¹)
+    (W : GoodGridCell G)
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    {g : Lp ℂ p G.toWeakGridSpace.measure}
+    (R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) g) :
+    ∃ h : (i : ℕ) → WeakGridSpace.LevelCell G.toWeakGridSpace i →
+        Lp ℂ p
+          (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell).measure,
+    ∃ Rt : (i : ℕ) → (Q : WeakGridSpace.LevelCell G.toWeakGridSpace i) →
+        WeakGridSpace.LpGridRepresentation
+          (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+            (souzaAtomFamily G s p hs hp hp_top)) (h i Q),
+      WeakGridSpace.RepresentationWsubGandALS
+        (p := p) (q := q)
+        G.toWeakGridSpace
+        (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+        (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+          (souzaAtomFamily G s p hs hp hp_top))
+        W.restrictionLevel W.restrictionLevel_almostLinear
+        lam hlam_pos hlam_lt 1 (by norm_num) h Rt ∧
+      ∀ N : ℕ,
+        WeakGridSpace.RepresentsPointwiseProduct
+          (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+          (p := p)
+          (W.cell.indicator fun _ => (1 : ℂ))
+          ((∑ i ∈ Finset.range N,
+              (R.block i).toLp (souzaAtomFamily G s p hs hp hp_top)) :
+            Lp ℂ p G.toWeakGridSpace.measure)
+          (WeakGridSpace.PartialSumLevels
+            G.toWeakGridSpace
+            (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+            h (fun i Q => (R.block i).coeff Q) N) := by
+  classical
+  rcases restrict_souzaRepresentation_transmutationAtomData
+      G s p q hs hp hp_top hs_le_inv W lam hlam_pos hlam_lt R with
+    ⟨h, Rt, hRt, hAtom⟩
+  refine ⟨h, Rt, hRt, ?_⟩
+  exact restrict_souzaRepresentation_partialSum_representsPointwiseProduct_one
+    G s p hs hp hp_top W R h hAtom
+
 theorem restrict_souzaRepresentation_transmutationData_one
     (G : GoodGridSpace (α := α))
     (s : ℝ) (p : ℝ≥0∞)
@@ -911,13 +1046,9 @@ theorem restrict_souzaRepresentation_transmutationData_one
             G.toWeakGridSpace
             (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
             h (fun i Q => (R.block i).coeff Q) N) := by
-  classical
-  rcases restrict_souzaRepresentation_transmutationAtomData_one
-      G s p hs hp hp_top hs_le_inv W lam hlam_pos hlam_lt R with
-    ⟨h, Rt, hRt, hAtom⟩
-  refine ⟨h, Rt, hRt, ?_⟩
-  exact restrict_souzaRepresentation_partialSum_representsPointwiseProduct_one
-    G s p hs hp hp_top W R h hAtom
+  simpa using
+    restrict_souzaRepresentation_transmutationData
+      G s p (1 : ℝ≥0∞) hs hp hp_top hs_le_inv W lam hlam_pos hlam_lt R
 
 /--
 Pointwise multiplier bound specialized to the Souza atom Besov space on a good
@@ -2406,6 +2537,138 @@ theorem souzaIndicatorPointwiseMultiplier_of_initialSegmentRestrictionBound
       G s p q hs hp hp_top W hK hsegments⟩
 
 /--
+Direct restriction estimates imply a pointwise multiplier bound for the cell
+indicator.
+
+This variant is useful at the endpoint `q = ∞`: instead of requiring the
+restricted initial segments to be Cauchy in the Besov coefficient gauge, it only
+asks for a restricted representative of the full function with the desired
+cost bound.
+-/
+theorem souzaIndicatorPointwiseMultiplierBound_of_restrictionBound
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (W : GoodGridCell G) {K : ℝ}
+    (hK : 0 ≤ K)
+    (hrestrict :
+      ∀ {g : Lp ℂ p G.toWeakGridSpace.measure},
+      ∀ R : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top) g,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R →
+      ∃ y : WeakGridSpace.BesovishSpace
+          (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+            (souzaAtomFamily G s p hs hp hp_top)) q,
+        WeakGridSpace.RepresentsPointwiseProduct
+          (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+          (p := p)
+          (W.cell.indicator fun _ => (1 : ℂ))
+          (g : Lp ℂ p G.toWeakGridSpace.measure)
+          (y : Lp ℂ p
+            (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell).measure) ∧
+        WeakGridSpace.BesovishSpace.Norm_Costpq
+          (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+            (souzaAtomFamily G s p hs hp hp_top)) q y ≤
+            K * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R) :
+    SouzaPointwiseMultiplierBound G s p q hs hp hp_top
+      (W.cell.indicator fun _ => (1 : ℂ)) (2 * K + 1) := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let Ai := WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell A
+  refine WeakGridSpace.indicatorPointwiseMultiplierBound_of_restrictsToInduced
+    (G := G.toWeakGridSpace) (s := s) (p := p) (u := ∞) (q := q)
+    (A := A) W.toLevelCell (by linarith) ?_
+  intro x
+  let normx : ℝ := WeakGridSpace.BesovishSpace.Norm_Costpq A q x
+  have hfiniteA :
+      WeakGridSpace.BesovishSpace.HasFiniteCostRepresentations (A := A) q :=
+    WeakGridSpace.BesovishSpace.hasFiniteCostRepresentations A q
+  have hnorm_nonneg : 0 ≤ normx :=
+    WeakGridSpace.BesovishSpace.Norm_Costpq_nonneg
+      (A := A) (q := q) hfiniteA x
+  by_cases hnorm_zero : normx = 0
+  · have hx_zero : x = 0 :=
+      WeakGridSpace.BesovishSpace.eq_zero_of_Norm_Costpq_eq_zero
+        (A := A) (q := q) hp_top
+        (souza_assumptionG2 G s p q hs hp hp_top).1 hfiniteA
+        (by simpa [A, normx] using hnorm_zero)
+    refine ⟨0, ?_, ?_⟩
+    · subst x
+      simpa [WeakGridSpace.RepresentsPointwiseProduct] using
+        WeakGridSpace.representsPointwiseProduct_zero
+          (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+          (p := p) (W.cell.indicator fun _ => (1 : ℂ))
+    · have hzero :
+          WeakGridSpace.BesovishSpace.Norm_Costpq Ai q
+            (0 : WeakGridSpace.BesovishSpace Ai q) = 0 := by
+        have hsmul := WeakGridSpace.BesovishSpace.Norm_Costpq_smul_eq
+          (A := Ai) (q := q) hp_top
+          (WeakGridSpace.BesovishSpace.hasFiniteCostRepresentations (A := Ai) q)
+          (0 : ℂ) (0 : WeakGridSpace.BesovishSpace Ai q)
+        simp at hsmul
+        exact hsmul
+      simp [Ai, hzero, normx, hnorm_zero]
+  · have hnorm_pos : 0 < normx := lt_of_le_of_ne' hnorm_nonneg hnorm_zero
+    rcases WeakGridSpace.BesovishSpace.exists_cost_lt_Norm_Costpq_add
+        (A := A) (q := q) hfiniteA x hnorm_pos with
+      ⟨R, hRfin, hRcost⟩
+    rcases hrestrict R hRfin with ⟨y, hyprod, hybound⟩
+    refine ⟨y, hyprod, ?_⟩
+    calc
+      WeakGridSpace.BesovishSpace.Norm_Costpq Ai q y
+          ≤ K * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
+            simpa [A, Ai] using hybound
+      _ ≤ K * (2 * normx) := by
+            have hR_le : WeakGridSpace.LpGridRepresentation.pqCost (q := q) R ≤
+                2 * normx := by
+              calc
+                WeakGridSpace.LpGridRepresentation.pqCost (q := q) R
+                    ≤ normx + normx := le_of_lt (by simpa [A, normx] using hRcost)
+                _ = 2 * normx := by ring
+            exact mul_le_mul_of_nonneg_left hR_le hK
+      _ = (2 * K) * normx := by ring
+      _ ≤ (2 * K + 1) * normx := by
+            exact mul_le_mul_of_nonneg_right (by linarith) hnorm_nonneg
+      _ = (2 * K + 1) *
+            WeakGridSpace.BesovishSpace.Norm_Costpq A q x := by
+            rfl
+
+/--
+Direct-restriction version as membership in the Souza pointwise multiplier
+class.
+-/
+theorem souzaIndicatorPointwiseMultiplier_of_restrictionBound
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (W : GoodGridCell G) {K : ℝ}
+    (hK : 0 ≤ K)
+    (hrestrict :
+      ∀ {g : Lp ℂ p G.toWeakGridSpace.measure},
+      ∀ R : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top) g,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R →
+      ∃ y : WeakGridSpace.BesovishSpace
+          (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+            (souzaAtomFamily G s p hs hp hp_top)) q,
+        WeakGridSpace.RepresentsPointwiseProduct
+          (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell)
+          (p := p)
+          (W.cell.indicator fun _ => (1 : ℂ))
+          (g : Lp ℂ p G.toWeakGridSpace.measure)
+          (y : Lp ℂ p
+            (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell).measure) ∧
+        WeakGridSpace.BesovishSpace.Norm_Costpq
+          (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell
+            (souzaAtomFamily G s p hs hp hp_top)) q y ≤
+            K * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R) :
+    SouzaPointwiseMultiplier G s p q hs hp hp_top
+      (W.cell.indicator fun _ => (1 : ℂ)) :=
+  ⟨2 * K + 1,
+    souzaIndicatorPointwiseMultiplierBound_of_restrictionBound
+      G s p q hs hp hp_top W hK hrestrict⟩
+
+/--
 Endpoint `q = 1` window criterion for cell-indicator multipliers.
 
 It is enough to control the difference between two restricted initial segments
@@ -2825,13 +3088,374 @@ private theorem transmutationKernelZ_nonneg
       Real.rpow_nonneg (le_of_lt hlam_pos)]
   · simp [WeakGridSpace.transmutationKernelZ, hn]
 
+private theorem CoeffPQCost_window_tail_tendsto_zero
+    (G : WeakGridSpace.WeakGridSpace (α := α))
+    (p q : ℝ≥0∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (c : (i : ℕ) → WeakGridSpace.LevelCell G i → ℂ)
+    (hp_top : p ≠ ∞) (hq_top : q ≠ ∞)
+    (hc : WeakGridSpace.CoeffFinitePQCost (p := p) (q := q) G c) :
+    ∀ ε > 0, ∃ N₀, ∀ M ≥ N₀, ∀ N ≥ M,
+      WeakGridSpace.CoeffPQCost (p := p) (q := q) G
+        (fun i Q => if M ≤ i ∧ i < N then c i Q else 0) < ε := by
+  classical
+  have hp_ne_zero : p ≠ 0 := by
+    exact ne_of_gt (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ p))
+  have hp_pos : 0 < p.toReal := ENNReal.toReal_pos hp_ne_zero hp_top
+  have hq_ne_zero : q ≠ 0 := by
+    exact ne_of_gt (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ q))
+  have hq_pos : 0 < q.toReal := ENNReal.toReal_pos hq_ne_zero hq_top
+  let a : ℕ → ℝ := fun i =>
+    (WeakGridSpace.CoeffPLevel (p := p) G c i) ^ (q.toReal / p.toReal)
+  have ha_nonneg : ∀ i, 0 ≤ a i := by
+    intro i
+    exact Real.rpow_nonneg
+      (Finset.sum_nonneg fun Q _ => Real.rpow_nonneg (norm_nonneg _) _) _
+  have ha_sum : Summable a := by
+    simpa [a, WeakGridSpace.CoeffFinitePQCost, hq_top] using hc
+  intro ε hε
+  have hεq_pos : 0 < ε ^ q.toReal := Real.rpow_pos_of_pos hε _
+  rcases WeakGridSpace.summable_Ico_tail_tendsto_zero ha_nonneg ha_sum
+      (ε ^ q.toReal) hεq_pos with
+    ⟨N₀, hN₀⟩
+  refine ⟨N₀, ?_⟩
+  intro M hM N hMN
+  have htail := hN₀ M hM N hMN
+  have hsum_nonneg : 0 ≤ ∑ i ∈ Finset.Ico M N, a i :=
+    Finset.sum_nonneg fun i _ => ha_nonneg i
+  have hroot_lt :
+      (∑ i ∈ Finset.Ico M N, a i) ^ (1 / q.toReal) < ε := by
+    have hpow_lt :
+        (∑ i ∈ Finset.Ico M N, a i) ^ (1 / q.toReal) <
+          (ε ^ q.toReal) ^ (1 / q.toReal) :=
+      Real.rpow_lt_rpow hsum_nonneg htail (one_div_pos.mpr hq_pos)
+    have hε_root : (ε ^ q.toReal) ^ (1 / q.toReal) = ε := by
+      simpa [one_div] using Real.rpow_rpow_inv hε.le hq_pos.ne'
+    rwa [hε_root] at hpow_lt
+  simpa [a] using
+    (by
+      rw [WeakGridSpace.CoeffPQCost_window_eq_Ico
+        (G := G) (p := p) (q := q) c M N hp_top hq_top]
+      exact hroot_lt)
+
+/--
+Finite-`q` restriction transmutation theorem for good-grid cell indicators.
+
+For every finite `q >= 1`, restricting Souza atoms to a good-grid cell and
+transmuting the resulting one-block representatives proves that the indicator
+of the cell is a pointwise multiplier.
+-/
+private theorem souzaIndicatorPointwiseMultiplier_of_restrictionTransmutation_finite
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hq_top : q ≠ ∞)
+    (hs_le_inv : s ≤ (p.toReal)⁻¹)
+    (W : GoodGridCell G)
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1) :
+    SouzaPointwiseMultiplier G s p q hs hp hp_top
+      (W.cell.indicator fun _ => (1 : ℂ)) := by
+  classical
+  let Gi := G.toWeakGridSpace
+  let Wi := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let Ai := WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell A
+  let K := souzaRestrictionMultiplierConstant G p W lam
+  have hccoef_nonneg : 0 ≤
+      WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+        (WeakGridSpace.transmutationKernelZ lam (-(W.level : ℝ)) 1) :=
+    cCoefficientInt_nonneg_of_nonneg p ∞ _
+      (transmutationKernelZ_nonneg lam (-(W.level : ℝ)) 1 hlam_pos)
+  have hK : 0 ≤ K := by
+    dsimp [K, souzaRestrictionMultiplierConstant]
+    exact mul_nonneg
+      (by exact_mod_cast Nat.zero_le G.toWeakGridSpace.grid.Cmult1)
+      hccoef_nonneg
+  refine souzaIndicatorPointwiseMultiplier_of_initialSegmentRestrictionBound
+    G s p q hs hp hp_top W hK ?_
+  intro g R hRfin
+  rcases restrict_souzaRepresentation_transmutationData
+      G s p q hs hp hp_top hs_le_inv W lam hlam_pos hlam_lt R with
+    ⟨h, Rt, hRt, hprod⟩
+  let c : (i : ℕ) → WeakGridSpace.LevelCell Gi i → ℂ :=
+    fun i Q => (R.block i).coeff Q
+  have hc : WeakGridSpace.CoeffFinitePQCost
+      (p := p) (q := q) Gi c := by
+    simpa [Gi, c, WeakGridSpace.CoeffFinitePQCost,
+      WeakGridSpace.CoeffPLevel, WeakGridSpace.LpGridRepresentation.FinitePQCost,
+      WeakGridSpace.LpGridRepresentation.levelCoeffPower] using hRfin
+  have hcost_eq :
+      WeakGridSpace.CoeffPQCost (p := p) (q := q) Gi c =
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
+    simp [Gi, c, WeakGridSpace.CoeffPQCost, WeakGridSpace.CoeffPLevel,
+      WeakGridSpace.LpGridRepresentation.pqCost,
+      WeakGridSpace.LpGridRepresentation.levelCoeffPower]
+  have htrans :
+      ∀ N,
+        ∃ y : WeakGridSpace.BesovishSpace Ai q,
+          (y : Lp ℂ p Wi.measure) =
+            WeakGridSpace.PartialSumLevels Gi Wi h c N ∧
+          WeakGridSpace.BesovishSpace.Norm_Costpq Ai q y ≤
+            K * WeakGridSpace.CoeffPQCost (p := p) (q := q) Gi c := by
+    intro N
+    rcases WeakGridSpace.Transmutation_of_Atoms_initialSegment_besovish
+        (G := Gi) (W := Wi) (AW := Ai)
+        (p := p) (q := q) (u := ∞)
+        W.restrictionLevel (-(W.level : ℝ)) 0 1 (by norm_num)
+        W.restrictionLevel_bound
+        lam hlam_pos hlam_lt 1 (by norm_num) h Rt hRt c hc N hq_top
+        (induced_souza_assumptionG2 G s p q hs hp hp_top W)
+        hp_top hs with
+      ⟨y, hy_eq, hy_bound⟩
+    refine ⟨y, hy_eq, ?_⟩
+    simpa [Gi, Wi, Ai, A, K, c, souzaRestrictionMultiplierConstant] using hy_bound
+  let yseq : ℕ → WeakGridSpace.BesovishSpace Ai q :=
+    fun N => Classical.choose (htrans N)
+  have hyseq :
+      ∀ N,
+        (yseq N : Lp ℂ p Wi.measure) =
+          WeakGridSpace.PartialSumLevels Gi Wi h c N ∧
+        WeakGridSpace.BesovishSpace.Norm_Costpq Ai q (yseq N) ≤
+          K * WeakGridSpace.CoeffPQCost (p := p) (q := q) Gi c :=
+    fun N => Classical.choose_spec (htrans N)
+  have hwindow_bound :
+      ∀ M N, M ≤ N →
+        WeakGridSpace.BesovishSpace.Norm_Costpq Ai q (yseq N - yseq M) ≤
+          K * WeakGridSpace.CoeffPQCost (p := p) (q := q) Gi
+            (fun i Q => if M ≤ i ∧ i < N then c i Q else 0) := by
+    intro M N hMN
+    let cwin : (i : ℕ) → WeakGridSpace.LevelCell Gi i → ℂ :=
+      fun i Q => if M ≤ i ∧ i < N then c i Q else 0
+    have hcwin : WeakGridSpace.CoeffFinitePQCost
+        (p := p) (q := q) Gi cwin := by
+      simpa [Gi, cwin] using
+        WeakGridSpace.CoeffFinitePQCost_window
+          (G := Gi) (p := p) (q := q) c M N hp_top
+    rcases WeakGridSpace.Transmutation_of_Atoms_initialSegment_besovish
+        (G := Gi) (W := Wi) (AW := Ai)
+        (p := p) (q := q) (u := ∞)
+        W.restrictionLevel (-(W.level : ℝ)) 0 1 (by norm_num)
+        W.restrictionLevel_bound
+        lam hlam_pos hlam_lt 1 (by norm_num) h Rt hRt cwin hcwin N hq_top
+        (induced_souza_assumptionG2 G s p q hs hp hp_top W)
+        hp_top hs with
+      ⟨ywin, hywin_eq, hywin_bound⟩
+    have hsub_eq : yseq N - yseq M = ywin := by
+      apply Subtype.ext
+      change ((yseq N : Lp ℂ p Wi.measure) - (yseq M : Lp ℂ p Wi.measure)) =
+        (ywin : Lp ℂ p Wi.measure)
+      rw [(hyseq N).1, (hyseq M).1, hywin_eq]
+      exact (WeakGridSpace.PartialSumLevels_window_eq_sub
+        (G := Gi) (W := Wi) h c hMN).symm
+    rw [hsub_eq]
+    simpa [Gi, Wi, Ai, A, K, cwin, souzaRestrictionMultiplierConstant] using hywin_bound
+  refine ⟨yseq, ?_, ?_, ?_⟩
+  · intro N
+    have hprodN := hprod N
+    simpa [Gi, Wi, A, Ai, c, (hyseq N).1] using hprodN
+  · intro N
+    calc
+      WeakGridSpace.BesovishSpace.Norm_Costpq Ai q (yseq N)
+          ≤ K * WeakGridSpace.CoeffPQCost (p := p) (q := q) Gi c := (hyseq N).2
+      _ = K * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
+            rw [hcost_eq]
+  · intro η hη
+    have hden_pos : 0 < K + 1 := by linarith
+    have hδ_pos : 0 < η / (K + 1) := by positivity
+    rcases CoeffPQCost_window_tail_tendsto_zero
+        Gi p q c hp_top hq_top hc (η / (K + 1)) hδ_pos with
+      ⟨N₀, hN₀⟩
+    refine ⟨N₀, ?_⟩
+    intro M hM N hN
+    by_cases hMN : M ≤ N
+    · have htail := hN₀ M hM N hMN
+      have hwin := hwindow_bound M N hMN
+      calc
+        WeakGridSpace.BesovishSpace.Norm_Costpq Ai q (yseq N - yseq M)
+            ≤ K * WeakGridSpace.CoeffPQCost (p := p) (q := q) Gi
+                (fun i Q => if M ≤ i ∧ i < N then c i Q else 0) := hwin
+        _ ≤ K * (η / (K + 1)) := by
+              exact mul_le_mul_of_nonneg_left (le_of_lt htail) hK
+        _ < η := by
+              have hfrac : K / (K + 1) < (1 : ℝ) :=
+                (div_lt_one hden_pos).2 (by linarith)
+              have hmul : (K / (K + 1)) * η < (1 : ℝ) * η :=
+                mul_lt_mul_of_pos_right hfrac hη
+              calc
+                K * (η / (K + 1)) = (K / (K + 1)) * η := by ring
+                _ < η := by simpa using hmul
+    · have hNM : N ≤ M := Nat.le_of_not_ge hMN
+      have htail := hN₀ N hN M hNM
+      have hwin := hwindow_bound N M hNM
+      have hnorm_eq :
+          WeakGridSpace.BesovishSpace.Norm_Costpq Ai q (yseq N - yseq M) =
+            WeakGridSpace.BesovishSpace.Norm_Costpq Ai q (yseq M - yseq N) := by
+        have hneg : yseq N - yseq M = (-1 : ℂ) • (yseq M - yseq N) := by
+          calc
+            yseq N - yseq M = -(yseq M - yseq N) := by simp
+            _ = (-1 : ℂ) • (yseq M - yseq N) := by simp
+        rw [hneg]
+        rw [WeakGridSpace.BesovishSpace.Norm_Costpq_smul_eq
+          (A := Ai) (q := q) hp_top
+          (WeakGridSpace.BesovishSpace.hasFiniteCostRepresentations (A := Ai) q)]
+        simp
+      calc
+        WeakGridSpace.BesovishSpace.Norm_Costpq Ai q (yseq N - yseq M)
+            = WeakGridSpace.BesovishSpace.Norm_Costpq Ai q (yseq M - yseq N) :=
+              hnorm_eq
+        _ ≤ K * WeakGridSpace.CoeffPQCost (p := p) (q := q) Gi
+                (fun i Q => if N ≤ i ∧ i < M then c i Q else 0) := hwin
+        _ ≤ K * (η / (K + 1)) := by
+              exact mul_le_mul_of_nonneg_left (le_of_lt htail) hK
+        _ < η := by
+              have hfrac : K / (K + 1) < (1 : ℝ) :=
+                (div_lt_one hden_pos).2 (by linarith)
+              have hmul : (K / (K + 1)) * η < (1 : ℝ) * η :=
+                mul_lt_mul_of_pos_right hfrac hη
+              calc
+                K * (η / (K + 1)) = (K / (K + 1)) * η := by ring
+                _ < η := by simpa using hmul
+
+/--
+Endpoint `q = ∞` restriction transmutation theorem for good-grid cell
+indicators.
+
+Unlike the finite-`q` theorem, this proof does not ask the restricted initial
+segments to be Cauchy in the `q = ∞` Besov gauge.  It uses the endpoint
+transmutation limit directly: the restricted partial sums converge strongly in
+`L^p`, and the limiting representation has uniformly controlled `ℓ∞`
+coefficient cost.
+-/
+private theorem souzaIndicatorPointwiseMultiplier_of_restrictionTransmutation_top
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (hs_le_inv : s ≤ (p.toReal)⁻¹)
+    (W : GoodGridCell G)
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1) :
+    SouzaPointwiseMultiplier G s p ∞ hs hp hp_top
+      (W.cell.indicator fun _ => (1 : ℂ)) := by
+  classical
+  haveI : Fact ((1 : ℝ≥0∞) ≤ (∞ : ℝ≥0∞)) := ⟨by simp⟩
+  let Gi := G.toWeakGridSpace
+  let Wi := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace W.toLevelCell
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let Ai := WeakGridSpace.inducedAtomFamily G.toWeakGridSpace W.toLevelCell A
+  let K := souzaRestrictionMultiplierConstant G p W lam
+  have hccoef_nonneg : 0 ≤
+      WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+        (WeakGridSpace.transmutationKernelZ lam (-(W.level : ℝ)) 1) :=
+    cCoefficientInt_nonneg_of_nonneg p ∞ _
+      (transmutationKernelZ_nonneg lam (-(W.level : ℝ)) 1 hlam_pos)
+  have hK : 0 ≤ K := by
+    dsimp [K, souzaRestrictionMultiplierConstant]
+    exact mul_nonneg
+      (by exact_mod_cast Nat.zero_le G.toWeakGridSpace.grid.Cmult1)
+      hccoef_nonneg
+  refine souzaIndicatorPointwiseMultiplier_of_restrictionBound
+    G s p ∞ hs hp hp_top W hK ?_
+  intro g R hRfin
+  rcases restrict_souzaRepresentation_transmutationData
+      G s p ∞ hs hp hp_top hs_le_inv W lam hlam_pos hlam_lt R with
+    ⟨h, Rt, hRt, hprod⟩
+  let c : (i : ℕ) → WeakGridSpace.LevelCell Gi i → ℂ :=
+    fun i Q => (R.block i).coeff Q
+  have hc : WeakGridSpace.CoeffFinitePQCost
+      (p := p) (q := ∞) Gi c := by
+    simpa [Gi, c, WeakGridSpace.CoeffFinitePQCost,
+      WeakGridSpace.CoeffPLevel, WeakGridSpace.LpGridRepresentation.FinitePQCost,
+      WeakGridSpace.LpGridRepresentation.levelCoeffPower] using hRfin
+  have hcost_eq :
+      WeakGridSpace.CoeffPQCost (p := p) (q := ∞) Gi c =
+        WeakGridSpace.LpGridRepresentation.pqCost (q := ∞) R := by
+    simp [Gi, c, WeakGridSpace.CoeffPQCost, WeakGridSpace.CoeffPLevel,
+      WeakGridSpace.LpGridRepresentation.pqCost,
+      WeakGridSpace.LpGridRepresentation.levelCoeffPower]
+  rcases WeakGridSpace.Transmutation_of_Atoms_Claim_A_top
+      (G := Gi) (W := Wi) (AW := Ai)
+      (p := p) (u := ∞)
+      W.restrictionLevel (-(W.level : ℝ)) 0 1 (by norm_num)
+      W.restrictionLevel_bound
+      lam hlam_pos hlam_lt 1 (by norm_num) h Rt hRt c hc
+      (induced_souza_assumptionG2 G s p ∞ hs hp hp_top W)
+      hp_top hs with
+    ⟨gLim, hsum, hmem, htail⟩
+  rcases htail with ⟨hfin, htail'⟩
+  rcases htail' with ⟨htendsto, hcost⟩
+  let Rlim : WeakGridSpace.LpGridRepresentation Ai gLim :=
+    { block := WeakGridSpace.TransmutationBlockLimit Gi Wi Ai h Rt c (-(W.level : ℝ)) 1
+      hasSum := hsum }
+  let y : WeakGridSpace.BesovishSpace Ai ∞ := ⟨gLim, hmem⟩
+  have hprod_lim :
+      WeakGridSpace.RepresentsPointwiseProduct
+        (G := Wi) (p := p)
+        (W.cell.indicator fun _ => (1 : ℂ))
+        (g : Lp ℂ p Gi.measure)
+        (y : Lp ℂ p Wi.measure) := by
+    let partialSum : ℕ → Lp ℂ p Wi.measure := fun N =>
+      ((∑ k ∈ Finset.range N, (R.block k).toLp A) :
+        Lp ℂ p Gi.measure)
+    have hx :
+        Filter.Tendsto partialSum Filter.atTop
+          (𝓝 (g : Lp ℂ p Wi.measure)) := by
+      simpa [partialSum, A, Wi, Gi, WeakGridSpace.inducedWeakGridSpace,
+        WeakGridSpace.inducedWeakGrid, WeakGridSpace.WeakGridSpace.measure] using
+        R.hasSum.tendsto_sum_nat
+    exact WeakGridSpace.RepresentsPointwiseProduct.of_tendsto_Lp
+      (G := Wi) (p := p)
+      (m := W.cell.indicator fun _ => (1 : ℂ))
+      (xseq := partialSum)
+      (yseq := fun N => WeakGridSpace.PartialSumLevels Gi Wi h c N)
+      (x := (g : Lp ℂ p Wi.measure))
+      (y := (gLim : Lp ℂ p Wi.measure))
+      hx htendsto (by
+        intro N
+        simpa [partialSum, A, Gi, Wi, c] using hprod N)
+  refine ⟨y, hprod_lim, ?_⟩
+  have hNorm_le_cost :
+      WeakGridSpace.BesovishSpace.Norm_Costpq Ai ∞ y ≤
+        WeakGridSpace.LpGridRepresentation.pqCost (q := ∞) Rlim :=
+    WeakGridSpace.BesovishSpace.Norm_Costpq_le_cost
+      (A := Ai) (q := ∞) (g := y) Rlim hfin
+  calc
+    WeakGridSpace.BesovishSpace.Norm_Costpq Ai ∞ y
+        ≤ WeakGridSpace.LpGridRepresentation.pqCost (q := ∞) Rlim := hNorm_le_cost
+    _ ≤ K * WeakGridSpace.CoeffPQCost (p := p) (q := ∞) Gi c := by
+          simpa [Rlim, Gi, Wi, Ai, A, K, c, souzaRestrictionMultiplierConstant] using hcost
+    _ = K * WeakGridSpace.LpGridRepresentation.pqCost (q := ∞) R := by
+          rw [hcost_eq]
+
+/--
+Restriction transmutation theorem for good-grid cell indicators.
+
+For every `q >= 1`, including the endpoint `q = ∞`, restricting Souza atoms to
+a good-grid cell and transmuting the resulting one-block representatives proves
+that the indicator of the cell is a pointwise multiplier.
+-/
+theorem souzaIndicatorPointwiseMultiplier_of_restrictionTransmutation
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_le_inv : s ≤ (p.toReal)⁻¹)
+    (W : GoodGridCell G)
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1) :
+    SouzaPointwiseMultiplier G s p q hs hp hp_top
+      (W.cell.indicator fun _ => (1 : ℂ)) := by
+  classical
+  by_cases hq_top : q = ∞
+  · subst q
+    exact souzaIndicatorPointwiseMultiplier_of_restrictionTransmutation_top
+      G s p hs hp hp_top hs_le_inv W lam hlam_pos hlam_lt
+  · exact souzaIndicatorPointwiseMultiplier_of_restrictionTransmutation_finite
+      G s p q hs hp hp_top hq_top hs_le_inv W lam hlam_pos hlam_lt
+
 /--
 The restriction atom-data theorem plugged into the abstract transmutation
 bridge: the indicator of a good-grid cell is a pointwise multiplier with the
 explicit constant
 `G.Cmult1 * cCoefficientInt p ∞ (transmutationKernelZ lam (-W.level) 1)`.
 -/
-theorem souzaIndicatorPointwiseMultiplier_of_restrictionTransmutation_one
+private theorem souzaIndicatorPointwiseMultiplier_of_restrictionTransmutation_one
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)]
