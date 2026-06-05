@@ -251,6 +251,59 @@ theorem CoeffPLevel_window
   · simp [CoeffPLevel, hi, hzero_rpow]
 
 /--
+Level-windowed coefficients have finite `(p,q)` cost for every `q >= 1`,
+since only finitely many levels can be nonzero.
+-/
+theorem CoeffFinitePQCost_window
+    (G : WeakGridSpace (α := α))
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (M N : ℕ) (hp_ne_top : p ≠ ∞) :
+    CoeffFinitePQCost (p := p) (q := q) G
+      (fun i Q => if M ≤ i ∧ i < N then c i Q else 0) := by
+  classical
+  let cwin : (i : ℕ) → LevelCell G i → ℂ :=
+    fun i Q => if M ≤ i ∧ i < N then c i Q else 0
+  have hp_ne_zero : p ≠ 0 := by
+    exact ne_of_gt (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ p))
+  have hp_pos : 0 < p.toReal := ENNReal.toReal_pos hp_ne_zero hp_ne_top
+  by_cases hq_top : q = ∞
+  · rw [CoeffFinitePQCost, if_pos hq_top]
+    let f : ℕ → ℝ := fun i =>
+      (CoeffPLevel (p := p) G cwin i) ^ (1 / p.toReal)
+    have hzero_inv : (0 : ℝ) ^ p.toReal⁻¹ = 0 :=
+      Real.zero_rpow (inv_ne_zero hp_pos.ne')
+    have hzero : ∀ i ∉ Finset.Ico M N, f i = 0 := by
+      intro i hi
+      have hnot : ¬ (M ≤ i ∧ i < N) := by
+        simpa [Finset.mem_Ico] using hi
+      simp [f, cwin, CoeffPLevel_window G c M N i hp_ne_top, hnot,
+        hzero_inv]
+    have hfinite_range : (Set.range f).Finite := by
+      refine ((Set.finite_singleton 0).union
+        ((Finset.finite_toSet (Finset.Ico M N)).image f)).subset ?_
+      intro x hx
+      rcases hx with ⟨i, rfl⟩
+      by_cases hi : i ∈ Finset.Ico M N
+      · exact Or.inr ⟨i, hi, rfl⟩
+      · exact Or.inl (hzero i hi)
+    simpa [f] using hfinite_range.bddAbove
+  · rw [CoeffFinitePQCost, if_neg hq_top]
+    have hq_ne_zero : q ≠ 0 := by
+      exact ne_of_gt (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ q))
+    have hq_pos : 0 < q.toReal := ENNReal.toReal_pos hq_ne_zero hq_top
+    have hzero_qp : (0 : ℝ) ^ (q.toReal / p.toReal) = 0 :=
+      Real.zero_rpow (div_ne_zero hq_pos.ne' hp_pos.ne')
+    refine summable_of_hasFiniteSupport ?_
+    rw [Function.HasFiniteSupport]
+    refine (Finset.finite_toSet (Finset.Ico M N)).subset ?_
+    intro i hi
+    contrapose! hi
+    have hnot : ¬ (M ≤ i ∧ i < N) := by
+      simpa [Finset.mem_Ico] using hi
+    rw [Function.mem_support]
+    simp [CoeffPLevel_window G c M N i hp_ne_top, hnot, hzero_qp]
+
+/--
 Level-windowed coefficients have finite `(p,1)` cost, since only finitely many
 levels can be nonzero.
 -/
@@ -260,23 +313,9 @@ theorem CoeffFinitePQCost_window_one
     (M N : ℕ) (hp_ne_top : p ≠ ∞) :
     CoeffFinitePQCost (p := p) (q := (1 : ℝ≥0∞)) G
       (fun i Q => if M ≤ i ∧ i < N then c i Q else 0) := by
-  classical
-  have hp_ne_zero : p ≠ 0 := by
-    exact ne_of_gt (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ p))
-  have hp_pos : 0 < p.toReal := ENNReal.toReal_pos hp_ne_zero hp_ne_top
-  have hinv_pos : 0 < 1 / p.toReal := div_pos one_pos hp_pos
-  have hzero_inv : (0 : ℝ) ^ p.toReal⁻¹ = 0 :=
-    Real.zero_rpow (inv_ne_zero hp_pos.ne')
-  simp [CoeffFinitePQCost]
-  refine summable_of_hasFiniteSupport ?_
-  rw [Function.HasFiniteSupport]
-  refine (Finset.finite_toSet (Finset.Ico M N)).subset ?_
-  intro i hi
-  contrapose! hi
-  have hnot : ¬ (M ≤ i ∧ i < N) := by
-    simpa [Finset.mem_Ico] using hi
-  rw [Function.mem_support]
-  simp [CoeffPLevel_window G c M N i hp_ne_top, hnot, hzero_inv]
+  simpa using
+    (CoeffFinitePQCost_window
+      (G := G) (p := p) (q := (1 : ℝ≥0∞)) c M N hp_ne_top)
 
 /--
 For `q = 1`, the cost of a level-windowed coefficient family is exactly the

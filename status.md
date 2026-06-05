@@ -144,7 +144,14 @@ The concrete bridge now uses `k i = i - W.level`, `A = -W.level`, `B = 0`,
 1. If a quantitative final statement is desired, add a `PointwiseMultiplierBound`
    version of the transmutation bridge so the named constant can be exposed as
    the bound rather than only used internally to prove multiplier membership.
-2. Connect this cell-indicator multiplier theorem to the final desired
+2. Main next goal: generalize
+   `souzaIndicatorPointwiseMultiplier_of_restrictionTransmutation_one` from the
+   currently proved endpoint `q = 1` to every `q >= 1`.  This will likely pass
+   through a general-`q` version of
+   `souzaIndicatorPointwiseMultiplier_of_transmutationAtomData_one`, using the
+   already available abstract `(p,q)` transmutation estimates and the general
+   window coefficient-cost control.
+3. Connect this cell-indicator multiplier theorem to the final desired
    continuity/restriction lemma for all Besov functions, if that is the next
    mathematical target.
 
