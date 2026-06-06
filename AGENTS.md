@@ -29,3 +29,4 @@
 - When creating a new file or repository, ask about its main goal and use that goal when deciding whether results should be public or private.
 - The comments for public results must be superb, self-contained, and clear.
 -When asked to explain the mathematics of the results, use MathJax when possible to render your answer
+-Use f, g, h for functions. Do not use x and y and z for functions.

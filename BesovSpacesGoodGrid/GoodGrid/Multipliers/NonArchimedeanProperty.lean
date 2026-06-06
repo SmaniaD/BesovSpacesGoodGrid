@@ -59,7 +59,7 @@ noncomputable def nonArchimedeanRelevantPositiveTailSelfsSum
     (hβ : 0 < β) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ qtilde)]
     (Λ : Finset ℕ) (t : ℕ → ℕ) (g : ℕ → α → ℂ)
-    {k : ℕ} (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) : ℝ := by
+    {k : ℕ} (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) : ℝ≥0∞ := by
   classical
   exact
     ∑ i ∈ Λ,
@@ -150,13 +150,13 @@ theorem souzaNonArchimedeanPropertyPositiveCone
           (∀ i ∈ Λ,
             SouzaPositiveFunction G β p qtilde hβ hp hp_top (g i)) →
           (∀ i ∈ Λ,
-            ∃ C : ℝ,
+            ∃ C : ℝ≥0∞,
               SouzaPositivePointwiseSelfsTailBound
                 G β p qtilde hβ hp hp_top (t i) (g i) C) →
           (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
             (R.block k).coeff Q ≠ 0 →
               nonArchimedeanRelevantPositiveTailSelfsSum
-                G β p qtilde hβ hp hp_top Λ t g Q ≤ N) →
+                G β p qtilde hβ hp hp_top Λ t g Q ≤ ENNReal.ofReal N) →
           (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) i,
             i ∈ Λ →
               (R.block k).coeff Q ≠ 0 →
