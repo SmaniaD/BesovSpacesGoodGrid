@@ -4315,6 +4315,9 @@ theorem Transmutation_of_Atoms_Claim_A
       ∃ hsum :
         HasSum (fun j => (TransmutationBlockLimit G W AW h R c A_als r_als j).toLp AW) gLim,
       MemBesovishCoeffCost AW q gLim ∧
+      LpGridRepresentation.FinitePQCost (q := q)
+        ({ block := TransmutationBlockLimit G W AW h R c A_als r_als
+           hasSum := hsum } : LpGridRepresentation AW gLim) ∧
       Tendsto (fun N => PartialSumLevels G W h c N) atTop (𝓝 gLim) ∧
       LpGridRepresentation.pqCost (q := q)
         ({ block := TransmutationBlockLimit G W AW h R c A_als r_als
@@ -4397,7 +4400,7 @@ theorem Transmutation_of_Atoms_Claim_A
       hp_ne_top hs_pos Fact.out AW hG2_W Rseq hK_nonneg huniform Rlim
       hcoeff_tendsto hatom_tendsto with
     ⟨gLim, hRlim, hmem, hfin, hcost, hg_tendsto⟩
-  exact ⟨gLim, hRlim, hmem, hg_tendsto, by simpa [K, Rlim] using hcost⟩
+  exact ⟨gLim, hRlim, hmem, hfin, hg_tendsto, by simpa [K, Rlim] using hcost⟩
 
 /-- Endpoint `q = ∞` version of **Claim III**. -/
 theorem Transmutation_of_Atoms_Claim_A_top
@@ -4994,7 +4997,7 @@ theorem Transmutation_of_Atoms_Claim_B (G W : WeakGridSpace (α := α))
       exact ⟨gLim, hsum, hmem, htendsto⟩
     · rcases Transmutation_of_Atoms_Claim_A G W AW k A_als B_als r_als hr_als hk_bound
           lam hlam_pos hlam_lt C hC h R hR_plain c hc hq_top hG2_W hp_ne_top hs_pos with
-        ⟨gLim, hsum, hmem, htendsto, _hcost⟩
+        ⟨gLim, hsum, hmem, _hfin, htendsto, _hcost⟩
       exact ⟨gLim, hsum, hmem, htendsto⟩
   · intro j P hm _hd_nonzero
     rcases transmutationCoeff_support_witness G W AW k A_als B_als r_als hr_als hk_bound

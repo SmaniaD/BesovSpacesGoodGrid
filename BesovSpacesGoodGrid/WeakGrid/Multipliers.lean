@@ -467,6 +467,65 @@ theorem indicatorPointwiseMultiplierBound_of_restrictsToInduced
   · exact hy_ambient.trans hy
 
 /--
+An ambient supported representation of the restricted function gives the
+corresponding induced-grid restriction estimate with the same representation
+cost.
+
+This is the bookkeeping lemma behind the cell-restriction argument.  First one
+constructs `1_Q x` in the original Besov-ish grid, with zero blocks before the
+level of `Q` and zero coefficients on cells not contained in `Q`.  Then that
+same representation is read on the grid induced by `Q`; the coefficient cost
+does not increase.
+-/
+theorem restrictsToInduced_of_ambientSupportedRepresentation
+    {A : AtomFamily G s p u} {k₀ : ℕ} (Q : LevelCell G k₀)
+    {C : ℝ}
+    (hambient :
+      ∀ x : BesovishSpace A q,
+        ∃ y : Lp ℂ p G.measure,
+        ∃ R : LpGridRepresentation A y,
+          LpGridRepresentation.FinitePQCost (q := q) R ∧
+          RepresentsPointwiseProduct (G := G) (p := p)
+            (Q.1.indicator fun _ => (1 : ℂ))
+            (x : Lp ℂ p G.measure) y ∧
+          (∀ n, n < k₀ → (R.block n).toLp A = 0) ∧
+          (∀ n (P : LevelCell G n), ¬ P.1 ⊆ Q.1 → (R.block n).coeff P = 0) ∧
+          LpGridRepresentation.pqCost (q := q) R ≤
+            C * BesovishSpace.Norm_Costpq A q x) :
+    ∀ x : BesovishSpace A q,
+      ∃ y : BesovishSpace (inducedAtomFamily G Q A) q,
+        RepresentsPointwiseProduct
+          (G := inducedWeakGridSpace G Q) (p := p)
+          (Q.1.indicator fun _ => (1 : ℂ))
+          (x : Lp ℂ p G.measure)
+          (y : Lp ℂ p (inducedWeakGridSpace G Q).measure) ∧
+        BesovishSpace.Norm_Costpq (inducedAtomFamily G Q A) q y ≤
+          C * BesovishSpace.Norm_Costpq A q x := by
+  intro x
+  rcases hambient x with
+    ⟨yAmbient, R, hRfin, hprod, hbefore, houtside, hcost⟩
+  let Ri : LpGridRepresentation (inducedAtomFamily G Q A) yAmbient :=
+    ambientSupportedRepresentationToInduced G Q A R hbefore houtside
+  have hRifin : LpGridRepresentation.FinitePQCost (q := q) Ri :=
+    ambientSupportedRepresentationToInduced_finitePQCost
+      G Q A R hbefore houtside hRfin
+  let yInduced : BesovishSpace (inducedAtomFamily G Q A) q :=
+    ⟨yAmbient, ⟨Ri, hRifin⟩⟩
+  refine ⟨yInduced, ?_, ?_⟩
+  · simpa [yInduced, inducedWeakGridSpace, inducedWeakGrid] using hprod
+  · calc
+      BesovishSpace.Norm_Costpq (inducedAtomFamily G Q A) q yInduced
+          ≤ LpGridRepresentation.pqCost (q := q) Ri :=
+            BesovishSpace.Norm_Costpq_le_cost
+              (A := inducedAtomFamily G Q A) (q := q)
+              (g := yInduced) Ri hRifin
+      _ ≤ LpGridRepresentation.pqCost (q := q) R := by
+            simpa [Ri] using
+              ambientSupportedRepresentationToInduced_pqCost_le
+                G Q A R hbefore houtside hRfin
+      _ ≤ C * BesovishSpace.Norm_Costpq A q x := hcost
+
+/--
 If restriction to an induced cell is bounded into the induced Besov-ish space,
 then the cell indicator is a pointwise multiplier of the ambient Besov-ish
 space.

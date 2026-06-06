@@ -463,6 +463,257 @@ theorem ambientLevelBlockToInduced_coeffPower_le
   rw [hsub, hsplit]
   exact le_add_of_nonneg_right hcomp_nonneg
 
+/--
+Restricting an ambient block to an induced grid does not change a cell term on
+cells contained in the parent cell.
+-/
+@[simp]
+theorem ambientLevelBlockToInduced_term
+    (G : WeakGridSpace (α := α)) {k₀ i : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} [Fact (1 ≤ p)] (A : AtomFamily G s p u)
+    (B : LevelBlock A (k₀ + i))
+    (P : LevelCell (inducedWeakGridSpace G Q) i) :
+    (ambientLevelBlockToInduced G Q A B).term (inducedAtomFamily G Q A) P =
+      B.term A (inducedLevelCellToAmbient G Q P) := by
+  simp only [LevelBlock.term, ambientLevelBlockToInduced_coeff,
+    ambientLevelBlockToInduced_atom]
+  apply congrArg (fun z : Lp ℂ p G.measure =>
+    B.coeff (inducedLevelCellToAmbient G Q P) • z)
+  apply MeasureTheory.MemLp.toLp_congr
+  exact Filter.Eventually.of_forall fun _ => rfl
+
+/--
+If an ambient block has zero coefficients outside the parent cell, then reading
+it as an induced block preserves its `L^p` value.
+-/
+theorem ambientLevelBlockToInduced_toLp_of_coeff_eq_zero
+    (G : WeakGridSpace (α := α)) {k₀ i : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} [Fact (1 ≤ p)] (A : AtomFamily G s p u)
+    (B : LevelBlock A (k₀ + i))
+    (hzero : ∀ P : LevelCell G (k₀ + i), ¬ P.1 ⊆ Q.1 → B.coeff P = 0) :
+    (ambientLevelBlockToInduced G Q A B).toLp (inducedAtomFamily G Q A) =
+      B.toLp A := by
+  classical
+  let F : LevelCell G (k₀ + i) → Lp ℂ p G.measure := fun P => B.term A P
+  have hcomp : (∑ P : {P : LevelCell G (k₀ + i) // ¬ P.1 ⊆ Q.1}, F P) = 0 := by
+    apply Finset.sum_eq_zero
+    intro P _hP
+    simp [F, LevelBlock.term, hzero P.1 P.2]
+  have hsub :
+      (ambientLevelBlockToInduced G Q A B).toLp (inducedAtomFamily G Q A) =
+        ∑ P : {P : LevelCell G (k₀ + i) // P.1 ⊆ Q.1}, F P := by
+    rw [LevelBlock.toLp]
+    refine Fintype.sum_equiv (inducedLevelCellEquivSubtype G Q)
+      (fun P => (ambientLevelBlockToInduced G Q A B).term
+        (inducedAtomFamily G Q A) P)
+      (fun P => F P.1) ?_
+    intro P
+    exact ambientLevelBlockToInduced_term G Q A B P
+  have hsplit :
+      (∑ P : LevelCell G (k₀ + i), F P) =
+        (∑ P : {P : LevelCell G (k₀ + i) // P.1 ⊆ Q.1}, F P) +
+          ∑ P : {P : LevelCell G (k₀ + i) // ¬ P.1 ⊆ Q.1}, F P := by
+    rw [Fintype.sum_subtype_add_sum_subtype (fun P : LevelCell G (k₀ + i) => P.1 ⊆ Q.1) F]
+  calc
+    (ambientLevelBlockToInduced G Q A B).toLp (inducedAtomFamily G Q A)
+        = ∑ P : {P : LevelCell G (k₀ + i) // P.1 ⊆ Q.1}, F P := hsub
+    _ = ∑ P : LevelCell G (k₀ + i), F P := by
+          rw [hsplit, hcomp, add_zero]
+    _ = B.toLp A := by
+          simp [F, LevelBlock.toLp]
+
+/--
+If an ambient block has zero coefficients outside the parent cell, then its
+coefficient power is unchanged when it is read as an induced block.
+-/
+theorem ambientLevelBlockToInduced_coeffPower_eq_of_coeff_eq_zero
+    (G : WeakGridSpace (α := α)) {k₀ i : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} (A : AtomFamily G s p u)
+    (B : LevelBlock A (k₀ + i))
+    (hzero : ∀ P : LevelCell G (k₀ + i), ¬ P.1 ⊆ Q.1 → B.coeff P = 0) :
+    (∑ P : LevelCell (inducedWeakGridSpace G Q) i,
+        ‖(ambientLevelBlockToInduced G Q A B).coeff P‖ ^ p.toReal) =
+      ∑ P : LevelCell G (k₀ + i), ‖B.coeff P‖ ^ p.toReal := by
+  classical
+  let F : LevelCell G (k₀ + i) → ℝ := fun P => ‖B.coeff P‖ ^ p.toReal
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le A.one_le_p).ne' A.p_ne_top
+  have hcomp : (∑ P : {P : LevelCell G (k₀ + i) // ¬ P.1 ⊆ Q.1}, F P) = 0 := by
+    apply Finset.sum_eq_zero
+    intro P _hP
+    simp [F, hzero P.1 P.2, Real.zero_rpow hp_pos.ne']
+  have hsub :
+      (∑ P : LevelCell (inducedWeakGridSpace G Q) i,
+          ‖(ambientLevelBlockToInduced G Q A B).coeff P‖ ^ p.toReal)
+        =
+          ∑ P : {P : LevelCell G (k₀ + i) // P.1 ⊆ Q.1}, F P := by
+    refine Fintype.sum_equiv (inducedLevelCellEquivSubtype G Q)
+      (fun P : LevelCell (inducedWeakGridSpace G Q) i =>
+        ‖(ambientLevelBlockToInduced G Q A B).coeff P‖ ^ p.toReal)
+      (fun P : {P : LevelCell G (k₀ + i) // P.1 ⊆ Q.1} => F P.1) ?_
+    intro P
+    rfl
+  have hsplit :
+      (∑ P : LevelCell G (k₀ + i), F P) =
+        (∑ P : {P : LevelCell G (k₀ + i) // P.1 ⊆ Q.1}, F P) +
+          ∑ P : {P : LevelCell G (k₀ + i) // ¬ P.1 ⊆ Q.1}, F P := by
+    rw [Fintype.sum_subtype_add_sum_subtype (fun P : LevelCell G (k₀ + i) => P.1 ⊆ Q.1) F]
+  rw [hsub, hsplit, hcomp, add_zero]
+
+/--
+An ambient representation supported in the parent cell, with zero `L^p` blocks
+before the parent level, can be read as a representation on the induced grid.
+
+This is the representation-level version of the paper bookkeeping: first build
+the restricted representation in the original grid, with coefficients zero
+before and outside the cell, and only then reindex it as an induced
+representation.
+-/
+def ambientSupportedRepresentationToInduced
+    (G : WeakGridSpace (α := α)) {k₀ : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} [Fact (1 ≤ p)] (A : AtomFamily G s p u)
+    {f : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A f)
+    (hbefore : ∀ n, n < k₀ → (R.block n).toLp A = 0)
+    (houtside : ∀ n (P : LevelCell G n), ¬ P.1 ⊆ Q.1 → (R.block n).coeff P = 0) :
+    LpGridRepresentation (inducedAtomFamily G Q A) f := by
+  classical
+  let B : (i : ℕ) → LevelBlock (inducedAtomFamily G Q A) i :=
+    fun i => ambientLevelBlockToInduced G Q A (R.block (k₀ + i))
+  refine
+    { block := B
+      hasSum := ?_ }
+  let F : ℕ → Lp ℂ p G.measure := fun n => (R.block n).toLp A
+  have hprefix : (∑ n ∈ Finset.range k₀, F n) = 0 := by
+    apply Finset.sum_eq_zero
+    intro n hn
+    exact hbefore n (Finset.mem_range.mp hn)
+  have hfull : HasSum F (f + ∑ n ∈ Finset.range k₀, F n) := by
+    simpa [F, hprefix] using R.hasSum
+  have htail : HasSum (fun n => F (n + k₀)) f := by
+    simpa [hprefix] using (hasSum_nat_add_iff k₀).mpr hfull
+  have hrewrite :
+      (fun i => (B i).toLp (inducedAtomFamily G Q A)) =
+        fun i => F (i + k₀) := by
+    funext i
+    simp [B, F, Nat.add_comm,
+      ambientLevelBlockToInduced_toLp_of_coeff_eq_zero G Q A
+        (R.block (k₀ + i)) (fun P hP => houtside (k₀ + i) P hP)]
+  simpa [hrewrite]
+    using htail
+
+/--
+The induced representation obtained from an ambient supported representation
+has exactly the shifted ambient coefficient power.
+-/
+@[simp]
+theorem ambientSupportedRepresentationToInduced_levelCoeffPower
+    (G : WeakGridSpace (α := α)) {k₀ i : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} [Fact (1 ≤ p)] (A : AtomFamily G s p u)
+    {f : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A f)
+    (hbefore : ∀ n, n < k₀ → (R.block n).toLp A = 0)
+    (houtside : ∀ n (P : LevelCell G n), ¬ P.1 ⊆ Q.1 → (R.block n).coeff P = 0) :
+    (ambientSupportedRepresentationToInduced G Q A R hbefore houtside).levelCoeffPower i =
+      R.levelCoeffPower (k₀ + i) := by
+  simpa [ambientSupportedRepresentationToInduced, LpGridRepresentation.levelCoeffPower]
+    using
+      ambientLevelBlockToInduced_coeffPower_eq_of_coeff_eq_zero G Q A
+        (R.block (k₀ + i)) (fun P hP => houtside (k₀ + i) P hP)
+
+/--
+Finite `(p,q)` coefficient cost passes from an ambient supported
+representation to the induced representation read from it.
+-/
+theorem ambientSupportedRepresentationToInduced_finitePQCost
+    (G : WeakGridSpace (α := α)) {k₀ : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u q : ℝ≥0∞} [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (A : AtomFamily G s p u)
+    {f : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A f)
+    (hbefore : ∀ n, n < k₀ → (R.block n).toLp A = 0)
+    (houtside : ∀ n (P : LevelCell G n), ¬ P.1 ⊆ Q.1 → (R.block n).coeff P = 0)
+    (hRfin : LpGridRepresentation.FinitePQCost (q := q) R) :
+    LpGridRepresentation.FinitePQCost (q := q)
+      (ambientSupportedRepresentationToInduced G Q A R hbefore houtside) := by
+  classical
+  let Ri := ambientSupportedRepresentationToInduced G Q A R hbefore houtside
+  by_cases hq : q = ∞
+  · simp only [LpGridRepresentation.FinitePQCost, hq, ↓reduceIte] at hRfin ⊢
+    rcases hRfin with ⟨C, hC⟩
+    refine ⟨C, ?_⟩
+    rintro x ⟨i, rfl⟩
+    change Ri.levelCoeffPower i ^ (1 / p.toReal) ≤ C
+    simpa [Ri, ambientSupportedRepresentationToInduced_levelCoeffPower
+      (G := G) Q A R hbefore houtside] using hC ⟨k₀ + i, rfl⟩
+  · simp only [LpGridRepresentation.FinitePQCost, hq, ↓reduceIte] at hRfin ⊢
+    have htail :
+        Summable fun i =>
+          (R.levelCoeffPower (i + k₀)) ^ (q.toReal / p.toReal) :=
+      (summable_nat_add_iff k₀).mpr hRfin
+    refine htail.congr ?_
+    intro i
+    rw [ambientSupportedRepresentationToInduced_levelCoeffPower
+      (G := G) Q A R hbefore houtside]
+    rw [Nat.add_comm]
+
+/--
+Reading an ambient supported representation on the induced grid does not
+increase its `(p,q)` coefficient cost.
+-/
+theorem ambientSupportedRepresentationToInduced_pqCost_le
+    (G : WeakGridSpace (α := α)) {k₀ : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u q : ℝ≥0∞} [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (A : AtomFamily G s p u)
+    {f : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A f)
+    (hbefore : ∀ n, n < k₀ → (R.block n).toLp A = 0)
+    (houtside : ∀ n (P : LevelCell G n), ¬ P.1 ⊆ Q.1 → (R.block n).coeff P = 0)
+    (hRfin : LpGridRepresentation.FinitePQCost (q := q) R) :
+    LpGridRepresentation.pqCost (q := q)
+        (ambientSupportedRepresentationToInduced G Q A R hbefore houtside) ≤
+      LpGridRepresentation.pqCost (q := q) R := by
+  classical
+  let Ri := ambientSupportedRepresentationToInduced G Q A R hbefore houtside
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le A.one_le_p).ne' A.p_ne_top
+  by_cases hq : q = ∞
+  · simp only [LpGridRepresentation.pqCost, hq, ↓reduceIte]
+    simp only [LpGridRepresentation.FinitePQCost, hq, ↓reduceIte] at hRfin
+    apply csSup_le (Set.range_nonempty _)
+    rintro x ⟨i, rfl⟩
+    change Ri.levelCoeffPower i ^ (1 / p.toReal) ≤
+      sSup (Set.range fun k => R.levelCoeffPower k ^ (1 / p.toReal))
+    simpa [Ri, ambientSupportedRepresentationToInduced_levelCoeffPower
+      (G := G) Q A R hbefore houtside] using
+        le_csSup hRfin ⟨k₀ + i, rfl⟩
+  · simp only [LpGridRepresentation.pqCost, hq, ↓reduceIte]
+    simp only [LpGridRepresentation.FinitePQCost, hq, ↓reduceIte] at hRfin
+    let aI : ℕ → ℝ := fun i => (Ri.levelCoeffPower i) ^ (q.toReal / p.toReal)
+    let a : ℕ → ℝ := fun n => (R.levelCoeffPower n) ^ (q.toReal / p.toReal)
+    have hq_pos : 0 < q.toReal :=
+      ENNReal.toReal_pos (zero_lt_one.trans_le Fact.out).ne' hq
+    have htail : HasSum aI (∑' i, a (k₀ + i)) := by
+      have hrewrite : aI = fun i => a (k₀ + i) := by
+        funext i
+        dsimp [aI, a]
+        rw [ambientSupportedRepresentationToInduced_levelCoeffPower
+          (G := G) Q A R hbefore houtside]
+      simpa [hrewrite, Nat.add_comm] using ((summable_nat_add_iff k₀).mpr hRfin).hasSum
+    have htsumI : (∑' i, aI i) = ∑' i, a (k₀ + i) := htail.tsum_eq
+    have hsplit :
+        (∑ i ∈ Finset.range k₀, a i) + (∑' i, a (k₀ + i)) = ∑' i, a i := by
+      simpa [a, Nat.add_comm] using Summable.sum_add_tsum_nat_add (f := a) k₀ hRfin
+    have hprefix_nonneg : 0 ≤ ∑ i ∈ Finset.range k₀, a i :=
+      Finset.sum_nonneg fun i _ => Real.rpow_nonneg (R.levelCoeffPower_nonneg i) _
+    have htail_le : (∑' i, a (k₀ + i)) ≤ ∑' i, a i := by
+      linarith
+    have hsumI_nonneg : 0 ≤ ∑' i, aI i := by
+      rw [htsumI]
+      exact tsum_nonneg fun i => Real.rpow_nonneg (R.levelCoeffPower_nonneg (k₀ + i)) _
+    exact Real.rpow_le_rpow hsumI_nonneg (by simpa [htsumI] using htail_le)
+      (one_div_pos.mpr hq_pos).le
+
 /-- Transporting a `LevelBlock` along an equality of levels does not change its `L^p` value. -/
 @[simp]
 theorem cast_levelBlock_toLp
