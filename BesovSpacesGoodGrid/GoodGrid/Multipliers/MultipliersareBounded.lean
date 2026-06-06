@@ -813,38 +813,21 @@ theorem inducedSouzaBesov_eLpNorm_le
       hp_top hp_top le_rfl ht_le_pu hs_nonneg hG2.1 hAfinite y
 
 /--
-Conditional local estimate for the product with a canonical Souza atom.
+Local estimate for the product with a canonical Souza atom.
 
-If restriction from the ambient Souza Besov space to the grid induced by `Q`
-has operator bound `D`, then a `selfs` bound controls the induced `L^p` norm
-of `m * a_Q` with the correct cell factor `μ(Q)^s`.
+The uniform cell-indicator multiplier theorem supplies the localization to the
+grid induced by `Q`, so a `selfs` bound controls the induced `L^p` norm of
+`m * a_Q` with the correct cell factor `μ(Q)^s`.
 -/
-theorem souzaPointwiseSelfsBound_restrictedCanonicalAtom_eLpNorm_le_of_restrictsToInduced
+theorem souzaPointwiseSelfsBound_cellCanonicalAtom_eLpNorm_le
     (G : GoodGridSpace (α := α)) (Q : GoodGridCell G)
     (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
-    {m : α → ℂ} {C D : ℝ}
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {m : α → ℂ} {C : ℝ}
     (hC : WeakGridSpace.PointwiseSelfsBound
-      (A := souzaAtomFamily G s p hs hp hp_top) q m C)
-    (hD : 0 ≤ D)
-    (hrestrict :
-      ∀ x : WeakGridSpace.BesovishSpace
-          (souzaAtomFamily G s p hs hp hp_top) q,
-        ∃ y : WeakGridSpace.BesovishSpace
-            (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-              (souzaAtomFamily G s p hs hp hp_top)) q,
-          WeakGridSpace.RepresentsPointwiseProduct
-            (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell)
-            (p := p) (Q.cell.indicator fun _ => (1 : ℂ))
-            (x : Lp ℂ p G.toWeakGridSpace.measure)
-            (y : Lp ℂ p
-              (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).measure) ∧
-          WeakGridSpace.BesovishSpace.Norm_Costpq
-              (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-                (souzaAtomFamily G s p hs hp hp_top)) q y ≤
-            D * WeakGridSpace.BesovishSpace.Norm_Costpq
-              (souzaAtomFamily G s p hs hp hp_top) q x) :
+      (A := souzaAtomFamily G s p hs hp hp_top) q m C) :
     ∃ y : WeakGridSpace.BesovishSpace
         (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
           (souzaAtomFamily G s p hs hp hp_top)) q,
@@ -862,15 +845,33 @@ theorem souzaPointwiseSelfsBound_restrictedCanonicalAtom_eLpNorm_le_of_restricts
           p
           (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).measure).toReal ≤
         (G.grid.μ Q.cell).toReal ^ s *
-          souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+          souzaBesovLpLocalEmbeddingConstant G s p q *
+            (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C := by
   classical
   let A := souzaAtomFamily G s p hs hp hp_top
   let Wi := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell
   let Ai := WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell A
+  let D : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G s p + 1
+  have hD : 0 ≤ D := by
+    have hBound :=
+      souzaCellIndicatorPointwiseMultiplierBound_uniform
+        G s p q hs hp hp_top hs_lt_inv Q
+    simpa [D] using hBound.1
   rcases exists_canonicalSouzaAtomicUnit G s p q hs hp hp_top Q with
     ⟨x, hx_unit, hx_rep⟩
   rcases hC.2 x hx_unit with ⟨z, hz_prod, hz_norm⟩
-  rcases hrestrict z with ⟨y, hy_prod, hy_norm⟩
+  have hcellProduct :
+      ∃ y : WeakGridSpace.BesovishSpace Ai q,
+        WeakGridSpace.RepresentsPointwiseProduct
+          (G := Wi) (p := p) (Q.cell.indicator fun _ => (1 : ℂ))
+          (z : Lp ℂ p G.toWeakGridSpace.measure)
+          (y : Lp ℂ p Wi.measure) ∧
+        WeakGridSpace.BesovishSpace.Norm_Costpq Ai q y ≤
+          D * WeakGridSpace.BesovishSpace.Norm_Costpq A q z := by
+    simpa [A, Ai, Wi, D] using
+      souzaCellIndicatorRestrictsToInduced
+        G s p q hs hp hp_top hs_lt_inv Q z
+  rcases hcellProduct with ⟨y, hy_prod, hy_norm⟩
   refine ⟨y, ?_, ?_⟩
   · have hz_prod_i :
         ((z : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ)
@@ -948,32 +949,15 @@ This records the measurability information hidden in the representative on the
 induced grid: after dividing by the nonzero canonical Souza atom amplitude,
 `1_Q m` is an `L^p` function on the ambient grid.
 -/
-theorem souzaPointwiseSelfsBound_cellIndicator_memLp_of_restrictsToInduced
+theorem souzaPointwiseSelfsBound_cellIndicator_memLp
     (G : GoodGridSpace (α := α)) (Q : GoodGridCell G)
     (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
-    {m : α → ℂ} {C D : ℝ}
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {m : α → ℂ} {C : ℝ}
     (hC : WeakGridSpace.PointwiseSelfsBound
-      (A := souzaAtomFamily G s p hs hp hp_top) q m C)
-    (hD : 0 ≤ D)
-    (hrestrict :
-      ∀ x : WeakGridSpace.BesovishSpace
-          (souzaAtomFamily G s p hs hp hp_top) q,
-        ∃ y : WeakGridSpace.BesovishSpace
-            (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-              (souzaAtomFamily G s p hs hp hp_top)) q,
-          WeakGridSpace.RepresentsPointwiseProduct
-            (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell)
-            (p := p) (Q.cell.indicator fun _ => (1 : ℂ))
-            (x : Lp ℂ p G.toWeakGridSpace.measure)
-            (y : Lp ℂ p
-              (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).measure) ∧
-          WeakGridSpace.BesovishSpace.Norm_Costpq
-              (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-                (souzaAtomFamily G s p hs hp hp_top)) q y ≤
-            D * WeakGridSpace.BesovishSpace.Norm_Costpq
-              (souzaAtomFamily G s p hs hp hp_top) q x) :
+      (A := souzaAtomFamily G s p hs hp hp_top) q m C) :
     MemLp (Q.cell.indicator m) p G.grid.μ := by
   classical
   let Wi := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell
@@ -987,8 +971,8 @@ theorem souzaPointwiseSelfsBound_cellIndicator_memLp_of_restrictsToInduced
   have ha_pos : 0 < a := by
     exact Real.rpow_pos_of_pos hμQ_pos _
   rcases
-    souzaPointwiseSelfsBound_restrictedCanonicalAtom_eLpNorm_le_of_restrictsToInduced
-      G Q s p q hs hp hp_top hC hD hrestrict with
+    souzaPointwiseSelfsBound_cellCanonicalAtom_eLpNorm_le
+      G Q s p q hs hp hp_top hs_lt_inv hC with
     ⟨y, hy_rep, _hy_bound⟩
   have hprod_mem : MemLp prod p G.grid.μ := by
     have hy_mem :
@@ -1029,35 +1013,19 @@ The previous lemma estimates the product with the canonical Souza atom
 can divide it out and recover the expected scale
 `μ(Q)^(1 / p)` for the local `L^p` norm of `1_Q m`.
 -/
-theorem souzaPointwiseSelfsBound_cellIndicator_eLpNorm_le_of_restrictsToInduced
+theorem souzaPointwiseSelfsBound_cellIndicator_eLpNorm_le
     (G : GoodGridSpace (α := α)) (Q : GoodGridCell G)
     (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
-    {m : α → ℂ} {C D : ℝ}
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {m : α → ℂ} {C : ℝ}
     (hC : WeakGridSpace.PointwiseSelfsBound
-      (A := souzaAtomFamily G s p hs hp hp_top) q m C)
-    (hD : 0 ≤ D)
-    (hrestrict :
-      ∀ x : WeakGridSpace.BesovishSpace
-          (souzaAtomFamily G s p hs hp hp_top) q,
-        ∃ y : WeakGridSpace.BesovishSpace
-            (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-              (souzaAtomFamily G s p hs hp hp_top)) q,
-          WeakGridSpace.RepresentsPointwiseProduct
-            (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell)
-            (p := p) (Q.cell.indicator fun _ => (1 : ℂ))
-            (x : Lp ℂ p G.toWeakGridSpace.measure)
-            (y : Lp ℂ p
-              (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).measure) ∧
-          WeakGridSpace.BesovishSpace.Norm_Costpq
-              (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-                (souzaAtomFamily G s p hs hp hp_top)) q y ≤
-            D * WeakGridSpace.BesovishSpace.Norm_Costpq
-              (souzaAtomFamily G s p hs hp hp_top) q x) :
+      (A := souzaAtomFamily G s p hs hp hp_top) q m C) :
     (eLpNorm (Q.cell.indicator m) p G.grid.μ).toReal ≤
       (G.grid.μ Q.cell).toReal ^ (p.toReal)⁻¹ *
-        souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+        souzaBesovLpLocalEmbeddingConstant G s p q *
+          (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C := by
   classical
   let Wi := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell
   let μQ : ℝ := (G.grid.μ Q.cell).toReal
@@ -1065,13 +1033,14 @@ theorem souzaPointwiseSelfsBound_cellIndicator_eLpNorm_le_of_restrictsToInduced
   let prod : α → ℂ := fun z =>
     Q.cell.indicator (fun _ => (1 : ℂ)) z *
       (m z * canonicalSouzaAtom G s p Q z)
+  let D : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G s p + 1
   have hμQ_pos : 0 < μQ := by
     exact ENNReal.toReal_pos (GoodGridCell.measure_pos Q).ne' (GoodGridCell.measure_ne_top Q)
   have ha_pos : 0 < a := by
     exact Real.rpow_pos_of_pos hμQ_pos _
   rcases
-    souzaPointwiseSelfsBound_restrictedCanonicalAtom_eLpNorm_le_of_restrictsToInduced
-      G Q s p q hs hp hp_top hC hD hrestrict with
+    souzaPointwiseSelfsBound_cellCanonicalAtom_eLpNorm_le
+      G Q s p q hs hp hp_top hs_lt_inv hC with
     ⟨y, hy_rep, hy_bound⟩
   have hprod_bound :
       (eLpNorm prod p G.grid.μ).toReal ≤
@@ -1147,43 +1116,28 @@ estimate with Hölder on that cell.
 
 After dividing by `μ(Q)`, this is the formal cell-average bound for `|m|`.
 -/
-theorem souzaPointwiseSelfsBound_cellIndicator_eLpNorm_one_le_of_restrictsToInduced
+theorem souzaPointwiseSelfsBound_cellIndicator_eLpNorm_one_le
     (G : GoodGridSpace (α := α)) (Q : GoodGridCell G)
     (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
-    {m : α → ℂ} {C D : ℝ}
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {m : α → ℂ} {C : ℝ}
     (hC : WeakGridSpace.PointwiseSelfsBound
-      (A := souzaAtomFamily G s p hs hp hp_top) q m C)
-    (hD : 0 ≤ D)
-    (hrestrict :
-      ∀ x : WeakGridSpace.BesovishSpace
-          (souzaAtomFamily G s p hs hp hp_top) q,
-        ∃ y : WeakGridSpace.BesovishSpace
-            (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-              (souzaAtomFamily G s p hs hp hp_top)) q,
-          WeakGridSpace.RepresentsPointwiseProduct
-            (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell)
-            (p := p) (Q.cell.indicator fun _ => (1 : ℂ))
-            (x : Lp ℂ p G.toWeakGridSpace.measure)
-            (y : Lp ℂ p
-              (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).measure) ∧
-          WeakGridSpace.BesovishSpace.Norm_Costpq
-              (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-                (souzaAtomFamily G s p hs hp hp_top)) q y ≤
-            D * WeakGridSpace.BesovishSpace.Norm_Costpq
-              (souzaAtomFamily G s p hs hp hp_top) q x) :
+      (A := souzaAtomFamily G s p hs hp hp_top) q m C) :
     (eLpNorm (Q.cell.indicator m) 1 G.grid.μ).toReal ≤
       (G.grid.μ Q.cell).toReal *
-        souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+        souzaBesovLpLocalEmbeddingConstant G s p q *
+          (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C := by
   classical
   let μQ : ℝ := (G.grid.μ Q.cell).toReal
+  let D : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G s p + 1
   have hμQ_pos : 0 < μQ := by
     exact ENNReal.toReal_pos (GoodGridCell.measure_pos Q).ne' (GoodGridCell.measure_ne_top Q)
   have hmem :
       MemLp (Q.cell.indicator m) p G.grid.μ :=
-    souzaPointwiseSelfsBound_cellIndicator_memLp_of_restrictsToInduced
-      G Q s p q hs hp hp_top hC hD hrestrict
+    souzaPointwiseSelfsBound_cellIndicator_memLp
+      G Q s p q hs hp hp_top hs_lt_inv hC
   have hholder :=
     eLpNorm_one_cellIndicator_le_eLpNorm_mul_measure_rpow
       G Q p hp hmem
@@ -1213,8 +1167,8 @@ theorem souzaPointwiseSelfsBound_cellIndicator_eLpNorm_one_le_of_restrictsToIndu
         μQ ^ (p.toReal)⁻¹ *
           souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
     simpa [μQ] using
-      souzaPointwiseSelfsBound_cellIndicator_eLpNorm_le_of_restrictsToInduced
-        G Q s p q hs hp hp_top hC hD hrestrict
+      souzaPointwiseSelfsBound_cellIndicator_eLpNorm_le
+        G Q s p q hs hp hp_top hs_lt_inv hC
   have hpow :
       μQ ^ (p.toReal)⁻¹ * μQ ^ (1 - 1 / p.toReal) = μQ := by
     calc
@@ -1254,44 +1208,29 @@ This is the form used by the martingale argument: the integral of `‖m‖` over
 each grid cell is controlled by the cell measure times the same global
 constant.
 -/
-theorem souzaPointwiseSelfsBound_cellIntegral_norm_le_of_restrictsToInduced
+theorem souzaPointwiseSelfsBound_cellIntegral_norm_le
     (G : GoodGridSpace (α := α)) (Q : GoodGridCell G)
     (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
-    {m : α → ℂ} {C D : ℝ}
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {m : α → ℂ} {C : ℝ}
     (hC : WeakGridSpace.PointwiseSelfsBound
-      (A := souzaAtomFamily G s p hs hp hp_top) q m C)
-    (hD : 0 ≤ D)
-    (hrestrict :
-      ∀ x : WeakGridSpace.BesovishSpace
-          (souzaAtomFamily G s p hs hp hp_top) q,
-        ∃ y : WeakGridSpace.BesovishSpace
-            (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-              (souzaAtomFamily G s p hs hp hp_top)) q,
-          WeakGridSpace.RepresentsPointwiseProduct
-            (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell)
-            (p := p) (Q.cell.indicator fun _ => (1 : ℂ))
-            (x : Lp ℂ p G.toWeakGridSpace.measure)
-            (y : Lp ℂ p
-              (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).measure) ∧
-          WeakGridSpace.BesovishSpace.Norm_Costpq
-              (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-                (souzaAtomFamily G s p hs hp hp_top)) q y ≤
-            D * WeakGridSpace.BesovishSpace.Norm_Costpq
-              (souzaAtomFamily G s p hs hp hp_top) q x) :
+      (A := souzaAtomFamily G s p hs hp hp_top) q m C) :
     ∫ x in Q.cell, ‖m x‖ ∂G.grid.μ ≤
       (G.grid.μ Q.cell).toReal *
-        souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+        souzaBesovLpLocalEmbeddingConstant G s p q *
+          (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C := by
   classical
+  let D : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G s p + 1
   have hQm : MeasurableSet Q.cell := G.grid.grid.measurable Q.level Q.cell Q.mem
   have hmem :
       MemLp (Q.cell.indicator m) p G.grid.μ :=
-    souzaPointwiseSelfsBound_cellIndicator_memLp_of_restrictsToInduced
-      G Q s p q hs hp hp_top hC hD hrestrict
+    souzaPointwiseSelfsBound_cellIndicator_memLp
+      G Q s p q hs hp hp_top hs_lt_inv hC
   have hL1 :=
-    souzaPointwiseSelfsBound_cellIndicator_eLpNorm_one_le_of_restrictsToInduced
-      G Q s p q hs hp hp_top hC hD hrestrict
+    souzaPointwiseSelfsBound_cellIndicator_eLpNorm_one_le
+      G Q s p q hs hp hp_top hs_lt_inv hC
   have hnorm_indicator :
       (fun x => ‖Q.cell.indicator m x‖) = Q.cell.indicator (fun x => ‖m x‖) := by
     funext x
@@ -1318,43 +1257,23 @@ theorem souzaPointwiseSelfsBound_cellIntegral_norm_le_of_restrictsToInduced
 The root-cell estimate gives the integrability needed to apply the martingale
 convergence theorem to the real-valued function `‖m‖`.
 -/
-theorem souzaPointwiseSelfsBound_norm_integrable_of_rootRestrictsToInduced
+theorem souzaPointwiseSelfsBound_norm_integrable
     (G : GoodGridSpace (α := α))
     (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
-    {m : α → ℂ} {C D : ℝ}
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {m : α → ℂ} {C : ℝ}
     (hC : WeakGridSpace.PointwiseSelfsBound
-      (A := souzaAtomFamily G s p hs hp hp_top) q m C)
-    (hD : 0 ≤ D)
-    (hrestrict :
-      ∀ x : WeakGridSpace.BesovishSpace
-          (souzaAtomFamily G s p hs hp hp_top) q,
-        ∃ y : WeakGridSpace.BesovishSpace
-            (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace (rootGoodGridCell G).toLevelCell
-              (souzaAtomFamily G s p hs hp hp_top)) q,
-          WeakGridSpace.RepresentsPointwiseProduct
-            (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace
-              (rootGoodGridCell G).toLevelCell)
-            (p := p) ((rootGoodGridCell G).cell.indicator fun _ => (1 : ℂ))
-            (x : Lp ℂ p G.toWeakGridSpace.measure)
-            (y : Lp ℂ p
-              (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace
-                (rootGoodGridCell G).toLevelCell).measure) ∧
-          WeakGridSpace.BesovishSpace.Norm_Costpq
-              (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace
-                (rootGoodGridCell G).toLevelCell
-                (souzaAtomFamily G s p hs hp hp_top)) q y ≤
-            D * WeakGridSpace.BesovishSpace.Norm_Costpq
-              (souzaAtomFamily G s p hs hp hp_top) q x) :
+      (A := souzaAtomFamily G s p hs hp hp_top) q m C) :
     Integrable (fun x => ‖m x‖) G.grid.μ := by
   classical
   let Q := rootGoodGridCell G
   haveI : IsFiniteMeasure G.grid.μ := G.grid.isFinite
   have hmem_indicator :
       MemLp (Q.cell.indicator m) p G.grid.μ :=
-    souzaPointwiseSelfsBound_cellIndicator_memLp_of_restrictsToInduced
-      G Q s p q hs hp hp_top hC hD hrestrict
+    souzaPointwiseSelfsBound_cellIndicator_memLp
+      G Q s p q hs hp hp_top hs_lt_inv hC
   have hmem : MemLp m p G.grid.μ := by
     simpa [Q, rootGoodGridCell] using hmem_indicator
   have hmem_one : MemLp m 1 G.grid.μ :=
@@ -1363,41 +1282,25 @@ theorem souzaPointwiseSelfsBound_norm_integrable_of_rootRestrictsToInduced
 
 /--
 The cell-average process for `‖m‖` is uniformly bounded at every finite grid
-level, provided the induced restriction estimate is available uniformly over
-cells.
+level.  The needed cell localization is supplied by the uniform cell-indicator
+multiplier theorem.
 -/
-theorem souzaPointwiseSelfsBound_goodGridLevelAverage_norm_le_of_restrictsToInduced
+theorem souzaPointwiseSelfsBound_goodGridLevelAverage_norm_le
     (G : GoodGridSpace (α := α))
     (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
-    {m : α → ℂ} {C D : ℝ}
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {m : α → ℂ} {C : ℝ}
     (hC : WeakGridSpace.PointwiseSelfsBound
       (A := souzaAtomFamily G s p hs hp hp_top) q m C)
-    (hD : 0 ≤ D)
-    (hrestrict :
-      ∀ Q : GoodGridCell G,
-        ∀ x : WeakGridSpace.BesovishSpace
-            (souzaAtomFamily G s p hs hp hp_top) q,
-          ∃ y : WeakGridSpace.BesovishSpace
-              (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-                (souzaAtomFamily G s p hs hp hp_top)) q,
-            WeakGridSpace.RepresentsPointwiseProduct
-              (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell)
-              (p := p) (Q.cell.indicator fun _ => (1 : ℂ))
-              (x : Lp ℂ p G.toWeakGridSpace.measure)
-              (y : Lp ℂ p
-                (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).measure) ∧
-            WeakGridSpace.BesovishSpace.Norm_Costpq
-                (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-                  (souzaAtomFamily G s p hs hp hp_top)) q y ≤
-              D * WeakGridSpace.BesovishSpace.Norm_Costpq
-                (souzaAtomFamily G s p hs hp hp_top) q x)
     (n : ℕ) :
     ∀ x,
       goodGridLevelAverage G (fun z => ‖m z‖) n x ≤
-        souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+        souzaBesovLpLocalEmbeddingConstant G s p q *
+          (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C := by
   classical
+  let D : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G s p + 1
   refine goodGridLevelAverage_le_of_cellIntegral_le G (fun z => ‖m z‖) n ?_
   intro cell hcell
   let Q : GoodGridCell G := { level := n, cell := cell, mem := hcell }
@@ -1406,8 +1309,8 @@ theorem souzaPointwiseSelfsBound_goodGridLevelAverage_norm_le_of_restrictsToIndu
         ≤ (G.grid.μ cell).toReal *
             souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
           simpa [Q] using
-            souzaPointwiseSelfsBound_cellIntegral_norm_le_of_restrictsToInduced
-              G Q s p q hs hp hp_top hC hD (hrestrict Q)
+            souzaPointwiseSelfsBound_cellIntegral_norm_le
+              G Q s p q hs hp hp_top hs_lt_inv hC
     _ = (G.grid.μ cell).toReal *
         (souzaBesovLpLocalEmbeddingConstant G s p q * D * C) := by
           ring
@@ -1419,47 +1322,76 @@ The finite-level average of `‖m‖` is the conditional expectation on the
 corresponding finite grid sigma-algebra, so Levy's theorem turns the uniform
 cell-average bounds into the desired almost-everywhere bound.
 -/
-theorem souzaPointwiseSelfsBound_norm_ae_le_of_restrictsToInduced
+theorem souzaPointwiseSelfsBound_norm_ae_le
     (G : GoodGridSpace (α := α))
     (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
-    {m : α → ℂ} {C D : ℝ}
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {m : α → ℂ} {C : ℝ}
     (hC : WeakGridSpace.PointwiseSelfsBound
-      (A := souzaAtomFamily G s p hs hp hp_top) q m C)
-    (hD : 0 ≤ D)
-    (hrestrict :
-      ∀ Q : GoodGridCell G,
-        ∀ x : WeakGridSpace.BesovishSpace
-            (souzaAtomFamily G s p hs hp hp_top) q,
-          ∃ y : WeakGridSpace.BesovishSpace
-              (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-                (souzaAtomFamily G s p hs hp hp_top)) q,
-            WeakGridSpace.RepresentsPointwiseProduct
-              (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell)
-              (p := p) (Q.cell.indicator fun _ => (1 : ℂ))
-              (x : Lp ℂ p G.toWeakGridSpace.measure)
-              (y : Lp ℂ p
-                (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).measure) ∧
-            WeakGridSpace.BesovishSpace.Norm_Costpq
-                (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
-                  (souzaAtomFamily G s p hs hp hp_top)) q y ≤
-              D * WeakGridSpace.BesovishSpace.Norm_Costpq
-                (souzaAtomFamily G s p hs hp hp_top) q x) :
+      (A := souzaAtomFamily G s p hs hp hp_top) q m C) :
     ∀ᵐ x ∂G.grid.μ,
-      ‖m x‖ ≤ souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+      ‖m x‖ ≤
+        souzaBesovLpLocalEmbeddingConstant G s p q *
+          (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C := by
   classical
+  let D : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G s p + 1
   have hnorm_int :
       Integrable (fun z => ‖m z‖) G.grid.μ :=
-    souzaPointwiseSelfsBound_norm_integrable_of_rootRestrictsToInduced
-      G s p q hs hp hp_top hC hD (hrestrict (rootGoodGridCell G))
+    souzaPointwiseSelfsBound_norm_integrable
+      G s p q hs hp hp_top hs_lt_inv hC
   have havg_le :
       ∀ n x,
         goodGridLevelAverage G (fun z => ‖m z‖) n x ≤
           souzaBesovLpLocalEmbeddingConstant G s p q * D * C :=
-    souzaPointwiseSelfsBound_goodGridLevelAverage_norm_le_of_restrictsToInduced
-      G s p q hs hp hp_top hC hD hrestrict
+    souzaPointwiseSelfsBound_goodGridLevelAverage_norm_le
+      G s p q hs hp hp_top hs_lt_inv hC
   exact ae_le_of_goodGridLevelAverage_le G hnorm_int havg_le
+
+/--
+Every Souza `selfs` function is bounded almost everywhere.
+
+This is the qualitative form of `souzaPointwiseSelfsBound_norm_ae_le`: the
+bound may depend on the chosen `selfs` constant.
+-/
+theorem souzaPointwiseSelfsClass_norm_ae_bounded
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {m : α → ℂ}
+    (hm : SouzaPointwiseSelfsClass G s p q hs hp hp_top m) :
+    ∃ M : ℝ, ∀ᵐ x ∂G.grid.μ, ‖m x‖ ≤ M := by
+  classical
+  rcases hm with ⟨C, hC⟩
+  refine ⟨souzaBesovLpLocalEmbeddingConstant G s p q *
+    (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C, ?_⟩
+  exact souzaPointwiseSelfsBound_norm_ae_le
+    G s p q hs hp hp_top hs_lt_inv hC
+
+/--
+Every Souza pointwise multiplier is bounded almost everywhere.
+
+The statement is proved for every `q >= 1`, including `q = ∞`; in particular
+it covers the finite-`q` range.
+-/
+theorem souzaPointwiseMultiplier_norm_ae_bounded
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {m : α → ℂ}
+    (hm : SouzaPointwiseMultiplier G s p q hs hp hp_top m) :
+    ∃ M : ℝ, ∀ᵐ x ∂G.grid.μ, ‖m x‖ ≤ M := by
+  classical
+  rcases hm with ⟨C, hC⟩
+  refine ⟨souzaBesovLpLocalEmbeddingConstant G s p q *
+    (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C, ?_⟩
+  exact souzaPointwiseSelfsBound_norm_ae_le
+    G s p q hs hp hp_top hs_lt_inv hC.selfsBound
 
 end
 
