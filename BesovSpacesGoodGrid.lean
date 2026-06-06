@@ -10,6 +10,7 @@ import BesovSpacesGoodGrid.WeakGrid.InducedGrid
 import BesovSpacesGoodGrid.GoodGrid.BesovAtoms
 import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms
 import BesovSpacesGoodGrid.GoodGrid.Multipliers
+import BesovSpacesGoodGrid.GoodGrid.PositiveCone
 
 /-!
 # Besov spaces over weak grids and good grids
@@ -17,5 +18,6 @@ import BesovSpacesGoodGrid.GoodGrid.Multipliers
 This is the public entry point for the library.  It imports the weak-grid
 infrastructure for atom families, Besov-ish spaces, scale changes,
 completeness, induced grids, and transmutation, together with the current
-good-grid specialization to Souza and Besov atoms.
+good-grid specialization to Souza and Besov atoms, multipliers, and the
+positive cone.
 -/
