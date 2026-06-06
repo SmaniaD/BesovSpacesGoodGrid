@@ -27,6 +27,7 @@ examples.  Those are not proof holes in this project.
 Recently checked successfully:
 
 - `lake build BesovSpacesGoodGrid.GoodGrid.Multipliers`
+- `lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/Basic.lean`
 - `lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers.lean`
 - `lake env lean BesovSpacesGoodGrid/WeakGrid/BesovishSpaces.lean`
 - `lake build`
@@ -55,6 +56,7 @@ Modified files in this pass:
 
 - `BesovSpacesGoodGrid/WeakGrid/Transmutation.lean`
 - `BesovSpacesGoodGrid/WeakGrid/BesovishSpaces.lean`
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/Basic.lean`
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers.lean`
 
 ### What Was Done
@@ -64,8 +66,8 @@ In `WeakGrid/Transmutation.lean`:
 - Added reusable window/partial-sum coefficient lemmas around
   `PartialSumLevels`, including the identity of a window with a difference of
   initial segments.
-- Added q=1 window-cost lemmas:
-  `CoeffFinitePQCost_window_one` and `CoeffPQCost_window_one_eq_Ico`.
+- Added general finite-window coefficient-cost lemmas, including
+  `CoeffFinitePQCost_window` and `CoeffPQCost_window_eq_Ico`.
 - Added bridge lemmas applying the abstract transmutation theorem to initial
   segments and windows.
 
@@ -81,7 +83,7 @@ In `WeakGrid/BesovishSpaces.lean`:
 - Added the public zero representation:
   `LpGridRepresentation.zero`, with zero level coefficient power.
 
-In `GoodGrid/Multipliers.lean`:
+In `GoodGrid/Multipliers/Basic.lean`:
 
 - Added the induced restriction level map
   `GoodGridCell.restrictionLevel W i = i - W.level`.
@@ -100,18 +102,18 @@ In `GoodGrid/Multipliers.lean`:
   `1`, together with the support/cutoff vanishing conditions needed by
   transmutation.
 - Packaged the local one-atom representations into global transmutation data:
-  `restrict_souzaRepresentation_transmutationAtomData_one`.
+  `restrict_souzaRepresentation_transmutationAtomData`.
 - Proved the finite-sum identity saying these local representatives represent
   pointwise multiplication by `1_W` on each ambient initial segment:
-  `restrict_souzaRepresentation_partialSum_representsPointwiseProduct_one`.
+  `restrict_souzaRepresentation_partialSum_representsPointwiseProduct`.
 - Combined both ingredients into the exact `hdata` input required by the
   abstract transmutation bridge:
-  `restrict_souzaRepresentation_transmutationData_one`.
-- Added
-  `souzaIndicatorPointwiseMultiplier_of_restrictionTransmutation_one`, which
-  feeds this `hdata` into the abstract bridge and proves that `1_W` is a Souza
-  pointwise multiplier, choosing internally the named explicit constant
-  `souzaRestrictionMultiplierConstant G p W lam`.
+  `restrict_souzaRepresentation_transmutationData`.
+- Proved the public all-`q` cell-indicator multiplier theorem
+  `souzaIndicatorPointwiseMultiplier_of_restrictionTransmutation`, with private
+  finite-`q` and `q = ∞` branches.
+- Moved the multiplier implementation into the new `GoodGrid/Multipliers`
+  subfolder; `GoodGrid/Multipliers.lean` is now a compatibility aggregator.
 
 ### Mathematical Status
 
@@ -128,11 +130,8 @@ The local geometry of restricting one Souza atom is now formalized:
   the smaller cell `W` with uniform coefficient.
 
 The abstract functional-analytic/transmutation bridge is already present and
-has now been connected to the concrete Souza restriction construction:
-
-- `souzaIndicatorPointwiseMultiplier_of_initialSegmentRestrictionWindowBound_one`
-- `souzaIndicatorPointwiseMultiplier_of_transmutationInitialSegments_one`
-- `souzaIndicatorPointwiseMultiplier_of_transmutationAtomData_one`
+has now been connected to the concrete Souza restriction construction for every
+`q >= 1`, including `q = ∞`.
 
 The concrete bridge now uses `k i = i - W.level`, `A = -W.level`, `B = 0`,
 `r = 1`, and `C = 1`.  The corresponding simplified constant is named
@@ -144,14 +143,7 @@ The concrete bridge now uses `k i = i - W.level`, `A = -W.level`, `B = 0`,
 1. If a quantitative final statement is desired, add a `PointwiseMultiplierBound`
    version of the transmutation bridge so the named constant can be exposed as
    the bound rather than only used internally to prove multiplier membership.
-2. Main next goal: generalize
-   `souzaIndicatorPointwiseMultiplier_of_restrictionTransmutation_one` from the
-   currently proved endpoint `q = 1` to every `q >= 1`.  This will likely pass
-   through a general-`q` version of
-   `souzaIndicatorPointwiseMultiplier_of_transmutationAtomData_one`, using the
-   already available abstract `(p,q)` transmutation estimates and the general
-   window coefficient-cost control.
-3. Connect this cell-indicator multiplier theorem to the final desired
+2. Connect this cell-indicator multiplier theorem to the final desired
    continuity/restriction lemma for all Besov functions, if that is the next
    mathematical target.
 
