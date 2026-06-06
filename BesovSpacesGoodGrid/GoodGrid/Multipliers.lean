@@ -2,6 +2,7 @@ import BesovSpacesGoodGrid.GoodGrid.Multipliers.Definition
 import BesovSpacesGoodGrid.GoodGrid.Multipliers.Besovspq
 import BesovSpacesGoodGrid.GoodGrid.Multipliers.Besovs11
 import BesovSpacesGoodGrid.GoodGrid.Multipliers.MultipliersareBounded
+import BesovSpacesGoodGrid.GoodGrid.Multipliers.NonArchimedeanProperty
 
 /-!
 # Good-grid multiplier theorems
