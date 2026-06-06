@@ -401,7 +401,15 @@ private theorem induced_cCoefficientFinite
       simpa [WeakGridSpace.LpGridRepresentation.cCoefficientFinite, hq1, hqtop, q', W, w]
         using hsum
 
-private theorem induced_cCoefficient_le_geometric
+/--
+The coefficient constant on the grid induced by a cell is controlled by the
+ambient geometric model, with the expected factor `μ(Q)^β`.
+
+This is the quantitative part of the induced-grid embedding estimate.  It is
+useful whenever a local Besov norm on `Q` has to be converted into a uniform
+ambient constant.
+-/
+theorem induced_cCoefficient_le_geometric
     (G : GoodGridSpace (α := α)) (Q : GoodGridCell G)
     (β : ℝ) (p qtilde : ℝ≥0∞)
     (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞) [Fact (1 ≤ qtilde)] :

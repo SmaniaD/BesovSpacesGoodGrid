@@ -27,6 +27,7 @@ examples.  Those are not proof holes in this project.
 Recently checked successfully:
 
 - `lake build BesovSpacesGoodGrid.GoodGrid.Multipliers`
+- `lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lean`
 - `lake build BesovSpacesGoodGrid.GoodGrid.Multipliers.Definition`
 - `lake build BesovSpacesGoodGrid.GoodGrid.Multipliers.Besovspq`
 - `lake build BesovSpacesGoodGrid.GoodGrid.Multipliers.Besovs11`
@@ -48,19 +49,21 @@ The previous aggregate-root collision around
 stale `BesovAtoms` artifact after the definition was centralized in
 `GoodGrid/BesovSpace.lean`.  The root module now imports cleanly.
 
-## Current Pass: Multipliers And Restriction
+## Current Pass: Multipliers, Restriction, And Selfs Boundedness
 
 The current active development pass is the restriction lemma for good-grid cells
-and Souza atoms, aiming toward the statement that the cell indicator `1_W` is a
-pointwise multiplier.
+and Souza atoms, plus the next target: proving that Souza `selfs` multipliers
+belong continuously to `L∞`.
 
 Modified files in this pass:
 
+- `BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean`
 - `BesovSpacesGoodGrid/WeakGrid/Transmutation.lean`
 - `BesovSpacesGoodGrid/WeakGrid/BesovishSpaces.lean`
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers/Definition.lean`
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers/Besovspq.lean`
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers/Besovs11.lean`
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lean`
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers.lean`
 
 ### What Was Done
@@ -129,6 +132,40 @@ In `GoodGrid/Multipliers/Besovs11.lean`:
 - Proved the special endpoint `p = q = 1` equivalence between Souza pointwise
   multipliers and the Souza atom `selfs` tests.
 
+In `GoodGrid/BesovAtoms.lean`:
+
+- Promoted `induced_cCoefficient_le_geometric` from private to public, with a
+  docstring.  This is the quantitative estimate saying that the coefficient
+  constant on the grid induced by a cell is controlled by the ambient
+  geometric model with the expected factor `μ(Q)^β`.
+
+In `GoodGrid/Multipliers/MultipliersareBounded.lean`:
+
+- Created the new topic file for the proof that Souza `selfs` multipliers are
+  essentially bounded.
+- Added the ambient and induced Souza Besov-to-`L^p` embedding constants:
+  `souzaBesovLpEmbeddingConstant`,
+  `inducedSouzaBesovLpEmbeddingConstant`, and
+  `souzaBesovLpLocalEmbeddingConstant`.
+- Proved the scale estimate
+  `inducedSouzaBesovLpEmbeddingConstant_le_cellScale`, giving the crucial
+  cell factor `μ(Q)^s`.
+- Proved that the canonical Souza atom is an admissible normalized `selfs`
+  test:
+  `exists_canonicalSouzaAtomicUnit`.
+- Proved that a `selfs` bound controls the `L^p` norm of the product with any
+  normalized atom:
+  `souzaPointwiseSelfsBound_atomicUnit_product_eLpNorm_le`.
+- Specialized this to the canonical Souza atom on a cell:
+  `souzaPointwiseSelfsBound_canonicalAtom_product_eLpNorm_le`.
+- Proved the induced-grid `L^p` estimate:
+  `inducedSouzaBesov_eLpNorm_le`.
+- Proved the main intermediate local estimate
+  `souzaPointwiseSelfsBound_restrictedCanonicalAtom_eLpNorm_le_of_restrictsToInduced`:
+  assuming a quantitative restriction operator bound into the grid induced by
+  `Q`, the restricted product `1_Q * (m * a_Q)` has local `L^p` norm bounded
+  with the correct factor `μ(Q)^s`.
+
 `GoodGrid/Multipliers.lean` is now the compatibility aggregator for the split
 multiplier modules.
 
@@ -161,14 +198,30 @@ The concrete bridge now uses `k i = i - W.level`, `A = -W.level`, `B = 0`,
 `souzaRestrictionMultiplierConstant` and is
 `G.Cmult1 * cCoefficientInt p ∞ (transmutationKernelZ lam (-W.level) 1)`.
 
+For the `selfs ⊂ L∞` goal, the current formalized chain is:
+
+- test the `selfs` bound on the canonical Souza atom `a_Q`;
+- restrict the resulting product to the grid induced by `Q`;
+- use the induced `L^p` embedding;
+- use the geometric coefficient estimate to recover the necessary `μ(Q)^s`
+  factor.
+
+This is the right scale for the paper proof.  The remaining mathematical
+conversion is to divide by the canonical atom amplitude and turn the uniform
+cell-average bound into an essential-supremum bound, via the grid generators
+and the martingale/differentiation argument.
+
 ### What Remains
 
 1. If a quantitative final statement is desired, add a `PointwiseMultiplierBound`
    version of the transmutation bridge so the named constant can be exposed as
    the bound rather than only used internally to prove multiplier membership.
-2. Connect this cell-indicator multiplier theorem to the final desired
-   continuity/restriction lemma for all Besov functions, if that is the next
-   mathematical target.
+2. Expose a quantitative restriction-to-induced-grid lemma in the exact form
+   needed by `souzaPointwiseSelfsBound_restrictedCanonicalAtom_eLpNorm_le_of_restrictsToInduced`.
+3. Finish the final public theorem that
+   `SouzaPointwiseSelfsClass G s p q hs hp hp_top m` implies `m ∈ L∞`
+   continuously, by deriving uniform cell-average bounds and applying the
+   grid-generator/differentiation step.
 
 ## Current Main Line
 
