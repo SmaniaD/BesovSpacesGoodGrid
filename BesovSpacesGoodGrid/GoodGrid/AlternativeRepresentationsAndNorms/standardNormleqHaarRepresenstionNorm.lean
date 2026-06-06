@@ -1,4 +1,4 @@
-import BesovSpacesGoodGrid.GoodGrid.standardRepresentation
+import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.standardRepresentation
 
 /-!
 # The standard atomic norm is controlled by the Haar norm

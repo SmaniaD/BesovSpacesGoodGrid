@@ -1,6 +1,6 @@
-import BesovSpacesGoodGrid.GoodGrid.FiniteStandardNormimpliesBesov
+import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.FiniteStandardNormimpliesBesov
 import BesovSpacesGoodGrid.GoodGrid.BesovSpace
-import BesovSpacesGoodGrid.GoodGrid.standardNormleqHaarRepresenstionNorm
+import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.standardNormleqHaarRepresenstionNorm
 
 /-!
 # Finite Haar norm forces an `L^p` Haar expansion

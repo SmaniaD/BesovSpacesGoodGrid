@@ -1,4 +1,4 @@
-import BesovSpacesGoodGrid.GoodGrid.standardRepresentation
+import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.standardRepresentation
 
 /-!
 # Finite standard norm forces Besov membership

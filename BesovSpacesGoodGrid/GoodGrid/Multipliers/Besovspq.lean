@@ -1,12 +1,12 @@
-import BesovSpacesGoodGrid.WeakGrid.Multipliers
+import BesovSpacesGoodGrid.GoodGrid.Multipliers.Definition
 import BesovSpacesGoodGrid.WeakGrid.Transmutation
-import BesovSpacesGoodGrid.GoodGrid.BesovSpace
 
 /-!
-# Souza pointwise multipliers
+# Souza pointwise multipliers for general p and q
 
-This file specializes the abstract weak-grid multiplier theory to Souza atoms
-on a good grid.
+This file proves the general multiplier results for Souza Besov spaces on good
+grids, including the cell-indicator theorem for every `q >= 1`, with the
+endpoint `q = ∞` handled by a separate branch of the proof.
 -/
 
 open scoped ENNReal Topology
@@ -951,41 +951,6 @@ theorem restrict_souzaRepresentation_transmutationData
   refine ⟨h, Rt, hRt, ?_⟩
   exact restrict_souzaRepresentation_partialSum_representsPointwiseProduct
     G s p hs hp hp_top W R h hAtom
-
-/--
-Pointwise multiplier bound specialized to the Souza atom Besov space on a good
-grid.
--/
-abbrev SouzaPointwiseMultiplierBound
-    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
-    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
-    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
-    (m : α → ℂ) (C : ℝ) : Prop :=
-  WeakGridSpace.PointwiseMultiplierBound
-    (A := souzaAtomFamily G s p hs hp hp_top) q m C
-
-/--
-Pointwise multipliers of the Souza Besov space associated to a good grid.
--/
-abbrev SouzaPointwiseMultiplier
-    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
-    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
-    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
-    (m : α → ℂ) : Prop :=
-  WeakGridSpace.IsPointwiseMultiplier
-    (A := souzaAtomFamily G s p hs hp hp_top) q m
-
-/--
-The class of all pointwise multipliers of the Souza Besov space associated to a
-good grid.
--/
-abbrev SouzaPointwiseMultiplierClass
-    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
-    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
-    [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
-    Set (α → ℂ) :=
-  WeakGridSpace.PointwiseMultiplierClass
-    (A := souzaAtomFamily G s p hs hp hp_top) q
 
 /--
 The explicit restriction constant produced by the transmutation argument for
@@ -2955,28 +2920,6 @@ theorem souzaIndicatorPointwiseMultiplier_of_restrictionTransmutation
       G s p q hs hp hp_top hq_top hs_le_inv W lam hlam_pos hlam_lt
 
 /--
-The `selfs` atom-test class for the Souza Besov space on a good grid.
--/
-abbrev SouzaPointwiseSelfsClass
-    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
-    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
-    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
-    (m : α → ℂ) : Prop :=
-  WeakGridSpace.PointwiseSelfsClass
-    (A := souzaAtomFamily G s p hs hp hp_top) q m
-
-/--
-The `selfs` seminorm specialized to Souza atoms on a good grid.
--/
-noncomputable abbrev souzaPointwiseSelfsNorm
-    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
-    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
-    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
-    (m : α → ℂ) : ℝ :=
-  WeakGridSpace.pointwiseSelfsNorm
-    (A := souzaAtomFamily G s p hs hp hp_top) q m
-
-/--
 For Souza atoms, every pointwise multiplier belongs to the `selfs` class.
 -/
 theorem souzaPointwiseSelfsClass_of_souzaPointwiseMultiplier
@@ -3056,47 +2999,6 @@ theorem souzaIndicatorPointwiseMultiplier_of_restrictsToInduced
       (Q.cell.indicator fun _ => (1 : ℂ)) :=
   ⟨C, souzaIndicatorPointwiseMultiplierBound_of_restrictsToInduced
     G s p q hs hp hp_top Q hC hrestrict⟩
-
-/--
-For Souza atoms on a good grid, the endpoint `selfs` class is contained in the
-pointwise multiplier class.
-
-This is the converse direction of the multiplier theorem at `p = q = 1`.
--/
-theorem souzaPointwiseMultiplier_of_souzaPointwiseSelfsClass_one_one
-    (G : GoodGridSpace (α := α)) (s : ℝ)
-    (hs : 0 < s) {m : α → ℂ}
-    (hm : SouzaPointwiseSelfsClass G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
-      hs le_rfl ENNReal.one_ne_top m) :
-    SouzaPointwiseMultiplier G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
-      hs le_rfl ENNReal.one_ne_top m := by
-  classical
-  let A := souzaAtomFamily G s (1 : ℝ≥0∞) hs le_rfl ENNReal.one_ne_top
-  exact WeakGridSpace.isPointwiseMultiplier_of_pointwiseSelfsClass_one_one
-    (G := G.toWeakGridSpace) (s := s) (u := ∞) (A := A) (m := m)
-    hm
-    (souza_assumptionG2 G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
-      hs le_rfl ENNReal.one_ne_top)
-    (souza_assumptionA5 G s (1 : ℝ≥0∞) hs le_rfl ENNReal.one_ne_top)
-
-/--
-Endpoint Souza multiplier theorem: for `p = q = 1`, pointwise multipliers are
-exactly the functions satisfying the Souza atom `selfs` tests.
--/
-theorem souzaPointwiseMultiplier_iff_souzaPointwiseSelfsClass_one_one
-    (G : GoodGridSpace (α := α)) (s : ℝ)
-    (hs : 0 < s) {m : α → ℂ} :
-    SouzaPointwiseMultiplier G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
-      hs le_rfl ENNReal.one_ne_top m ↔
-    SouzaPointwiseSelfsClass G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
-      hs le_rfl ENNReal.one_ne_top m := by
-  exact WeakGridSpace.isPointwiseMultiplier_iff_pointwiseSelfsClass_one_one
-    (G := G.toWeakGridSpace) (s := s) (u := ∞)
-    (A := souzaAtomFamily G s (1 : ℝ≥0∞) hs le_rfl ENNReal.one_ne_top)
-    (m := m)
-    (souza_assumptionG2 G s (1 : ℝ≥0∞) (1 : ℝ≥0∞)
-      hs le_rfl ENNReal.one_ne_top)
-    (souza_assumptionA5 G s (1 : ℝ≥0∞) hs le_rfl ENNReal.one_ne_top)
 
 end
 

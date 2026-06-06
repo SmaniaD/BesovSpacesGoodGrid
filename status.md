@@ -27,14 +27,16 @@ examples.  Those are not proof holes in this project.
 Recently checked successfully:
 
 - `lake build BesovSpacesGoodGrid.GoodGrid.Multipliers`
-- `lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/Basic.lean`
+- `lake build BesovSpacesGoodGrid.GoodGrid.Multipliers.Definition`
+- `lake build BesovSpacesGoodGrid.GoodGrid.Multipliers.Besovspq`
+- `lake build BesovSpacesGoodGrid.GoodGrid.Multipliers.Besovs11`
 - `lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers.lean`
 - `lake env lean BesovSpacesGoodGrid/WeakGrid/BesovishSpaces.lean`
 - `lake build`
 - `lake build BesovSpacesGoodGrid.GoodGrid.BesovAtoms`
 - `lake env lean BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean`
-- `lake env lean BesovSpacesGoodGrid/GoodGrid/OscillationNormleqBesovNorm.lean`
-- `lake env lean BesovSpacesGoodGrid/GoodGrid/HaarNormleqOscillationNorm.lean`
+- `lake env lean BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/OscillationNormleqBesovNorm.lean`
+- `lake env lean BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/HaarNormleqOscillationNorm.lean`
 - `lake env lean BesovSpacesGoodGrid.lean`
 
 The last file currently reports only deprecation warnings for
@@ -56,7 +58,9 @@ Modified files in this pass:
 
 - `BesovSpacesGoodGrid/WeakGrid/Transmutation.lean`
 - `BesovSpacesGoodGrid/WeakGrid/BesovishSpaces.lean`
-- `BesovSpacesGoodGrid/GoodGrid/Multipliers/Basic.lean`
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/Definition.lean`
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/Besovspq.lean`
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/Besovs11.lean`
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers.lean`
 
 ### What Was Done
@@ -83,7 +87,12 @@ In `WeakGrid/BesovishSpaces.lean`:
 - Added the public zero representation:
   `LpGridRepresentation.zero`, with zero level coefficient power.
 
-In `GoodGrid/Multipliers/Basic.lean`:
+In `GoodGrid/Multipliers/Definition.lean`:
+
+- Added the Souza pointwise multiplier bound, pointwise multiplier class,
+  multiplier set, `selfs` class, and `selfs` seminorm definitions.
+
+In `GoodGrid/Multipliers/Besovspq.lean`:
 
 - Added the induced restriction level map
   `GoodGridCell.restrictionLevel W i = i - W.level`.
@@ -112,8 +121,22 @@ In `GoodGrid/Multipliers/Basic.lean`:
 - Proved the public all-`q` cell-indicator multiplier theorem
   `souzaIndicatorPointwiseMultiplier_of_restrictionTransmutation`, with private
   finite-`q` and `q = ∞` branches.
-- Moved the multiplier implementation into the new `GoodGrid/Multipliers`
-  subfolder; `GoodGrid/Multipliers.lean` is now a compatibility aggregator.
+- Proved the general implication from pointwise multiplier to Souza `selfs`
+  class and the induced-cell restriction criteria.
+
+In `GoodGrid/Multipliers/Besovs11.lean`:
+
+- Proved the special endpoint `p = q = 1` equivalence between Souza pointwise
+  multipliers and the Souza atom `selfs` tests.
+
+`GoodGrid/Multipliers.lean` is now the compatibility aggregator for the split
+multiplier modules.
+
+The alternative representation and comparison-norm files now live under
+`GoodGrid/AlternativeRepresentationsAndNorms/`, grouping the Haar, standard,
+and mean-oscillation representation/norm theory away from the core good-grid
+files.  The module `GoodGrid/AlternativeRepresentationsAndNorms.lean` is the
+public aggregator for this group.
 
 ### Mathematical Status
 
@@ -170,23 +193,23 @@ corresponding Lean statements.
 
 ## Recently Added Or Renamed Files
 
-- `BesovSpacesGoodGrid/GoodGrid/FiniteStandardNormimpliesBesov.lean`
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/FiniteStandardNormimpliesBesov.lean`
 
   Replaces the old `FiniteStandardNormimpliesLp.lean` name.  Finite standard
   norm now gives not only `L^p` membership, but also a canonical Souza-Besov
   representation with finite `(p,q)` cost.
 
-- `BesovSpacesGoodGrid/GoodGrid/FiniteHaarNormimpliesLp.lean`
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/FiniteHaarNormimpliesLp.lean`
 
   Uses the standard-norm comparison to prove the finite Haar norm endpoint.
 
-- `BesovSpacesGoodGrid/GoodGrid/OscillationNormleqBesovNorm.lean`
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/OscillationNormleqBesovNorm.lean`
 
   Proves the direction
   `meanOscillationNorm ≤ C * standardRepresentationNorm`, including the
   oscillation-seminorm tail estimate.
 
-- `BesovSpacesGoodGrid/GoodGrid/HaarNormleqOscillationNorm.lean`
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/HaarNormleqOscillationNorm.lean`
 
   Proves the reverse analytic direction
   `haarL2RepresentationNorm ≤ C * meanOscillationNorm`, using the zero-mean
@@ -275,36 +298,36 @@ C2 / (1 - G.grid.lambda2 ^ (β - s)).
   atom comparison, standard/Haar comparisons, finite-norm endpoint files, and
   oscillation/Haar comparison files.  Its current Lean check succeeds.
 
-- `BesovSpacesGoodGrid/GoodGrid/standardRepresentation.lean`
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/standardRepresentation.lean`
 
   Standard atomic representation bookkeeping, standard coefficients, and
   `standardRepresentationNorm`.
 
-- `BesovSpacesGoodGrid/GoodGrid/standardNormleqHaarRepresenstionNorm.lean`
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/standardNormleqHaarRepresenstionNorm.lean`
 
   Main comparison showing Haar representation norm controls the standard
   representation norm.
 
-- `BesovSpacesGoodGrid/GoodGrid/FiniteStandardNormimpliesBesov.lean`
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/FiniteStandardNormimpliesBesov.lean`
 
   Finite standard norm implies `L^p`, canonical standard
   `LpGridRepresentation`, finite cost, and Souza-Besov membership.
 
-- `BesovSpacesGoodGrid/GoodGrid/FiniteHaarNormimpliesLp.lean`
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/FiniteHaarNormimpliesLp.lean`
 
   Finite Haar representation norm implies `L^p` membership and Haar expansion
   convergence to `f`.
 
-- `BesovSpacesGoodGrid/GoodGrid/MeanOscillationNorm.lean`
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/MeanOscillationNorm.lean`
 
   Definitions of `osc`, `levelOscillationBlock`, `oscillationSeminorm`, and
   `meanOscillationNorm`.
 
-- `BesovSpacesGoodGrid/GoodGrid/OscillationNormleqBesovNorm.lean`
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/OscillationNormleqBesovNorm.lean`
 
   Proves control of mean oscillation by the standard representation norm.
 
-- `BesovSpacesGoodGrid/GoodGrid/HaarNormleqOscillationNorm.lean`
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/HaarNormleqOscillationNorm.lean`
 
   Proves control of the Haar representation norm by mean oscillation.
 

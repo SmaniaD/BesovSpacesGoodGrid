@@ -1,4 +1,4 @@
-import BesovSpacesGoodGrid.GoodGrid.HaarRepresentationNorm
+import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.HaarRepresentationNorm
 
 /-!
 # Parametrized Haar representation on a good grid

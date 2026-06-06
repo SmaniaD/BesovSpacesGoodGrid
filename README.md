@@ -92,8 +92,8 @@ that full build is expected to pass.
 For focused checks of the most recent comparison modules:
 
 ```sh
-lake env lean BesovSpacesGoodGrid/GoodGrid/OscillationNormleqBesovNorm.lean
-lake env lean BesovSpacesGoodGrid/GoodGrid/HaarNormleqOscillationNorm.lean
+lake env lean BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/OscillationNormleqBesovNorm.lean
+lake env lean BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/HaarNormleqOscillationNorm.lean
 ```
 
 The aggregate root check is the intended final smoke test, but it currently
@@ -123,22 +123,25 @@ needs the import/name issue recorded in `status.md` to be resolved first.
   Besov-space consequences.
 - `BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean`: Besov atoms on good grids and
   the Souza/Besov atom comparison theorem.
-- `BesovSpacesGoodGrid/GoodGrid/HaarRepresentationNorm.lean`: normalized Haar
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms.lean`: public
+  aggregator for the Haar, standard, and mean-oscillation representation and
+  norm-comparison files.
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/HaarRepresentationNorm.lean`: normalized Haar
   coefficients and the Haar representation gauge.
-- `BesovSpacesGoodGrid/GoodGrid/standardRepresentation.lean`: standard atomic
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/standardRepresentation.lean`: standard atomic
   coefficients and the standard representation gauge.
-- `BesovSpacesGoodGrid/GoodGrid/standardNormleqHaarRepresenstionNorm.lean`:
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/standardNormleqHaarRepresenstionNorm.lean`:
   control of the standard representation norm by the Haar representation norm.
-- `BesovSpacesGoodGrid/GoodGrid/FiniteStandardNormimpliesBesov.lean`: finite
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/FiniteStandardNormimpliesBesov.lean`: finite
   standard norm implies `L^p`, a canonical representation, finite cost, and
   Souza-Besov membership.
-- `BesovSpacesGoodGrid/GoodGrid/FiniteHaarNormimpliesLp.lean`: finite Haar norm
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/FiniteHaarNormimpliesLp.lean`: finite Haar norm
   implies `L^p` membership and Haar expansion convergence.
-- `BesovSpacesGoodGrid/GoodGrid/MeanOscillationNorm.lean`: mean-oscillation
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/MeanOscillationNorm.lean`: mean-oscillation
   definitions and reusable oscillation lemmas.
-- `BesovSpacesGoodGrid/GoodGrid/OscillationNormleqBesovNorm.lean`: control of
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/OscillationNormleqBesovNorm.lean`: control of
   mean oscillation by the standard representation norm.
-- `BesovSpacesGoodGrid/GoodGrid/HaarNormleqOscillationNorm.lean`: control of
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/HaarNormleqOscillationNorm.lean`: control of
   the Haar representation norm by mean oscillation.
 - `BesovSpacesGoodGrid/GoodGrid/Distribution.lean`: test functions
   and distributions associated with a good grid.

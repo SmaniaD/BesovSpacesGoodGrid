@@ -1,5 +1,5 @@
-import BesovSpacesGoodGrid.GoodGrid.HaarParametrizedRepresentation
-import BesovSpacesGoodGrid.GoodGrid.standardRepresentation
+import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.HaarParametrizedRepresentation
+import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.standardRepresentation
 
 /-!
 # Comparing the two Haar coefficient gauges

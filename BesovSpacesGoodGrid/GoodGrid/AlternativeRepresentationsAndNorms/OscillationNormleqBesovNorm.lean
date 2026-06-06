@@ -1,5 +1,5 @@
-import BesovSpacesGoodGrid.GoodGrid.FiniteStandardNormimpliesBesov
-import BesovSpacesGoodGrid.GoodGrid.MeanOscillationNorm
+import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.FiniteStandardNormimpliesBesov
+import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.MeanOscillationNorm
 
 /-!
 # Oscillation norm controlled by the standard representation norm

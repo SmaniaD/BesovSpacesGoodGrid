@@ -1,4 +1,4 @@
-import BesovSpacesGoodGrid.GoodGrid.HaarRepresentationNorm
+import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.HaarRepresentationNorm
 import Mathlib.Topology.Algebra.InfiniteSum.Constructions
 import UnbalancedHaarWavelet.HaarWaveletsLinearCombinations
 
