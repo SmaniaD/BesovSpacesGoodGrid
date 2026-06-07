@@ -719,7 +719,14 @@ private theorem levelCoeffPower_le_pqCost_rpow
   rw [hleft] at hpow
   exact hpow
 
-private noncomputable def souzaBetaBlockToSouzaS
+/--
+Convert one level block built from Souza atoms of smoothness `β` into an
+equivalent block built from Souza atoms of smoothness `s`.
+
+The coefficients absorb the factor `μ(P)^(β-s)`, while each local atom is
+renormalized by `μ(P)^(s-β)`.  The represented level function is unchanged.
+-/
+noncomputable def souzaBetaBlockToSouzaS
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
     {n : ℕ}
@@ -760,7 +767,11 @@ private noncomputable def souzaBetaBlockToSouzaS
               rw [← Real.rpow_add hP_toReal_pos]
               ring_nf
 
-private theorem souzaBetaBlockToSouzaS_toFunLt
+/--
+The blockwise conversion from Souza smoothness `β` to smoothness `s` leaves the
+pointwise finite-level function unchanged.
+-/
+theorem souzaBetaBlockToSouzaS_toFunLt
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
     {n : ℕ}
@@ -817,7 +828,11 @@ private theorem souzaBetaBlockToSouzaS_toFunLt
       souzaLocalVectorSpace, WeakGridSpace.levelCellToWeakGridCell]
     simp [hx]
 
-private theorem souzaBetaBlockToSouzaS_toLp
+/--
+The blockwise conversion from Souza smoothness `β` to smoothness `s` leaves the
+associated `Lp` level term unchanged.
+-/
+theorem souzaBetaBlockToSouzaS_toLp
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
     {n : ℕ}
@@ -851,7 +866,14 @@ private theorem souzaBetaBlockToSouzaS_toLp
       (souzaAtomFamily G β p hβ hp.out hp_top) B
   exact hleft.trans (hmid.trans hright.symm)
 
-private noncomputable def souzaBetaRepresentationToSouzaS
+/--
+Convert an ambient Souza representation of smoothness `β` into an equivalent
+ambient Souza representation of smoothness `s`.
+
+This keeps the represented `Lp` class fixed and only renormalizes coefficients
+and local atoms level by level.
+-/
+noncomputable def souzaBetaRepresentationToSouzaS
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
     {g : Lp ℂ p G.toWeakGridSpace.measure}
@@ -880,7 +902,14 @@ abbrev inducedSouzaAtomFamily
   WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
     (souzaAtomFamily G β p hβ hp.out hp_top)
 
-private noncomputable def besovToSouzaScaledCoeffPower
+/--
+The level coefficient power after converting an induced Souza `β`
+representation to Souza smoothness `s`.
+
+It is written separately because the coefficient weights are the geometric
+quantities used in the Besov-to-Souza decay estimates.
+-/
+noncomputable def besovToSouzaScaledCoeffPower
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
     (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
     (Q : GoodGridCell G)
@@ -894,7 +923,11 @@ private noncomputable def besovToSouzaScaledCoeffPower
     ‖(R.block k).coeff P *
       (((G.grid.μ P.1).toReal ^ (β - s) : ℝ) : ℂ)‖ ^ p.toReal
 
-private noncomputable def inducedSouzaBetaBlockToSouzaS
+/--
+Convert one induced-grid level block from Souza smoothness `β` to Souza
+smoothness `s`, preserving the represented induced-grid level function.
+-/
+noncomputable def inducedSouzaBetaBlockToSouzaS
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
     (Q : GoodGridCell G) {n : ℕ}
@@ -942,7 +975,11 @@ private noncomputable def inducedSouzaBetaBlockToSouzaS
               rw [← Real.rpow_add hP_toReal_pos]
               ring_nf
 
-private theorem inducedSouzaBetaBlockToSouzaS_toFunLt
+/--
+The induced-grid block conversion from Souza smoothness `β` to `s` preserves
+the pointwise finite-level function.
+-/
+theorem inducedSouzaBetaBlockToSouzaS_toFunLt
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
     (Q : GoodGridCell G) {n : ℕ}
@@ -1005,7 +1042,11 @@ private theorem inducedSouzaBetaBlockToSouzaS_toFunLt
       souzaAtomFamily, souzaLocalVectorSpace, WeakGridSpace.levelCellToWeakGridCell]
     simp [hx]
 
-private theorem inducedSouzaBetaBlockToSouzaS_toLp
+/--
+The induced-grid block conversion from Souza smoothness `β` to `s` preserves
+the associated `Lp` level term.
+-/
+theorem inducedSouzaBetaBlockToSouzaS_toLp
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
     (Q : GoodGridCell G) {n : ℕ}
@@ -1041,7 +1082,11 @@ private theorem inducedSouzaBetaBlockToSouzaS_toLp
       (inducedSouzaAtomFamily G β p hβ hp hp_top Q) B
   exact hleft.trans (hmid.trans hright.symm)
 
-private noncomputable def inducedSouzaBetaRepresentationToSouzaS
+/--
+Convert an induced-grid Souza representation of smoothness `β` into an
+equivalent induced-grid Souza representation of smoothness `s`.
+-/
+noncomputable def inducedSouzaBetaRepresentationToSouzaS
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
     (Q : GoodGridCell G)
@@ -1057,7 +1102,11 @@ private noncomputable def inducedSouzaBetaRepresentationToSouzaS
     intro n
     exact inducedSouzaBetaBlockToSouzaS_toLp G s β p hs hβ hp hp_top Q (R.block n)
 
-private theorem inducedSouzaBetaRepresentationToSouzaS_levelCoeffPower
+/--
+The coefficient power of the induced-grid β-to-s conversion is exactly the
+weighted coefficient power `besovToSouzaScaledCoeffPower`.
+-/
+theorem inducedSouzaBetaRepresentationToSouzaS_levelCoeffPower
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
     (Q : GoodGridCell G)
@@ -1092,7 +1141,14 @@ def IsBesovAtom
         ≤ (besovAtomConstant G β p qtilde)⁻¹ *
             (G.grid.μ Q.cell).toReal ^ (s - β)
 
-private theorem besovToSouzaScaledCoeffPower_root_le
+/--
+Levelwise root estimate for the coefficients obtained by converting an induced
+Souza `β` representation to Souza smoothness `s`.
+
+The converted level is controlled by the induced-grid level measure weight
+times the original `(p,qtilde)` coefficient cost.
+-/
+theorem besovToSouzaScaledCoeffPower_root_le
     (G : GoodGridSpace (α := α)) (s β : ℝ) (p qtilde : ℝ≥0∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ qtilde)]
     (hβ : 0 < β) (hβs : s < β) (hp_top : p ≠ ∞)
@@ -2125,7 +2181,14 @@ private theorem lpGridRepresentation_smul_levelCoeffPower
           ∑ Q : WeakGridSpace.LevelCell G k, ‖(R.block k).coeff Q‖ ^ p.toReal := by
           rw [Finset.mul_sum]
 
-private theorem finitePQCost_of_levelCoeffPower_geometric_decay
+/--
+A representation has finite `(p,q)` coefficient cost if its level coefficient
+powers are bounded by a geometric sequence.
+
+This is a reusable summability criterion for transmutation outputs whose
+coefficient mass decays like `C * lam^k` with `0 < lam < 1`.
+-/
+theorem finitePQCost_of_levelCoeffPower_geometric_decay
     {G : WeakGridSpace.WeakGridSpace (α := α)} {s : ℝ} {p u q : ℝ≥0∞}
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
     {A : WeakGridSpace.AtomFamily G s p u}

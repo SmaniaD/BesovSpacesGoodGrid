@@ -462,7 +462,7 @@ Transform one block from the scaled family into a block for the original family.
 The coefficients absorb the scale factor, while the atoms are replaced by the
 chosen preimages.
 -/
-private noncomputable def smoothnessScaleToBaseBlock
+noncomputable def smoothnessScaleToBaseBlock
     (A : AtomFamily G s p u) (sTilde : ℝ) (hsTilde_pos : 0 < sTilde)
     {k : ℕ}
     (B : LevelBlock (A.smoothnessScaleAtomFamily sTilde hsTilde_pos) k) : LevelBlock A k where
@@ -475,7 +475,7 @@ private noncomputable def smoothnessScaleToBaseBlock
 /--
 The transformed block represents the same term as the original scaled block.
 -/
-private theorem smoothnessScaleToBaseBlock_term
+theorem smoothnessScaleToBaseBlock_term
   [Fact (1 ≤ p)]
     (A : AtomFamily G s p u) (sTilde : ℝ) (hsTilde_pos : 0 < sTilde)
     {k : ℕ}
@@ -536,7 +536,7 @@ private theorem smoothnessScaleToBaseBlock_term
           simpa [LevelBlock.term] using congrArg (fun z => B.coeff Q • z) htoLp_eq
 
 /-- Summing the terms of the transformed block gives the same `Lp` element. -/
-private theorem smoothnessScaleToBaseBlock_toLp
+theorem smoothnessScaleToBaseBlock_toLp
   [Fact (1 ≤ p)]
     (A : AtomFamily G s p u) (sTilde : ℝ) (hsTilde_pos : 0 < sTilde)
     {k : ℕ}
@@ -552,7 +552,7 @@ private theorem smoothnessScaleToBaseBlock_toLp
 Turn a representation in the scaled family into a representation in the
 original family without changing the represented function.
 -/
-private noncomputable def smoothnessScaleToBaseRepresentation
+noncomputable def smoothnessScaleToBaseRepresentation
   [Fact (1 ≤ p)]
     (A : AtomFamily G s p u) (sTilde : ℝ) (hsTilde_pos : 0 < sTilde)
     {g : Lp ℂ p G.measure}
@@ -565,7 +565,7 @@ private noncomputable def smoothnessScaleToBaseRepresentation
     exact smoothnessScaleToBaseBlock_toLp A sTilde hsTilde_pos (R.block n)
 
 /-- The level weights are nonnegative. -/
-private theorem smoothnessScaleLevelWeight_nonneg
+theorem smoothnessScaleLevelWeight_nonneg
     (G : WeakGridSpace (α := α)) (s sTilde : ℝ) (p : ℝ≥0∞) (k : ℕ) :
     0 ≤ smoothnessScaleLevelWeight G s sTilde p k := by
   exact LpGridRepresentation.levelMeasureWeight_nonneg G (sTilde - s) p p k
@@ -573,7 +573,7 @@ private theorem smoothnessScaleLevelWeight_nonneg
 /--
 Every level of a finite-cost representation is bounded by its total `pqCost`.
 -/
-private theorem levelCoeffRoot_le_pqCost
+theorem levelCoeffRoot_le_pqCost
   [Fact (1 ≤ p)]
   [Fact (1 ≤ qTilde)]
     (A : AtomFamily G s p u)
@@ -614,7 +614,7 @@ Levelwise coefficient control after unscaling the representation.
 The new level size is bounded by the old level size times the deterministic
 weight attached to the change of smoothness.
 -/
-private theorem smoothnessScaleToBase_levelCoeffRoot_le
+theorem smoothnessScaleToBase_levelCoeffRoot_le
   [Fact (1 ≤ p)]
     (A : AtomFamily G s p u) (sTilde : ℝ) (hsTilde_pos : 0 < sTilde)
     (hs_le : s ≤ sTilde)
@@ -702,7 +702,7 @@ private theorem smoothnessScaleToBase_levelCoeffRoot_le
 /--
 Finiteness of the `pqCost` is preserved under the unscaling transformation.
 -/
-private theorem smoothnessScaleToBase_finitePQCost
+theorem smoothnessScaleToBase_finitePQCost
   [Fact (1 ≤ p)]
   [Fact (1 ≤ q)] [Fact (1 ≤ qTilde)]
     (A : AtomFamily G s p u) (sTilde : ℝ) (hsTilde_pos : 0 < sTilde)
@@ -784,7 +784,7 @@ Quantitative `pqCost` estimate for the unscaled representation.
 
 This is the main coefficient estimate behind the continuity of the inclusion.
 -/
-private theorem smoothnessScaleToBase_pqCost_le
+theorem smoothnessScaleToBase_pqCost_le
   [Fact (1 ≤ p)]
   [Fact (1 ≤ q)] [Fact (1 ≤ qTilde)]
     (A : AtomFamily G s p u) (sTilde : ℝ) (hsTilde_pos : 0 < sTilde)

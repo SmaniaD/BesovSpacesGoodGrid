@@ -2580,7 +2580,8 @@ noncomputable def souzaAmbientRestrictionMultiplierConstant
       (WeakGridSpace.transmutationKernelZ
         (souzaAmbientRestrictionLambda G s p) 0 1)
 
-private theorem souzaAmbientRestrictionMultiplierConstant_nonneg
+/-- The ambient restriction transmutation constant is nonnegative. -/
+theorem souzaAmbientRestrictionMultiplierConstant_nonneg
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hp : 1 ≤ p) (hp_top : p ≠ ∞) :
     0 ≤ souzaAmbientRestrictionMultiplierConstant G s p := by
