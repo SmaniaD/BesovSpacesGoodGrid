@@ -504,7 +504,7 @@ private noncomputable def souzaPositiveZeroLevelBlock
       Real.rpow_nonneg ENNReal.toReal_nonneg _
     change ‖(((G.grid.μ Q.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ)‖ ≤
       (G.grid.μ Q.1).toReal ^ (s - (p.toReal)⁻¹)
-    simpa [Complex.norm_real, Real.norm_of_nonneg hnonneg]
+    simp [Complex.norm_real, Real.norm_of_nonneg hnonneg]
 
 private theorem souzaPositiveZeroLevelBlock_positive
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
@@ -542,8 +542,7 @@ private noncomputable def souzaPositiveZeroRepresentation
       (0 : Lp ℂ p G.toWeakGridSpace.measure) where
   block := fun k => souzaPositiveZeroLevelBlock G s p hs hp hp_top (k := k)
   hasSum := by
-    simpa [souzaPositiveZeroLevelBlock_toLp G s p hs hp hp_top] using
-      (hasSum_zero : HasSum (fun _ : ℕ => (0 : Lp ℂ p G.toWeakGridSpace.measure)) 0)
+    simp [souzaPositiveZeroLevelBlock_toLp G s p hs hp hp_top]
 
 private theorem souzaPositiveZeroRepresentation_positive
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
@@ -583,8 +582,8 @@ private theorem souzaPositiveZeroRepresentation_finitePQCost
     have hq_pos : 0 < q.toReal :=
       ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : 1 ≤ q)).ne' hq
     have hpow_pos : 0 < q.toReal / p.toReal := div_pos hq_pos hp_pos
-    simpa [souzaPositiveZeroRepresentation_levelCoeffPower G s p hs hp hp_top,
-      Real.zero_rpow hpow_pos.ne'] using (summable_zero : Summable fun _ : ℕ => (0 : ℝ))
+    simp [souzaPositiveZeroRepresentation_levelCoeffPower G s p hs hp hp_top,
+      Real.zero_rpow hpow_pos.ne']
 
 private theorem souzaPositiveZeroRepresentation_pqCostENNReal_zero
     (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
@@ -629,7 +628,19 @@ private theorem zero_mem_souzaPositiveCostUpperSet
     souzaPositiveZeroRepresentation_finitePQCost G s p q hs hp hp_top, ?_⟩
   simp [souzaPositiveZeroRepresentation_pqCostENNReal_zero G s p q hs hp hp_top]
 
-private theorem souzaPositiveNorm_zero
+/-- The zero Souza-Besov element belongs to the positive cone. -/
+theorem souzaPositiveElement_zero
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
+    SouzaPositiveElement G s p q hs hp hp_top
+      (0 : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q) := by
+  exact ⟨souzaPositiveZeroRepresentation G s p hs hp hp_top,
+    souzaPositiveZeroRepresentation_positive G s p hs hp hp_top⟩
+
+/-- The positive gauge of the zero Souza-Besov element is zero. -/
+theorem souzaPositiveNorm_zero
     (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
@@ -669,7 +680,7 @@ private theorem souzaPositiveCostUpperSet_smul_mem
       rw [WeakGridSpace.LpGridRepresentation.pqCost_smul
         (A := souzaAtomFamily G s p hs hp hp_top) (q := q)
         (0 : ℂ) R hp_top (Fact.out : 1 ≤ q) hRfin]
-      simp [WeakGridSpace.LpGridRepresentation.pqCost_nonneg]
+      simp
     have hTcost :
         WeakGridSpace.LpGridRepresentation.pqCostENNReal (q := q) T ≤
           ENNReal.ofReal (0 : ℝ) :=
@@ -761,6 +772,229 @@ private theorem souzaCanonicalLocalAtom_toFunction
       canonicalSouzaAtom G s p ⟨Q.level, Q.cell, Q.mem⟩ x
     simp [canonicalSouzaAtom, souzaCanonicalLocalAtom, hx]
 
+private noncomputable def souzaLocalScalar
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    (Q : WeakGridSpace.WeakGridCell G.toWeakGridSpace)
+    (a : ((souzaAtomFamily G s p hs hp hp_top).localSpace Q).carrier) : ℂ := by
+  change ℂ at a
+  exact a
+
+private theorem souzaAtomFamily_toFunction_eq_indicator
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    (Q : WeakGridSpace.WeakGridCell G.toWeakGridSpace)
+    (a : ((souzaAtomFamily G s p hs hp hp_top).localSpace Q).carrier) :
+    (souzaAtomFamily G s p hs hp hp_top).toFunction Q a =
+      Q.cell.indicator fun _ : α =>
+        souzaLocalScalar G s p hs hp hp_top Q a := by
+  funext x
+  dsimp [WeakGridSpace.AtomFamily.toFunction, souzaAtomFamily,
+    souzaLocalVectorSpace, souzaLocalScalar]
+
+private noncomputable def souzaCanonicalizedLevelBlock
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞) {k : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (souzaAtomFamily G s p hs hp hp_top) k) :
+    WeakGridSpace.LevelBlock (souzaAtomFamily G s p hs hp hp_top) k where
+  coeff := fun Q =>
+    B.coeff Q *
+      souzaLocalScalar G s p hs hp hp_top
+        (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q) (B.atom Q) /
+      souzaCanonicalLocalAtom G s p (goodGridCellOfLevelCell G Q)
+  atom := fun Q =>
+    souzaCanonicalLocalAtom G s p (goodGridCellOfLevelCell G Q)
+  atom_mem := fun Q =>
+    souzaCanonicalLocalAtom_mem G s p hs hp hp_top
+      (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+
+private theorem souzaCanonicalizedLevelBlock_toLp
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] {k : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (souzaAtomFamily G s p hs hp hp_top) k) :
+    (souzaCanonicalizedLevelBlock G s p hs hp hp_top B).toLp
+        (souzaAtomFamily G s p hs hp hp_top) =
+      B.toLp (souzaAtomFamily G s p hs hp hp_top) := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  unfold WeakGridSpace.LevelBlock.toLp
+  refine Finset.sum_congr rfl ?_
+  intro Q _
+  let Qg := goodGridCellOfLevelCell G Q
+  let aQ := souzaCanonicalLocalAtom G s p Qg
+  have haQ_ne : aQ ≠ 0 := by
+    have hpos := souzaCanonicalLocalAtom_pos G s p Qg
+    simp [aQ, souzaCanonicalLocalAtom, hpos.ne']
+  let bQ : ℂ :=
+    souzaLocalScalar G s p hs hp hp_top
+      (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q) (B.atom Q)
+  have hfun :
+      A.toFunction
+          (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+          (B.atom Q)
+        = (bQ / aQ) •
+          A.toFunction
+            (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+            (souzaCanonicalLocalAtom G s p Qg) := by
+    rw [souzaAtomFamily_toFunction_eq_indicator G s p hs hp hp_top
+      (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q) (B.atom Q)]
+    rw [souzaAtomFamily_toFunction_eq_indicator G s p hs hp hp_top
+      (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+      (souzaCanonicalLocalAtom G s p Qg)]
+    funext x
+    by_cases hx : x ∈ Q.1
+    · simpa [WeakGridSpace.levelCellToWeakGridCell, Set.indicator_of_mem hx,
+        Qg, aQ, bQ, souzaLocalScalar]
+        using (div_mul_cancel₀ bQ haQ_ne).symm
+    · simpa [WeakGridSpace.levelCellToWeakGridCell, Set.indicator_of_notMem hx,
+        Qg, aQ, bQ, souzaLocalScalar]
+  have htoLp :
+      MemLp.toLp
+          (A.toFunction
+            (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+            (B.atom Q))
+          (A.local_memLp_p
+            (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+            (B.atom Q)) =
+        (bQ / aQ) •
+          MemLp.toLp
+            (A.toFunction
+              (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+              (souzaCanonicalLocalAtom G s p Qg))
+            (A.local_memLp_p
+              (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+              (souzaCanonicalLocalAtom G s p Qg)) := by
+    rw [← MemLp.toLp_const_smul]
+    apply MemLp.toLp_congr
+    exact Filter.Eventually.of_forall fun x => by
+      rw [hfun]
+  unfold WeakGridSpace.LevelBlock.term
+  rw [htoLp]
+  simp [souzaCanonicalizedLevelBlock, A, Qg, aQ, bQ, smul_smul,
+    div_eq_mul_inv, mul_assoc, mul_left_comm, mul_comm]
+
+private theorem souzaCanonicalizedLevelBlock_positive_atom
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞) {k : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (souzaAtomFamily G s p hs hp hp_top) k)
+    (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) :
+    (souzaAtomFamily G s p hs hp hp_top).toFunction
+        (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+        ((souzaCanonicalizedLevelBlock G s p hs hp hp_top B).atom Q) =
+      canonicalSouzaAtom G s p (goodGridCellOfLevelCell G Q) := by
+  simpa [souzaCanonicalizedLevelBlock, goodGridCellOfLevelCell] using
+    souzaCanonicalLocalAtom_toFunction G s p hs hp hp_top
+      (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+
+private theorem souzaCanonicalizedLevelBlock_coeff_norm_le
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞) {k : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (souzaAtomFamily G s p hs hp hp_top) k)
+    (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) :
+    ‖(souzaCanonicalizedLevelBlock G s p hs hp hp_top B).coeff Q‖ ≤
+      ‖B.coeff Q‖ := by
+  let Qg := goodGridCellOfLevelCell G Q
+  let aQ := souzaCanonicalLocalAtom G s p Qg
+  let bQ : ℂ :=
+    souzaLocalScalar G s p hs hp hp_top
+      (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q) (B.atom Q)
+  have haQ_pos : 0 < ‖aQ‖ := by
+    have hpos := souzaCanonicalLocalAtom_pos G s p Qg
+    simpa [aQ, souzaCanonicalLocalAtom, Complex.norm_real,
+      Real.norm_of_nonneg hpos.le] using hpos
+  have hBatom_le : ‖bQ‖ ≤ ‖aQ‖ := by
+    have hmem := B.atom_mem Q
+    have hmem' :
+        ‖bQ‖ ≤ (G.grid.μ Q.1).toReal ^ (s - (p.toReal)⁻¹) := by
+      simpa [bQ, souzaLocalScalar, souzaAtomFamily, souzaAtomsSet,
+        WeakGridSpace.levelCellToWeakGridCell] using hmem
+    simpa [Qg, aQ, souzaCanonicalLocalAtom_norm] using hmem'
+  calc
+    ‖(souzaCanonicalizedLevelBlock G s p hs hp hp_top B).coeff Q‖
+        = ‖B.coeff Q‖ * (‖bQ‖ / ‖aQ‖) := by
+          simp [souzaCanonicalizedLevelBlock, Qg, aQ, bQ, norm_mul, norm_div,
+            div_eq_mul_inv, mul_assoc]
+    _ ≤ ‖B.coeff Q‖ * 1 := by
+          refine mul_le_mul_of_nonneg_left ?_ (norm_nonneg _)
+          exact div_le_one_of_le₀ hBatom_le (norm_nonneg _)
+    _ = ‖B.coeff Q‖ := by rw [mul_one]
+
+private theorem souzaCanonicalizedLevelBlock_levelCoeffPower_le
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞) {k : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (souzaAtomFamily G s p hs hp hp_top) k) :
+    (∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        ‖(souzaCanonicalizedLevelBlock G s p hs hp hp_top B).coeff Q‖ ^ p.toReal) ≤
+      ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        ‖B.coeff Q‖ ^ p.toReal := by
+  refine Finset.sum_le_sum ?_
+  intro Q _
+  exact Real.rpow_le_rpow (norm_nonneg _)
+    (souzaCanonicalizedLevelBlock_coeff_norm_le G s p hs hp hp_top B Q)
+    (ENNReal.toReal_nonneg)
+
+private noncomputable def realPositivePart (a : ℝ) : ℝ :=
+  max a 0
+
+private theorem realPositivePart_nonneg (a : ℝ) :
+    0 ≤ realPositivePart a := by
+  exact le_max_right a 0
+
+private theorem realPositivePart_sub_neg (a : ℝ) :
+    realPositivePart a - realPositivePart (-a) = a := by
+  unfold realPositivePart
+  by_cases ha : 0 ≤ a
+  · have hnega : -a ≤ 0 := by linarith
+    simp [max_eq_left ha, max_eq_right hnega]
+  · have ha' : a ≤ 0 := le_of_not_ge ha
+    have hnega : 0 ≤ -a := by linarith
+    simp [max_eq_right ha', max_eq_left hnega]
+
+private noncomputable def complexRealPositiveCoeff (z : ℂ) : ℝ :=
+  realPositivePart z.re
+
+private noncomputable def complexRealNegativeCoeff (z : ℂ) : ℝ :=
+  realPositivePart (-z.re)
+
+private noncomputable def complexImagPositiveCoeff (z : ℂ) : ℝ :=
+  realPositivePart z.im
+
+private noncomputable def complexImagNegativeCoeff (z : ℂ) : ℝ :=
+  realPositivePart (-z.im)
+
+private theorem complexRealPositiveCoeff_nonneg (z : ℂ) :
+    0 ≤ complexRealPositiveCoeff z :=
+  realPositivePart_nonneg z.re
+
+private theorem complexRealNegativeCoeff_nonneg (z : ℂ) :
+    0 ≤ complexRealNegativeCoeff z :=
+  realPositivePart_nonneg (-z.re)
+
+private theorem complexImagPositiveCoeff_nonneg (z : ℂ) :
+    0 ≤ complexImagPositiveCoeff z :=
+  realPositivePart_nonneg z.im
+
+private theorem complexImagNegativeCoeff_nonneg (z : ℂ) :
+    0 ≤ complexImagNegativeCoeff z :=
+  realPositivePart_nonneg (-z.im)
+
+private theorem complex_coeff_decomposition (z : ℂ) :
+    z =
+      ((complexRealPositiveCoeff z - complexRealNegativeCoeff z : ℝ) : ℂ) +
+        Complex.I *
+          ((complexImagPositiveCoeff z - complexImagNegativeCoeff z : ℝ) : ℂ) := by
+  apply Complex.ext
+  · simp [complexRealPositiveCoeff, complexRealNegativeCoeff,
+      realPositivePart_sub_neg]
+  · simp [complexImagPositiveCoeff, complexImagNegativeCoeff,
+      realPositivePart_sub_neg]
+
 /-- The positive elements form a cone under multiplication by nonnegative scalars. -/
 theorem souzaPositiveElement_smul_nonneg
     (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
@@ -823,7 +1057,7 @@ theorem souzaPositiveNorm_smul_nonneg
       exact le_iInf fun C =>
         sInf_le (by
           exact souzaPositiveCostUpperSet_smul_mem G s p q hs hp hp_top ha
-            (by simpa [Ux] using C.2))
+            C.2)
     · have hUx_top : sInf Ux = ∞ := by
         apply top_unique
         refine le_sInf ?_
@@ -857,10 +1091,10 @@ theorem souzaPositiveNorm_smul_nonneg
     have hnorm_le : sInf Ux ≤ ENNReal.ofReal a⁻¹ * D := sInf_le hbackx
     have hAinv : A * ENNReal.ofReal a⁻¹ = 1 := by
       rw [← ENNReal.ofReal_mul ha]
-      simp [A, mul_inv_cancel₀ ha_pos.ne']
+      simp [mul_inv_cancel₀ ha_pos.ne']
     calc
       A * sInf Ux ≤ A * (ENNReal.ofReal a⁻¹ * D) :=
-        mul_le_mul_left' hnorm_le A
+        by gcongr
       _ = D := by
         rw [← mul_assoc, hAinv, one_mul]
 
@@ -871,8 +1105,8 @@ theorem souzaPositiveNorm_add_le
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
     {x y : WeakGridSpace.BesovishSpace
       (souzaAtomFamily G s p hs hp hp_top) q}
-    (hx : SouzaPositiveElement G s p q hs hp hp_top x)
-    (hy : SouzaPositiveElement G s p q hs hp hp_top y) :
+    (_hx : SouzaPositiveElement G s p q hs hp hp_top x)
+    (_hy : SouzaPositiveElement G s p q hs hp hp_top y) :
     souzaPositiveNorm G s p q hs hp hp_top (x + y) ≤
       souzaPositiveNorm G s p q hs hp hp_top x +
         souzaPositiveNorm G s p q hs hp hp_top y := by
@@ -889,7 +1123,7 @@ theorem souzaPositiveNorm_add_le
         (fun C D =>
           sInf_le (by
             exact souzaPositiveCostUpperSet_add_mem G s p q hs hp hp_top
-              (by simpa [Ux] using C.2) (by simpa [Uy] using D.2)))
+              C.2 D.2))
     · have hUy_top : sInf Uy = ∞ := by
         apply top_unique
         refine le_sInf ?_
@@ -952,66 +1186,83 @@ def SouzaBesovAEEqRealValued
     ∃ r : ℝ, ((f : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) x = (r : ℂ)
 
 /--
-Real-valued Souza-Besov elements decompose as a difference of positive-cone
-elements with no loss in the positive gauge.
+Real-valued Souza-Besov elements decompose uniformly as a difference of
+positive-cone elements.
 
-If `f` is real-valued almost everywhere, then `f = u - v` in the Souza-Besov
-space, where both `u` and `v` belong to the positive cone and each positive
-gauge is bounded by the usual Besov gauge of `f`.
+The intended proof uses the standard Souza representation of a real-valued
+element: the coefficients are real, so we split them into positive and negative
+parts.  The constant `C` absorbs the comparison between the standard
+representation cost and the intrinsic Besov gauge.  The quantitative chain is:
+standard representation cost is controlled by the Haar representation norm, the
+Haar norm is controlled by a constant times the mean-oscillation norm, and the
+mean-oscillation norm is controlled by the Besov gauge of `f`.
 -/
 theorem exists_souzaPositive_decomposition_of_aeRealValued
     (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
-    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
-    (f : WeakGridSpace.BesovishSpace
-      (souzaAtomFamily G s p hs hp hp_top) q)
-    (hf_real : SouzaBesovAEEqRealValued G s p q hs hp hp_top f) :
-    ∃ u v : WeakGridSpace.BesovishSpace
-        (souzaAtomFamily G s p hs hp hp_top) q,
-      SouzaPositiveElement G s p q hs hp hp_top u ∧
-        SouzaPositiveElement G s p q hs hp hp_top v ∧
-        f = u - v ∧
-        souzaPositiveNorm G s p q hs hp hp_top u ≤
-          ENNReal.ofReal (WeakGridSpace.BesovishSpace.Norm_Costpq
-            (souzaAtomFamily G s p hs hp hp_top) q f) ∧
-        souzaPositiveNorm G s p q hs hp hp_top v ≤
-          ENNReal.ofReal (WeakGridSpace.BesovishSpace.Norm_Costpq
-            (souzaAtomFamily G s p hs hp hp_top) q f) := by
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
+    ∃ C : ℝ,
+      0 ≤ C ∧
+        ∀ f : WeakGridSpace.BesovishSpace
+            (souzaAtomFamily G s p hs hp hp_top) q,
+          SouzaBesovAEEqRealValued G s p q hs hp hp_top f →
+            ∃ u v : WeakGridSpace.BesovishSpace
+                (souzaAtomFamily G s p hs hp hp_top) q,
+              SouzaPositiveElement G s p q hs hp hp_top u ∧
+                SouzaPositiveElement G s p q hs hp hp_top v ∧
+                f = u - v ∧
+                souzaPositiveNorm G s p q hs hp hp_top u ≤
+                  ENNReal.ofReal C *
+                    ENNReal.ofReal (WeakGridSpace.BesovishSpace.Norm_Costpq
+                      (souzaAtomFamily G s p hs hp hp_top) q f) ∧
+                souzaPositiveNorm G s p q hs hp hp_top v ≤
+                  ENNReal.ofReal C *
+                    ENNReal.ofReal (WeakGridSpace.BesovishSpace.Norm_Costpq
+                      (souzaAtomFamily G s p hs hp hp_top) q f) := by
   sorry
 
 /--
 Complex-valued Souza-Besov elements decompose into real and imaginary
-positive-cone differences with no loss in the positive gauge.
+positive-cone differences with a uniform quantitative loss.
 
 Every element of the complex Souza-Besov space can be written as
 `(u - v) + i • (w - r)`, where all four pieces belong to the positive cone and
-each positive gauge is bounded by the usual Besov gauge of `f`.
+each positive gauge is bounded by a fixed constant times the usual Besov gauge
+of `f`.  The intended proof applies the real-valued decomposition to the real
+and imaginary parts, together with the boundedness of those coordinate
+projections in the Souza-Besov gauge.
 -/
 theorem exists_souzaPositive_decomposition_of_aeComplexValued
     (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
-    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
-    (f : WeakGridSpace.BesovishSpace
-      (souzaAtomFamily G s p hs hp hp_top) q) :
-    ∃ u v w r : WeakGridSpace.BesovishSpace
-        (souzaAtomFamily G s p hs hp hp_top) q,
-      SouzaPositiveElement G s p q hs hp hp_top u ∧
-        SouzaPositiveElement G s p q hs hp hp_top v ∧
-        SouzaPositiveElement G s p q hs hp hp_top w ∧
-        SouzaPositiveElement G s p q hs hp hp_top r ∧
-        f = (u - v) + Complex.I • (w - r) ∧
-        souzaPositiveNorm G s p q hs hp hp_top u ≤
-          ENNReal.ofReal (WeakGridSpace.BesovishSpace.Norm_Costpq
-            (souzaAtomFamily G s p hs hp hp_top) q f) ∧
-        souzaPositiveNorm G s p q hs hp hp_top v ≤
-          ENNReal.ofReal (WeakGridSpace.BesovishSpace.Norm_Costpq
-            (souzaAtomFamily G s p hs hp hp_top) q f) ∧
-        souzaPositiveNorm G s p q hs hp hp_top w ≤
-          ENNReal.ofReal (WeakGridSpace.BesovishSpace.Norm_Costpq
-            (souzaAtomFamily G s p hs hp hp_top) q f) ∧
-        souzaPositiveNorm G s p q hs hp hp_top r ≤
-          ENNReal.ofReal (WeakGridSpace.BesovishSpace.Norm_Costpq
-            (souzaAtomFamily G s p hs hp hp_top) q f) := by
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
+    ∃ C : ℝ,
+      0 ≤ C ∧
+        ∀ f : WeakGridSpace.BesovishSpace
+            (souzaAtomFamily G s p hs hp hp_top) q,
+          ∃ u v w r : WeakGridSpace.BesovishSpace
+              (souzaAtomFamily G s p hs hp hp_top) q,
+            SouzaPositiveElement G s p q hs hp hp_top u ∧
+              SouzaPositiveElement G s p q hs hp hp_top v ∧
+              SouzaPositiveElement G s p q hs hp hp_top w ∧
+              SouzaPositiveElement G s p q hs hp hp_top r ∧
+              f = (u - v) + Complex.I • (w - r) ∧
+              souzaPositiveNorm G s p q hs hp hp_top u ≤
+                ENNReal.ofReal C *
+                  ENNReal.ofReal (WeakGridSpace.BesovishSpace.Norm_Costpq
+                    (souzaAtomFamily G s p hs hp hp_top) q f) ∧
+              souzaPositiveNorm G s p q hs hp hp_top v ≤
+                ENNReal.ofReal C *
+                  ENNReal.ofReal (WeakGridSpace.BesovishSpace.Norm_Costpq
+                    (souzaAtomFamily G s p hs hp hp_top) q f) ∧
+              souzaPositiveNorm G s p q hs hp hp_top w ≤
+                ENNReal.ofReal C *
+                  ENNReal.ofReal (WeakGridSpace.BesovishSpace.Norm_Costpq
+                    (souzaAtomFamily G s p hs hp hp_top) q f) ∧
+              souzaPositiveNorm G s p q hs hp hp_top r ≤
+                ENNReal.ofReal C *
+                  ENNReal.ofReal (WeakGridSpace.BesovishSpace.Norm_Costpq
+                    (souzaAtomFamily G s p hs hp hp_top) q f) := by
   sorry
 
 /--
@@ -1024,18 +1275,34 @@ def LpNonnegativeCone
   { f | ∀ᵐ x ∂G.toWeakGridSpace.measure,
       ∃ c : ℝ, 0 ≤ c ∧ (f : α → ℂ) x = (c : ℂ) }
 
+/-- The zero `L^β` class lies in the nonnegative cone. -/
+theorem zero_mem_LpNonnegativeCone
+    (G : GoodGridSpace (α := α)) (β : ℝ≥0∞) :
+    (0 : Lp ℂ β G.toWeakGridSpace.measure) ∈ LpNonnegativeCone G β := by
+  filter_upwards [MeasureTheory.Lp.coeFn_zero ℂ β G.toWeakGridSpace.measure] with x hx
+  exact ⟨0, le_rfl, by simpa using hx⟩
+
 /--
 The Souza-Besov positive cone, viewed as a subset of the ambient `L^β` space.
 -/
 def SouzaPositiveConeInLbeta
-    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
-    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
-    [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
-    Set (Lp ℂ p G.toWeakGridSpace.measure) :=
+    (G : GoodGridSpace (α := α)) (s : ℝ) (β q : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 1 ≤ β) (hβ_top : β ≠ ∞)
+    [Fact (1 ≤ β)] [Fact (1 ≤ q)] :
+    Set (Lp ℂ β G.toWeakGridSpace.measure) :=
   { fp | ∃ f : WeakGridSpace.BesovishSpace
-        (souzaAtomFamily G s p hs hp hp_top) q,
-      SouzaPositiveElement G s p q hs hp hp_top f ∧
-        (f : Lp ℂ p G.toWeakGridSpace.measure) = fp }
+        (souzaAtomFamily G s β hs hβ hβ_top) q,
+      SouzaPositiveElement G s β q hs hβ hβ_top f ∧
+        (f : Lp ℂ β G.toWeakGridSpace.measure) = fp }
+
+/-- The zero `L^β` class lies in the ambient Souza-Besov positive cone. -/
+theorem zero_mem_SouzaPositiveConeInLbeta
+    (G : GoodGridSpace (α := α)) (s : ℝ) (β q : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 1 ≤ β) (hβ_top : β ≠ ∞)
+    [Fact (1 ≤ β)] [Fact (1 ≤ q)] :
+    (0 : Lp ℂ β G.toWeakGridSpace.measure) ∈
+      SouzaPositiveConeInLbeta G s β q hs hβ hβ_top := by
+  exact ⟨0, souzaPositiveElement_zero G s β q hs hβ hβ_top, rfl⟩
 
 /--
 The positive cone of the Souza-Besov space is strongly dense in the
@@ -1045,11 +1312,11 @@ For `1 ≤ β < ∞`, every nonnegative `L^β` function lies in the strong `L^β
 closure of the Souza-Besov positive cone.
 -/
 theorem souzaPositiveCone_dense_in_LpNonnegativeCone
-    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
-    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
-    [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
-    LpNonnegativeCone G p ⊆
-      closure (SouzaPositiveConeInLbeta G s p q hs hp hp_top) := by
+    (G : GoodGridSpace (α := α)) (s : ℝ) (β q : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 1 ≤ β) (hβ_top : β ≠ ∞)
+    [Fact (1 ≤ β)] [Fact (1 ≤ q)] :
+    LpNonnegativeCone G β ⊆
+      closure (SouzaPositiveConeInLbeta G s β q hs hβ hβ_top) := by
   sorry
 
 /-- Two sets agree up to a null set when their symmetric difference is null. -/
