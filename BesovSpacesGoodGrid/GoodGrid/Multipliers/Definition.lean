@@ -107,6 +107,17 @@ def SouzaPointwiseSelfsTailBound
             (souzaAtomFamily G s p hs hp hp_top) q y ≤ C
 
 /--
+The level-tail Souza `selfs` class.  A function belongs to this class when the
+tail atom tests from level `t` onward admit some finite real bound.
+-/
+def SouzaPointwiseSelfsTailClass
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (t : ℕ) (m : α → ℂ) : Prop :=
+  ∃ C : ℝ, SouzaPointwiseSelfsTailBound G s p q hs hp hp_top t m C
+
+/--
 The set of all bounds for the level-tail Souza `selfs` tests over all Souza
 atoms in the allowed tail levels.
 -/

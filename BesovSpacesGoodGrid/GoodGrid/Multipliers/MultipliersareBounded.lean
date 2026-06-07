@@ -486,6 +486,40 @@ theorem ae_le_of_goodGridLevelAverage_le
     G hf havg_le fun n => goodGridLevelAverage_ae_eq_condExp G n hf
 
 /--
+Martingale convergence only needs the finite-level average bounds eventually.
+
+This tail form is useful when estimates start at a fixed level `t`: the first
+finitely many grid levels do not affect the almost-everywhere martingale limit.
+-/
+theorem ae_le_of_eventually_goodGridLevelAverage_le
+    (G : GoodGridSpace (α := α)) {f : α → ℝ} {M : ℝ}
+    (hf : Integrable f G.grid.μ)
+    (havg_le : ∀ᶠ n in Filter.atTop, ∀ x, goodGridLevelAverage G f n x ≤ M) :
+    ∀ᵐ x ∂G.grid.μ, f x ≤ M := by
+  rcases Filter.eventually_atTop.1 havg_le with ⟨N, hN⟩
+  have htend :=
+    Integrable.tendsto_ae_condExp_goodGridFiltration'
+      (G := G) hf
+  have hcondExp_le :
+      ∀ n, N ≤ n →
+        ∀ᵐ x ∂G.grid.μ, G.grid.μ[f | goodGridFiltration G n] x ≤ M := by
+    intro n hn
+    filter_upwards [goodGridLevelAverage_ae_eq_condExp G n hf] with x hx
+    rw [← hx]
+    exact hN n hn x
+  have hcondExp_le_tail :
+      ∀ᵐ x ∂G.grid.μ,
+        ∀ n, N ≤ n → G.grid.μ[f | goodGridFiltration G n] x ≤ M := by
+    refine ae_all_iff.2 ?_
+    intro n
+    by_cases hn : N ≤ n
+    · filter_upwards [hcondExp_le n hn] with x hx _hn'
+      exact hx
+    · exact Filter.Eventually.of_forall fun _ hn' => (hn hn').elim
+  filter_upwards [htend, hcondExp_le_tail] with x hx_tend hx_le
+  exact le_of_tendsto hx_tend (Filter.eventually_atTop.2 ⟨N, fun n hn => hx_le n hn⟩)
+
+/--
 Hölder on one good-grid cell, expressed as a comparison between the local
 `L¹` and `L^p` seminorms of a cell indicator.
 -/
@@ -555,6 +589,17 @@ noncomputable def souzaBesovLpLocalEmbeddingConstant
     (s : ℝ) (p q : ℝ≥0∞) : ℝ :=
   WeakGridSpace.LpGridRepresentation.cCoefficient p q
     (besovAtomGeometricWeight G s p)
+
+/-- The uniform local Souza embedding constant is nonnegative. -/
+theorem souzaBesovLpLocalEmbeddingConstant_nonneg
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞) :
+    0 ≤ souzaBesovLpLocalEmbeddingConstant G s p q := by
+  dsimp [souzaBesovLpLocalEmbeddingConstant]
+  exact WeakGridSpace.LpGridRepresentation.cCoefficient_nonneg p q
+    (besovAtomGeometricWeight G s p)
+    (fun k => Real.rpow_nonneg
+      (Real.rpow_nonneg
+        (pow_nonneg (le_trans G.grid.hlambda1_pos.le G.grid.hlambda1_le_lambda2) k) _) _)
 
 /--
 The induced Souza embedding constant has the expected cell scale.
@@ -1252,6 +1297,650 @@ theorem souzaPointwiseSelfsBound_cellIntegral_norm_le
             rw [hsetIntegral, heLpNorm_integral]
     _ ≤ (G.grid.μ Q.cell).toReal *
         souzaBesovLpLocalEmbeddingConstant G s p q * D * C := hL1
+
+/--
+Tail version of the local canonical-atom estimate.
+
+Only cells with level at least the cutoff `t` are tested, but on those cells the
+same localization argument and constants as in the global `selfs` estimate
+apply.
+-/
+theorem souzaPointwiseSelfsTailBound_cellCanonicalAtom_eLpNorm_le
+    (G : GoodGridSpace (α := α)) (Q : GoodGridCell G)
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {t : ℕ} (hQt : t ≤ Q.level)
+    {m : α → ℂ} {C : ℝ}
+    (hC : SouzaPointwiseSelfsTailBound G s p q hs hp hp_top t m C) :
+    ∃ y : WeakGridSpace.BesovishSpace
+        (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell
+          (souzaAtomFamily G s p hs hp hp_top)) q,
+      WeakGridSpace.RepresentsFunction
+        (G := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell)
+        (p := p)
+        (fun z => Q.cell.indicator (fun _ => (1 : ℂ)) z *
+          (m z * canonicalSouzaAtom G s p Q z))
+        (y : Lp ℂ p
+          (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).measure) ∧
+      (eLpNorm
+          ((y : Lp ℂ p
+            (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).measure) :
+            α → ℂ)
+          p
+          (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).measure).toReal ≤
+        (G.grid.μ Q.cell).toReal ^ s *
+          souzaBesovLpLocalEmbeddingConstant G s p q *
+            (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let Wi := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell
+  let Ai := WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Q.toLevelCell A
+  let D : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G s p + 1
+  let c : ℂ := (((G.grid.μ Q.cell).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ)
+  have hD : 0 ≤ D := by
+    have hBound :=
+      souzaCellIndicatorPointwiseMultiplierBound_uniform
+        G s p q hs hp hp_top hs_lt_inv Q
+    simpa [D] using hBound.1
+  have hc_atom : c ∈ A.atoms Q.toWeakGridCell := by
+    have hc_nonneg :
+        0 ≤ (G.grid.μ Q.cell).toReal ^ (s - (p.toReal)⁻¹) :=
+      Real.rpow_nonneg ENNReal.toReal_nonneg _
+    change ‖c‖ ≤ (G.grid.μ Q.cell).toReal ^ (s - (p.toReal)⁻¹)
+    simp [c, Complex.norm_real, Real.norm_of_nonneg hc_nonneg]
+  rcases hC.2 Q hQt c hc_atom with ⟨z, hz_rep, hz_norm⟩
+  have hcellProduct :
+      ∃ y : WeakGridSpace.BesovishSpace Ai q,
+        WeakGridSpace.RepresentsPointwiseProduct
+          (G := Wi) (p := p) (Q.cell.indicator fun _ => (1 : ℂ))
+          (z : Lp ℂ p G.toWeakGridSpace.measure)
+          (y : Lp ℂ p Wi.measure) ∧
+        WeakGridSpace.BesovishSpace.Norm_Costpq Ai q y ≤
+          D * WeakGridSpace.BesovishSpace.Norm_Costpq A q z := by
+    simpa [A, Ai, Wi, D] using
+      souzaCellIndicatorRestrictsToInduced
+        G s p q hs hp hp_top hs_lt_inv Q z
+  rcases hcellProduct with ⟨y, hy_prod, hy_norm⟩
+  refine ⟨y, ?_, ?_⟩
+  · have hz_rep_i :
+        ((z : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ)
+          =ᵐ[Wi.measure] fun t => m t * canonicalSouzaAtom G s p Q t := by
+      have hz_rep_raw :
+          ((z : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ)
+            =ᵐ[Wi.measure] fun t => m t * Q.cell.indicator (fun _ => c) t := by
+        simpa [WeakGridSpace.RepresentsFunction, A, Wi,
+          WeakGridSpace.inducedWeakGridSpace, WeakGridSpace.inducedWeakGrid,
+          GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid,
+          WeakGridSpace.WeakGridSpace.measure, WeakGridSpace.AtomFamily.toFunction,
+          souzaAtomFamily, souzaLocalVectorSpace, GoodGridCell.toWeakGridCell] using hz_rep
+      refine hz_rep_raw.trans (Filter.Eventually.of_forall ?_)
+      intro x
+      by_cases hx : x ∈ Q.cell
+      · simp [canonicalSouzaAtom, c, hx]
+      · simp [canonicalSouzaAtom, c, hx]
+    filter_upwards [hy_prod, hz_rep_i] with x hy_x hz_x
+    calc
+      ((y : Lp ℂ p Wi.measure) : α → ℂ) x
+          = Q.cell.indicator (fun _ => (1 : ℂ)) x *
+              ((z : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) x := hy_x
+      _ = Q.cell.indicator (fun _ => (1 : ℂ)) x *
+            (m x * canonicalSouzaAtom G s p Q x) := by rw [hz_x]
+  · have hind_nonneg : 0 ≤ inducedSouzaBesovLpEmbeddingConstant G Q s p q := by
+      dsimp [inducedSouzaBesovLpEmbeddingConstant]
+      exact mul_nonneg
+        (by positivity)
+        (WeakGridSpace.LpGridRepresentation.cCoefficient_nonneg p q
+          (fun k =>
+            (WeakGridSpace.LpGridRepresentation.levelMeasureWeight
+              Wi s p p k) ^ p.toReal)
+          (fun k => Real.rpow_nonneg
+            (WeakGridSpace.LpGridRepresentation.levelMeasureWeight_nonneg
+              Wi s p p k) _))
+    have hy_norm_le : WeakGridSpace.BesovishSpace.Norm_Costpq Ai q y ≤ D * C := by
+      calc
+        WeakGridSpace.BesovishSpace.Norm_Costpq Ai q y
+            ≤ D * WeakGridSpace.BesovishSpace.Norm_Costpq A q z := by
+              simpa [A, Ai] using hy_norm
+        _ ≤ D * C := mul_le_mul_of_nonneg_left hz_norm hD
+    have hDC_nonneg : 0 ≤ D * C := mul_nonneg hD hC.1
+    have hscale :
+        inducedSouzaBesovLpEmbeddingConstant G Q s p q ≤
+          (G.grid.μ Q.cell).toReal ^ s *
+            souzaBesovLpLocalEmbeddingConstant G s p q :=
+      inducedSouzaBesovLpEmbeddingConstant_le_cellScale G Q s p q hs hp_top
+    calc
+      (eLpNorm
+          ((y : Lp ℂ p Wi.measure) : α → ℂ)
+          p Wi.measure).toReal
+          ≤ inducedSouzaBesovLpEmbeddingConstant G Q s p q *
+              WeakGridSpace.BesovishSpace.Norm_Costpq Ai q y := by
+            simpa [Wi, Ai, A] using
+              inducedSouzaBesov_eLpNorm_le G Q s p q hs hp hp_top y
+      _ ≤ inducedSouzaBesovLpEmbeddingConstant G Q s p q * (D * C) :=
+            mul_le_mul_of_nonneg_left hy_norm_le hind_nonneg
+      _ ≤ ((G.grid.μ Q.cell).toReal ^ s *
+            souzaBesovLpLocalEmbeddingConstant G s p q) * (D * C) :=
+            mul_le_mul_of_nonneg_right hscale hDC_nonneg
+      _ = (G.grid.μ Q.cell).toReal ^ s *
+          souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+            ring
+
+/-- Tail version of local `L^p` membership of the multiplier on one cell. -/
+theorem souzaPointwiseSelfsTailBound_cellIndicator_memLp
+    (G : GoodGridSpace (α := α)) (Q : GoodGridCell G)
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {t : ℕ} (hQt : t ≤ Q.level)
+    {m : α → ℂ} {C : ℝ}
+    (hC : SouzaPointwiseSelfsTailBound G s p q hs hp hp_top t m C) :
+    MemLp (Q.cell.indicator m) p G.grid.μ := by
+  classical
+  let Wi := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell
+  let μQ : ℝ := (G.grid.μ Q.cell).toReal
+  let a : ℝ := μQ ^ (s - (p.toReal)⁻¹)
+  let prod : α → ℂ := fun z =>
+    Q.cell.indicator (fun _ => (1 : ℂ)) z *
+      (m z * canonicalSouzaAtom G s p Q z)
+  have hμQ_pos : 0 < μQ := by
+    exact ENNReal.toReal_pos (GoodGridCell.measure_pos Q).ne' (GoodGridCell.measure_ne_top Q)
+  have ha_pos : 0 < a := by
+    exact Real.rpow_pos_of_pos hμQ_pos _
+  rcases
+    souzaPointwiseSelfsTailBound_cellCanonicalAtom_eLpNorm_le
+      G Q s p q hs hp hp_top hs_lt_inv hQt hC with
+    ⟨y, hy_rep, _hy_bound⟩
+  have hprod_mem : MemLp prod p G.grid.μ := by
+    have hy_mem :
+        MemLp
+          ((y : Lp ℂ p Wi.measure) : α → ℂ)
+          p Wi.measure :=
+      Lp.memLp (y : Lp ℂ p Wi.measure)
+    have hy_mem_ambient :
+        MemLp
+          ((y : Lp ℂ p Wi.measure) : α → ℂ)
+          p G.grid.μ := by
+      simpa [Wi, WeakGridSpace.inducedWeakGridSpace, WeakGridSpace.inducedWeakGrid,
+        GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid,
+        WeakGridSpace.WeakGridSpace.measure] using hy_mem
+    exact hy_mem_ambient.ae_eq (by
+      simpa [prod, Wi, WeakGridSpace.inducedWeakGridSpace, WeakGridSpace.inducedWeakGrid,
+        GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid,
+        WeakGridSpace.WeakGridSpace.measure] using hy_rep)
+  have hindicator_eq : Q.cell.indicator m = (a : ℂ)⁻¹ • prod := by
+    have haC_ne : (a : ℂ) ≠ 0 := by
+      exact_mod_cast ha_pos.ne'
+    funext z
+    by_cases hz : z ∈ Q.cell
+    · simp [prod, canonicalSouzaAtom, hz]
+      change m z = (a : ℂ)⁻¹ * (m z * (a : ℂ))
+      calc
+        m z = (1 : ℂ) * m z := by rw [one_mul]
+        _ = ((a : ℂ)⁻¹ * (a : ℂ)) * m z := by rw [inv_mul_cancel₀ haC_ne]
+        _ = (a : ℂ)⁻¹ * (m z * (a : ℂ)) := by ring
+    · simp [prod, canonicalSouzaAtom, hz]
+  simpa [hindicator_eq] using hprod_mem.const_smul ((a : ℂ)⁻¹)
+
+/-- Tail version of the local `L^p` estimate for the multiplier on one cell. -/
+theorem souzaPointwiseSelfsTailBound_cellIndicator_eLpNorm_le
+    (G : GoodGridSpace (α := α)) (Q : GoodGridCell G)
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {t : ℕ} (hQt : t ≤ Q.level)
+    {m : α → ℂ} {C : ℝ}
+    (hC : SouzaPointwiseSelfsTailBound G s p q hs hp hp_top t m C) :
+    (eLpNorm (Q.cell.indicator m) p G.grid.μ).toReal ≤
+      (G.grid.μ Q.cell).toReal ^ (p.toReal)⁻¹ *
+        souzaBesovLpLocalEmbeddingConstant G s p q *
+          (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C := by
+  classical
+  let Wi := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell
+  let μQ : ℝ := (G.grid.μ Q.cell).toReal
+  let a : ℝ := μQ ^ (s - (p.toReal)⁻¹)
+  let prod : α → ℂ := fun z =>
+    Q.cell.indicator (fun _ => (1 : ℂ)) z *
+      (m z * canonicalSouzaAtom G s p Q z)
+  let D : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G s p + 1
+  have hμQ_pos : 0 < μQ := by
+    exact ENNReal.toReal_pos (GoodGridCell.measure_pos Q).ne' (GoodGridCell.measure_ne_top Q)
+  have ha_pos : 0 < a := by
+    exact Real.rpow_pos_of_pos hμQ_pos _
+  rcases
+    souzaPointwiseSelfsTailBound_cellCanonicalAtom_eLpNorm_le
+      G Q s p q hs hp hp_top hs_lt_inv hQt hC with
+    ⟨y, hy_rep, hy_bound⟩
+  have hprod_bound :
+      (eLpNorm prod p G.grid.μ).toReal ≤
+        μQ ^ s * souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+    have hnorm_eq :
+        eLpNorm prod p G.grid.μ =
+          eLpNorm
+            ((y : Lp ℂ p Wi.measure) : α → ℂ)
+            p Wi.measure := by
+      simpa [prod, Wi, WeakGridSpace.inducedWeakGridSpace, WeakGridSpace.inducedWeakGrid,
+        GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid,
+        WeakGridSpace.WeakGridSpace.measure] using
+        (MeasureTheory.eLpNorm_congr_ae hy_rep.symm)
+    rw [hnorm_eq]
+    simpa [μQ, Wi, D] using hy_bound
+  have hindicator_eq : Q.cell.indicator m = (a : ℂ)⁻¹ • prod := by
+    have haC_ne : (a : ℂ) ≠ 0 := by
+      exact_mod_cast ha_pos.ne'
+    funext z
+    by_cases hz : z ∈ Q.cell
+    · simp [prod, canonicalSouzaAtom, hz]
+      change m z = (a : ℂ)⁻¹ * (m z * (a : ℂ))
+      calc
+        m z = (1 : ℂ) * m z := by rw [one_mul]
+        _ = ((a : ℂ)⁻¹ * (a : ℂ)) * m z := by rw [inv_mul_cancel₀ haC_ne]
+        _ = (a : ℂ)⁻¹ * (m z * (a : ℂ)) := by ring
+    · simp [prod, canonicalSouzaAtom, hz]
+  have hinv_norm :
+      ‖((a : ℂ)⁻¹)‖ = a⁻¹ := by
+    rw [norm_inv, Complex.norm_real, Real.norm_of_nonneg ha_pos.le]
+  have hscale :
+      a⁻¹ * (μQ ^ s * souzaBesovLpLocalEmbeddingConstant G s p q * D * C) =
+        μQ ^ (p.toReal)⁻¹ *
+          souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+    have hpow :
+        a⁻¹ * μQ ^ s = μQ ^ (p.toReal)⁻¹ := by
+      calc
+        a⁻¹ * μQ ^ s
+            = μQ ^ (-(s - (p.toReal)⁻¹)) * μQ ^ s := by
+                rw [show a⁻¹ = μQ ^ (-(s - (p.toReal)⁻¹)) by
+                  change (μQ ^ (s - (p.toReal)⁻¹))⁻¹ =
+                    μQ ^ (-(s - (p.toReal)⁻¹))
+                  rw [Real.rpow_neg hμQ_pos.le]]
+        _ = μQ ^ (-(s - (p.toReal)⁻¹) + s) := by
+                rw [← Real.rpow_add hμQ_pos]
+        _ = μQ ^ (p.toReal)⁻¹ := by ring_nf
+    calc
+      a⁻¹ * (μQ ^ s * souzaBesovLpLocalEmbeddingConstant G s p q * D * C)
+          = (a⁻¹ * μQ ^ s) *
+              souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by ring
+      _ = μQ ^ (p.toReal)⁻¹ *
+          souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by rw [hpow]
+  calc
+    (eLpNorm (Q.cell.indicator m) p G.grid.μ).toReal
+        = (eLpNorm ((a : ℂ)⁻¹ • prod) p G.grid.μ).toReal := by
+            rw [hindicator_eq]
+    _ = (‖((a : ℂ)⁻¹)‖ₑ * eLpNorm prod p G.grid.μ).toReal := by
+            rw [MeasureTheory.eLpNorm_const_smul]
+    _ = a⁻¹ * (eLpNorm prod p G.grid.μ).toReal := by
+            have hinv_enorm : ‖((a : ℂ)⁻¹)‖ₑ = ENNReal.ofReal a⁻¹ := by
+              rw [← ofReal_norm_eq_enorm, hinv_norm]
+            rw [ENNReal.toReal_mul]
+            rw [hinv_enorm, ENNReal.toReal_ofReal (inv_nonneg.mpr ha_pos.le)]
+    _ ≤ a⁻¹ *
+        (μQ ^ s * souzaBesovLpLocalEmbeddingConstant G s p q * D * C) := by
+            exact mul_le_mul_of_nonneg_left hprod_bound (inv_nonneg.mpr ha_pos.le)
+    _ = μQ ^ (p.toReal)⁻¹ *
+        souzaBesovLpLocalEmbeddingConstant G s p q * D * C := hscale
+
+/-- Tail version of the local `L¹` estimate on one cell. -/
+theorem souzaPointwiseSelfsTailBound_cellIndicator_eLpNorm_one_le
+    (G : GoodGridSpace (α := α)) (Q : GoodGridCell G)
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {t : ℕ} (hQt : t ≤ Q.level)
+    {m : α → ℂ} {C : ℝ}
+    (hC : SouzaPointwiseSelfsTailBound G s p q hs hp hp_top t m C) :
+    (eLpNorm (Q.cell.indicator m) 1 G.grid.μ).toReal ≤
+      (G.grid.μ Q.cell).toReal *
+        souzaBesovLpLocalEmbeddingConstant G s p q *
+          (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C := by
+  classical
+  let μQ : ℝ := (G.grid.μ Q.cell).toReal
+  let D : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G s p + 1
+  have hμQ_pos : 0 < μQ := by
+    exact ENNReal.toReal_pos (GoodGridCell.measure_pos Q).ne' (GoodGridCell.measure_ne_top Q)
+  have hmem :
+      MemLp (Q.cell.indicator m) p G.grid.μ :=
+    souzaPointwiseSelfsTailBound_cellIndicator_memLp
+      G Q s p q hs hp hp_top hs_lt_inv hQt hC
+  have hholder :=
+    eLpNorm_one_cellIndicator_le_eLpNorm_mul_measure_rpow
+      G Q p hp hmem
+  have hholder_real :
+      (eLpNorm (Q.cell.indicator m) 1 G.grid.μ).toReal ≤
+        (eLpNorm (Q.cell.indicator m) p G.grid.μ).toReal *
+          μQ ^ (1 - 1 / p.toReal) := by
+    have hp_toReal_pos : 0 < p.toReal :=
+      ENNReal.toReal_pos (zero_lt_one.trans_le hp).ne' hp_top
+    have hp_toReal_ge_one : 1 ≤ p.toReal := by
+      simpa using ENNReal.toReal_mono hp_top hp
+    have hexp_nonneg : 0 ≤ 1 - 1 / p.toReal := by
+      have hinv_le_one : 1 / p.toReal ≤ 1 := by
+        rw [div_le_iff₀ hp_toReal_pos]
+        simpa using hp_toReal_ge_one
+      linarith
+    have hright_ne_top :
+        eLpNorm (Q.cell.indicator m) p G.grid.μ *
+            G.grid.μ Q.cell ^ (1 - 1 / p.toReal) ≠ ∞ := by
+      exact ENNReal.mul_ne_top hmem.eLpNorm_lt_top.ne
+        (ENNReal.rpow_lt_top_of_nonneg hexp_nonneg (GoodGridCell.measure_ne_top Q)).ne
+    have hreal := ENNReal.toReal_mono hright_ne_top hholder
+    rw [ENNReal.toReal_mul, ← ENNReal.toReal_rpow] at hreal
+    simpa [μQ] using hreal
+  have hLp :
+      (eLpNorm (Q.cell.indicator m) p G.grid.μ).toReal ≤
+        μQ ^ (p.toReal)⁻¹ *
+          souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+    simpa [μQ, D] using
+      souzaPointwiseSelfsTailBound_cellIndicator_eLpNorm_le
+        G Q s p q hs hp hp_top hs_lt_inv hQt hC
+  have hpow :
+      μQ ^ (p.toReal)⁻¹ * μQ ^ (1 - 1 / p.toReal) = μQ := by
+    calc
+      μQ ^ (p.toReal)⁻¹ * μQ ^ (1 - 1 / p.toReal)
+          = μQ ^ ((p.toReal)⁻¹ + (1 - 1 / p.toReal)) := by
+            rw [← Real.rpow_add hμQ_pos]
+      _ = μQ := by
+            ring_nf
+            rw [Real.rpow_one]
+  calc
+    (eLpNorm (Q.cell.indicator m) 1 G.grid.μ).toReal
+        ≤ (eLpNorm (Q.cell.indicator m) p G.grid.μ).toReal *
+            μQ ^ (1 - 1 / p.toReal) := hholder_real
+    _ ≤ (μQ ^ (p.toReal)⁻¹ *
+          souzaBesovLpLocalEmbeddingConstant G s p q * D * C) *
+            μQ ^ (1 - 1 / p.toReal) := by
+          exact mul_le_mul_of_nonneg_right hLp
+            (Real.rpow_nonneg hμQ_pos.le _)
+    _ = μQ * souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+          calc
+            (μQ ^ (p.toReal)⁻¹ *
+                souzaBesovLpLocalEmbeddingConstant G s p q * D * C) *
+                μQ ^ (1 - 1 / p.toReal)
+                = (μQ ^ (p.toReal)⁻¹ * μQ ^ (1 - 1 / p.toReal)) *
+                    souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+                  ring
+            _ = μQ * souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+                  rw [hpow]
+    _ = (G.grid.μ Q.cell).toReal *
+        souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+          rfl
+
+/-- Tail version of the cell-integral estimate for `‖m‖`. -/
+theorem souzaPointwiseSelfsTailBound_cellIntegral_norm_le
+    (G : GoodGridSpace (α := α)) (Q : GoodGridCell G)
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {t : ℕ} (hQt : t ≤ Q.level)
+    {m : α → ℂ} {C : ℝ}
+    (hC : SouzaPointwiseSelfsTailBound G s p q hs hp hp_top t m C) :
+    ∫ x in Q.cell, ‖m x‖ ∂G.grid.μ ≤
+      (G.grid.μ Q.cell).toReal *
+        souzaBesovLpLocalEmbeddingConstant G s p q *
+          (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C := by
+  classical
+  let D : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G s p + 1
+  have hQm : MeasurableSet Q.cell := G.grid.grid.measurable Q.level Q.cell Q.mem
+  have hmem :
+      MemLp (Q.cell.indicator m) p G.grid.μ :=
+    souzaPointwiseSelfsTailBound_cellIndicator_memLp
+      G Q s p q hs hp hp_top hs_lt_inv hQt hC
+  have hL1 :=
+    souzaPointwiseSelfsTailBound_cellIndicator_eLpNorm_one_le
+      G Q s p q hs hp hp_top hs_lt_inv hQt hC
+  have hnorm_indicator :
+      (fun x => ‖Q.cell.indicator m x‖) = Q.cell.indicator (fun x => ‖m x‖) := by
+    funext x
+    by_cases hx : x ∈ Q.cell
+    · simp [Set.indicator_of_mem hx]
+    · simp [Set.indicator_of_notMem hx]
+  have hsetIntegral :
+      ∫ x in Q.cell, ‖m x‖ ∂G.grid.μ =
+        ∫ x, ‖Q.cell.indicator m x‖ ∂G.grid.μ := by
+    rw [hnorm_indicator, integral_indicator hQm]
+  have heLpNorm_integral :
+      (eLpNorm (Q.cell.indicator m) 1 G.grid.μ).toReal =
+        ∫ x, ‖Q.cell.indicator m x‖ ∂G.grid.μ := by
+    rw [eLpNorm_one_eq_lintegral_enorm]
+    exact (integral_norm_eq_lintegral_enorm hmem.aestronglyMeasurable).symm
+  calc
+    ∫ x in Q.cell, ‖m x‖ ∂G.grid.μ
+        = (eLpNorm (Q.cell.indicator m) 1 G.grid.μ).toReal := by
+            rw [hsetIntegral, heLpNorm_integral]
+    _ ≤ (G.grid.μ Q.cell).toReal *
+        souzaBesovLpLocalEmbeddingConstant G s p q * D * C := hL1
+
+/--
+Tail Souza `selfs` bounds still imply integrability of `‖m‖`.
+
+The proof uses the finite partition at the cutoff level `t`: on each cell of
+that partition the tail hypothesis applies, and the finite sum of those local
+`L^p` pieces is `m`.
+-/
+theorem souzaPointwiseSelfsTailBound_norm_integrable
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {t : ℕ} {m : α → ℂ} {C : ℝ}
+    (hC : SouzaPointwiseSelfsTailBound G s p q hs hp hp_top t m C) :
+    Integrable (fun x => ‖m x‖) G.grid.μ := by
+  classical
+  haveI : IsFiniteMeasure G.grid.μ := G.grid.isFinite
+  let S := G.grid.grid.partitions t
+  have hsum_mem :
+      MemLp (fun x => ∑ cell ∈ S, cell.indicator m x) p G.grid.μ := by
+    refine MeasureTheory.memLp_finsetSum S ?_
+    intro cell hcell
+    let Q : GoodGridCell G := { level := t, cell := cell, mem := hcell }
+    simpa [Q] using
+      souzaPointwiseSelfsTailBound_cellIndicator_memLp
+        G Q s p q hs hp hp_top hs_lt_inv (Nat.le_refl t) hC
+  have hsum_eq_m :
+      (fun x => ∑ cell ∈ S, cell.indicator m x) =ᵐ[G.grid.μ] m := by
+    refine Filter.Eventually.of_forall ?_
+    intro x
+    have hxcover : x ∈ ⋃ Q ∈ S, Q := by
+      rw [show (⋃ Q ∈ S, Q) = (Set.univ : Set α) by
+        simpa [S] using G.grid.grid.covering t]
+      exact Set.mem_univ x
+    rcases Set.mem_iUnion.1 hxcover with ⟨Q, hQcover⟩
+    rcases Set.mem_iUnion.1 hQcover with ⟨hQ, hxQ⟩
+    change (∑ cell ∈ S, cell.indicator m x) = m x
+    rw [Finset.sum_eq_single Q]
+    · simp [Set.indicator_of_mem hxQ]
+    · intro R hR hRQ
+      have hxR_not : x ∉ R := by
+        intro hxR
+        have hdisj : Disjoint R Q :=
+          G.grid.grid.disjoint t R Q hR hQ hRQ
+        exact (Set.disjoint_left.mp hdisj hxR hxQ).elim
+      simp [Set.indicator_of_notMem hxR_not]
+    · intro hQ_not
+      exact (hQ_not hQ).elim
+  have hmem : MemLp m p G.grid.μ := hsum_mem.ae_eq hsum_eq_m
+  have hmem_one : MemLp m 1 G.grid.μ :=
+    hmem.mono_exponent hp
+  exact (memLp_one_iff_integrable.1 hmem_one).norm
+
+/--
+For every level at or above the cutoff, the level average of `‖m‖` is uniformly
+bounded by the same constant as in the global `selfs` theorem.
+-/
+theorem souzaPointwiseSelfsTailBound_goodGridLevelAverage_norm_le
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {t : ℕ} {m : α → ℂ} {C : ℝ}
+    (hC : SouzaPointwiseSelfsTailBound G s p q hs hp hp_top t m C)
+    (n : ℕ) (htn : t ≤ n) :
+    ∀ x,
+      goodGridLevelAverage G (fun z => ‖m z‖) n x ≤
+        souzaBesovLpLocalEmbeddingConstant G s p q *
+          (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C := by
+  classical
+  let D : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G s p + 1
+  refine goodGridLevelAverage_le_of_cellIntegral_le G (fun z => ‖m z‖) n ?_
+  intro cell hcell
+  let Q : GoodGridCell G := { level := n, cell := cell, mem := hcell }
+  calc
+    ∫ y in cell, ‖m y‖ ∂G.grid.μ
+        ≤ (G.grid.μ cell).toReal *
+            souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+          simpa [Q] using
+            souzaPointwiseSelfsTailBound_cellIntegral_norm_le
+              G Q s p q hs hp hp_top hs_lt_inv htn hC
+    _ = (G.grid.μ cell).toReal *
+        (souzaBesovLpLocalEmbeddingConstant G s p q * D * C) := by
+          ring
+
+/--
+Tail Souza `selfs` bounds give the same almost-everywhere `L∞` bound as the
+global `selfs` bounds, with no dependence on the cutoff level `t`.
+-/
+theorem souzaPointwiseSelfsTailBound_norm_ae_le
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {t : ℕ} {m : α → ℂ} {C : ℝ}
+    (hC : SouzaPointwiseSelfsTailBound G s p q hs hp hp_top t m C) :
+    ∀ᵐ x ∂G.grid.μ,
+      ‖m x‖ ≤
+        souzaBesovLpLocalEmbeddingConstant G s p q *
+          (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C := by
+  classical
+  let D : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G s p + 1
+  have hnorm_int :
+      Integrable (fun z => ‖m z‖) G.grid.μ :=
+    souzaPointwiseSelfsTailBound_norm_integrable
+      G s p q hs hp hp_top hs_lt_inv hC
+  have havg_le :
+      ∀ᶠ n in Filter.atTop,
+        ∀ x,
+          goodGridLevelAverage G (fun z => ‖m z‖) n x ≤
+            souzaBesovLpLocalEmbeddingConstant G s p q * D * C := by
+    exact Filter.eventually_atTop.2 ⟨t, fun n hn =>
+      souzaPointwiseSelfsTailBound_goodGridLevelAverage_norm_le
+        G s p q hs hp hp_top hs_lt_inv hC n hn⟩
+  exact ae_le_of_eventually_goodGridLevelAverage_le G hnorm_int havg_le
+
+/--
+Almost-everywhere tail `L∞` control by a near-optimal tail norm bound.
+
+This is the direct `sInf` approximation step: choose a concrete tail bound
+within `ε` of the tail norm, then apply the quantitative tail theorem.
+-/
+theorem souzaPointwiseSelfsTailNorm_norm_ae_le_add
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {t : ℕ} {m : α → ℂ}
+    (hm : SouzaPointwiseSelfsTailClass G s p q hs hp hp_top t m)
+    {ε : ℝ} (hε : 0 < ε) :
+    ∀ᵐ x ∂G.grid.μ,
+      ‖m x‖ ≤
+        souzaBesovLpLocalEmbeddingConstant G s p q *
+          (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) *
+            (souzaPointwiseSelfsTailNorm G s p q hs hp hp_top t m + ε) := by
+  classical
+  let D : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G s p + 1
+  let Ntail : ℝ := souzaPointwiseSelfsTailNorm G s p q hs hp hp_top t m
+  rcases exists_souzaPointwiseSelfsTailBound_lt_norm_add
+    G s p q hs hp hp_top (t := t) (m := m) hm hε with ⟨C, hC, hC_lt⟩
+  have hK_nonneg :
+      0 ≤ souzaBesovLpLocalEmbeddingConstant G s p q * D := by
+    refine mul_nonneg (souzaBesovLpLocalEmbeddingConstant_nonneg G s p q) ?_
+    dsimp [D]
+    nlinarith [souzaAmbientRestrictionMultiplierConstant_nonneg G s p hp hp_top]
+  have hC_le : C ≤ Ntail + ε := le_of_lt hC_lt
+  have hmul :
+      souzaBesovLpLocalEmbeddingConstant G s p q * D * C ≤
+        souzaBesovLpLocalEmbeddingConstant G s p q * D * (Ntail + ε) := by
+    exact mul_le_mul_of_nonneg_left hC_le hK_nonneg
+  filter_upwards [
+    souzaPointwiseSelfsTailBound_norm_ae_le
+      G s p q hs hp hp_top hs_lt_inv hC] with x hx
+  exact hx.trans (by simpa [D, Ntail, mul_assoc] using hmul)
+
+/--
+Almost-everywhere tail `L∞` control by the tail Souza `selfs` norm.
+
+The constant is the same as in the global boundedness theorem and does not
+depend on the cutoff level `t`.
+-/
+theorem souzaPointwiseSelfsTailNorm_norm_ae_le
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {t : ℕ} {m : α → ℂ}
+    (hm : SouzaPointwiseSelfsTailClass G s p q hs hp hp_top t m) :
+    ∀ᵐ x ∂G.grid.μ,
+      ‖m x‖ ≤
+        souzaBesovLpLocalEmbeddingConstant G s p q *
+          (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) *
+            souzaPointwiseSelfsTailNorm G s p q hs hp hp_top t m := by
+  classical
+  let K : ℝ :=
+    souzaBesovLpLocalEmbeddingConstant G s p q *
+      (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1)
+  let Ntail : ℝ := souzaPointwiseSelfsTailNorm G s p q hs hp hp_top t m
+  have hseq_bound :
+      ∀ᵐ x ∂G.grid.μ,
+        ∀ n : ℕ, ‖m x‖ ≤ K * (Ntail + (1 : ℝ) / (n + 1)) := by
+    refine ae_all_iff.2 ?_
+    intro n
+    have hε : 0 < (1 : ℝ) / (n + 1) := by positivity
+    simpa [K, Ntail] using
+      souzaPointwiseSelfsTailNorm_norm_ae_le_add
+        G s p q hs hp hp_top hs_lt_inv hm hε
+  filter_upwards [hseq_bound] with x hx
+  have htend :
+      Filter.Tendsto (fun n : ℕ => K * (Ntail + (1 : ℝ) / (n + 1)))
+        Filter.atTop (𝓝 (K * Ntail)) := by
+    have hzero :
+        Filter.Tendsto (fun n : ℕ => (1 : ℝ) / (n + 1)) Filter.atTop (𝓝 0) :=
+      tendsto_one_div_add_atTop_nhds_zero_nat
+    simpa [mul_add] using (tendsto_const_nhds.mul (tendsto_const_nhds.add hzero))
+  have hev :
+      ∀ᶠ n : ℕ in Filter.atTop,
+        ‖m x‖ ≤ K * (Ntail + (1 : ℝ) / ((n : ℝ) + 1)) :=
+    Filter.Eventually.of_forall fun n => hx n
+  simpa [K, Ntail] using ge_of_tendsto htend hev
+
+/--
+Qualitative boundedness for the tail Souza `selfs` class.
+
+The bound may depend on the chosen tail representative constant, but the
+structural constant is independent of the cutoff level.
+-/
+theorem souzaPointwiseSelfsTailClass_norm_ae_bounded
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hs_lt_inv : s < (p.toReal)⁻¹)
+    {t : ℕ} {m : α → ℂ}
+    (hm : SouzaPointwiseSelfsTailClass G s p q hs hp hp_top t m) :
+    ∃ M : ℝ, ∀ᵐ x ∂G.grid.μ, ‖m x‖ ≤ M := by
+  classical
+  rcases hm with ⟨C, hC⟩
+  refine ⟨souzaBesovLpLocalEmbeddingConstant G s p q *
+    (2 * souzaAmbientRestrictionMultiplierConstant G s p + 1) * C, ?_⟩
+  exact souzaPointwiseSelfsTailBound_norm_ae_le
+    G s p q hs hp hp_top hs_lt_inv hC
 
 /--
 The root-cell estimate gives the integrability needed to apply the martingale
