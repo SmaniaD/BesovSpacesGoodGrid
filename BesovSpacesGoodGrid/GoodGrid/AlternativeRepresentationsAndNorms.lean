@@ -8,6 +8,7 @@ import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.FiniteHaa
 import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.MeanOscillationNorm
 import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.OscillationNormleqBesovNorm
 import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.HaarNormleqOscillationNorm
+import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.StandarRepresentationNormleqBesovNorm
 
 /-!
 # Alternative representations and comparison norms

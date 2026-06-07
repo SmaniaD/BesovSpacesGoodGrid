@@ -2168,6 +2168,148 @@ theorem exists_lpnorm_term_le_const_mul_standardRepresentationNorm
         rw [ENNReal.toReal_ofReal ENNReal.toReal_nonneg]
         rw [← ENNReal.ofReal_mul (mul_nonneg hμpow_nonneg hK_nonneg)]
 
+/--
+The `L^p` part of the mean-oscillation norm is controlled by the cost of any
+finite Souza representation of the same a.e. function.
+
+This is the representation-level version of the standard-norm estimate above:
+the represented `Lp` vector is first viewed as a Souza-Besov element, and the
+abstract `L^p` embedding is then bounded by the concrete cost of the chosen
+representation.
+-/
+theorem exists_lpnorm_term_le_const_mul_souzaRepresentationPQCost
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (hs : 0 < s)
+    (p : ℝ≥0∞) [Fact (1 ≤ p)] (hp_top : p < ∞)
+    (q : ℝ≥0∞) [Fact (1 ≤ q)] :
+    ∃ C : ℝ≥0∞, C ≠ ∞ ∧
+      ∀ {g : Lp ℂ p G.toWeakGridSpace.measure}
+        (R : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs Fact.out (ne_of_lt hp_top)) g)
+        (_hRfin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R)
+        (f : α → ℂ),
+          f =ᵐ[G.grid.μ] (g : α → ℂ) →
+            (G.grid.μ Set.univ) ^ (-s) * eLpNorm f p G.grid.μ ≤
+              C * ENNReal.ofReal
+                (WeakGridSpace.LpGridRepresentation.pqCost (q := q) R) := by
+  classical
+  let A := souzaAtomFamily G s p hs Fact.out (ne_of_lt hp_top)
+  let K : ℝ :=
+    ((G.toWeakGridSpace.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal)) *
+      WeakGridSpace.LpGridRepresentation.cCoefficient p q
+        (fun k =>
+          (WeakGridSpace.LpGridRepresentation.levelMeasureWeight
+            G.toWeakGridSpace s p p k) ^ p.toReal)
+  let μI : ℝ := (G.grid.μ Set.univ).toReal
+  refine ⟨ENNReal.ofReal (μI ^ (-s) * K), ENNReal.ofReal_ne_top, ?_⟩
+  intro g R hRfin f hfg
+  let gB : WeakGridSpace.BesovishSpace A q := ⟨g, ⟨R, hRfin⟩⟩
+  have hCco :
+      WeakGridSpace.LpGridRepresentation.cCoefficientFinite p q
+        (fun k =>
+          (WeakGridSpace.LpGridRepresentation.levelMeasureWeight
+            G.toWeakGridSpace s p p k) ^ p.toReal) :=
+    (souza_assumptionG2 G s p q hs Fact.out (ne_of_lt hp_top)).1
+  have ht_le_pu : p ≤ p * ∞ := by
+    calc
+      p = p * 1 := by rw [mul_one]
+      _ ≤ p * ∞ := mul_le_mul_right le_top p
+  have hs_nonneg : 0 ≤ s - 1 / p.toReal + 1 / p.toReal := by
+    linarith [hs.le]
+  have hK_nonneg : 0 ≤ K := by
+    dsimp [K]
+    exact mul_nonneg
+      (by positivity)
+      (WeakGridSpace.LpGridRepresentation.cCoefficient_nonneg p q
+        (fun k =>
+          (WeakGridSpace.LpGridRepresentation.levelMeasureWeight
+            G.toWeakGridSpace s p p k) ^ p.toReal)
+        (fun k => Real.rpow_nonneg
+          (WeakGridSpace.LpGridRepresentation.levelMeasureWeight_nonneg
+            G.toWeakGridSpace s p p k) _))
+  have hNorm_le_cost :
+      WeakGridSpace.BesovishSpace.Norm_Costpq A q gB ≤
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) R :=
+    WeakGridSpace.BesovishSpace.Norm_Costpq_le_cost
+      (A := A) (q := q) gB R hRfin
+  have hLp_real :
+      (eLpNorm f p G.grid.μ).toReal ≤ K *
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
+    calc
+      (eLpNorm f p G.grid.μ).toReal
+          =
+            (eLpNorm ((gB : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ)
+              p G.grid.μ).toReal := by
+              exact congrArg ENNReal.toReal (MeasureTheory.eLpNorm_congr_ae hfg)
+      _ ≤ K * WeakGridSpace.BesovishSpace.Norm_Costpq A q gB := by
+          simpa [A, K, GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid] using
+            WeakGridSpace.BesovishSpace.lp_norm_le_const_mul_Norm_Costpq
+              (A := A) (q := q) (t := p)
+              (hp_top := ne_of_lt hp_top) (ht_top := ne_of_lt hp_top)
+              (hp_le_t := le_rfl) (ht_le_pu := ht_le_pu)
+              (hs_nonneg := hs_nonneg) (hCco_fin := hCco)
+              (hA := WeakGridSpace.BesovishSpace.hasFiniteCostRepresentations
+                (A := A) q)
+              gB
+      _ ≤ K * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R :=
+          mul_le_mul_of_nonneg_left hNorm_le_cost hK_nonneg
+  have hμ_pos : 0 < G.grid.μ Set.univ :=
+    G.grid.positive_measure 0 Set.univ
+      (by simp [G.grid.grid.first_partition_eq_univ])
+  letI : IsFiniteMeasure G.grid.μ := G.grid.isFinite
+  have hμ_ne_top : G.grid.μ Set.univ ≠ ∞ :=
+    MeasureTheory.measure_ne_top G.grid.μ Set.univ
+  have hμ_toReal_pos : 0 < μI := by
+    simpa [μI] using ENNReal.toReal_pos hμ_pos.ne' hμ_ne_top
+  have hμ_toReal_pos' : 0 < (G.grid.μ Set.univ).toReal := by
+    simpa [μI] using hμ_toReal_pos
+  have hμpow_nonneg : 0 ≤ μI ^ (-s) :=
+    Real.rpow_nonneg hμ_toReal_pos.le _
+  have hμpow_eq : ENNReal.ofReal (μI ^ (-s)) = (G.grid.μ Set.univ) ^ (-s) := by
+    change ENNReal.ofReal ((G.grid.μ Set.univ).toReal ^ (-s)) =
+      (G.grid.μ Set.univ) ^ (-s)
+    rw [← ENNReal.ofReal_rpow_of_pos hμ_toReal_pos',
+      ENNReal.ofReal_toReal hμ_ne_top]
+  have heLp_ne_top : eLpNorm f p G.grid.μ ≠ ∞ := by
+    rw [MeasureTheory.eLpNorm_congr_ae hfg]
+    exact Lp.eLpNorm_ne_top g
+  have heLp_eq :
+      ENNReal.ofReal (eLpNorm f p G.grid.μ).toReal =
+        eLpNorm f p G.grid.μ :=
+    ENNReal.ofReal_toReal heLp_ne_top
+  have hcost_nonneg :
+      0 ≤ WeakGridSpace.LpGridRepresentation.pqCost (q := q) R :=
+    WeakGridSpace.LpGridRepresentation.pqCost_nonneg R
+  have hreal :
+      μI ^ (-s) * (eLpNorm f p G.grid.μ).toReal ≤
+        μI ^ (-s) * K *
+          WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
+    calc
+      μI ^ (-s) * (eLpNorm f p G.grid.μ).toReal
+          ≤ μI ^ (-s) *
+              (K * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R) :=
+            mul_le_mul_of_nonneg_left hLp_real hμpow_nonneg
+      _ =
+          μI ^ (-s) * K *
+            WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by ring
+  calc
+    (G.grid.μ Set.univ) ^ (-s) * eLpNorm f p G.grid.μ
+        =
+          ENNReal.ofReal (μI ^ (-s) * (eLpNorm f p G.grid.μ).toReal) := by
+        rw [← hμpow_eq, ← heLp_eq]
+        rw [ENNReal.toReal_ofReal ENNReal.toReal_nonneg]
+        exact (ENNReal.ofReal_mul hμpow_nonneg).symm
+    _ ≤
+          ENNReal.ofReal
+            (μI ^ (-s) * K *
+              WeakGridSpace.LpGridRepresentation.pqCost (q := q) R) :=
+        ENNReal.ofReal_le_ofReal hreal
+    _ =
+          ENNReal.ofReal (μI ^ (-s) * K) *
+            ENNReal.ofReal
+              (WeakGridSpace.LpGridRepresentation.pqCost (q := q) R) := by
+        rw [← ENNReal.ofReal_mul (mul_nonneg hμpow_nonneg hK_nonneg)]
+
 private theorem levelCoeffPower_root_le_pqCost
     {G : WeakGridSpace.WeakGridSpace (α := α)}
     {s : ℝ} {p u q : ℝ≥0∞} [Fact (1 ≤ p)] [Fact (1 ≤ q)]
@@ -3391,56 +3533,38 @@ private theorem levelOscillationBlock_root_le_ofReal_future_convolution
   exact (ENNReal.le_ofReal_iff_toReal_le hne htarget_nonneg).2 hreal
 
 /--
-The oscillation seminorm is bounded by the standard atomic coefficient gauge.
+The oscillation seminorm is controlled by the cost of any finite Souza
+representation of the same a.e. function.
 
 This is the discrete convolution estimate from the preprint.  Given an
-almost-minimizing representation, the part of the atomic series above a cell
-level `k₀` bounds the local oscillation on that cell.  Summing over cells and
-then over levels gives convolution with the geometric kernel
-`λ₂^{s n}`, whose sum is bounded by `(1 - λ₂^s)⁻¹`.
+atomic representation, the part of the series above a cell level `k₀` bounds
+the local oscillation on that cell.  Summing over cells and then over levels
+gives convolution with the geometric kernel `λ₂^{s n}`, whose `l¹` norm is the
+constant in the estimate.
 -/
-theorem exists_oscillationSeminorm_le_const_mul_standardRepresentationNorm
+theorem exists_oscillationSeminorm_le_const_mul_souzaRepresentationPQCost
     (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
-    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
-    [DecidableEq F.Index]
     (s : ℝ) (hs : 0 < s)
     (p : ℝ≥0∞) [Fact (1 ≤ p)] (hp_top : p < ∞)
     (q : ℝ≥0∞) [Fact (1 ≤ q)] :
     ∃ C : ℝ≥0∞, C ≠ ∞ ∧
-      ∀ (f : α → ℂ) (hf : Integrable f G.grid.μ),
-        StandardAtomicRepresentation.standardRepresentationNorm
-            G F s hs p hp_top q f hf ≠ ∞ →
-          oscillationSeminorm G s p q f ≤
-            C *
-              StandardAtomicRepresentation.standardRepresentationNorm
-                G F s hs p hp_top q f hf := by
+      ∀ {g : Lp ℂ p G.toWeakGridSpace.measure}
+        (R : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs Fact.out (ne_of_lt hp_top)) g),
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R →
+          ∀ (f : α → ℂ), f =ᵐ[G.grid.μ] (g : α → ℂ) →
+            oscillationSeminorm G s p q f ≤
+              C * ENNReal.ofReal
+                (WeakGridSpace.LpGridRepresentation.pqCost (q := q) R) := by
   classical
   let K : ℝ := ((G.toWeakGridSpace.grid.Cmult1 : ℝ) ^ (1 + 1 / p.toReal))
   let kernel : ℕ → ℝ := fun i => (G.grid.lambda2 ^ (i + 1)) ^ s
   let b : ℕ → ℝ := fun i => K * kernel i
   let CReal : ℝ := ∑' i, b i
   refine ⟨ENNReal.ofReal CReal, ENNReal.ofReal_ne_top, ?_⟩
-  intro f hf hN
-  let N : ℝ≥0∞ :=
-    StandardAtomicRepresentation.standardRepresentationNorm
-      G F s hs p hp_top q f hf
-  change oscillationSeminorm G s p q f ≤ ENNReal.ofReal CReal * N
-  have hN_ne_top : N ≠ ∞ := by
-    simpa [N] using hN
-  rcases exists_souzaBesovSpace_representation_of_standardRepresentationNorm_ne_top
-      (G := G) (F := F) (s := s) (hs := hs) (p := p) (hp_top := hp_top)
-      (q := q) f hf hN with
-    ⟨hfLp, g, R, hRfin, hg_eq, hRcost⟩
-  have hRcostN :
-      WeakGridSpace.LpGridRepresentation.pqCost (q := q) R ≤ N.toReal := by
-    simpa [N] using hRcost
-  have hg_ae :
-      ((g : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) =ᵐ[G.grid.μ] f := by
-    rw [hg_eq]
-    exact MemLp.coeFn_toLp hfLp
-  have hfg :
-      f =ᵐ[G.grid.μ] ((g : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) :=
-    hg_ae.symm
+  intro g R hRfin f hfg
+  let N : ℝ := WeakGridSpace.LpGridRepresentation.pqCost (q := q) R
+  change oscillationSeminorm G s p q f ≤ ENNReal.ofReal CReal * ENNReal.ofReal N
   let a : ℕ → ℝ := fun k => (R.levelCoeffPower k) ^ (1 / p.toReal)
   let conv : ℕ → ℝ := fun k => ∑' i, b i * a (k + (i + 1))
   have hK_nonneg : 0 ≤ K := by
@@ -3519,13 +3643,10 @@ theorem exists_oscillationSeminorm_le_const_mul_standardRepresentationNorm
       _ = CReal * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
             rw [haGauge_eq]
   have hconvGauge_le_N :
-      realSequenceLqGauge q conv ≤ CReal * N.toReal :=
-    hconvGauge_le_cost.trans
-      (mul_le_mul_of_nonneg_left hRcostN hCReal_nonneg)
+      realSequenceLqGauge q conv ≤ CReal * N := by
+    simpa [N] using hconvGauge_le_cost
   have htarget_eq :
-      ENNReal.ofReal (CReal * N.toReal) = ENNReal.ofReal CReal * N := by
-    rw [← ENNReal.ofReal_toReal hN_ne_top]
-    rw [ENNReal.toReal_ofReal ENNReal.toReal_nonneg]
+      ENNReal.ofReal (CReal * N) = ENNReal.ofReal CReal * ENNReal.ofReal N := by
     rw [← ENNReal.ofReal_mul hCReal_nonneg]
   have hroot_le_conv :
       ∀ k,
@@ -3548,7 +3669,7 @@ theorem exists_oscillationSeminorm_le_const_mul_standardRepresentationNorm
         0 ≤ WeakGridSpace.LpGridRepresentation.pqCost (q := q) R :=
       WeakGridSpace.LpGridRepresentation.pqCost_nonneg R
     have hconv_le_N :
-        ∀ k, conv k ≤ CReal * N.toReal := by
+        ∀ k, conv k ≤ CReal * N := by
       intro k
       have hterm_le :
           (fun i => b i * a (k + (i + 1)))
@@ -3572,17 +3693,16 @@ theorem exists_oscillationSeminorm_le_const_mul_standardRepresentationNorm
           simpa [CReal] using
             (hb_sum.hasSum.mul_right
               (WeakGridSpace.LpGridRepresentation.pqCost (q := q) R)).tsum_eq
-        _ ≤ CReal * N.toReal :=
-          mul_le_mul_of_nonneg_left hRcostN hCReal_nonneg
+        _ = CReal * N := by rfl
     have hroot_le_target :
         ∀ k,
           (levelOscillationBlock G s p f k) ^ (1 / p.toReal)
-            ≤ ENNReal.ofReal (CReal * N.toReal) := by
+            ≤ ENNReal.ofReal (CReal * N) := by
       intro k
       exact (hroot_le_conv k).trans
         (ENNReal.ofReal_le_ofReal (hconv_le_N k))
     have hosc_le_target :
-        oscillationSeminorm G s p q f ≤ ENNReal.ofReal (CReal * N.toReal) := by
+        oscillationSeminorm G s p q f ≤ ENNReal.ofReal (CReal * N) := by
       rw [oscillationSeminorm, if_pos hqtop]
       refine sSup_le ?_
       rintro _ ⟨k, rfl⟩
@@ -3648,18 +3768,177 @@ theorem exists_oscillationSeminorm_le_const_mul_standardRepresentationNorm
         _ = ENNReal.ofReal (realSequenceLqGauge q conv) := by
               simp [realSequenceLqGauge, hqtop]
     have hosc_le_target :
-        oscillationSeminorm G s p q f ≤ ENNReal.ofReal (CReal * N.toReal) :=
+        oscillationSeminorm G s p q f ≤ ENNReal.ofReal (CReal * N) :=
       hosc_le_convGauge.trans (ENNReal.ofReal_le_ofReal hconvGauge_le_N)
     simpa [htarget_eq] using hosc_le_target
+
+/--
+The full mean-oscillation norm is controlled by the cost of any finite Souza
+representation of the same a.e. function.
+
+This is the reusable representation-level comparison behind the standard-norm
+package: once a function is represented by a finite-cost Souza atomic series,
+both the global `L^p` term and the oscillation seminorm are bounded by that
+same coefficient cost.
+-/
+theorem exists_meanOscillationNorm_le_const_mul_souzaRepresentationPQCost
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (s : ℝ) (hs : 0 < s)
+    (p : ℝ≥0∞) [Fact (1 ≤ p)] (hp_top : p < ∞)
+    (q : ℝ≥0∞) [Fact (1 ≤ q)] :
+    ∃ C : ℝ≥0∞, C ≠ ∞ ∧
+      ∀ {g : Lp ℂ p G.toWeakGridSpace.measure}
+        (R : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs Fact.out (ne_of_lt hp_top)) g),
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R →
+          ∀ (f : α → ℂ), f =ᵐ[G.grid.μ] (g : α → ℂ) →
+            meanOscillationNorm G s p q f ≤
+              C * ENNReal.ofReal
+                (WeakGridSpace.LpGridRepresentation.pqCost (q := q) R) := by
+  classical
+  rcases exists_lpnorm_term_le_const_mul_souzaRepresentationPQCost
+      (G := G) (s := s) (hs := hs) (p := p) (hp_top := hp_top) (q := q) with
+    ⟨CLp, hCLp_fin, hLp_le⟩
+  rcases exists_oscillationSeminorm_le_const_mul_souzaRepresentationPQCost
+      (G := G) (s := s) (hs := hs) (p := p) (hp_top := hp_top) (q := q) with
+    ⟨Cosc, hCosc_fin, hosc_le⟩
+  refine ⟨CLp + Cosc, ENNReal.add_ne_top.mpr ⟨hCLp_fin, hCosc_fin⟩, ?_⟩
+  intro g R hRfin f hfg
+  let cost : ℝ≥0∞ :=
+    ENNReal.ofReal (WeakGridSpace.LpGridRepresentation.pqCost (q := q) R)
+  change meanOscillationNorm G s p q f ≤ (CLp + Cosc) * cost
+  calc
+    meanOscillationNorm G s p q f
+        =
+          (G.grid.μ Set.univ) ^ (-s) * eLpNorm f p G.grid.μ +
+            oscillationSeminorm G s p q f := rfl
+    _ ≤ CLp * cost + Cosc * cost :=
+        add_le_add
+          (by simpa [cost] using hLp_le R hRfin f hfg)
+          (by simpa [cost] using hosc_le R hRfin f hfg)
+    _ = (CLp + Cosc) * cost := by
+        rw [add_mul]
+
+/--
+The mean-oscillation norm is controlled by the Souza-Besov gauge.
+
+This is the norm-level corollary of the representation estimate: choose a
+Souza representation with cost at most twice the Besov gauge, apply the
+representation-level comparison, and absorb the factor `2` into the constant.
+-/
+theorem exists_meanOscillationNorm_le_const_mul_souzaBesovNorm
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (s : ℝ) (hs : 0 < s)
+    (p : ℝ≥0∞) [Fact (1 ≤ p)] (hp_top : p < ∞)
+    (q : ℝ≥0∞) [Fact (1 ≤ q)] :
+    ∃ C : ℝ≥0∞, C ≠ ∞ ∧
+      ∀ (g : SouzaBesovSpace G s p q hs Fact.out (ne_of_lt hp_top))
+        (f : α → ℂ),
+          f =ᵐ[G.grid.μ] ((g : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) →
+            meanOscillationNorm G s p q f ≤
+              C * ENNReal.ofReal
+                (WeakGridSpace.BesovishSpace.Norm_Costpq
+                  (souzaAtomFamily G s p hs Fact.out (ne_of_lt hp_top)) q g) := by
+  classical
+  let A := souzaAtomFamily G s p hs Fact.out (ne_of_lt hp_top)
+  rcases exists_meanOscillationNorm_le_const_mul_souzaRepresentationPQCost
+      (G := G) (s := s) (hs := hs) (p := p) (hp_top := hp_top) (q := q) with
+    ⟨C0, hC0_fin, hmean_le_cost⟩
+  refine ⟨C0 * ENNReal.ofReal (1 + 1 : ℝ),
+    ENNReal.mul_ne_top hC0_fin ENNReal.ofReal_ne_top, ?_⟩
+  intro g f hfg
+  rcases exists_souzaBesovSpace_representation_cost_le_one_add_mul_norm'
+      (G := G) (s := s) (hs := hs) (p := p) (hp := Fact.out)
+      (hp_top := ne_of_lt hp_top) (q := q) g (by norm_num : (0 : ℝ) < 1) with
+    ⟨R, hRfin, hRcost⟩
+  let N : ℝ := WeakGridSpace.BesovishSpace.Norm_Costpq A q g
+  have hcost_le :
+      ENNReal.ofReal (WeakGridSpace.LpGridRepresentation.pqCost (q := q) R) ≤
+        ENNReal.ofReal ((1 + 1 : ℝ) * N) := by
+    exact ENNReal.ofReal_le_ofReal (by simpa [A, N] using hRcost)
+  have htwo_nonneg : 0 ≤ (1 + 1 : ℝ) := by norm_num
+  have htwoN_eq :
+      ENNReal.ofReal ((1 + 1 : ℝ) * N) =
+        ENNReal.ofReal (1 + 1 : ℝ) * ENNReal.ofReal N := by
+    rw [← ENNReal.ofReal_mul htwo_nonneg]
+  calc
+    meanOscillationNorm G s p q f
+        ≤
+          C0 * ENNReal.ofReal
+            (WeakGridSpace.LpGridRepresentation.pqCost (q := q) R) :=
+        hmean_le_cost R hRfin f hfg
+    _ ≤ C0 * ENNReal.ofReal ((1 + 1 : ℝ) * N) := by
+        simpa [mul_comm, mul_left_comm, mul_assoc] using
+          mul_le_mul_right hcost_le C0
+    _ = (C0 * ENNReal.ofReal (1 + 1 : ℝ)) * ENNReal.ofReal N := by
+        rw [htwoN_eq, mul_assoc]
+    _ =
+        (C0 * ENNReal.ofReal (1 + 1 : ℝ)) *
+          ENNReal.ofReal
+            (WeakGridSpace.BesovishSpace.Norm_Costpq
+              (souzaAtomFamily G s p hs Fact.out (ne_of_lt hp_top)) q g) := by
+        rfl
+
+/--
+The oscillation seminorm is bounded by the standard atomic coefficient gauge.
+
+This specializes the representation-level convolution estimate to the
+canonical standard representation.
+-/
+theorem exists_oscillationSeminorm_le_const_mul_standardRepresentationNorm
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    [DecidableEq F.Index]
+    (s : ℝ) (hs : 0 < s)
+    (p : ℝ≥0∞) [Fact (1 ≤ p)] (hp_top : p < ∞)
+    (q : ℝ≥0∞) [Fact (1 ≤ q)] :
+    ∃ C : ℝ≥0∞, C ≠ ∞ ∧
+      ∀ (f : α → ℂ) (hf : Integrable f G.grid.μ),
+        StandardAtomicRepresentation.standardRepresentationNorm
+            G F s hs p hp_top q f hf ≠ ∞ →
+          oscillationSeminorm G s p q f ≤
+            C *
+              StandardAtomicRepresentation.standardRepresentationNorm
+                G F s hs p hp_top q f hf := by
+  classical
+  rcases exists_oscillationSeminorm_le_const_mul_souzaRepresentationPQCost
+      (G := G) (s := s) (hs := hs) (p := p) (hp_top := hp_top) (q := q) with
+    ⟨C, hC_fin, hosc_le_cost⟩
+  refine ⟨C, hC_fin, ?_⟩
+  intro f hf hN
+  let N : ℝ≥0∞ :=
+    StandardAtomicRepresentation.standardRepresentationNorm
+      G F s hs p hp_top q f hf
+  have hN_ne_top : N ≠ ∞ := by
+    simpa [N] using hN
+  rcases exists_souzaBesovSpace_representation_of_standardRepresentationNorm_ne_top
+      (G := G) (F := F) (s := s) (hs := hs) (p := p) (hp_top := hp_top)
+      (q := q) f hf hN with
+    ⟨hfLp, g, R, hRfin, hg_eq, hRcost⟩
+  have hg_ae :
+      ((g : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) =ᵐ[G.grid.μ] f := by
+    rw [hg_eq]
+    exact MemLp.coeFn_toLp hfLp
+  have hfg :
+      f =ᵐ[G.grid.μ] ((g : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) :=
+    hg_ae.symm
+  have hcost_le_N :
+      ENNReal.ofReal (WeakGridSpace.LpGridRepresentation.pqCost (q := q) R) ≤ N := by
+    rw [← ENNReal.ofReal_toReal hN_ne_top]
+    exact ENNReal.ofReal_le_ofReal (by simpa [N] using hRcost)
+  exact (hosc_le_cost R hRfin f hfg).trans
+    (by
+      simpa [mul_comm, mul_left_comm, mul_assoc] using
+        mul_le_mul_right hcost_le_N C)
 
 /--
 Finite standard representation norm forces membership in `L^p` and controls
 the full mean-oscillation norm.
 
 This is the packaged comparison
-`N_osc(f) ≤ C N_st(f)`.  The proof is just bookkeeping once the two analytic
-pieces above are available: the full mean-oscillation norm is the sum of the
-`L^p` term and the oscillation seminorm.
+`N_osc(f) ≤ C N_st(f)`.  It is obtained by specializing the representation-level
+comparison to the canonical standard Souza representation and then using that
+its `pqCost` is bounded by the standard coefficient gauge.
 -/
 theorem exists_meanOscillationNorm_le_const_mul_standardRepresentationNorm
     (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
@@ -3678,37 +3957,36 @@ theorem exists_meanOscillationNorm_le_const_mul_standardRepresentationNorm
                 StandardAtomicRepresentation.standardRepresentationNorm
                   G F s hs p hp_top q f hf := by
   classical
-  rcases exists_lpnorm_term_le_const_mul_standardRepresentationNorm
-      (G := G) (F := F) (s := s) (hs := hs) (p := p) (hp_top := hp_top) (q := q) with
-    ⟨CLp, hCLp_fin, hLp_le⟩
-  rcases exists_oscillationSeminorm_le_const_mul_standardRepresentationNorm
-      (G := G) (F := F) (s := s) (hs := hs) (p := p) (hp_top := hp_top) (q := q) with
-    ⟨Cosc, hCosc_fin, hosc_le⟩
-  refine ⟨CLp + Cosc, ENNReal.add_ne_top.mpr ⟨hCLp_fin, hCosc_fin⟩, ?_⟩
+  rcases exists_meanOscillationNorm_le_const_mul_souzaRepresentationPQCost
+      (G := G) (s := s) (hs := hs) (p := p) (hp_top := hp_top) (q := q) with
+    ⟨C, hC_fin, hmean_le_cost⟩
+  refine ⟨C, hC_fin, ?_⟩
   intro f hf hN
-  rcases StandardAtomicRepresentation.finite_standardRepresentationNorm_implies_memLp_and_hasSum
+  let N : ℝ≥0∞ :=
+    StandardAtomicRepresentation.standardRepresentationNorm
+      G F s hs p hp_top q f hf
+  have hN_ne_top : N ≠ ∞ := by
+    simpa [N] using hN
+  rcases exists_souzaBesovSpace_representation_of_standardRepresentationNorm_ne_top
       (G := G) (F := F) (s := s) (hs := hs) (p := p) (hp_top := hp_top) (q := q)
       f hf hN with
-    ⟨hfLp, _hstandard_sum⟩
+    ⟨hfLp, g, R, hRfin, hg_eq, hRcost⟩
+  have hg_ae :
+      ((g : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) =ᵐ[G.grid.μ] f := by
+    rw [hg_eq]
+    exact MemLp.coeFn_toLp hfLp
+  have hfg :
+      f =ᵐ[G.grid.μ] ((g : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) :=
+    hg_ae.symm
+  have hcost_le_N :
+      ENNReal.ofReal (WeakGridSpace.LpGridRepresentation.pqCost (q := q) R) ≤ N := by
+    rw [← ENNReal.ofReal_toReal hN_ne_top]
+    exact ENNReal.ofReal_le_ofReal (by simpa [N] using hRcost)
   refine ⟨hfLp, ?_⟩
-  calc
-    meanOscillationNorm G s p q f
-        =
-          (G.grid.μ Set.univ) ^ (-s) * eLpNorm f p G.grid.μ +
-            oscillationSeminorm G s p q f := rfl
-    _ ≤
-          CLp *
-              StandardAtomicRepresentation.standardRepresentationNorm
-                G F s hs p hp_top q f hf +
-            Cosc *
-              StandardAtomicRepresentation.standardRepresentationNorm
-                G F s hs p hp_top q f hf :=
-        add_le_add (hLp_le f hf hN) (hosc_le f hf hN)
-    _ =
-          (CLp + Cosc) *
-            StandardAtomicRepresentation.standardRepresentationNorm
-              G F s hs p hp_top q f hf := by
-        rw [add_mul]
+  exact (hmean_le_cost R hRfin f hfg).trans
+    (by
+      simpa [mul_comm, mul_left_comm, mul_assoc] using
+        mul_le_mul_right hcost_le_N C)
 
 end MeanOscillation
 

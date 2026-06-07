@@ -557,6 +557,87 @@ def Coeff (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
   ∫ x, f x * L2normalizedHaar G F i x ∂G.grid.μ
 
 /--
+Real-valued functions have real normalized Haar coefficients.
+
+The statement is phrased almost everywhere, which is the natural version for
+`Lp` representatives: changing `f` on a null set does not change the integral
+coefficient.
+-/
+theorem coeff_im_eq_zero_of_aeRealValued
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G))
+    (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (hf_real : ∀ᵐ x ∂G.grid.μ, ∃ r : ℝ, f x = (r : ℂ))
+    (i : F.Index) :
+    (Coeff G F f hf i).im = 0 := by
+  classical
+  let realPartOn : α → ℝ := fun x =>
+    if h : ∃ r : ℝ, f x = (r : ℂ) then Classical.choose h else 0
+  let realIntegrand : α → ℝ := fun x =>
+    realPartOn x * l2NormalizationFactor G F i *
+      UnbalancedHaarWavelet.FullHaarSystem.function (GridOf G) F i x
+  have hintegrand_ae :
+      (fun x : α => f x * L2normalizedHaar G F i x)
+        =ᵐ[G.grid.μ]
+      fun x : α => (realIntegrand x : ℂ) := by
+    filter_upwards [hf_real] with x hx
+    have hx_realPartOn : f x = (realPartOn x : ℂ) := by
+      unfold realPartOn
+      rw [dif_pos hx]
+      exact Classical.choose_spec hx
+    calc
+      f x * L2normalizedHaar G F i x
+          =
+            (realPartOn x : ℂ) *
+              (((l2NormalizationFactor G F i : ℝ) : ℂ) *
+                (UnbalancedHaarWavelet.FullHaarSystem.function (GridOf G) F i x : ℂ)) := by
+              rw [hx_realPartOn]
+              rfl
+      _ = (realIntegrand x : ℂ) := by
+              simp [realIntegrand, Complex.ofReal_mul]
+              ring
+  have hcoeff :
+      Coeff G F f hf i = ((∫ x, realIntegrand x ∂G.grid.μ : ℝ) : ℂ) := by
+    calc
+      Coeff G F f hf i
+          = ∫ x, (realIntegrand x : ℂ) ∂G.grid.μ := by
+              rw [Coeff]
+              exact integral_congr_ae hintegrand_ae
+      _ = ((∫ x, realIntegrand x ∂G.grid.μ : ℝ) : ℂ) := by
+              exact integral_ofReal
+  rw [hcoeff]
+  simp
+
+/--
+Real-valued functions have Haar coefficients lying in the embedded real line.
+
+This is the existential form of `coeff_im_eq_zero_of_aeRealValued`.
+-/
+theorem coeff_realValued_of_aeRealValued
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G))
+    (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (hf_real : ∀ᵐ x ∂G.grid.μ, ∃ r : ℝ, f x = (r : ℂ)) :
+    ∀ i : F.Index, ∃ r : ℝ, Coeff G F f hf i = (r : ℂ) := by
+  intro i
+  refine ⟨(Coeff G F f hf i).re, ?_⟩
+  apply Complex.ext
+  · simp
+  · simpa using coeff_im_eq_zero_of_aeRealValued G F f hf hf_real i
+
+/--
+Pointwise real-valued functions have Haar coefficients lying in the embedded
+real line.
+-/
+theorem coeff_realValued_of_forall_realValued
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := GridOf G))
+    (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (hf_real : ∀ x : α, ∃ r : ℝ, f x = (r : ℂ)) :
+    ∀ i : F.Index, ∃ r : ℝ, Coeff G F f hf i = (r : ℂ) :=
+  coeff_realValued_of_aeRealValued G F f hf (Filter.Eventually.of_forall hf_real)
+
+/--
 One normalized coefficient term equals the corresponding non-normalized complex
 Haar coefficient term.
 -/

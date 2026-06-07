@@ -164,6 +164,115 @@ def branchCellCoeff (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
       (G.grid.μ P.1).toReal ^ (1 / p.toReal - s) : ℝ) : ℂ) *
     HaarRepresentation.Coeff G F f hf (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))
 
+/-- A product of complex numbers lying in the real line again lies in the real line. -/
+private theorem complex_mul_realValued {z w : ℂ}
+    (hz : ∃ r : ℝ, z = (r : ℂ)) (hw : ∃ r : ℝ, w = (r : ℂ)) :
+    ∃ r : ℝ, z * w = (r : ℂ) := by
+  rcases hz with ⟨a, rfl⟩
+  rcases hw with ⟨b, rfl⟩
+  refine ⟨a * b, ?_⟩
+  simp [Complex.ofReal_mul]
+
+/-- Dividing a real-line complex number by a real scalar keeps it in the real line. -/
+private theorem complex_div_realValued {z : ℂ} (a : ℝ)
+    (hz : ∃ r : ℝ, z = (r : ℂ)) :
+    ∃ r : ℝ, z / (a : ℂ) = (r : ℂ) := by
+  rcases hz with ⟨r, rfl⟩
+  refine ⟨r / a, ?_⟩
+  norm_num [Complex.ofReal_div]
+
+/-- A finite sum of complex numbers lying in the real line lies in the real line. -/
+private theorem finset_sum_complex_realValued {ι : Type*} (s : Finset ι) (z : ι → ℂ)
+    (h : ∀ i, i ∈ s → ∃ r : ℝ, z i = (r : ℂ)) :
+    ∃ r : ℝ, ∑ i ∈ s, z i = (r : ℂ) := by
+  classical
+  let realOf : ι → ℝ := fun i => if hi : i ∈ s then Classical.choose (h i hi) else 0
+  refine ⟨∑ i ∈ s, realOf i, ?_⟩
+  calc
+    ∑ i ∈ s, z i = ∑ i ∈ s, (realOf i : ℂ) := by
+      refine Finset.sum_congr rfl ?_
+      intro i hi
+      change z i = ↑(if hi' : i ∈ s then Classical.choose (h i hi') else 0)
+      rw [dif_pos hi]
+      exact Classical.choose_spec (h i hi)
+    _ = ((∑ i ∈ s, realOf i : ℝ) : ℂ) := by
+      simp only [Complex.ofReal_sum]
+
+/-- A finite type sum of complex numbers lying in the real line lies in the real line. -/
+private theorem fintype_sum_complex_realValued {ι : Type*} [Fintype ι] (z : ι → ℂ)
+    (h : ∀ i, ∃ r : ℝ, z i = (r : ℂ)) :
+    ∃ r : ℝ, ∑ i, z i = (r : ℂ) := by
+  classical
+  let realOf : ι → ℝ := fun i => Classical.choose (h i)
+  refine ⟨∑ i, realOf i, ?_⟩
+  calc
+    ∑ i, z i = ∑ i, (realOf i : ℂ) := by
+      refine Finset.sum_congr rfl ?_
+      intro i _hi
+      change z i = ↑(Classical.choose (h i))
+      exact Classical.choose_spec (h i)
+    _ = ((∑ i, realOf i : ℝ) : ℂ) := by
+      simp only [Complex.ofReal_sum]
+
+/-- The normalized Haar functions are pointwise real-valued. -/
+theorem l2normalizedHaar_realValued
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (i : F.Index) (x : α) :
+    ∃ r : ℝ, HaarRepresentation.L2normalizedHaar G F i x = (r : ℂ) := by
+  refine
+    ⟨HaarRepresentation.l2NormalizationFactor G F i *
+      UnbalancedHaarWavelet.FullHaarSystem.function (HaarRepresentation.GridOf G) F i x, ?_⟩
+  simp [HaarRepresentation.L2normalizedHaar, Complex.ofReal_mul]
+
+/-- The compatibility name for the normalized Haar functions is also real-valued. -/
+theorem normalizedFunction_realValued
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (i : F.Index) (x : α) :
+    ∃ r : ℝ, HaarRepresentation.normalizedFunction G F i x = (r : ℂ) := by
+  refine
+    ⟨HaarRepresentation.l2NormalizationFactor G F i *
+      UnbalancedHaarWavelet.FullHaarSystem.function (HaarRepresentation.GridOf G) F i x, ?_⟩
+  simp [HaarRepresentation.normalizedFunction, Complex.ofReal_mul]
+
+/-- Real-valued functions have real father coefficients in the standard representation. -/
+theorem fatherCoeff_realValued_of_aeRealValued
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (hf_real : ∀ᵐ x ∂G.grid.μ, ∃ r : ℝ, f x = (r : ℂ)) :
+    ∃ r : ℝ, fatherCoeff G F s p f hf = (r : ℂ) := by
+  have hcoeff := HaarRepresentation.coeff_realValued_of_aeRealValued G F f hf hf_real .alpha
+  simpa [fatherCoeff] using
+    complex_mul_realValued
+      (z := (((G.grid.μ Set.univ).toReal ^ (1 / p.toReal - s - 1 / 2) : ℝ) : ℂ))
+      (w := HaarRepresentation.Coeff G F f hf .alpha)
+      ⟨(G.grid.μ Set.univ).toReal ^ (1 / p.toReal - s - 1 / 2), rfl⟩ hcoeff
+
+/-- Real-valued functions have real branch-cell coefficients. -/
+theorem branchCellCoeff_realValued_of_aeRealValued
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (c₂ : ℝ) (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (hf_real : ∀ᵐ x ∂G.grid.μ, ∃ r : ℝ, f x = (r : ℂ))
+    (Q : GoodGridCell G)
+    (P : WeakGridSpace.LevelCell G.toWeakGridSpace (Q.level + 1))
+    (b : {r : Finset (Set α) × Finset (Set α) //
+      r ∈ (F.toHaarSystem.binaryRefinement.tree Q.level Q.cell Q.mem).Branches}) :
+    ∃ r : ℝ, branchCellCoeff G F c₂ p s f hf Q P b = (r : ℂ) := by
+  have hcoeff :=
+    HaarRepresentation.coeff_realValued_of_aeRealValued G F f hf hf_real
+      (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))
+  simpa [branchCellCoeff] using
+    complex_mul_realValued
+      (z := ((c₂ * (G.grid.μ Q.cell).toReal ^ (-(1 : ℝ) / 2) *
+        (G.grid.μ P.1).toReal ^ (1 / p.toReal - s) : ℝ) : ℂ))
+      (w := HaarRepresentation.Coeff G F f hf
+        (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)))
+      ⟨c₂ * (G.grid.μ Q.cell).toReal ^ (-(1 : ℝ) / 2) *
+        (G.grid.μ P.1).toReal ^ (1 / p.toReal - s), rfl⟩ hcoeff
+
 /--
 The restricted Haar atom `a_{S,P}` from the manuscript.
 
@@ -2056,6 +2165,59 @@ theorem standardChildCoeff_eq_sum_integral_l2normalizedHaar_at_cellPoint
   simp only [HaarRepresentation.Coeff]
 
 /--
+Real-valued functions have real standard child coefficients.
+
+The coefficient is a finite real linear combination of real Haar coefficients
+evaluated against pointwise real normalized Haar functions.
+-/
+theorem standardChildCoeff_realValued_of_aeRealValued
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (hf_real : ∀ᵐ x ∂G.grid.μ, ∃ r : ℝ, f x = (r : ℂ))
+    (Q : GoodGridCell G)
+    (P : WeakGridSpace.LevelCell G.toWeakGridSpace (Q.level + 1)) :
+    ∃ r : ℝ, standardChildCoeff G F s p f hf Q P = (r : ℂ) := by
+  classical
+  let Pcell := childToGoodGridCell (G := G) (Q := Q) P
+  have hsum :
+      ∃ r : ℝ,
+        (∑ b ∈ HaarRepresentation.indicesInCell G F Q,
+          if branchContainsCell G F Q P b then
+            HaarRepresentation.Coeff G F f hf
+                (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)) *
+              HaarRepresentation.normalizedFunction G F
+                (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))
+                (cellPoint G Pcell)
+          else
+            0) = (r : ℂ) := by
+    refine finset_sum_complex_realValued (HaarRepresentation.indicesInCell G F Q) _ ?_
+    intro b hb
+    by_cases hbP : branchContainsCell G F Q P b
+    · simpa [hbP] using
+        complex_mul_realValued
+          (HaarRepresentation.coeff_realValued_of_aeRealValued G F f hf hf_real
+            (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)))
+          (normalizedFunction_realValued G F
+            (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))
+            (cellPoint G Pcell))
+    · refine ⟨0, ?_⟩
+      simp [hbP]
+  simpa [standardChildCoeff, Pcell] using
+    complex_mul_realValued
+      (z := (((G.grid.μ P.1).toReal ^ (-(s - 1 / p.toReal)) : ℝ) : ℂ))
+      (w := (∑ b ∈ HaarRepresentation.indicesInCell G F Q,
+        if branchContainsCell G F Q P b then
+          HaarRepresentation.Coeff G F f hf
+              (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b)) *
+            HaarRepresentation.normalizedFunction G F
+              (.wavelet (HaarRepresentation.indexOfCellBranch G F Q b))
+              (cellPoint G Pcell)
+        else
+          0))
+      ⟨(G.grid.μ P.1).toReal ^ (-(s - 1 / p.toReal)), rfl⟩ hsum
+
+/--
 The `L¹` functional represented by the standard coefficient on a fixed child
 cell.
 
@@ -2463,6 +2625,37 @@ def canonicalStandardPositiveLevelBlock
     simp [Complex.norm_real, Real.norm_of_nonneg hnonneg]
 
 /--
+Every coefficient in a positive-level canonical standard block is real when
+`f` is real-valued.
+-/
+theorem canonicalStandardPositiveLevelBlock_coeff_realValued_of_aeRealValued
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (hf_real : ∀ᵐ x ∂G.grid.μ, ∃ r : ℝ, f x = (r : ℂ))
+    (k : ℕ) (P : WeakGridSpace.LevelCell G.toWeakGridSpace (k + 1)) :
+    ∃ r : ℝ,
+      (canonicalStandardPositiveLevelBlock G F s p hs hp hp_top f hf k).coeff P = (r : ℂ) := by
+  classical
+  change
+    ∃ r : ℝ,
+      (∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        (let Qg : GoodGridCell G := { level := k, cell := Q.1, mem := Q.2 }
+        if hP : P ∈ childrenOfCell G Qg then
+          standardChildCoeff G F s p f hf Qg P
+        else
+          0)) = (r : ℂ)
+  refine fintype_sum_complex_realValued _ ?_
+  intro Q
+  let Qg : GoodGridCell G := { level := k, cell := Q.1, mem := Q.2 }
+  by_cases hP : P ∈ childrenOfCell G Qg
+  · simpa [Qg, hP] using
+      standardChildCoeff_realValued_of_aeRealValued G F s p f hf hf_real Qg P
+  · refine ⟨0, ?_⟩
+    simp [Qg, hP]
+
+/--
 The pointwise function represented by the positive standard `LevelBlock` is the
 canonical-Souza level block already used in the Haar regrouping proof.
 -/
@@ -2629,6 +2822,30 @@ def canonicalStandardFatherLevelBlock
     simp [Complex.norm_real, Real.norm_of_nonneg hnonneg]
 
 /--
+Every coefficient in the father standard block is real when `f` is real-valued.
+-/
+theorem canonicalStandardFatherLevelBlock_coeff_realValued_of_aeRealValued
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (hf_real : ∀ᵐ x ∂G.grid.μ, ∃ r : ℝ, f x = (r : ℂ))
+    (Q : WeakGridSpace.LevelCell G.toWeakGridSpace 0) :
+    ∃ r : ℝ,
+      (canonicalStandardFatherLevelBlock G F s p hs hp hp_top f hf).coeff Q = (r : ℂ) := by
+  let Qg : GoodGridCell G := { level := 0, cell := Q.1, mem := Q.2 }
+  let a : ℝ := (G.grid.μ Q.1).toReal ^ (s - (p.toReal)⁻¹)
+  have hprod :
+      ∃ r : ℝ,
+        HaarRepresentation.Coeff G F f hf .alpha *
+          HaarRepresentation.L2normalizedHaar G F .alpha (cellPoint G Qg) = (r : ℂ) :=
+    complex_mul_realValued
+      (HaarRepresentation.coeff_realValued_of_aeRealValued G F f hf hf_real .alpha)
+      (l2normalizedHaar_realValued G F .alpha (cellPoint G Qg))
+  simpa [canonicalStandardFatherLevelBlock, Qg, a] using
+    complex_div_realValued a hprod
+
+/--
 The level-zero Souza block represents the father Haar term in `Lp`.
 -/
 theorem canonicalStandardFatherLevelBlock_toLp
@@ -2778,6 +2995,27 @@ def canonicalStandardLpGridBlock
   | k + 1 => canonicalStandardPositiveLevelBlock G F s p hs hp hp_top f hf k
 
 /--
+All coefficients of the canonical standard block sequence are real when `f` is
+real-valued.
+-/
+theorem canonicalStandardLpGridBlock_coeff_realValued_of_aeRealValued
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (s : ℝ) (p : ℝ≥0∞) (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (hf_real : ∀ᵐ x ∂G.grid.μ, ∃ r : ℝ, f x = (r : ℂ))
+    (n : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace n) :
+    ∃ r : ℝ,
+      (canonicalStandardLpGridBlock G F s p hs hp hp_top f hf n).coeff Q = (r : ℂ) := by
+  cases n with
+  | zero =>
+      exact canonicalStandardFatherLevelBlock_coeff_realValued_of_aeRealValued
+        G F s p hs hp hp_top f hf hf_real Q
+  | succ k =>
+      exact canonicalStandardPositiveLevelBlock_coeff_realValued_of_aeRealValued
+        G F s p hs hp hp_top f hf hf_real k Q
+
+/--
 The natural-level blocks evaluate to the corresponding terms of the already
 proved `Option ℕ` expansion.
 -/
@@ -2836,6 +3074,36 @@ def standardLpGridRepresentation
     natEquivOptionNat.hasSum_iff.mpr hoption
   exact hnat.congr_fun fun n =>
     canonicalStandardLpGridBlock_toLp G F s p hs hp hp_ne_top f hfint n
+
+/--
+If `f` is real-valued, then the packaged standard `LpGridRepresentation` has
+real coefficients at every level and cell.
+-/
+theorem standardLpGridRepresentation_coeff_realValued_of_aeRealValued
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    [DecidableEq F.Index]
+    (s : ℝ) (hs : 0 < s)
+    (p : ℝ≥0∞) (hp_one : 1 < p) (hp_top : p < ∞)
+    (f : α → ℂ) (hf : MemLp f p G.grid.μ)
+    (hf_real : ∀ᵐ x ∂G.grid.μ, ∃ r : ℝ, f x = (r : ℂ)) :
+    letI : Fact (1 ≤ p) := ⟨le_of_lt hp_one⟩
+    ∀ n : ℕ,
+      ∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace n,
+        ∃ r : ℝ,
+          ((standardLpGridRepresentation G F s hs p hp_one hp_top f hf).block n).coeff Q =
+            (r : ℂ) := by
+  classical
+  letI : Fact (1 ≤ p) := ⟨le_of_lt hp_one⟩
+  let hp : 1 ≤ p := le_of_lt hp_one
+  let hp_ne_top : p ≠ ∞ := ne_of_lt hp_top
+  let hfint : Integrable f G.grid.μ := by
+    letI : IsFiniteMeasure G.grid.μ := (HaarRepresentation.GridOf G).isFinite
+    exact hf.integrable (le_of_lt hp_one)
+  intro n Q
+  simpa [standardLpGridRepresentation, hp, hp_ne_top, hfint] using
+    canonicalStandardLpGridBlock_coeff_realValued_of_aeRealValued
+      G F s p hs hp hp_ne_top f hfint hf_real n Q
 
 /--
 The level contribution in the standard atomic gauge.
