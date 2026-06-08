@@ -96,16 +96,18 @@ Arquivo principal:
 
 Estado atual:
 
-- O arquivo compila com:
-
-  ```bash
-  lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanProperty.lean
-  ```
-
-- Ha dois `sorry`s, em:
+- A parte infinita foi implementada usando os produtos finitos, compactness de
+  representacoes de custo uniformemente limitado e identificacao do limite pela
+  convergencia pontual das somas parciais.
+- A ultima checagem completa do arquivo nao foi concluida nesta rodada: duas
+  chamadas de `lake env lean
+  BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanProperty.lean`
+  ficaram presas depois de uma tentativa com `maxHeartbeats` alto/sem limite, e
+  o sandbox nao permitiu matar esses processos por `ps`, `pkill` ou `killall`.
+- A busca textual atual por `sorry` em `NonArchimedeanProperty.lean` mostra
+  apenas:
 
   ```lean
-  souzaNonArchimedeanPropertyLambdaInfinite
   souzaNonArchimedeanPropertyPositiveCone
   ```
 
@@ -134,7 +136,7 @@ tem uma representacao Souza cujo custo e controlado por
 - A versao infinita ja esta enunciada em forma pontual/Besov:
 
   ```lean
-  souzaNonArchimedeanPropertyLambdaInfinite
+  souzaNonArchimedeanProperty
   ```
 
   Ela usa a lemma auxiliar
@@ -167,9 +169,27 @@ tem uma representacao Souza cujo custo e controlado por
   A condicao A infinita com `HasSum` e nao-negatividade dos termos relevantes
   fornece a condicao A finita para cada truncacao.
 
-  Finalmente, a versao publica infinita ainda afirma que `h` e representada por
-  um elemento Souza-Besov com uma representacao `S` de custo finito e
+  A versao publica infinita agora tenta fechar tambem que `h` e representada
+  por um elemento Souza-Besov com uma representacao `S` de custo finito e
   `pqCost S <= Cgen * N * pqCost R`.
+
+  Para isso foram adicionados:
+
+  ```lean
+  WeakGridSpace.exists_strongly_convergent_subseq_of_uniform_pqCost
+  nonArchimedeanRepresentationConstant
+  exists_nonArchimedeanProductRepresentation_finset_with_cost_le
+  nonArchimedeanRelevantTailSelfsSum_le_of_hasSum
+  ```
+
+  A ideia formal e:
+
+  - para cada truncacao finita de `Λ`, usar a versao finita para obter
+    representantes `S_n` com custo uniformemente controlado;
+  - aplicar compactness para extrair uma subsequencia convergente em `Lp` para
+    uma representacao limite `S`;
+  - usar que as somas parciais convergem quase sempre para a funcao `h`
+    produzida pela lemma pontual, identificando o limite `Lp` com `h`.
 
 - A versao infinita atual nao inclui mais uma hipotese separada de cauda
   uniforme.  Toda a informacao global esta concentrada na condicao A infinita,
@@ -183,22 +203,19 @@ tem uma representacao Souza cujo custo e controlado por
 
 ## O que falta provar
 
-Os `sorry`s localizados nos arquivos centrais checados sao:
+Os `sorry`s localizados textualmentes nos arquivos centrais sao:
 
 ```lean
-souzaNonArchimedeanPropertyLambdaInfinite
 souzaNonArchimedeanPropertyPositiveCone
 ```
 
-O que falta matematicamente para a versao infinita:
+O que falta para a versao infinita:
 
-- A parte pontual da versao infinita ja esta provada:
-  soma absoluta quase sempre, soma complexa quase sempre, cota pontual
-  `‖h z‖ <= Cgen * N * ‖f z‖`, pertencimento a `Lp`, e cota
-  `‖h‖_Lp <= Cgen * N * ‖x‖_Lp`.
-- Usar completude/fechamento adequado para obter o limite no espaco Besov/Lp.
-- Construir uma representacao Souza `S` de `h` com custo finito e passar a
-  cota `pqCost S <= Cgen * N * pqCost R`.
+- Reexecutar a checagem do arquivo depois que os processos Lean presos forem
+  encerrados pelo ambiente.
+- Se o elaborador ainda ficar pesado, fatorar mais a prova de
+  `souzaNonArchimedeanProperty`, provavelmente extraindo a construcao da
+  sequencia finita/compactness para uma lemma privada separada.
 
 O que ainda falta matematicamente para essa versao positiva:
 
@@ -215,13 +232,25 @@ O que ainda falta matematicamente para essa versao positiva:
 
 ## Checks recentes
 
-Passaram:
+Passaram antes desta rodada:
 
 ```bash
 lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/Definition.lean
 lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lean
 lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers.lean
 lake env lean BesovSpacesGoodGrid/GoodGrid/PositiveCone.lean
+lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanProperty.lean
+```
+
+Nesta rodada passou:
+
+```bash
+lake build BesovSpacesGoodGrid.WeakGrid.Completeness
+```
+
+Nao concluido nesta rodada:
+
+```bash
 lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanProperty.lean
 ```
 
@@ -235,6 +264,5 @@ rg -n "\bsorry\b" \
   BesovSpacesGoodGrid/GoodGrid/Multipliers/Definition.lean
 ```
 
-Resultado: apenas os `sorry`s de
-`souzaNonArchimedeanPropertyLambdaInfinite` e
+Resultado textual atual em `NonArchimedeanProperty.lean`: apenas o `sorry` de
 `souzaNonArchimedeanPropertyPositiveCone`.
