@@ -2652,6 +2652,92 @@ theorem exists_strongly_convergent_subseq_of_uniform_pqCostENNReal
       (G := G) (s := s) (p := p) (u := u) (q := q) Rseq hC uniform_bound)
 
 /--
+Sequential compactness for uniformly bounded finite-cost representations,
+keeping the limiting representation and its cost bound.
+
+This is the same extraction as
+`exists_strongly_convergent_subseq_of_uniform_pqCostENNReal`, but it returns
+the limit representation instead of only the Besov-ish membership predicate.
+It is useful when a later argument must identify the concrete pointwise limit
+and still keep the exact coefficient-cost estimate.
+-/
+theorem exists_strongly_convergent_subseq_of_uniform_pqCost
+    (hp_ne_top : p ≠ ∞) (hs_pos : 0 < s) (hu_one : 1 ≤ u)
+    (A : AtomFamily G s p u) (hG2 : AssumptionG2 G s p u q)
+    (hA5 : AssumptionA5 A)
+    {gseq : ℕ → Lp ℂ p G.measure}
+    (Rseq : ∀ n, LpGridRepresentation A (gseq n))
+    {C : ℝ}
+    [Fact (1 ≤ u)]
+    (hC : 0 ≤ C)
+    (hRfin : ∀ n, LpGridRepresentation.FinitePQCost (q := q) (Rseq n))
+    (uniform_bound : ∀ n,
+      LpGridRepresentation.pqCost (q := q) (Rseq n) ≤ C) :
+    ∃ (φ : ℕ → ℕ) (_hφ : StrictMono φ) (gLim : Lp ℂ p G.measure)
+      (Rlim : LpGridRepresentation A gLim),
+        MemBesovishCoeffCost A q gLim ∧
+        LpGridRepresentation.FinitePQCost (q := q) Rlim ∧
+        LpGridRepresentation.pqCost (q := q) Rlim ≤ C ∧
+        Tendsto (fun n => gseq (φ n)) atTop (𝓝 gLim) := by
+  classical
+  have uniform_bound_enn : ∀ n,
+      LpGridRepresentation.pqCostENNReal (q := q) (Rseq n) ≤ ENNReal.ofReal C := by
+    intro n
+    exact pqCostENNReal_le_of_finitePQCost_pqCost_le
+      (G := G) (s := s) (p := p) (u := u) (q := q)
+      (Rseq n) (hRfin n) (uniform_bound n)
+  let Bseq : ℕ → (k : ℕ) → LevelBlock A k := fun n => (Rseq n).block
+  have coeff_bounded : ∀ (k : ℕ) (Q : LevelCell G k),
+      BddAbove (Set.range fun n : ℕ => ‖(Bseq n k).coeff Q‖) := by
+    simpa [Bseq] using
+      coeff_bounded_of_uniform_pqCostENNReal_le
+        (G := G) (s := s) (p := p) (u := u) (q := q)
+        Rseq hC uniform_bound_enn
+  rcases exists_subseq_coeff_tendsto_of_coord_bounded
+      (A := A) Bseq coeff_bounded with ⟨φc, hφc, RcoeffLim, hcoeff_lim⟩
+  let Bseqc : ℕ → (k : ℕ) → LevelBlock A k := fun n => Bseq (φc n)
+  rcases exists_subseq_atoms_tendsto_of_abstract
+      (A := A) hA5 Bseqc with ⟨φa, hφa, RatomLim, hatom_lim⟩
+  let φ : ℕ → ℕ := φc ∘ φa
+  have hφ : StrictMono φ := hφc.comp hφa
+  let RlimBlocks : (k : ℕ) → LevelBlock A k := fun k =>
+    { coeff := (RcoeffLim k).coeff
+      atom := (RatomLim k).atom
+      atom_mem := (RatomLim k).atom_mem }
+  have hcoeff_lim' : ∀ (k : ℕ) (Q : LevelCell G k),
+      Tendsto (fun n => ((Rseq (φ n)).block k).coeff Q) atTop
+        (𝓝 ((RlimBlocks k).coeff Q)) := by
+    intro k Q
+    have hcoeff_to_Rcoeff :
+        Tendsto (fun n => (Bseq (φc n) k).coeff Q) atTop
+          (𝓝 ((RcoeffLim k).coeff Q)) :=
+      hcoeff_lim k Q
+    have hcoeff_to_Rcoeff_sub :
+        Tendsto (fun n => (Bseq (φc (φa n)) k).coeff Q) atTop
+          (𝓝 ((RcoeffLim k).coeff Q)) :=
+      hcoeff_to_Rcoeff.comp hφa.tendsto_atTop
+    simpa [φ, Bseq, RlimBlocks] using hcoeff_to_Rcoeff_sub
+  have hatom_lim' : ∀ (k : ℕ) (Q : LevelCell G k),
+      Tendsto
+        (fun n => atomLp A (levelCellToWeakGridCell G k Q) (((Rseq (φ n)).block k).atom Q))
+        atTop
+        (𝓝 (atomLp A (levelCellToWeakGridCell G k Q) ((RlimBlocks k).atom Q))) := by
+    intro k Q
+    simpa [φ, Bseq, Bseqc, RlimBlocks] using hatom_lim k Q
+  have uniform_bound_sub : ∀ n,
+      LpGridRepresentation.pqCostENNReal (q := q) (Rseq (φ n)) ≤ ENNReal.ofReal C := by
+    intro n
+    exact uniform_bound_enn (φ n)
+  rcases representation_limit_strong_existence
+      (G := G) (s := s) (p := p) (u := u) (q := q)
+      hp_ne_top hs_pos hu_one A hG2
+      (fun n => Rseq (φ n)) hC uniform_bound_sub
+      RlimBlocks hcoeff_lim' hatom_lim' with
+      ⟨gLim, hRlim, hmem, hfin, hcost, htend⟩
+  let Rlim : LpGridRepresentation A gLim := { block := RlimBlocks, hasSum := hRlim }
+  exact ⟨φ, hφ, gLim, Rlim, hmem, hfin, hcost, htend⟩
+
+/--
 The closed `Norm_Costpq` ball is sequentially compact for the ambient strong
 `L^p` topology, assuming `G2` and strong sequential compactness of atoms.
 

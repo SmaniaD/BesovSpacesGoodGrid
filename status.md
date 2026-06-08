@@ -102,16 +102,17 @@ Estado atual:
   lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanProperty.lean
   ```
 
-- Ha exatamente um `sorry`, em:
+- Ha dois `sorry`s, em:
 
   ```lean
+  souzaNonArchimedeanPropertyLambdaInfinite
   souzaNonArchimedeanPropertyPositiveCone
   ```
 
-- A versao principal nao positiva ja esta provada:
+- A versao finita principal nao positiva ja esta provada:
 
   ```lean
-  souzaNonArchimedeanProperty
+  souzaNonArchimedeanPropertyLambdaFinite
   ```
 
 O que ela diz, em termos matematicos:
@@ -130,13 +131,74 @@ tem uma representacao Souza cujo custo e controlado por
   C_{\mathrm{gen}}\,N\,\operatorname{cost}(R).
 \]
 
+- A versao infinita ja esta enunciada em forma pontual/Besov:
+
+  ```lean
+  souzaNonArchimedeanPropertyLambdaInfinite
+  ```
+
+  Ela usa a lemma auxiliar
+  `exists_nonArchimedeanInfinite_pointwise_hasSum`, que isola a parte pontual.
+  Essa lemma auxiliar agora esta provada sem `sorry`.  A conclusao diz que
+  existe uma funcao concreta `h` tal que, para quase todo ponto `z` com
+  `f z ≠ 0`, a serie absoluta
+  \[
+    \sum_{i\in\Lambda} |g_i(z)|
+  \]
+  tem soma `absSum z` e satisfaz `absSum z <= Cgen * N`.  Alem disso, para
+  quase todo `z`, a serie complexa
+  \[
+    \sum_{i\in\Lambda} g_i(z) f(z)
+  \]
+  tem soma `h z`.
+
+  A mesma lemma pontual agora tambem prova:
+
+  ```lean
+  ∃ hmem : MemLp h p G.toWeakGridSpace.measure,
+    ‖MemLp.toLp h hmem‖ ≤
+      Cgen * N * ‖(x : Lp ℂ p G.toWeakGridSpace.measure)‖
+  ```
+
+  A prova de `h ∈ Lp` foi fechada mostrando primeiro que `h` e
+  `AEStronglyMeasurable`, como limite quase sempre dos produtos parciais
+  finitos.  Cada produto parcial e mensuravel porque a versao finita
+  `souzaNonArchimedeanPropertyLambdaFinite` fornece um representante em `Lp`.
+  A condicao A infinita com `HasSum` e nao-negatividade dos termos relevantes
+  fornece a condicao A finita para cada truncacao.
+
+  Finalmente, a versao publica infinita ainda afirma que `h` e representada por
+  um elemento Souza-Besov com uma representacao `S` de custo finito e
+  `pqCost S <= Cgen * N * pqCost R`.
+
+- A versao infinita atual nao inclui mais uma hipotese separada de cauda
+  uniforme.  Toda a informacao global esta concentrada na condicao A infinita,
+  agora formalizada com uma soma testemunhada:
+  `HasSum (fun i : {i // i ∈ Λ} =>
+    nonArchimedeanRelevantTailSelfsInfiniteTerm ... Q i) T` e `T <= N` em
+  cada celula ativa da representacao fixa `R`.
+- A constante da versao infinita e escolhida com `0 <= Cgen` e `1 <= Cgen`,
+  para poder absorver simultaneamente a constante da parte pontual e a
+  constante da parte Besov.
+
 ## O que falta provar
 
-O unico `sorry` localizado nos arquivos centrais checados e:
+Os `sorry`s localizados nos arquivos centrais checados sao:
 
 ```lean
+souzaNonArchimedeanPropertyLambdaInfinite
 souzaNonArchimedeanPropertyPositiveCone
 ```
+
+O que falta matematicamente para a versao infinita:
+
+- A parte pontual da versao infinita ja esta provada:
+  soma absoluta quase sempre, soma complexa quase sempre, cota pontual
+  `‖h z‖ <= Cgen * N * ‖f z‖`, pertencimento a `Lp`, e cota
+  `‖h‖_Lp <= Cgen * N * ‖x‖_Lp`.
+- Usar completude/fechamento adequado para obter o limite no espaco Besov/Lp.
+- Construir uma representacao Souza `S` de `h` com custo finito e passar a
+  cota `pqCost S <= Cgen * N * pqCost R`.
 
 O que ainda falta matematicamente para essa versao positiva:
 
@@ -173,5 +235,6 @@ rg -n "\bsorry\b" \
   BesovSpacesGoodGrid/GoodGrid/Multipliers/Definition.lean
 ```
 
-Resultado: apenas o `sorry` de
+Resultado: apenas os `sorry`s de
+`souzaNonArchimedeanPropertyLambdaInfinite` e
 `souzaNonArchimedeanPropertyPositiveCone`.
