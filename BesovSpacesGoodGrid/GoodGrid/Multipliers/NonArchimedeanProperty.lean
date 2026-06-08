@@ -3575,9 +3575,23 @@ private theorem exists_subseq_tendsto_ae_of_tendsto_Lp
     ∃ ψ : ℕ → ℕ, StrictMono ψ ∧
       ∀ᵐ z ∂μ, Filter.Tendsto (fun n : ℕ => u (ψ n) z)
         Filter.atTop (𝓝 (uLim z)) := by
-  have hu_measure : TendstoInMeasure μ u Filter.atTop uLim :=
-    tendstoInMeasure_of_tendsto_Lp hu_tendsto
-  exact hu_measure.exists_seq_tendsto_ae
+  have hu_measure :
+      TendstoInMeasure μ
+        (fun n z => u n z)
+        Filter.atTop
+        (fun z => uLim z) := by
+    simpa only using
+      (tendstoInMeasure_of_tendsto_Lp
+        (μ := μ) (p := p) (f := u) (g := uLim)
+        (l := Filter.atTop) hu_tendsto)
+
+  simpa only using
+    (TendstoInMeasure.exists_seq_tendsto_ae
+      (μ := μ)
+      (f := fun n z => u n z)
+      (g := fun z => uLim z)
+      hu_measure)
+
 
 
 private theorem exists_limit_representation_of_finite_sequence
@@ -3613,49 +3627,94 @@ private theorem exists_limit_representation_of_finite_sequence
         WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
         WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤ Cbound := by
   classical
+
   let A := souzaAtomFamily G s p hs hp hp_top
   let μ := G.toWeakGridSpace.measure
+  let yseqLp : ℕ → Lp ℂ p μ := fun n => (yseq n : Lp ℂ p μ)
+
   rcases WeakGridSpace.exists_strongly_convergent_subseq_of_uniform_pqCost
       (G := G.toWeakGridSpace) (s := s) (p := p) (u := ∞) (q := q)
       hp_top hs le_top A
       (souza_assumptionG2 G s p q hs hp hp_top)
       (souza_assumptionA5 G s p hs hp hp_top)
       Sseq hCbound_nonneg hSseq_fin hSseq_cost with
-    ⟨φ, hφ, yLimLp, S, _hmemLim, hSfin, hScost, hy_tendsto⟩
+    ⟨φ, hφ, yLimLp, S, hmemLim, hSfin, hScost, hy_tendsto⟩
+
+  have hy_tendsto_lp :
+      Filter.Tendsto
+        (fun n : ℕ => yseqLp (φ n))
+        Filter.atTop
+        (𝓝 yLimLp) := by
+    change Filter.Tendsto
+      (fun n : ℕ => (yseq (φ n) : Lp ℂ p G.toWeakGridSpace.measure))
+      Filter.atTop
+      (𝓝 yLimLp)
+    exact hy_tendsto
+
   rcases exists_subseq_tendsto_ae_of_tendsto_Lp
       (μ := μ)
-      (u := fun n => (yseq (φ n) : Lp ℂ p μ))
+      (u := fun n : ℕ => yseqLp (φ n))
       (uLim := yLimLp)
-      (by simpa [μ] using hy_tendsto) with
+      hy_tendsto_lp with
     ⟨ψ, hψ, hy_ae⟩
-  let yseqLp : ℕ → Lp ℂ p μ := fun n => (yseq n : Lp ℂ p μ)
+
   have hyseq_rep_lp : ∀ n, yseqLp n =ᵐ[μ] partialFun n := by
     intro n
-    simpa [yseqLp] using hyseq_rep n
+    change WeakGridSpace.RepresentsFunction
+      (G := G.toWeakGridSpace) (p := p) (partialFun n)
+      (yseq n : Lp ℂ p G.toWeakGridSpace.measure)
+    exact hyseq_rep n
+
   have hcoe :
       ∀ᵐ z ∂μ, ∀ n : ℕ,
         yseqLp (φ (ψ n)) z = partialFun (φ (ψ n)) z :=
     ae_eq_partialFun_on_composed_subseq hyseq_rep_lp φ ψ
+
   have hy_subseq_tendsto :
       ∀ᵐ z ∂μ,
-        Filter.Tendsto (fun n : ℕ => partialFun (φ (ψ n)) z)
-          Filter.atTop (𝓝 (yLimLp z)) := by
+        Filter.Tendsto
+          (fun n : ℕ => partialFun (φ (ψ n)) z)
+          Filter.atTop
+          (𝓝 (yLimLp z)) := by
     filter_upwards [hy_ae, hcoe] with z hyz hcoez
-    have hcoez' :
-        ∀ n : ℕ,
-          (fun n : ℕ => ((yseq (φ (ψ n)) : Lp ℂ p μ) z)) n =
-            (fun n : ℕ => partialFun (φ (ψ n)) z) n := by
-      intro n
-      simpa [yseqLp] using hcoez n
-    exact hyz.congr' (Filter.Eventually.of_forall hcoez')
+    exact hyz.congr' <|
+      Filter.Eventually.of_forall fun n : ℕ => hcoez n
+
+  have hy_subseq_tendsto_G :
+      ∀ᵐ z ∂G.toWeakGridSpace.measure,
+        Filter.Tendsto
+          (fun n : ℕ => partialFun (φ (ψ n)) z)
+          Filter.atTop
+          (𝓝 (yLimLp z)) := by
+    change ∀ᵐ z ∂μ,
+        Filter.Tendsto
+          (fun n : ℕ => partialFun (φ (ψ n)) z)
+          Filter.atTop
+          (𝓝 (yLimLp z))
+    exact hy_subseq_tendsto
+
   have hLimRep :
       WeakGridSpace.RepresentsFunction
         (G := G.toWeakGridSpace) (p := p) h yLimLp :=
     representsFunction_of_tendsto_subseq
-      G p φ ψ hφ hψ hpartial_tendsto hy_subseq_tendsto
-  refine ⟨⟨yLimLp, ?_⟩, ?_, hLimRep, hSfin, hScost⟩
-  · exact _hmemLim
-  · simpa using S
+      G p φ ψ hφ hψ hpartial_tendsto hy_subseq_tendsto_G
+
+  refine ⟨⟨yLimLp, ?_⟩, ?_, ?_, ?_, ?_⟩
+  · exact hmemLim
+
+  · change WeakGridSpace.LpGridRepresentation A yLimLp
+    exact S
+
+  · change WeakGridSpace.RepresentsFunction
+      (G := G.toWeakGridSpace) (p := p) h yLimLp
+    exact hLimRep
+
+  · change WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S
+    exact hSfin
+
+  · change WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤ Cbound
+    exact hScost
+
 
 private theorem exists_nonArchimedeanInfinite_besov_representation
     (G : GoodGridSpace (α := α))
