@@ -3122,6 +3122,121 @@ noncomputable def nonArchimedeanLambdaPartial (Λ : Set ℕ) (n : ℕ) : Finset 
   classical
   exact (Finset.range (n + 1)).filter fun i => i ∈ Λ
 
+/-- The strict initial segment `Λ ∩ {0, ..., n - 1}`. -/
+noncomputable def nonArchimedeanLambdaInitial (Λ : Set ℕ) (n : ℕ) : Finset ℕ := by
+  classical
+  exact (Finset.range n).filter fun i => i ∈ Λ
+
+private theorem nonArchimedean_partialProducts_aestronglyMeasurable
+    (G : GoodGridSpace (α := α))
+    (s β : ℝ) (p q qtilde : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β)
+    (hβ_lt_inv : β < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] [Fact (1 ≤ qtilde)]
+    {Λ : Set ℕ} {t : ℕ → ℕ} {g : ℕ → α → ℂ}
+    {N : ℝ} {f : α → ℂ}
+    {x : WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q}
+    {R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (x : Lp ℂ p G.toWeakGridSpace.measure)}
+    (hN : 0 ≤ N)
+    (hRep : WeakGridSpace.RepresentsFunction
+      (G := G.toWeakGridSpace) (p := p) f
+      (x : Lp ℂ p G.toWeakGridSpace.measure))
+    (hRfin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R)
+    (hTail : ∀ i ∈ Λ,
+      ∃ C : ℝ,
+        SouzaPointwiseSelfsTailBound G β p qtilde hβ hp hp_top (t i) (g i) C)
+    (hA : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      (R.block k).coeff Q ≠ 0 →
+        ∃ T : ℝ,
+          HasSum
+            (fun i : {i // i ∈ Λ} =>
+              nonArchimedeanRelevantTailSelfsInfiniteTerm
+                G β p qtilde hβ hp hp_top Λ t g Q i)
+            T ∧
+          T ≤ N)
+    (hB : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) i,
+      i ∈ Λ →
+        (R.block k).coeff Q ≠ 0 →
+          goodGridLevelCellMeetsSupport G Q (g i) →
+            t i ≤ k) :
+    ∀ n : ℕ,
+      AEStronglyMeasurable
+        (fun z => (∑ i ∈ nonArchimedeanLambdaInitial Λ n, g i z) * f z)
+        G.toWeakGridSpace.measure := by
+  classical
+  intro n
+  let Λn : Finset ℕ := nonArchimedeanLambdaInitial Λ n
+  rcases souzaNonArchimedeanPropertyLambdaFinite
+      G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top with
+    ⟨_Cfin, _hCfin_nonneg, hfinite⟩
+  have hTail_fin : ∀ i ∈ Λn,
+      ∃ C : ℝ,
+        SouzaPointwiseSelfsTailBound
+          G β p qtilde hβ hp hp_top (t i) (g i) C := by
+    intro i hi
+    exact hTail i ((Finset.mem_filter.mp hi).2)
+  have hA_fin : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      (R.block k).coeff Q ≠ 0 →
+        nonArchimedeanRelevantTailSelfsSum
+          G β p qtilde hβ hp hp_top Λn t g Q ≤ N := by
+    intro k Q hQcoeff
+    rcases hA k Q hQcoeff with ⟨T, hTsum, hTle⟩
+    exact nonArchimedeanRelevantTailSelfsSum_le_of_hasSum
+      G β p qtilde hβ hp hp_top hTail
+      (fun i hi => (Finset.mem_filter.mp hi).2) hTsum hTle
+  have hB_fin : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) i,
+      i ∈ Λn →
+        (R.block k).coeff Q ≠ 0 →
+          goodGridLevelCellMeetsSupport G Q (g i) →
+            t i ≤ k := by
+    intro k Q i hi hQcoeff hmeet
+    exact hB k Q i ((Finset.mem_filter.mp hi).2) hQcoeff hmeet
+  rcases hfinite Λn t g N f x R hN hRep hRfin hTail_fin hA_fin hB_fin with
+    ⟨y, _Srep, hy_rep, _hy_cost⟩
+  have hy_meas :
+      AEStronglyMeasurable ((y : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ)
+        G.toWeakGridSpace.measure :=
+    (Lp.memLp (y : Lp ℂ p G.toWeakGridSpace.measure)).aestronglyMeasurable
+  have hpartial_eq :
+      ((y : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) =ᵐ[G.toWeakGridSpace.measure]
+        (fun z => (∑ i ∈ nonArchimedeanLambdaInitial Λ n, g i z) * f z) := by
+    simpa [Λn] using hy_rep
+  exact hy_meas.congr hpartial_eq
+
+private theorem tendsto_nonArchimedean_partial_sums_of_hasSum
+    {Λ : Set ℕ} (g : ℕ → α → ℂ) (f h : α → ℂ) {z : α}
+    (hseries_z : HasSum
+      (fun i : {i // i ∈ Λ} => g i.1 z * f z)
+      (h z)) :
+    Filter.Tendsto
+      (fun n : ℕ => (∑ i ∈ nonArchimedeanLambdaInitial Λ n, g i z) * f z)
+      Filter.atTop (𝓝 (h z)) := by
+  classical
+  let fNat : ℕ → ℂ := fun i => if hi : i ∈ Λ then g i z * f z else 0
+  have hzero_outside :
+      ∀ i ∉ Set.range (fun j : {i // i ∈ Λ} => j.1), fNat i = 0 := by
+    intro i hi
+    by_cases hiΛ : i ∈ Λ
+    · exact False.elim (hi ⟨⟨i, hiΛ⟩, rfl⟩)
+    · simp [fNat, hiΛ]
+  have hcomp :
+      fNat ∘ (fun j : {i // i ∈ Λ} => j.1) =
+        fun j : {i // i ∈ Λ} => g j.1 z * f z := by
+    funext j
+    simp [fNat, j.2]
+  have hNat : HasSum fNat (h z) := by
+    exact (Subtype.val_injective.hasSum_iff
+      (f := fNat) (a := h z) hzero_outside).mp
+      (by simpa [hcomp] using hseries_z)
+  have htendsto := hNat.tendsto_sum_nat
+  convert htendsto using 1
+  ext n
+  simp [nonArchimedeanLambdaInitial, fNat, Finset.sum_filter, Finset.sum_mul]
+
 /--
 Pointwise summability part of the infinite non-Archimedean statement.
 
@@ -3291,110 +3406,22 @@ private theorem exists_nonArchimedeanInfinite_pointwise_hasSum
           _ ≤ (Cgen * N) * ‖f z‖ :=
             mul_le_mul_of_nonneg_right hAbs_le (norm_nonneg _)
           _ = Cgen * N * ‖f z‖ := by ring
-    let partialFun : ℕ → α → ℂ := fun n z =>
-      (∑ i ∈ (Finset.range n).filter (fun i => i ∈ Λ), g i z) * f z
     have hpartial_meas :
-        ∀ n : ℕ, AEStronglyMeasurable (partialFun n) G.toWeakGridSpace.measure := by
-      intro n
-      let Λn : Finset ℕ := (Finset.range n).filter fun i => i ∈ Λ
-      rcases souzaNonArchimedeanPropertyLambdaFinite
-          G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top with
-        ⟨Cfin, hCfin_nonneg, hfinite⟩
-      have hTail_fin : ∀ i ∈ Λn,
-          ∃ C : ℝ,
-            SouzaPointwiseSelfsTailBound
-              G β p qtilde hβ hp hp_top (t i) (g i) C := by
-        intro i hi
-        exact hTail i ((Finset.mem_filter.mp hi).2)
-      have hA_fin : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
-          (R.block k).coeff Q ≠ 0 →
-            nonArchimedeanRelevantTailSelfsSum
-              G β p qtilde hβ hp hp_top Λn t g Q ≤ N := by
-        intro k Q hQcoeff
-        rcases hA k Q hQcoeff with ⟨T, hTsum, hTle⟩
-        let emb : {i // i ∈ Λn} ↪ {i // i ∈ Λ} :=
-          { toFun := fun i => ⟨i.1, (Finset.mem_filter.mp i.2).2⟩
-            inj' := by
-              intro a b h
-              exact Subtype.ext (Subtype.mk.inj h) }
-        let S : Finset {i // i ∈ Λ} := Λn.attach.map emb
-        have hsum_eq :
-            nonArchimedeanRelevantTailSelfsSum
-                G β p qtilde hβ hp hp_top Λn t g Q =
-              ∑ i ∈ S,
-                nonArchimedeanRelevantTailSelfsInfiniteTerm
-                  G β p qtilde hβ hp hp_top Λ t g Q i := by
-          classical
-          let F : ℕ → ℝ := fun i =>
-            if goodGridLevelCellMeetsSupport G Q (g i) then
-              souzaPointwiseSelfsTailNorm G β p qtilde hβ hp hp_top (t i) (g i)
-            else
-              0
-          change (∑ i ∈ Λn, F i) = ∑ x ∈ S, F x.1
-          change (∑ i ∈ Λn, F i) = ∑ x ∈ Λn.attach.map emb, F x.1
-          simp only [Finset.sum_map]
-          simp only [emb]
-          change (∑ i ∈ Λn, F i) = ∑ x ∈ Λn.attach, F x.1
-          exact (Λn.sum_attach F).symm
-        have hsum_le_T :
-            (∑ i ∈ S,
-                nonArchimedeanRelevantTailSelfsInfiniteTerm
-                  G β p qtilde hβ hp hp_top Λ t g Q i) ≤ T := by
-          exact sum_le_hasSum S
-            (fun i _hi =>
-              nonArchimedeanRelevantTailSelfsInfiniteTerm_nonneg
-                G β p qtilde hβ hp hp_top hTail Q i)
-            hTsum
-        calc
-          nonArchimedeanRelevantTailSelfsSum
-              G β p qtilde hβ hp hp_top Λn t g Q
-              = ∑ i ∈ S,
-                  nonArchimedeanRelevantTailSelfsInfiniteTerm
-                    G β p qtilde hβ hp hp_top Λ t g Q i := hsum_eq
-          _ ≤ T := hsum_le_T
-          _ ≤ N := hTle
-      have hB_fin : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) i,
-          i ∈ Λn →
-            (R.block k).coeff Q ≠ 0 →
-              goodGridLevelCellMeetsSupport G Q (g i) →
-                t i ≤ k := by
-        intro k Q i hi hQcoeff hmeet
-        exact hB k Q i ((Finset.mem_filter.mp hi).2) hQcoeff hmeet
-      rcases hfinite Λn t g N f x R hN hRep hRfin hTail_fin hA_fin hB_fin with
-        ⟨y, Srep, hy_rep, _hy_cost⟩
-      have hy_meas :
-          AEStronglyMeasurable ((y : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ)
+        ∀ n : ℕ,
+          AEStronglyMeasurable
+            (fun z => (∑ i ∈ nonArchimedeanLambdaInitial Λ n, g i z) * f z)
             G.toWeakGridSpace.measure :=
-        (Lp.memLp (y : Lp ℂ p G.toWeakGridSpace.measure)).aestronglyMeasurable
-      have hpartial_eq :
-          ((y : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) =ᵐ[G.toWeakGridSpace.measure]
-            partialFun n := by
-        simpa [partialFun, Λn] using hy_rep
-      exact hy_meas.congr hpartial_eq
+      nonArchimedean_partialProducts_aestronglyMeasurable
+        G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
+        hN hRep hRfin hTail hA hB
     have hpartial_tendsto :
         ∀ᵐ z ∂G.toWeakGridSpace.measure,
-          Filter.Tendsto (fun n : ℕ => partialFun n z) Filter.atTop (𝓝 (h z)) := by
+          Filter.Tendsto
+            (fun n : ℕ =>
+              (∑ i ∈ nonArchimedeanLambdaInitial Λ n, g i z) * f z)
+            Filter.atTop (𝓝 (h z)) := by
       filter_upwards [hseries_ae] with z hseries_z
-      let fNat : ℕ → ℂ := fun i => if hi : i ∈ Λ then g i z * f z else 0
-      have hzero_outside :
-          ∀ i ∉ Set.range (fun j : {j // j ∈ Λ} => j.1), fNat i = 0 := by
-        intro i hi
-        by_cases hiΛ : i ∈ Λ
-        · exact False.elim (hi ⟨⟨i, hiΛ⟩, rfl⟩)
-        · simp [fNat, hiΛ]
-      have hcomp :
-          fNat ∘ (fun j : {j // j ∈ Λ} => j.1) =
-            fun j : {j // j ∈ Λ} => g j.1 z * f z := by
-        funext j
-        simp [fNat, j.2]
-      have hNat : HasSum fNat (h z) := by
-        exact (Subtype.val_injective.hasSum_iff
-          (f := fNat) (a := h z) hzero_outside).mp
-          (by simpa [hcomp] using hseries_z)
-      have htendsto := hNat.tendsto_sum_nat
-      convert htendsto using 1
-      ext n
-      simp [partialFun, fNat, Finset.sum_filter, Finset.sum_mul]
+      exact tendsto_nonArchimedean_partial_sums_of_hasSum g f h hseries_z
     have hh_meas : AEStronglyMeasurable h G.toWeakGridSpace.measure :=
       aestronglyMeasurable_of_tendsto_ae Filter.atTop hpartial_meas hpartial_tendsto
     rcases memLp_and_norm_le_of_ae_norm_le_mul_representsFunction
@@ -3402,7 +3429,338 @@ private theorem exists_nonArchimedeanInfinite_pointwise_hasSum
       ⟨hmem, hmem_norm⟩
     exact ⟨h, absSum, habs_ae, hseries_ae, hnorm_ae, hmem, hmem_norm⟩
 
-set_option maxHeartbeats 12000000
+
+
+private theorem mem_of_mem_nonArchimedeanLambdaInitial
+    {Λ : Set ℕ} {n i : ℕ}
+    (hi : i ∈ nonArchimedeanLambdaInitial Λ n) :
+    i ∈ Λ := by
+  classical
+  have hi' : i ∈ Finset.range n ∧ i ∈ Λ := by
+    simpa [nonArchimedeanLambdaInitial] using hi
+  exact hi'.2
+
+private theorem exists_nonArchimedean_finite_representation_initial
+    (G : GoodGridSpace (α := α))
+    (s β : ℝ) (p q qtilde : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β)
+    (hβ_lt_inv : β < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] [Fact (1 ≤ qtilde)]
+    {Cgen N : ℝ} (hN : 0 ≤ N)
+    (hCrep_le_Cgen : nonArchimedeanRepresentationConstant G s β p ≤ Cgen)
+    (Λ : Set ℕ) (n : ℕ) (t : ℕ → ℕ) (g : ℕ → α → ℂ)
+    (f : α → ℂ)
+    (x : WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (x : Lp ℂ p G.toWeakGridSpace.measure))
+    (hRep : WeakGridSpace.RepresentsFunction
+      (G := G.toWeakGridSpace) (p := p) f
+      (x : Lp ℂ p G.toWeakGridSpace.measure))
+    (hRfin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R)
+    (hTail : ∀ i ∈ Λ,
+      ∃ C : ℝ,
+        SouzaPointwiseSelfsTailBound G β p qtilde hβ hp hp_top (t i) (g i) C)
+    (hA : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      (R.block k).coeff Q ≠ 0 →
+        ∃ T : ℝ,
+          HasSum
+            (fun i : {i // i ∈ Λ} =>
+              nonArchimedeanRelevantTailSelfsInfiniteTerm
+                G β p qtilde hβ hp hp_top Λ t g Q i)
+            T ∧
+          T ≤ N)
+    (hB : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) i,
+      i ∈ Λ →
+        (R.block k).coeff Q ≠ 0 →
+          goodGridLevelCellMeetsSupport G Q (g i) →
+            t i ≤ k) :
+    ∃ y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      ∃ S : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (y : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          (fun z => (∑ i ∈ nonArchimedeanLambdaInitial Λ n, g i z) * f z)
+          (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
+          Cgen * N * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
+  classical
+  have hA_fin : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      (R.block k).coeff Q ≠ 0 →
+        nonArchimedeanRelevantTailSelfsSum
+          G β p qtilde hβ hp hp_top (nonArchimedeanLambdaInitial Λ n) t g Q ≤ N := by
+    intro k Q hQcoeff
+    rcases hA k Q hQcoeff with ⟨T, hTsum, hTle⟩
+    exact nonArchimedeanRelevantTailSelfsSum_le_of_hasSum
+      G β p qtilde hβ hp hp_top hTail
+      (fun i hi => mem_of_mem_nonArchimedeanLambdaInitial hi) hTsum hTle
+  have hTail_fin : ∀ i, i ∈ nonArchimedeanLambdaInitial Λ n →
+      ∃ C : ℝ,
+        SouzaPointwiseSelfsTailBound
+          G β p qtilde hβ hp hp_top (t i) (g i) C := by
+    intro i hi
+    exact hTail i (mem_of_mem_nonArchimedeanLambdaInitial hi)
+  have hB_fin : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) i,
+      i ∈ nonArchimedeanLambdaInitial Λ n →
+        (R.block k).coeff Q ≠ 0 →
+          goodGridLevelCellMeetsSupport G Q (g i) →
+            t i ≤ k := by
+    intro k Q i hi hQcoeff hmeet
+    exact hB k Q i (mem_of_mem_nonArchimedeanLambdaInitial hi) hQcoeff hmeet
+  exact exists_nonArchimedeanProductRepresentation_finset_with_cost_le
+    G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
+    hN hCrep_le_Cgen (nonArchimedeanLambdaInitial Λ n) t g f x R hRep hRfin
+    hTail_fin hA_fin hB_fin
+
+
+private theorem ae_eq_partialFun_on_composed_subseq
+    {μ : Measure α} {p : ℝ≥0∞}
+    {partialFun : ℕ → α → ℂ}
+    {yseq : ℕ → Lp ℂ p μ}
+    (hyseq_rep : ∀ n, yseq n =ᵐ[μ] partialFun n)
+    (φ ψ : ℕ → ℕ) :
+    ∀ᵐ z ∂μ, ∀ n : ℕ,
+      yseq (φ (ψ n)) z = partialFun (φ (ψ n)) z := by
+  have hsets :
+      (⋂ n : ℕ, {z : α |
+        yseq (φ (ψ n)) z = partialFun (φ (ψ n)) z}) ∈ ae μ := by
+    exact countable_iInter_mem.mpr fun n => hyseq_rep (φ (ψ n))
+  filter_upwards [hsets] with z hz n
+  exact Set.mem_iInter.mp hz n
+
+private theorem representsFunction_of_tendsto_subseq
+    (G : GoodGridSpace (α := α)) (p : ℝ≥0∞)
+    {h : α → ℂ} {yLimLp : Lp ℂ p G.toWeakGridSpace.measure}
+    {partialFun : ℕ → α → ℂ}
+    (φ ψ : ℕ → ℕ)
+    (hφ : StrictMono φ) (hψ : StrictMono ψ)
+    (hpartial_tendsto : ∀ᵐ z ∂G.toWeakGridSpace.measure,
+      Filter.Tendsto (fun n : ℕ => partialFun n z) Filter.atTop (𝓝 (h z)))
+    (hy_subseq_tendsto : ∀ᵐ z ∂G.toWeakGridSpace.measure,
+      Filter.Tendsto (fun n : ℕ => partialFun (φ (ψ n)) z)
+        Filter.atTop (𝓝 (yLimLp z))) :
+    WeakGridSpace.RepresentsFunction
+      (G := G.toWeakGridSpace) (p := p) h yLimLp := by
+  let μ := G.toWeakGridSpace.measure
+  let A : Set α :=
+    {z : α | Filter.Tendsto (fun n : ℕ => partialFun n z) Filter.atTop (𝓝 (h z))}
+  let B : Set α :=
+    {z : α | Filter.Tendsto
+      (fun n : ℕ => partialFun (φ (ψ n)) z) Filter.atTop (𝓝 (yLimLp z))}
+  let D : Set α := A ∩ B
+  have hA : A ∈ ae μ := by
+    simpa [A, μ] using hpartial_tendsto
+  have hB : B ∈ ae μ := by
+    simpa [B, μ] using hy_subseq_tendsto
+  have hD : D ∈ ae μ := by
+    exact Filter.Eventually.and hA hB
+  filter_upwards [hD] with z hz
+  rcases hz with ⟨hzA, hzB⟩
+  have hsub :
+      Filter.Tendsto (fun n : ℕ => partialFun (φ (ψ n)) z)
+        Filter.atTop (𝓝 (h z)) :=
+    hzA.comp ((hφ.comp hψ).tendsto_atTop)
+  exact tendsto_nhds_unique hzB hsub
+
+private theorem exists_subseq_tendsto_ae_of_tendsto_Lp
+    {μ : Measure α} {p : ℝ≥0∞}
+    [Fact (1 ≤ p)]
+    {u : ℕ → Lp ℂ p μ} {uLim : Lp ℂ p μ}
+    (hu_tendsto : Filter.Tendsto u Filter.atTop (𝓝 uLim)) :
+    ∃ ψ : ℕ → ℕ, StrictMono ψ ∧
+      ∀ᵐ z ∂μ, Filter.Tendsto (fun n : ℕ => u (ψ n) z)
+        Filter.atTop (𝓝 (uLim z)) := by
+  have hu_measure : TendstoInMeasure μ u Filter.atTop uLim :=
+    tendstoInMeasure_of_tendsto_Lp hu_tendsto
+  exact hu_measure.exists_seq_tendsto_ae
+
+
+private theorem exists_limit_representation_of_finite_sequence
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    {Cbound : ℝ} (hCbound_nonneg : 0 ≤ Cbound)
+    {h : α → ℂ} {partialFun : ℕ → α → ℂ}
+    (yseq : ℕ → WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (Sseq : ∀ n, WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (yseq n : Lp ℂ p G.toWeakGridSpace.measure))
+    (hyseq_rep : ∀ n,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) (partialFun n)
+        (yseq n : Lp ℂ p G.toWeakGridSpace.measure))
+    (hSseq_fin : ∀ n,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (Sseq n))
+    (hSseq_cost : ∀ n,
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) (Sseq n) ≤ Cbound)
+    (hpartial_tendsto : ∀ᵐ z ∂G.toWeakGridSpace.measure,
+      Filter.Tendsto (fun n : ℕ => partialFun n z) Filter.atTop (𝓝 (h z))) :
+    ∃ y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      ∃ S : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (y : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p) h
+          (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤ Cbound := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let μ := G.toWeakGridSpace.measure
+  rcases WeakGridSpace.exists_strongly_convergent_subseq_of_uniform_pqCost
+      (G := G.toWeakGridSpace) (s := s) (p := p) (u := ∞) (q := q)
+      hp_top hs le_top A
+      (souza_assumptionG2 G s p q hs hp hp_top)
+      (souza_assumptionA5 G s p hs hp hp_top)
+      Sseq hCbound_nonneg hSseq_fin hSseq_cost with
+    ⟨φ, hφ, yLimLp, S, _hmemLim, hSfin, hScost, hy_tendsto⟩
+  rcases exists_subseq_tendsto_ae_of_tendsto_Lp
+      (μ := μ)
+      (u := fun n => (yseq (φ n) : Lp ℂ p μ))
+      (uLim := yLimLp)
+      (by simpa [μ] using hy_tendsto) with
+    ⟨ψ, hψ, hy_ae⟩
+  let yseqLp : ℕ → Lp ℂ p μ := fun n => (yseq n : Lp ℂ p μ)
+  have hyseq_rep_lp : ∀ n, yseqLp n =ᵐ[μ] partialFun n := by
+    intro n
+    simpa [yseqLp] using hyseq_rep n
+  have hcoe :
+      ∀ᵐ z ∂μ, ∀ n : ℕ,
+        yseqLp (φ (ψ n)) z = partialFun (φ (ψ n)) z :=
+    ae_eq_partialFun_on_composed_subseq hyseq_rep_lp φ ψ
+  have hy_subseq_tendsto :
+      ∀ᵐ z ∂μ,
+        Filter.Tendsto (fun n : ℕ => partialFun (φ (ψ n)) z)
+          Filter.atTop (𝓝 (yLimLp z)) := by
+    filter_upwards [hy_ae, hcoe] with z hyz hcoez
+    have hcoez' :
+        ∀ n : ℕ,
+          (fun n : ℕ => ((yseq (φ (ψ n)) : Lp ℂ p μ) z)) n =
+            (fun n : ℕ => partialFun (φ (ψ n)) z) n := by
+      intro n
+      simpa [yseqLp] using hcoez n
+    exact hyz.congr' (Filter.Eventually.of_forall hcoez')
+  have hLimRep :
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) h yLimLp :=
+    representsFunction_of_tendsto_subseq
+      G p φ ψ hφ hψ hpartial_tendsto hy_subseq_tendsto
+  refine ⟨⟨yLimLp, ?_⟩, ?_, hLimRep, hSfin, hScost⟩
+  · exact _hmemLim
+  · simpa using S
+
+private theorem exists_nonArchimedeanInfinite_besov_representation
+    (G : GoodGridSpace (α := α))
+    (s β : ℝ) (p q qtilde : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β)
+    (hβ_lt_inv : β < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] [Fact (1 ≤ qtilde)]
+    {Cgen N : ℝ} (hN : 0 ≤ N)
+    (hCgen_nonneg : 0 ≤ Cgen)
+    (hCrep_le_Cgen : nonArchimedeanRepresentationConstant G s β p ≤ Cgen)
+    (Λ : Set ℕ) (t : ℕ → ℕ) (g : ℕ → α → ℂ)
+    (f h : α → ℂ)
+    (x : WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (x : Lp ℂ p G.toWeakGridSpace.measure))
+    (hRep : WeakGridSpace.RepresentsFunction
+      (G := G.toWeakGridSpace) (p := p) f
+      (x : Lp ℂ p G.toWeakGridSpace.measure))
+    (hRfin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R)
+    (hTail : ∀ i ∈ Λ,
+      ∃ C : ℝ,
+        SouzaPointwiseSelfsTailBound G β p qtilde hβ hp hp_top (t i) (g i) C)
+    (hA : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      (R.block k).coeff Q ≠ 0 →
+        ∃ T : ℝ,
+          HasSum
+            (fun i : {i // i ∈ Λ} =>
+              nonArchimedeanRelevantTailSelfsInfiniteTerm
+                G β p qtilde hβ hp hp_top Λ t g Q i)
+            T ∧
+          T ≤ N)
+    (hB : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) i,
+      i ∈ Λ →
+        (R.block k).coeff Q ≠ 0 →
+          goodGridLevelCellMeetsSupport G Q (g i) →
+            t i ≤ k)
+    (hseries : ∀ᵐ z ∂G.toWeakGridSpace.measure,
+      HasSum
+        (fun i : {i // i ∈ Λ} => g i.1 z * f z)
+        (h z)) :
+    ∃ y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      ∃ S : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (y : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p) h
+          (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
+          Cgen * N * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let μ := G.toWeakGridSpace.measure
+  let partialFun : ℕ → α → ℂ := fun n z =>
+    (∑ i ∈ nonArchimedeanLambdaInitial Λ n, g i z) * f z
+  have hfiniteRep : ∀ n,
+      ∃ y : WeakGridSpace.BesovishSpace A q,
+      ∃ S : WeakGridSpace.LpGridRepresentation A
+          (y : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p) (partialFun n)
+          (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
+          Cgen * N * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
+    intro n
+    simpa [partialFun] using
+      exists_nonArchimedean_finite_representation_initial
+        G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
+        hN hCrep_le_Cgen Λ n t g f x R hRep hRfin hTail hA hB
+  let yseq : ℕ → WeakGridSpace.BesovishSpace A q := fun n => Classical.choose (hfiniteRep n)
+  let Sseq : ∀ n, WeakGridSpace.LpGridRepresentation A
+      (yseq n : Lp ℂ p G.toWeakGridSpace.measure) := fun n =>
+    Classical.choose (Classical.choose_spec (hfiniteRep n))
+  have hyseq_rep : ∀ n,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) (partialFun n)
+        (yseq n : Lp ℂ p G.toWeakGridSpace.measure) := by
+    intro n
+    exact (Classical.choose_spec (Classical.choose_spec (hfiniteRep n))).1
+  have hSseq_fin : ∀ n,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (Sseq n) := by
+    intro n
+    exact (Classical.choose_spec (Classical.choose_spec (hfiniteRep n))).2.1
+  have hSseq_cost : ∀ n,
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) (Sseq n) ≤
+        Cgen * N * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
+    intro n
+    exact (Classical.choose_spec (Classical.choose_spec (hfiniteRep n))).2.2
+  have hCbound_nonneg :
+      0 ≤ Cgen * N * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
+    exact mul_nonneg (mul_nonneg hCgen_nonneg hN)
+      (WeakGridSpace.LpGridRepresentation.pqCost_nonneg R)
+  have hpartial_tendsto :
+      ∀ᵐ z ∂μ,
+        Filter.Tendsto (fun n : ℕ => partialFun n z) Filter.atTop (𝓝 (h z)) := by
+    filter_upwards [hseries] with z hseries_z
+    exact tendsto_nonArchimedean_partial_sums_of_hasSum g f h hseries_z
+  exact exists_limit_representation_of_finite_sequence
+    G s p q hs hp hp_top hCbound_nonneg
+    yseq Sseq hyseq_rep hSseq_fin hSseq_cost hpartial_tendsto
 
 /--
 Infinite-index non-Archimedean control.
@@ -3531,134 +3889,10 @@ theorem souzaNonArchimedeanProperty
         exact mul_le_mul_of_nonneg_right
           (mul_le_mul_of_nonneg_right hCpoint_le_Cgen hN) (norm_nonneg _)
   refine ⟨h, absSum, habs', hseries, hnorm', hmem', ?_⟩
-  let A := souzaAtomFamily G s p hs hp hp_top
-  let μ := G.toWeakGridSpace.measure
-  let partialSet : ℕ → Finset ℕ := fun n => (Finset.range n).filter fun i => i ∈ Λ
-  let partialFun : ℕ → α → ℂ := fun n z =>
-    (∑ i ∈ partialSet n, g i z) * f z
-  have hA_fin : ∀ n k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
-      (R.block k).coeff Q ≠ 0 →
-        nonArchimedeanRelevantTailSelfsSum
-          G β p qtilde hβ hp hp_top (partialSet n) t g Q ≤ N := by
-    intro n k Q hQcoeff
-    rcases hA k Q hQcoeff with ⟨T, hTsum, hTle⟩
-    exact nonArchimedeanRelevantTailSelfsSum_le_of_hasSum
-      G β p qtilde hβ hp hp_top hTail
-      (fun i hi => (Finset.mem_filter.mp hi).2) hTsum hTle
-  have hTail_fin : ∀ n i, i ∈ partialSet n →
-      ∃ C : ℝ,
-        SouzaPointwiseSelfsTailBound
-          G β p qtilde hβ hp hp_top (t i) (g i) C := by
-    intro n i hi
-    exact hTail i ((Finset.mem_filter.mp hi).2)
-  have hB_fin : ∀ n k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) i,
-      i ∈ partialSet n →
-        (R.block k).coeff Q ≠ 0 →
-          goodGridLevelCellMeetsSupport G Q (g i) →
-            t i ≤ k := by
-    intro n k Q i hi hQcoeff hmeet
-    exact hB k Q i ((Finset.mem_filter.mp hi).2) hQcoeff hmeet
-  have hfiniteRep : ∀ n,
-      ∃ y : WeakGridSpace.BesovishSpace A q,
-      ∃ S : WeakGridSpace.LpGridRepresentation A
-          (y : Lp ℂ p G.toWeakGridSpace.measure),
-        WeakGridSpace.RepresentsFunction
-          (G := G.toWeakGridSpace) (p := p) (partialFun n)
-          (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
-        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
-        WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
-          Cgen * N * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
-    intro n
-    rcases exists_nonArchimedeanProductRepresentation_finset_with_cost_le
-        G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
-        hN hCrep_le_Cgen (partialSet n) t g f x R hRep hRfin
-        (hTail_fin n) (hA_fin n) (hB_fin n) with
-      ⟨y, S, hSrep, hSfin, hScost⟩
-    refine ⟨y, S, ?_, hSfin, hScost⟩
-    simpa [partialFun, partialSet] using hSrep
-  let yseq : ℕ → WeakGridSpace.BesovishSpace A q := fun n => Classical.choose (hfiniteRep n)
-  let Sseq : ∀ n, WeakGridSpace.LpGridRepresentation A
-      (yseq n : Lp ℂ p G.toWeakGridSpace.measure) := fun n =>
-    Classical.choose (Classical.choose_spec (hfiniteRep n))
-  have hyseq_rep : ∀ n,
-      WeakGridSpace.RepresentsFunction
-        (G := G.toWeakGridSpace) (p := p) (partialFun n)
-        (yseq n : Lp ℂ p G.toWeakGridSpace.measure) := by
-    intro n
-    exact (Classical.choose_spec (Classical.choose_spec (hfiniteRep n))).1
-  have hSseq_fin : ∀ n,
-      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (Sseq n) := by
-    intro n
-    exact (Classical.choose_spec (Classical.choose_spec (hfiniteRep n))).2.1
-  have hSseq_cost : ∀ n,
-      WeakGridSpace.LpGridRepresentation.pqCost (q := q) (Sseq n) ≤
-        Cgen * N * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
-    intro n
-    exact (Classical.choose_spec (Classical.choose_spec (hfiniteRep n))).2.2
-  have hCbound_nonneg :
-      0 ≤ Cgen * N * WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
-    exact mul_nonneg (mul_nonneg hCgen_nonneg hN)
-      (WeakGridSpace.LpGridRepresentation.pqCost_nonneg R)
-  rcases WeakGridSpace.exists_strongly_convergent_subseq_of_uniform_pqCost
-      (G := G.toWeakGridSpace) (s := s) (p := p) (u := ∞) (q := q)
-      hp_top hs le_top A
-      (souza_assumptionG2 G s p q hs hp hp_top)
-      (souza_assumptionA5 G s p hs hp hp_top)
-      Sseq hCbound_nonneg hSseq_fin hSseq_cost with
-    ⟨φ, hφ, yLimLp, S, _hmemLim, hSfin, hScost, hy_tendsto⟩
-  have hpartial_tendsto :
-      ∀ᵐ z ∂μ,
-        Filter.Tendsto (fun n : ℕ => partialFun n z) Filter.atTop (𝓝 (h z)) := by
-    filter_upwards [hseries] with z hseries_z
-    let fNat : ℕ → ℂ := fun i => if hi : i ∈ Λ then g i z * f z else 0
-    have hzero_outside :
-        ∀ i ∉ Set.range (fun j : {i // i ∈ Λ} => j.1), fNat i = 0 := by
-      intro i hi
-      by_cases hiΛ : i ∈ Λ
-      · exact False.elim (hi ⟨⟨i, hiΛ⟩, rfl⟩)
-      · simp [fNat, hiΛ]
-    have hcomp :
-        fNat ∘ (fun j : {i // i ∈ Λ} => j.1) =
-          fun j : {i // i ∈ Λ} => g j.1 z * f z := by
-      funext j
-      simp [fNat, j.2]
-    have hNat : HasSum fNat (h z) := by
-      exact (Subtype.val_injective.hasSum_iff
-        (f := fNat) (a := h z) hzero_outside).mp
-        (by simpa [hcomp] using hseries_z)
-    have htendsto := hNat.tendsto_sum_nat
-    convert htendsto using 1
-    ext n
-    simp [partialFun, partialSet, fNat, Finset.sum_filter, Finset.sum_mul]
-  have hytendsto_measure :
-      TendstoInMeasure μ (fun n => (yseq (φ n) : Lp ℂ p μ)) Filter.atTop yLimLp :=
-    tendstoInMeasure_of_tendsto_Lp (by simpa [μ] using hy_tendsto)
-  rcases hytendsto_measure.exists_seq_tendsto_ae with
-    ⟨ψ, hψ, hy_ae⟩
-  have hcoe :
-      ∀ᵐ z ∂μ, ∀ n : ℕ,
-        (yseq (φ (ψ n)) : Lp ℂ p μ) z = partialFun (φ (ψ n)) z := by
-    have hsets :
-        (⋂ n : ℕ, {z : α |
-          (yseq (φ (ψ n)) : Lp ℂ p μ) z = partialFun (φ (ψ n)) z}) ∈ ae μ := by
-      exact countable_iInter_mem.mpr fun n => hyseq_rep (φ (ψ n))
-    filter_upwards [hsets] with z hz n
-    exact Set.mem_iInter.mp hz n
-  have hLimRep :
-      WeakGridSpace.RepresentsFunction
-        (G := G.toWeakGridSpace) (p := p) h yLimLp := by
-    filter_upwards [hy_ae, hpartial_tendsto, hcoe] with z hyz hpz hcoez
-    have hpartial_sub :
-        Filter.Tendsto (fun n : ℕ => partialFun (φ (ψ n)) z) Filter.atTop (𝓝 (h z)) :=
-      hpz.comp ((hφ.comp hψ).tendsto_atTop)
-    have hyz' :
-        Filter.Tendsto (fun n : ℕ => partialFun (φ (ψ n)) z) Filter.atTop
-          (𝓝 (yLimLp z)) := by
-      exact hyz.congr' (Filter.Eventually.of_forall fun n => hcoez n)
-    exact tendsto_nhds_unique hyz' hpartial_sub
-  refine ⟨⟨yLimLp, ?_⟩, ?_, hLimRep, hSfin, hScost⟩
-  · exact _hmemLim
-  · simpa using S
+  exact exists_nonArchimedeanInfinite_besov_representation
+    G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
+    hN hCgen_nonneg hCrep_le_Cgen Λ t g f h x R
+    hRep hRfin hTail hA hB hseries
 
 
 theorem souzaNonArchimedeanPropertyPositiveCone
