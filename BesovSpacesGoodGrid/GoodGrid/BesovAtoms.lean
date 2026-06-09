@@ -1121,6 +1121,152 @@ theorem inducedSouzaBetaRepresentationToSouzaS_levelCoeffPower
   unfold inducedSouzaBetaRepresentationToSouzaS inducedSouzaBetaBlockToSouzaS
   rfl
 
+/-- The coefficient of the `β`-to-`s` induced block conversion is the original
+coefficient times the nonnegative real weight `μ(P)^(β-s)`.  In particular it
+vanishes exactly when the original coefficient does. -/
+theorem inducedSouzaBetaBlockToSouzaS_coeff
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
+    (Q : GoodGridCell G) {n : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (inducedSouzaAtomFamily G β p hβ hp hp_top Q) n)
+    (P : WeakGridSpace.LevelCell
+      (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell) n) :
+    (inducedSouzaBetaBlockToSouzaS G s β p hs hβ hp hp_top Q B).coeff P =
+      B.coeff P * (((G.grid.μ P.1).toReal ^ (β - s) : ℝ) : ℂ) := rfl
+
+/-- The `β`-to-`s` induced block conversion preserves pointwise positivity of an
+atom on its cell: if the original atom takes the strictly positive real value `a`
+at `x ∈ P.1`, the converted atom takes the strictly positive real value
+`μ(P)^(s-β)·a` there. -/
+theorem inducedSouzaBetaBlockToSouzaS_atom_toFunction_pos
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
+    (Q : GoodGridCell G) {n : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (inducedSouzaAtomFamily G β p hβ hp hp_top Q) n)
+    (P : WeakGridSpace.LevelCell
+      (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell) n)
+    (x : α) (hx : x ∈ P.1) {a : NNReal} (ha : 0 < a)
+    (hB : (inducedSouzaAtomFamily G β p hβ hp hp_top Q).toFunction
+        (WeakGridSpace.levelCellToWeakGridCell
+          (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell) n P)
+        (B.atom P) x = (a : ℂ)) :
+    ∃ a' : NNReal, 0 < a' ∧
+      (inducedSouzaAtomFamily G s p hs hp hp_top Q).toFunction
+        (WeakGridSpace.levelCellToWeakGridCell
+          (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell) n P)
+        ((inducedSouzaBetaBlockToSouzaS G s β p hs hβ hp hp_top Q B).atom P) x
+          = (a' : ℂ) := by
+  classical
+  have hP_pos : 0 < G.grid.μ P.1 := by
+    simpa [WeakGridSpace.inducedWeakGridSpace, WeakGridSpace.inducedWeakGrid,
+      GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid,
+      WeakGridSpace.WeakGridSpace.measure] using
+      (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).grid.positive_measure
+        n P.1 P.2
+  have hP_finite : G.grid.μ P.1 ≠ ∞ := by
+    letI : MeasureTheory.IsFiniteMeasure G.grid.μ := G.grid.isFinite
+    exact MeasureTheory.measure_ne_top G.grid.μ P.1
+  have hP_toReal_pos : 0 < (G.grid.μ P.1).toReal :=
+    ENNReal.toReal_pos hP_pos.ne' hP_finite
+  have hscale_pos : 0 < (G.grid.μ P.1).toReal ^ (s - β) :=
+    Real.rpow_pos_of_pos hP_toReal_pos _
+  let b : ℂ := B.atom P
+  have hin :
+      (inducedSouzaAtomFamily G β p hβ hp hp_top Q).toFunction
+          (WeakGridSpace.levelCellToWeakGridCell
+            (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell) n P)
+          (B.atom P) x = b := by
+    dsimp [WeakGridSpace.AtomFamily.toFunction, inducedSouzaAtomFamily,
+      WeakGridSpace.inducedAtomFamily, WeakGridSpace.inducedWeakGridCellToAmbient,
+      souzaAtomFamily, souzaLocalVectorSpace, WeakGridSpace.levelCellToWeakGridCell, b]
+    rw [Set.indicator_of_mem hx]
+  have hout :
+      (inducedSouzaAtomFamily G s p hs hp hp_top Q).toFunction
+          (WeakGridSpace.levelCellToWeakGridCell
+            (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell) n P)
+          ((inducedSouzaBetaBlockToSouzaS G s β p hs hβ hp hp_top Q B).atom P) x
+        = (((G.grid.μ P.1).toReal ^ (s - β) : ℝ) : ℂ) * b := by
+    dsimp [WeakGridSpace.AtomFamily.toFunction, inducedSouzaAtomFamily,
+      WeakGridSpace.inducedAtomFamily, WeakGridSpace.inducedWeakGridCellToAmbient,
+      souzaAtomFamily, souzaLocalVectorSpace, WeakGridSpace.levelCellToWeakGridCell,
+      inducedSouzaBetaBlockToSouzaS, b]
+    rw [Set.indicator_of_mem hx]
+  have hb : b = (a : ℂ) := by rw [← hin]; exact hB
+  refine ⟨⟨(G.grid.μ P.1).toReal ^ (s - β), hscale_pos.le⟩ * a, ?_, ?_⟩
+  · refine mul_pos ?_ ha
+    rw [← NNReal.coe_lt_coe]
+    simpa using hscale_pos
+  · have key :
+        (((G.grid.μ P.1).toReal ^ (s - β) : ℝ) : ℂ) * ((a : ℝ) : ℂ)
+          = ((⟨(G.grid.μ P.1).toReal ^ (s - β), hscale_pos.le⟩ * a : NNReal) : ℂ) := by
+      rw [← Complex.ofReal_mul]
+      norm_cast
+    rw [hout, hb]
+    exact key
+
+/-- The `β`-to-`s` induced block conversion preserves nonnegative-real
+coefficients. -/
+theorem inducedSouzaBetaBlockToSouzaS_coeff_nnreal
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
+    (Q : GoodGridCell G) {n : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (inducedSouzaAtomFamily G β p hβ hp hp_top Q) n)
+    (P : WeakGridSpace.LevelCell
+      (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell) n)
+    {r : NNReal} (hr : B.coeff P = (r : ℂ)) :
+    ∃ r' : NNReal,
+      (inducedSouzaBetaBlockToSouzaS G s β p hs hβ hp hp_top Q B).coeff P = (r' : ℂ) := by
+  have hμ_nonneg : 0 ≤ (G.grid.μ P.1).toReal ^ (β - s) :=
+    Real.rpow_nonneg ENNReal.toReal_nonneg _
+  refine ⟨⟨(G.grid.μ P.1).toReal ^ (β - s), hμ_nonneg⟩ * r, ?_⟩
+  have key :
+      ((r : ℝ) : ℂ) * (((G.grid.μ P.1).toReal ^ (β - s) : ℝ) : ℂ)
+        = ((⟨(G.grid.μ P.1).toReal ^ (β - s), hμ_nonneg⟩ * r : NNReal) : ℂ) := by
+    rw [← Complex.ofReal_mul]
+    norm_cast
+    rw [NNReal.coe_mul]
+    show (r : ℝ) * (G.grid.μ P.1).toReal ^ (β - s)
+        = (G.grid.μ P.1).toReal ^ (β - s) * (r : ℝ)
+    ring
+  rw [inducedSouzaBetaBlockToSouzaS_coeff, hr]
+  exact key
+
+/-- The `β`-to-`s` induced block conversion preserves the (non)vanishing of
+coefficients: the converted coefficient is zero exactly when the original is. -/
+theorem inducedSouzaBetaBlockToSouzaS_coeff_eq_zero_iff
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hp : Fact (1 ≤ p)) (hp_top : p ≠ ∞)
+    (Q : GoodGridCell G) {n : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (inducedSouzaAtomFamily G β p hβ hp hp_top Q) n)
+    (P : WeakGridSpace.LevelCell
+      (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell) n) :
+    (inducedSouzaBetaBlockToSouzaS G s β p hs hβ hp hp_top Q B).coeff P = 0 ↔
+      B.coeff P = 0 := by
+  have hP_pos : 0 < G.grid.μ P.1 := by
+    simpa [WeakGridSpace.inducedWeakGridSpace, WeakGridSpace.inducedWeakGrid,
+      GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid,
+      WeakGridSpace.WeakGridSpace.measure] using
+      (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Q.toLevelCell).grid.positive_measure
+        n P.1 P.2
+  have hP_finite : G.grid.μ P.1 ≠ ∞ := by
+    letI : MeasureTheory.IsFiniteMeasure G.grid.μ := G.grid.isFinite
+    exact MeasureTheory.measure_ne_top G.grid.μ P.1
+  have hP_toReal_pos : 0 < (G.grid.μ P.1).toReal :=
+    ENNReal.toReal_pos hP_pos.ne' hP_finite
+  have hweight_ne : (((G.grid.μ P.1).toReal ^ (β - s) : ℝ) : ℂ) ≠ 0 := by
+    rw [ne_eq, Complex.ofReal_eq_zero]
+    exact (Real.rpow_pos_of_pos hP_toReal_pos _).ne'
+  rw [inducedSouzaBetaBlockToSouzaS_coeff]
+  constructor
+  · intro h
+    exact (mul_eq_zero.mp h).resolve_right hweight_ne
+  · intro h
+    rw [h, zero_mul]
+
 /--
 An `(s, β, p, qtilde)` Besov atom representative supported on `Q`.
 

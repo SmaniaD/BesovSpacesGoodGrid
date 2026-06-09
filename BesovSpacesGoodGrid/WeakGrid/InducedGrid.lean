@@ -926,6 +926,55 @@ theorem inducedRepresentationToAmbient_coeff_eq_zero_of_not_subset
       inducedLevelBlockToAmbient, cast_levelBlock_coeff, cast_levelCell_coe, hS]
   · exact inducedRepresentationToAmbient_coeff_lt G Q A R (Nat.lt_of_not_ge hn) S
 
+/-- The induced-to-ambient block embedding preserves nonnegative-real
+coefficients: every embedded coefficient is either an original (induced)
+coefficient or `0`. -/
+theorem inducedLevelBlockToAmbient_coeff_nnreal
+    (G : WeakGridSpace (α := α)) {k₀ i : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} (A : AtomFamily G s p u)
+    (B : LevelBlock (inducedAtomFamily G Q A) i)
+    (hB : ∀ P : LevelCell (inducedWeakGridSpace G Q) i,
+      ∃ r : NNReal, B.coeff P = (r : ℂ))
+    (P : LevelCell G (k₀ + i)) :
+    ∃ r : NNReal, (inducedLevelBlockToAmbient G Q A B).coeff P = (r : ℂ) := by
+  classical
+  by_cases hP : P.1 ⊆ Q.1
+  · obtain ⟨r, hr⟩ := hB (ambientLevelCellToInduced G Q P hP)
+    refine ⟨r, ?_⟩
+    simp only [inducedLevelBlockToAmbient, dif_pos hP]
+    exact hr
+  · refine ⟨0, ?_⟩
+    simp [inducedLevelBlockToAmbient, dif_neg hP]
+
+/-- The reindexed ambient representation preserves nonnegative-real
+coefficients. -/
+theorem inducedRepresentationToAmbient_coeff_nnreal
+    (G : WeakGridSpace (α := α)) {k₀ : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} [Fact (1 ≤ p)] (A : AtomFamily G s p u)
+    {f : Lp ℂ p (inducedWeakGridSpace G Q).measure}
+    (R : LpGridRepresentation (inducedAtomFamily G Q A) f)
+    (hpos : ∀ (i : ℕ) (P : LevelCell (inducedWeakGridSpace G Q) i),
+      ∃ r : NNReal, (R.block i).coeff P = (r : ℂ))
+    (n : ℕ) (S : LevelCell G n) :
+    ∃ r : NNReal,
+      ((inducedRepresentationToAmbient G Q A R).block n).coeff S = (r : ℂ) := by
+  classical
+  by_cases hn : k₀ ≤ n
+  · have heq :
+        ((inducedRepresentationToAmbient G Q A R).block n).coeff S =
+          (inducedLevelBlockToAmbient G Q A (R.block (n - k₀))).coeff
+            (cast (congrArg (LevelCell G) (by omega : n = k₀ + (n - k₀))) S) := by
+      simp only [inducedRepresentationToAmbient, inducedRepresentationBlockToAmbient,
+        dif_pos hn]
+      rw [cast_levelBlock_coeff (G := G) (A := A)
+        (h := show k₀ + (n - k₀) = n by omega)]
+    rw [heq]
+    exact inducedLevelBlockToAmbient_coeff_nnreal G Q A (R.block (n - k₀))
+      (fun P => hpos (n - k₀) P) _
+  · refine ⟨0, ?_⟩
+    simp only [inducedRepresentationToAmbient, inducedRepresentationBlockToAmbient,
+      dif_neg hn, LevelBlock.zero, NNReal.coe_zero, Complex.ofReal_zero]
+
 /--
 Reindexing an induced representation into the ambient grid preserves finite
 `(p,q)` cost.  For `q = ∞` this is boundedness of the shifted supremum; for

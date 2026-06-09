@@ -2007,7 +2007,7 @@ private theorem exists_nonArchimedeanLocalTransmutationData_pos
       (∀ (i : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace i)
           (j : ℕ) (P : WeakGridSpace.LevelCell G.toWeakGridSpace j),
         ((Rt i Q).block j).coeff P ≠ 0 →
-          ∃ r ∈ Λ, P.1 ⊆ {z | g r z ≠ 0}) := by
+          ∃ r ∈ Λ, ∀ᵐ z ∂(G.toWeakGridSpace.measure.restrict P.1), g r z ≠ 0) := by
   sorry
 
 /--
@@ -4101,6 +4101,7 @@ private theorem exists_nonArchimedeanProductRepresentation_pos_with_errors
         (G := G.toWeakGridSpace) (p := p)
         (fun z => (∑ i ∈ Λ, g i z) * f z)
         (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
       WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
         (if q = ∞ then
           (G.toWeakGridSpace.grid.Cmult1 : ℝ) *
@@ -4122,7 +4123,7 @@ private theorem exists_nonArchimedeanProductRepresentation_pos_with_errors
           WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rsrc ∧
       (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
         (S.block k).coeff Q ≠ 0 →
-          ∃ i ∈ Λ, Q.1 ⊆ {z | g i z ≠ 0}) ∧
+          ∃ i ∈ Λ, ∀ᵐ z ∂(G.toWeakGridSpace.measure.restrict Q.1), g i z ≠ 0) ∧
       (SouzaPositiveRepresentation G s p hs hp hp_top Rsrc →
         SouzaConePositiveRepresentation G s p hs hp hp_top S) := by
   classical
@@ -4226,7 +4227,7 @@ private theorem exists_nonArchimedeanProductRepresentation_pos_with_errors
           (fun z => (∑ i ∈ Λ, g i z) * f z) gLim := by
       filter_upwards [hprod, hRep] with z hz hfz
       rw [hz, hfz]
-    refine ⟨y, S, ?_, ?_, ?_, ?_⟩
+    refine ⟨y, S, ?_, hfin, ?_, ?_, ?_⟩
     · simpa [y, Gi, AS] using hrep
     · calc
         WeakGridSpace.LpGridRepresentation.pqCost (q := ∞) S
@@ -4318,7 +4319,7 @@ private theorem exists_nonArchimedeanProductRepresentation_pos_with_errors
           (fun z => (∑ i ∈ Λ, g i z) * f z) gLim := by
       filter_upwards [hprod, hRep] with z hz hfz
       rw [hz, hfz]
-    refine ⟨y, S, ?_, ?_, ?_, ?_⟩
+    refine ⟨y, S, ?_, hfin, ?_, ?_, ?_⟩
     · simpa [y, Gi, AS] using hrep
     · calc
         WeakGridSpace.LpGridRepresentation.pqCost (q := q) S
@@ -4444,13 +4445,225 @@ theorem exists_nonArchimedeanProductRepresentation_positive
           N * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rsrc ∧
       (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
         (S.block k).coeff Q ≠ 0 →
-          ∃ i ∈ Λ, Q.1 ⊆ {z | g i z ≠ 0}) ∧
+          ∃ i ∈ Λ, ∀ᵐ z ∂(G.toWeakGridSpace.measure.restrict Q.1), g i z ≠ 0) ∧
       (SouzaPositiveRepresentation G s p hs hp hp_top Rsrc →
         SouzaConePositiveRepresentation G s p hs hp hp_top S) := by
   classical
   by_cases hNzero : N = 0
   · subst N
-    sorry
+    -- Degenerate case `N = 0`.  The cost target `Cgen · 0 · pqCost = 0` forces a
+    -- zero-coefficient representation, so the product `(∑ g)·f` must itself vanish.
+    -- We read that off the positive error construction with arbitrarily small
+    -- errors (its cost tends to `0`), conclude the product is represented by the
+    -- zero Besov class, and hand back the canonical cone-positive zero
+    -- representation, whose support / positivity consequences are immediate.
+    let AS := souzaAtomFamily G s p hs hp hp_top
+    let Gi := G.toWeakGridSpace
+    let F : α → ℂ := fun z => (∑ i ∈ Λ, g i z) * f z
+    rcases exists_nonArchimedeanProductRepresentation_pos_with_errors
+        G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
+        Λ t g (le_refl (0 : ℝ)) f Rsrc hRfin hRep hRcanon hgPos hPosTail hA hB
+        (by norm_num : (0 : ℝ) < 1) (by norm_num : (0 : ℝ) < 1) with
+      ⟨y₀, S₀, hy₀_rep, _hS₀fin, _hS₀cost, _, _⟩
+    have hfiniteA :
+        WeakGridSpace.BesovishSpace.HasFiniteCostRepresentations (A := AS) q :=
+      WeakGridSpace.BesovishSpace.hasFiniteCostRepresentations AS q
+    let lam : ℝ := (G.grid.lambda2 ^ (β - s)) ^ p.toReal
+    let Ktail : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G β p + 1
+    have hp_pos : 0 < p.toReal :=
+      ENNReal.toReal_pos
+        (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne' hp_top
+    have hKtail_nonneg : 0 ≤ Ktail := by
+      have hK := souzaAmbientRestrictionMultiplierConstant_nonneg G β p hp hp_top
+      dsimp [Ktail]
+      linarith
+    have hkernel_nonneg :
+        ∀ n : ℤ, 0 ≤ WeakGridSpace.transmutationKernelZ lam 0 1 n := by
+      intro n
+      dsimp [WeakGridSpace.transmutationKernelZ]
+      split_ifs
+      · exact Real.rpow_nonneg (le_of_lt (by
+          dsimp [lam]
+          have hlambda2_pos : 0 < G.grid.lambda2 :=
+            lt_of_lt_of_le G.grid.hlambda1_pos G.grid.hlambda1_le_lambda2
+          have hroot_pos : 0 < G.grid.lambda2 ^ (β - s) :=
+            Real.rpow_pos_of_pos hlambda2_pos (β - s)
+          exact Real.rpow_pos_of_pos hroot_pos p.toReal)) _
+      · rfl
+    have hcoef_nonneg :
+        0 ≤ WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+          (WeakGridSpace.transmutationKernelZ lam 0 1) :=
+      cCoefficientInt_nonneg_local p ∞ _ hkernel_nonneg
+    let D : ℝ :=
+      (Gi.grid.Cmult1 : ℝ) *
+        WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+          (WeakGridSpace.transmutationKernelZ lam 0 1) *
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rsrc
+    have hD_nonneg : 0 ≤ D := by
+      exact mul_nonneg
+        (mul_nonneg (by exact_mod_cast Nat.zero_le Gi.grid.Cmult1) hcoef_nonneg)
+        (WeakGridSpace.LpGridRepresentation.pqCost_nonneg Rsrc)
+    have hnorm_le_zero :
+        WeakGridSpace.BesovishSpace.Norm_Costpq AS q y₀ ≤ 0 := by
+      refine le_iff_forall_pos_le_add.mpr ?_
+      intro η hη
+      let Aε : ℝ := Ktail * (Λ.card : ℝ) + 1
+      have hAε_pos : 0 < Aε := by
+        have hcard_nonneg : 0 ≤ (Λ.card : ℝ) := by exact_mod_cast Nat.zero_le Λ.card
+        dsimp [Aε]
+        nlinarith [mul_nonneg hKtail_nonneg hcard_nonneg]
+      let ε : ℝ := (η / (D + 1)) / Aε
+      have hε : 0 < ε := by
+        exact div_pos (div_pos hη (by linarith)) hAε_pos
+      rcases exists_nonArchimedeanProductRepresentation_pos_with_errors
+          G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
+          Λ t g (le_refl (0 : ℝ)) f Rsrc hRfin hRep hRcanon hgPos hPosTail hA hB
+          hε hε with
+        ⟨yε, Sε, hyε_rep, hSεfin, hSεcost, _, _⟩
+      have hy_eq : y₀ = yε :=
+        souzaBesovish_eq_of_representsFunction
+          G s p q hs hp hp_top (F := F) hy₀_rep hyε_rep
+      have hnorm_le_cost :
+          WeakGridSpace.BesovishSpace.Norm_Costpq AS q y₀ ≤
+            WeakGridSpace.LpGridRepresentation.pqCost (q := q) Sε := by
+        rw [hy_eq]
+        exact WeakGridSpace.BesovishSpace.Norm_Costpq_le_cost
+          (A := AS) (q := q) yε Sε hSεfin
+      let base : ℝ := Ktail * ((Λ.card : ℝ) * ε) + ε
+      have hbase_nonneg : 0 ≤ base := by
+        exact add_nonneg
+          (mul_nonneg hKtail_nonneg
+            (mul_nonneg (by exact_mod_cast Nat.zero_le Λ.card) hε.le))
+          hε.le
+      have hroot_eq : ((base ^ p.toReal) ^ (1 / p.toReal)) = base := by
+        have hmul : p.toReal * (1 / p.toReal) = 1 := by
+          field_simp [hp_pos.ne']
+        calc
+          (base ^ p.toReal) ^ (1 / p.toReal)
+              = base ^ (p.toReal * (1 / p.toReal)) := by
+                  rw [← Real.rpow_mul hbase_nonneg]
+          _ = base := by rw [hmul, Real.rpow_one]
+      have hbase_le : base ≤ η / (D + 1) := by
+        have hbase_eq : base = Aε * ε := by
+          dsimp [base, Aε]
+          ring
+        rw [hbase_eq]
+        calc
+          Aε * ε = η / (D + 1) := by
+            dsimp [ε]
+            field_simp [hAε_pos.ne']
+          _ ≤ η / (D + 1) := le_rfl
+      have hDbase_le : D * base ≤ η := by
+        calc
+          D * base ≤ D * (η / (D + 1)) :=
+            mul_le_mul_of_nonneg_left hbase_le hD_nonneg
+          _ = (D / (D + 1)) * η := by ring
+          _ ≤ 1 * η := by
+            have hfrac : D / (D + 1) ≤ 1 := by
+              rw [div_le_iff₀ (by linarith)]
+              linarith
+            exact mul_le_mul_of_nonneg_right hfrac hη.le
+          _ = η := by ring
+      have hSεcost_le :
+          WeakGridSpace.LpGridRepresentation.pqCost (q := q) Sε ≤ η := by
+        refine hSεcost.trans ?_
+        by_cases hqtop : q = ∞
+        · subst q
+          have hroot_expr :
+              ((((2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) *
+                  ((0 : ℝ) + (Λ.card : ℝ) * ε) + ε) ^ p.toReal) ^
+                (1 / p.toReal)) = base := by
+            simpa [base, Ktail] using hroot_eq
+          calc
+            ((if (∞ : ℝ≥0∞) = ∞ then
+                (Gi.grid.Cmult1 : ℝ) *
+                  ((((2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) *
+                      ((0 : ℝ) + (Λ.card : ℝ) * ε) + ε) ^ p.toReal) ^
+                    (1 / p.toReal)) *
+                  WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                    (WeakGridSpace.transmutationKernelZ
+                      ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) 0 1)
+              else
+                (Gi.grid.Cmult1 : ℝ) *
+                  ((((2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) *
+                      ((0 : ℝ) + (Λ.card : ℝ) * ε) + ε) ^ p.toReal) ^
+                    (1 / p.toReal)) *
+                  WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                    (WeakGridSpace.transmutationKernelZ
+                      ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) 0 1) *
+                  (Nat.ceil (1 : ℝ) : ℝ) ^ (1 / (∞ : ℝ≥0∞).toReal)) *
+                WeakGridSpace.LpGridRepresentation.pqCost (q := ∞) Rsrc)
+                =
+              ((Gi.grid.Cmult1 : ℝ) * base *
+                  WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                    (WeakGridSpace.transmutationKernelZ lam 0 1)) *
+                WeakGridSpace.LpGridRepresentation.pqCost (q := ∞) Rsrc := by
+                  rw [hroot_expr]
+                  simp [lam, Gi]
+            _ = D * base := by
+                  dsimp [D]
+                  ring
+            _ ≤ η := hDbase_le
+        ·
+          have hroot_expr :
+              ((((2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) *
+                  ((0 : ℝ) + (Λ.card : ℝ) * ε) + ε) ^ p.toReal) ^
+                (1 / p.toReal)) = base := by
+            simpa [base, Ktail] using hroot_eq
+          calc
+            ((if q = ∞ then
+                (Gi.grid.Cmult1 : ℝ) *
+                  ((((2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) *
+                      ((0 : ℝ) + (Λ.card : ℝ) * ε) + ε) ^ p.toReal) ^
+                    (1 / p.toReal)) *
+                  WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                    (WeakGridSpace.transmutationKernelZ
+                      ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) 0 1)
+              else
+                (Gi.grid.Cmult1 : ℝ) *
+                  ((((2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) *
+                      ((0 : ℝ) + (Λ.card : ℝ) * ε) + ε) ^ p.toReal) ^
+                    (1 / p.toReal)) *
+                  WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                    (WeakGridSpace.transmutationKernelZ
+                      ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) 0 1) *
+                  (Nat.ceil (1 : ℝ) : ℝ) ^ (1 / q.toReal)) *
+                WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rsrc)
+                =
+              ((Gi.grid.Cmult1 : ℝ) * base *
+                  WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                    (WeakGridSpace.transmutationKernelZ lam 0 1)) *
+                  WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rsrc := by
+                  rw [hroot_expr]
+                  simp [hqtop, lam, Gi]
+            _ = D * base := by
+                  dsimp [D]
+                  ring
+            _ ≤ η := hDbase_le
+      calc
+        WeakGridSpace.BesovishSpace.Norm_Costpq AS q y₀
+            ≤ WeakGridSpace.LpGridRepresentation.pqCost (q := q) Sε := hnorm_le_cost
+        _ ≤ η := hSεcost_le
+        _ = 0 + η := by ring
+    have hnorm_zero :
+        WeakGridSpace.BesovishSpace.Norm_Costpq AS q y₀ = 0 := by
+      exact le_antisymm hnorm_le_zero
+        (WeakGridSpace.BesovishSpace.Norm_Costpq_nonneg
+          (A := AS) (q := q) hfiniteA y₀)
+    have hy₀_zero : y₀ = 0 :=
+      WeakGridSpace.BesovishSpace.eq_zero_of_Norm_Costpq_eq_zero
+        (A := AS) (q := q) hp_top
+        (souza_assumptionG2 G s p q hs hp hp_top).1 hfiniteA hnorm_zero
+    obtain ⟨Szero, _hSzero_fin, hSzero_cost, hSzero_pos, hSzero_coeff⟩ :=
+      exists_souzaConePositiveZeroRepresentation G s p q hs hp hp_top
+    refine ⟨0, Szero, ?_, ?_, ?_, ?_⟩
+    · simpa [F, AS, Gi, hy₀_zero] using hy₀_rep
+    · rw [hSzero_cost]
+      simp
+    · intro k Q hcoeff
+      exact absurd (hSzero_coeff k Q) hcoeff
+    · intro _
+      exact hSzero_pos
   have hNpos : 0 < N := lt_of_le_of_ne hN (Ne.symm hNzero)
   let Gi := G.toWeakGridSpace
   let lam : ℝ := (G.grid.lambda2 ^ (β - s)) ^ p.toReal
@@ -4463,7 +4676,7 @@ theorem exists_nonArchimedeanProductRepresentation_positive
   rcases exists_nonArchimedeanProductRepresentation_pos_with_errors
       G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
       Λ t g hN f Rsrc hRfin hRep hRcanon hgPos hPosTail hA hB hεTail hεGeom with
-    ⟨y, S, hSrep, hScost, hSupp, hPos⟩
+    ⟨y, S, hSrep, _hSfin, hScost, hSupp, hPos⟩
   have hp_pos : 0 < p.toReal :=
     ENNReal.toReal_pos
       (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne' hp_top
@@ -4737,7 +4950,7 @@ theorem souzaNonArchimedeanPropertyPositiveCone_core
                   WeakGridSpace.LpGridRepresentation.pqCost (q := q) R ∧
               (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
                 (S.block k).coeff Q ≠ 0 →
-                  ∃ i ∈ Λ, Q.1 ⊆ {z | g i z ≠ 0}) ∧
+                  ∃ i ∈ Λ, ∀ᵐ z ∂(G.toWeakGridSpace.measure.restrict Q.1), g i z ≠ 0) ∧
               (SouzaPositiveRepresentation G s p hs hp hp_top R →
                 SouzaConePositiveRepresentation G s p hs hp hp_top S) := by
   classical

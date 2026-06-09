@@ -195,7 +195,7 @@ theorem souzaNonArchimedeanPropertyPositiveCone
               -- [ii] support: holds with only canonical atoms on `R` (no sign on `c_Q`).
               (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
                 (S.block k).coeff Q ≠ 0 →
-                  ∃ i ∈ Λ, Q.1 ⊆ {z | g i z ≠ 0}) ∧
+                  ∃ i ∈ Λ, ∀ᵐ z ∂(G.toWeakGridSpace.measure.restrict Q.1), g i z ≠ 0) ∧
               -- [i] positivity: only when `R` is fully positive (canonical + `c_Q ≥ 0`).
               (SouzaPositiveRepresentation G s p hs hp hp_top R →
                 SouzaConePositiveRepresentation G s p hs hp hp_top S) :=

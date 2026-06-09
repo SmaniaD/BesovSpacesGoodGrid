@@ -166,6 +166,37 @@ def SouzaConePositiveRepresentation
       (souzaAtomFamily G s p hs hp hp_top) f) : Prop :=
   ∀ k, SouzaConePositiveLevelBlock G s p hs hp hp_top (R.block k)
 
+/-- A positive level block is in particular cone-positive: its canonical Souza
+atom is, almost everywhere, a nonnegative real (it equals `μ(Q)^(s−1/p) ≥ 0` on
+the cell and `0` off it). -/
+theorem souzaPositiveLevelBlock_conePositive
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞) {k : ℕ}
+    {B : WeakGridSpace.LevelBlock (souzaAtomFamily G s p hs hp hp_top) k}
+    (hB : SouzaPositiveLevelBlock G s p hs hp hp_top B) :
+    SouzaConePositiveLevelBlock G s p hs hp hp_top B := by
+  intro Q
+  obtain ⟨c, hc0, hcoeff, hatom⟩ := hB Q
+  refine ⟨⟨c, hc0, hcoeff⟩, ?_⟩
+  refine Filter.Eventually.of_forall (fun x => ?_)
+  rw [hatom]
+  by_cases hx : x ∈ (goodGridCellOfLevelCell G Q).cell
+  · exact ⟨(G.grid.μ (goodGridCellOfLevelCell G Q).cell).toReal ^ (s - (p.toReal)⁻¹),
+      Real.rpow_nonneg ENNReal.toReal_nonneg _, by simp [canonicalSouzaAtom, hx]⟩
+  · exact ⟨0, le_rfl, by simp [canonicalSouzaAtom, hx]⟩
+
+/-- Every positive Souza representation is cone-positive. -/
+theorem souzaPositiveRepresentation_conePositive
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {f : Lp ℂ p G.toWeakGridSpace.measure}
+    {R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) f}
+    (hR : SouzaPositiveRepresentation G s p hs hp hp_top R) :
+    SouzaConePositiveRepresentation G s p hs hp hp_top R :=
+  fun k => souzaPositiveLevelBlock_conePositive G s p hs hp hp_top (hR k)
+
 /--
 The positive cone in the Souza-Besov space.  An element belongs to the cone
 when it admits at least one positive Souza representation.
@@ -285,6 +316,21 @@ private theorem souzaPositiveLevelBlock_smul_nonneg
   refine ⟨a * c, mul_nonneg ha hc, ?_, ?_⟩
   · simp [WeakGridSpace.LevelBlock.smul, hcoeff]
   · simpa [WeakGridSpace.LevelBlock.smul] using hatom
+
+/-- Scaling a positive Souza representation by a nonnegative real keeps it
+positive (coefficients stay nonnegative reals; atoms are unchanged). -/
+theorem souzaPositiveRepresentation_smul_nonneg
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {a : ℝ} (ha : 0 ≤ a)
+    {g : Lp ℂ p G.toWeakGridSpace.measure}
+    {R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) g}
+    (hR : SouzaPositiveRepresentation G s p hs hp hp_top R) :
+    SouzaPositiveRepresentation G s p hs hp hp_top
+      (WeakGridSpace.LpGridRepresentation.smul (a : ℂ) R) :=
+  fun k => souzaPositiveLevelBlock_smul_nonneg G s p hs hp hp_top ha (hR k)
 
 private noncomputable def souzaPositiveLevelBlockAdd
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
@@ -743,6 +789,51 @@ theorem souzaPositiveElement_zero
         (souzaAtomFamily G s p hs hp hp_top) q) := by
   exact ⟨souzaPositiveZeroRepresentation G s p hs hp hp_top,
     souzaPositiveZeroRepresentation_positive G s p hs hp hp_top⟩
+
+/-- There is a cone-positive Souza representation of the zero `L^p` function with
+zero `(p,q)` cost and identically vanishing coefficients.  This is the canonical
+witness used for the degenerate `N = 0` case of the positive non-Archimedean
+multiplier theorem. -/
+theorem exists_souzaConePositiveZeroRepresentation
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
+    ∃ S : WeakGridSpace.LpGridRepresentation
+        (souzaAtomFamily G s p hs hp hp_top)
+        (0 : Lp ℂ p G.toWeakGridSpace.measure),
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) S = 0 ∧
+      SouzaConePositiveRepresentation G s p hs hp hp_top S ∧
+      (∀ (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        (S.block k).coeff Q = 0) := by
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le hp).ne' hp_top
+  refine ⟨souzaPositiveZeroRepresentation G s p hs hp hp_top,
+    souzaPositiveZeroRepresentation_finitePQCost G s p q hs hp hp_top, ?_, ?_, ?_⟩
+  · rw [WeakGridSpace.LpGridRepresentation.pqCost]
+    by_cases hq : q = ∞
+    · rw [if_pos hq]
+      have hconst :
+          (fun k => (souzaPositiveZeroRepresentation G s p hs hp hp_top).levelCoeffPower k ^
+              (1 / p.toReal)) = fun _ : ℕ => (0 : ℝ) := by
+        funext k
+        rw [souzaPositiveZeroRepresentation_levelCoeffPower G s p hs hp hp_top k,
+          Real.zero_rpow (one_div_ne_zero hp_pos.ne')]
+      rw [hconst, Set.range_const, csSup_singleton]
+    · rw [if_neg hq]
+      have hq_pos : 0 < q.toReal :=
+        ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ q)).ne' hq
+      have hpow_ne : q.toReal / p.toReal ≠ 0 := div_ne_zero hq_pos.ne' hp_pos.ne'
+      have hsum :
+          (∑' k, (souzaPositiveZeroRepresentation G s p hs hp hp_top).levelCoeffPower k ^
+              (q.toReal / p.toReal)) = 0 := by
+        simp [souzaPositiveZeroRepresentation_levelCoeffPower G s p hs hp hp_top,
+          Real.zero_rpow hpow_ne]
+      rw [hsum, Real.zero_rpow (one_div_ne_zero hq_pos.ne')]
+  · exact souzaPositiveRepresentation_conePositive G s p hs hp hp_top
+      (souzaPositiveZeroRepresentation_positive G s p hs hp hp_top)
+  · intro k Q
+    rfl
 
 /-- The positive gauge of the zero Souza-Besov element is zero. -/
 theorem souzaPositiveNorm_zero
@@ -3640,6 +3731,102 @@ theorem support_ae_countable_iUnion_goodGridCells_of_souzaPositiveFunction
   · haveI : Countable (GoodGridCell G) := countable_goodGridCell G
     exact Set.countable_univ.mono (Set.subset_univ cells)
   · exact aeEqSet_of_ae_mem_iff (by simpa [μ] using hsupport_ae)
+
+/-- For a positive Souza representation `R` of `g`, if the coefficient at an
+active cell `P` (level `j`) is nonzero, then `g` is, almost everywhere on `P.1`,
+nonzero.  This is the "support witness" extracted from positivity: a nonzero
+coefficient forces the represented function to be strictly positive a.e. on the
+whole cell (no cancellation, since all atoms are canonical and coefficients are
+nonnegative). -/
+theorem souzaPositiveRepresentation_ae_ne_zero_on_active_cell
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    {g : Lp ℂ p G.toWeakGridSpace.measure}
+    (R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) g)
+    (hR : SouzaPositiveRepresentation G s p hs hp hp_top R)
+    {j : ℕ} (P : WeakGridSpace.LevelCell G.toWeakGridSpace j)
+    (hcoeff : (R.block j).coeff P ≠ 0) :
+    ∀ᵐ x ∂ (G.toWeakGridSpace.measure.restrict P.1),
+      (g : α → ℂ) x ≠ 0 := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let μ := G.toWeakGridSpace.measure
+  let partialSum : ℕ → Lp ℂ p μ :=
+    fun N => ∑ k ∈ Finset.range N, (R.block k).toLp A
+  have hpartial_tendsto :
+      Tendsto partialSum atTop (𝓝 ((g : Lp ℂ p μ))) := by
+    simpa [partialSum, μ, A] using R.hasSum.tendsto_sum_nat
+  have hpartial_coe : ∀ N : ℕ,
+      (partialSum N : α → ℂ) =ᵐ[μ]
+        fun x => ∑ k ∈ Finset.range N, (R.block k).toFunLt A x := by
+    intro N
+    induction' N with N ih
+    · simpa [partialSum] using (Lp.coeFn_zero ℂ p μ)
+    · have hblock :
+          (((R.block N).toLp A : Lp ℂ p μ) : α → ℂ) =ᵐ[μ]
+            fun x => (R.block N).toFunLt A x := by
+        simpa [μ, A] using
+          WeakGridSpace.LevelBlock.coeFn_toLp A (R.block N)
+      have hsum := ih.add hblock
+      have hLp :
+          partialSum (N + 1) =
+            partialSum N + ((R.block N).toLp A : Lp ℂ p μ) := by
+        simp [partialSum, Finset.sum_range_succ]
+      rw [hLp]
+      refine (Lp.coeFn_add _ _).trans ?_
+      refine hsum.trans ?_
+      filter_upwards with x
+      simp [Finset.sum_range_succ, add_comm]
+  have htendsto_measure :
+      TendstoInMeasure μ (fun N => partialSum N) atTop (g : Lp ℂ p μ) :=
+    tendstoInMeasure_of_tendsto_Lp hpartial_tendsto
+  rcases htendsto_measure.exists_seq_tendsto_ae with
+    ⟨φ, hφ_mono, hφ_tendsto_ae⟩
+  have hcoe :
+      ∀ᵐ x ∂μ, ∀ m : ℕ,
+        partialSum (φ m) x =
+          ∑ k ∈ Finset.range (φ m), (R.block k).toFunLt A x := by
+    have hsets :
+        (⋂ m : ℕ, {x : α |
+          partialSum (φ m) x =
+            ∑ k ∈ Finset.range (φ m), (R.block k).toFunLt A x}) ∈ ae μ := by
+      exact countable_iInter_mem.mpr fun m => hpartial_coe (φ m)
+    filter_upwards [hsets] with x hx m
+    exact Set.mem_iInter.mp hx m
+  let Qg : GoodGridCell G := goodGridCellOfLevelCell G P
+  have hP_meas : MeasurableSet P.1 :=
+    G.toWeakGridSpace.grid.measurable j P.1 P.2
+  filter_upwards [ae_restrict_of_ae hφ_tendsto_ae, ae_restrict_of_ae hcoe,
+    ae_restrict_mem hP_meas] with x hxlim hxcoe hxP
+  rcases souzaPositiveLevelBlock_toFunLt_lower_of_coeff_ne_zero
+      G s p hs hp hp_top (R.block j) (hR j) P hcoeff hxP with
+    ⟨b, aQ, hb_pos, hb_le_aQ, hQ_eq⟩
+  have hφ_large : ∀ᶠ m in atTop, j < φ m :=
+    hφ_mono.tendsto_atTop.eventually (eventually_gt_atTop j)
+  have hre_eventually :
+      ∀ᶠ m in atTop, b ≤ (partialSum (φ m) x).re := by
+    filter_upwards [hφ_large] with m hm
+    rcases souzaPositiveRepresentation_partial_toFun_lower_of_activeCell
+        G s p q hs hp hp_top R hR Qg hb_le_aQ
+        (by simpa [Qg, goodGridCellOfLevelCell] using hQ_eq)
+        (by simpa [Qg, goodGridCellOfLevelCell] using hm) with
+      ⟨a, hb_le, hsum_eq⟩
+    have hpartial_eq : partialSum (φ m) x = (a : ℂ) := by
+      rw [hxcoe m, hsum_eq]
+    rw [hpartial_eq]
+    exact_mod_cast hb_le
+  have hre_lim : b ≤ ((g : Lp ℂ p μ) x).re := by
+    have hre_tendsto :
+        Tendsto (fun m : ℕ => (partialSum (φ m) x).re) atTop
+          (𝓝 (((g : Lp ℂ p μ) x).re)) :=
+      (Complex.continuous_re.tendsto ((g : Lp ℂ p μ) x)).comp hxlim
+    exact ge_of_tendsto hre_tendsto hre_eventually
+  intro hgx_zero
+  have hb_nonpos : b ≤ 0 := by
+    simpa [μ, hgx_zero] using hre_lim
+  exact (not_le_of_gt hb_pos) hb_nonpos
 
 /--
 If a positive Souza-Besov function has nonzero integral, then the countable
