@@ -428,6 +428,21 @@ theorem ambientLevelBlockToInduced_atom
       B.atom (inducedLevelCellToAmbient G Q P) :=
   rfl
 
+/-- The atom of the induced-from-ambient block has the same `toFunction` as the
+original ambient atom on the corresponding ambient cell. -/
+theorem ambientLevelBlockToInduced_atom_toFunction
+    (G : WeakGridSpace (α := α)) {k₀ i : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} (A : AtomFamily G s p u)
+    (B : LevelBlock A (k₀ + i))
+    (P : LevelCell (inducedWeakGridSpace G Q) i) (x : α) :
+    (inducedAtomFamily G Q A).toFunction
+        (levelCellToWeakGridCell (inducedWeakGridSpace G Q) i P)
+        ((ambientLevelBlockToInduced G Q A B).atom P) x =
+      A.toFunction
+        (levelCellToWeakGridCell G (k₀ + i) (inducedLevelCellToAmbient G Q P))
+        (B.atom (inducedLevelCellToAmbient G Q P)) x :=
+  rfl
+
 /--
 The coefficient power of the block restricted to an induced cell is bounded by
 the coefficient power of the full ambient block.

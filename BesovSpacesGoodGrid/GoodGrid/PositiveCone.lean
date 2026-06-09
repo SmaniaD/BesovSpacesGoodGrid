@@ -1136,6 +1136,104 @@ private theorem souzaCanonicalizedLevelBlock_levelCoeffPower_le
     (souzaCanonicalizedLevelBlock_coeff_norm_le G s p hs hp hp_top B Q)
     (ENNReal.toReal_nonneg)
 
+/-- Canonicalizing a level block with nonnegative-real coefficients and
+pointwise-positive atoms (on the cells where the coefficient does not vanish)
+gives a positive level block. -/
+private theorem souzaCanonicalizedLevelBlock_positive_of
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] {k : ℕ}
+    (B : WeakGridSpace.LevelBlock (souzaAtomFamily G s p hs hp hp_top) k)
+    (hcoeff : ∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+      ∃ r : NNReal, B.coeff Q = (r : ℂ))
+    (hatom : ∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+      B.coeff Q ≠ 0 → ∀ x ∈ Q.1, ∃ a : NNReal, 0 < a ∧
+        (souzaAtomFamily G s p hs hp hp_top).toFunction
+          (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+          (B.atom Q) x = (a : ℂ)) :
+    SouzaPositiveLevelBlock G s p hs hp hp_top
+      (souzaCanonicalizedLevelBlock G s p hs hp hp_top B) := by
+  classical
+  intro Q
+  have hatomeq := souzaCanonicalizedLevelBlock_positive_atom G s p hs hp hp_top B Q
+  obtain ⟨r, hr⟩ := hcoeff Q
+  by_cases hc0 : B.coeff Q = 0
+  · exact ⟨0, le_rfl, by simp [souzaCanonicalizedLevelBlock, hc0], hatomeq⟩
+  · have hQ_ne : G.toWeakGridSpace.grid.μ Q.1 ≠ 0 :=
+      (G.toWeakGridSpace.grid.positive_measure k Q.1 Q.2).ne'
+    obtain ⟨x₀, hx₀⟩ : Q.1.Nonempty :=
+      MeasureTheory.nonempty_of_measure_ne_zero hQ_ne
+    obtain ⟨a, ha_pos, ha_eq⟩ := hatom Q hc0 x₀ hx₀
+    have hscalar :
+        souzaLocalScalar G s p hs hp hp_top
+          (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q) (B.atom Q)
+          = (a : ℂ) := by
+      rw [souzaAtomFamily_toFunction_eq_indicator G s p hs hp hp_top
+        (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q) (B.atom Q),
+        Set.indicator_of_mem
+          (show x₀ ∈ (WeakGridSpace.levelCellToWeakGridCell
+            G.toWeakGridSpace k Q).cell from hx₀)] at ha_eq
+      exact ha_eq
+    set μsp : ℝ := (G.grid.μ Q.1).toReal ^ (s - (p.toReal)⁻¹) with hμsp_def
+    have hμsp_pos : 0 < μsp :=
+      souzaCanonicalLocalAtom_pos G s p (goodGridCellOfLevelCell G Q)
+    refine ⟨(r : ℝ) * (a : ℝ) / μsp, by positivity, ?_, hatomeq⟩
+    show B.coeff Q *
+        souzaLocalScalar G s p hs hp hp_top
+          (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q) (B.atom Q) /
+        souzaCanonicalLocalAtom G s p (goodGridCellOfLevelCell G Q)
+        = (((r : ℝ) * (a : ℝ) / μsp : ℝ) : ℂ)
+    rw [hr, hscalar]
+    have hcanon :
+        souzaCanonicalLocalAtom G s p (goodGridCellOfLevelCell G Q) = ((μsp : ℝ) : ℂ) := by
+      simp [souzaCanonicalLocalAtom, goodGridCellOfLevelCell, hμsp_def]
+    rw [hcanon]
+    push_cast
+    field_simp
+
+/-- From a representation with nonnegative-real coefficients and atoms that are
+pointwise positive on the cells where the coefficient does not vanish, one
+obtains a **positive** Souza representation of the same `L^p` element, with no
+larger level coefficient powers and the same (or smaller) coefficient support. -/
+theorem exists_souzaPositiveRepresentation_of_canonicalizable
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {g : Lp ℂ p G.toWeakGridSpace.measure}
+    (R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) g)
+    (hcoeff : ∀ (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      ∃ r : NNReal, (R.block k).coeff Q = (r : ℂ))
+    (hatom : ∀ (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      (R.block k).coeff Q ≠ 0 → ∀ x ∈ Q.1, ∃ a : NNReal, 0 < a ∧
+        (souzaAtomFamily G s p hs hp hp_top).toFunction
+          (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+          ((R.block k).atom Q) x = (a : ℂ)) :
+    ∃ R' : WeakGridSpace.LpGridRepresentation
+        (souzaAtomFamily G s p hs hp hp_top) g,
+      SouzaPositiveRepresentation G s p hs hp hp_top R' ∧
+      (∀ k, R'.levelCoeffPower k ≤ R.levelCoeffPower k) ∧
+      (∀ (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        (R'.block k).coeff Q ≠ 0 → (R.block k).coeff Q ≠ 0) := by
+  classical
+  refine ⟨{ block := fun k => souzaCanonicalizedLevelBlock G s p hs hp hp_top (R.block k)
+            hasSum := ?_ }, ?_, ?_, ?_⟩
+  · have hcongr : (fun k => (souzaCanonicalizedLevelBlock G s p hs hp hp_top
+        (R.block k)).toLp (souzaAtomFamily G s p hs hp hp_top))
+        = fun k => (R.block k).toLp (souzaAtomFamily G s p hs hp hp_top) := by
+      funext k
+      exact souzaCanonicalizedLevelBlock_toLp G s p hs hp hp_top (R.block k)
+    rw [hcongr]
+    exact R.hasSum
+  · intro k
+    exact souzaCanonicalizedLevelBlock_positive_of G s p hs hp hp_top (R.block k)
+      (hcoeff k) (fun Q hQ x hx => hatom k Q hQ x hx)
+  · intro k
+    simpa [WeakGridSpace.LpGridRepresentation.levelCoeffPower] using
+      souzaCanonicalizedLevelBlock_levelCoeffPower_le G s p hs hp hp_top (R.block k)
+  · intro k Q hne hR0
+    exact hne (by simp [souzaCanonicalizedLevelBlock, hR0])
+
 private noncomputable def realPositivePart (a : ℝ) : ℝ :=
   max a 0
 
@@ -3827,6 +3925,88 @@ theorem souzaPositiveRepresentation_ae_ne_zero_on_active_cell
   have hb_nonpos : b ≤ 0 := by
     simpa [μ, hgx_zero] using hre_lim
   exact (not_le_of_gt hb_pos) hb_nonpos
+
+/-- **Support of a positive representation, exact version (good grid).**
+If `R` is a positive Souza representation of `g`, and `g` vanishes (a.e.) outside
+a good-grid cell `Qc.cell`, then every coefficient at a cell `P` not contained in
+`Qc.cell` is zero.  The exact containment (not merely a.e.) uses that the grid is
+*good*: cells of comparable levels are either nested or disjoint
+(`partition_subset_or_disjoint_of_le`), and finer cells have strictly smaller
+measure (`cell_measure_le_lambda2_pow_mul_cell`, since `lambda2 < 1`). -/
+theorem souzaPositiveRepresentation_coeff_eq_zero_of_not_subset_cell
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (Qc : GoodGridCell G)
+    {g : Lp ℂ p G.toWeakGridSpace.measure}
+    (R : WeakGridSpace.LpGridRepresentation (souzaAtomFamily G s p hs hp hp_top) g)
+    (hR : SouzaPositiveRepresentation G s p hs hp hp_top R)
+    (hsupp : ∀ᵐ x ∂ G.toWeakGridSpace.measure, x ∉ Qc.cell → (g : α → ℂ) x = 0)
+    {n : ℕ} (P : WeakGridSpace.LevelCell G.toWeakGridSpace n)
+    (hP : ¬ P.1 ⊆ Qc.cell) :
+    (R.block n).coeff P = 0 := by
+  classical
+  have hμeq : G.toWeakGridSpace.measure = G.grid.μ := rfl
+  by_contra hne
+  have hPmeas : MeasurableSet P.1 := G.toWeakGridSpace.grid.measurable n P.1 P.2
+  have hlin := souzaPositiveRepresentation_ae_ne_zero_on_active_cell
+    G s p q hs hp hp_top R hR P hne
+  have hlin' : ∀ᵐ x ∂ G.toWeakGridSpace.measure, x ∈ P.1 → (g : α → ℂ) x ≠ 0 :=
+    (MeasureTheory.ae_restrict_iff' hPmeas).1 hlin
+  have hae : ∀ᵐ x ∂ G.toWeakGridSpace.measure, x ∉ (P.1 \ Qc.cell) := by
+    filter_upwards [hlin', hsupp] with x hx_lin hx_supp hmem
+    exact hx_lin hmem.1 (hx_supp hmem.2)
+  have hdiff_zero : G.toWeakGridSpace.measure (P.1 \ Qc.cell) = 0 := by
+    simpa using MeasureTheory.ae_iff.mp hae
+  have hP_pos : 0 < G.toWeakGridSpace.measure P.1 :=
+    G.toWeakGridSpace.grid.positive_measure n P.1 P.2
+  by_cases hle : Qc.level ≤ n
+  · rcases G.grid.partition_subset_or_disjoint_of_le Qc.level n hle Qc.cell Qc.mem
+      P.1 P.2 with hsub | hdisj
+    · exact hP hsub
+    · refine hP_pos.ne' ?_
+      have hPeq : P.1 \ Qc.cell = P.1 := sdiff_eq_left.mpr hdisj
+      rwa [hPeq] at hdiff_zero
+  · push_neg at hle
+    rcases G.grid.partition_subset_or_disjoint_of_le n Qc.level hle.le P.1 P.2
+      Qc.cell Qc.mem with hsub | hdisj
+    · exfalso
+      have hQcmeas : MeasurableSet Qc.cell :=
+        G.grid.grid.measurable Qc.level Qc.cell Qc.mem
+      have hμcellpos : 0 < G.grid.μ Qc.cell := GoodGridCell.measure_pos Qc
+      have hμcelltop : G.grid.μ Qc.cell ≠ ∞ := GoodGridCell.measure_ne_top Qc
+      have hdiff_eq : G.grid.μ (P.1 \ Qc.cell) = G.grid.μ P.1 - G.grid.μ Qc.cell :=
+        MeasureTheory.measure_diff hsub hQcmeas.nullMeasurableSet hμcelltop
+      have hμP_le : G.grid.μ P.1 ≤ G.grid.μ Qc.cell := by
+        have hz : G.grid.μ P.1 - G.grid.μ Qc.cell = 0 := by
+          rw [← hdiff_eq]; exact hdiff_zero
+        exact tsub_eq_zero_iff_le.mp hz
+      have hk_pos : 0 < Qc.level - n := Nat.sub_pos_of_lt hle
+      have hcellbd : G.grid.μ Qc.cell ≤
+          (ENNReal.ofReal G.grid.lambda2) ^ (Qc.level - n) * G.grid.μ P.1 := by
+        have h := cell_measure_le_lambda2_pow_mul_cell G ⟨n, P.1, P.2⟩ (Qc.level - n) Qc.cell
+          (by rw [show n + (Qc.level - n) = Qc.level from Nat.add_sub_cancel' hle.le]
+              exact Qc.mem)
+          hsub
+        simpa using h
+      have hlam_lt1 : ENNReal.ofReal G.grid.lambda2 < 1 := by
+        rw [ENNReal.ofReal_lt_one]; exact G.grid.hlambda2_lt_one
+      have hc_lt1 : (ENNReal.ofReal G.grid.lambda2) ^ (Qc.level - n) < 1 :=
+        pow_lt_one₀ zero_le hlam_lt1 hk_pos.ne'
+      have hchain : G.grid.μ Qc.cell ≤
+          (ENNReal.ofReal G.grid.lambda2) ^ (Qc.level - n) * G.grid.μ Qc.cell :=
+        hcellbd.trans (mul_le_mul_left' hμP_le _)
+      have hlt : (ENNReal.ofReal G.grid.lambda2) ^ (Qc.level - n) * G.grid.μ Qc.cell
+          < G.grid.μ Qc.cell := by
+        rw [mul_comm]
+        calc G.grid.μ Qc.cell * (ENNReal.ofReal G.grid.lambda2) ^ (Qc.level - n)
+            < G.grid.μ Qc.cell * 1 :=
+              ENNReal.mul_lt_mul_right hμcellpos.ne' hμcelltop hc_lt1
+          _ = G.grid.μ Qc.cell := mul_one _
+      exact (lt_irrefl _) (lt_of_le_of_lt hchain hlt)
+    · refine hP_pos.ne' ?_
+      have hPeq : P.1 \ Qc.cell = P.1 := sdiff_eq_left.mpr hdisj.symm
+      rwa [hPeq] at hdiff_zero
 
 /--
 If a positive Souza-Besov function has nonzero integral, then the countable
