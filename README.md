@@ -66,12 +66,29 @@ The formalization currently includes:
 - Mean-oscillation results connecting the standard representation norm,
   `meanOscillationNorm`, and the Haar representation norm by finite-constant
   comparison theorems.
+- A pointwise-multiplier layer on good grids (`GoodGrid/Multipliers/`):
+  the level-tail Souza `selfs` classes (`SouzaPointwiseSelfsTailBound`,
+  `SouzaPointwiseSelfsTailClass`) and the `selfs` seminorm; the proof that
+  tail-`selfs` multipliers are bounded, i.e. `souzaPointwiseSelfsTailBound_norm_ae_le`
+  and `souzaPointwiseSelfsTailNorm_norm_ae_le_add` give an `L^infinity` bound
+  uniform in the tail level `t`; the `B^s_{1,1}` characterization
+  `souzaPointwiseMultiplier_iff_souzaPointwiseSelfsClass_one_one`; and the
+  non-Archimedean multiplier estimate `souzaNonArchimedeanPropertyLambdaFinite`
+  and its infinite-index pointwise form `souzaNonArchimedeanProperty`.
+- A positive-cone version of the non-Archimedean estimate
+  (`souzaNonArchimedeanPropertyPositiveCone`) is in progress: the statement and
+  the assembly core are in place, with the support consequence and the
+  cone-positivity consequence proved at the with-errors and `N > 0` layers; two
+  `sorry`s remain (the `N = 0` degenerate case and the positive local
+  transmutation-data builder).
 
-At this snapshot, project Lean files outside `.lake/packages` contain no Lean
-`sorry`, no Lean `admit`, and no project-local `axiom` or `constant`
-declarations.  The main comparison modules check individually.  The aggregate
-root module currently has a known import/name organization issue involving
-`GoodGridSpace.GoodGridCell.toLevelCell`; see `status.md` for the current
+At this snapshot, a full `lake build` succeeds: the aggregate root module and
+all imported modules compile.  The previous root import/name issue involving
+`GoodGridSpace.GoodGridCell.toLevelCell` has been resolved.  Project Lean files
+outside `.lake/packages` contain no `admit` and no project-local `axiom` or
+`constant` declarations; the only Lean `sorry`s are the two in the in-progress
+positive-cone multiplier file `GoodGrid/Multipliers/NonArchimedeanProperty.lean`
+(they build as `sorry` warnings).  See `status.md` for the current
 verification log.
 
 ## Build
@@ -79,25 +96,21 @@ verification log.
 This project uses the Lean toolchain pinned in `lean-toolchain`, currently
 `leanprover/lean4:v4.30.0-rc2`, and mathlib through Lake.
 
-The intended full-project check is:
+The full-project check is:
 
 ```sh
 lake build
 ```
 
-At the current snapshot, the aggregate root import still needs the
-`GoodGridCell.toLevelCell` issue recorded in `status.md` to be resolved before
-that full build is expected to pass.
+At the current snapshot this succeeds (the only warnings come from the two
+`sorry`s in the in-progress positive-cone multiplier file).
 
-For focused checks of the most recent comparison modules:
+To check an individual module in isolation, for example the multiplier files:
 
 ```sh
-lake env lean BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/OscillationNormleqBesovNorm.lean
-lake env lean BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/HaarNormleqOscillationNorm.lean
+lake build BesovSpacesGoodGrid.GoodGrid.Multipliers
+lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lean
 ```
-
-The aggregate root check is the intended final smoke test, but it currently
-needs the import/name issue recorded in `status.md` to be resolved first.
 
 ## Project Files
 
@@ -123,6 +136,21 @@ needs the import/name issue recorded in `status.md` to be resolved first.
   Besov-space consequences.
 - `BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean`: Besov atoms on good grids and
   the Souza/Besov atom comparison theorem.
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers.lean`: public aggregator for the
+  good-grid pointwise-multiplier files.
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/Definition.lean`: the level-tail
+  Souza `selfs` classes and seminorm.
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/Besovspq.lean`: induced-cell Souza
+  representations and restriction/transmutation infrastructure for multipliers.
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/Besovs11.lean`: the `B^s_{1,1}`
+  pointwise-multiplier characterization.
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lean`:
+  boundedness (`L^infinity`) of tail-`selfs` multipliers, uniform in the tail
+  level.
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanProperty.lean`: the
+  non-Archimedean multiplier estimate and the in-progress positive-cone version.
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanPropertyPositiveStandalone.lean`:
+  the user-facing positive-cone statement, forwarding to the assembly core.
 - `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms.lean`: public
   aggregator for the Haar, standard, and mean-oscillation representation and
   norm-comparison files.
@@ -157,13 +185,13 @@ needs the import/name issue recorded in `status.md` to be resolved first.
 
 Likely next steps are:
 
-- resolve the aggregate root import/name collision around
-  `GoodGridSpace.GoodGridCell.toLevelCell`;
-- run a full `lake build` once the root module imports cleanly;
-- decide whether `GoodGrid.Distribution` and `Sums` should be imported by the
-  root module or kept as opt-in modules;
-- continue polishing public docstrings around the large transmutation and
-  completeness files;
-- factor large proof-heavy files into smaller topic-focused modules if
+- finish the positive-cone non-Archimedean multiplier theorem: discharge the
+  two remaining `sorry`s in `GoodGrid/Multipliers/NonArchimedeanProperty.lean`
+  (the `N = 0` degenerate case and the positive local transmutation-data
+  builder `exists_nonArchimedeanLocalTransmutationData_pos`);
+- continue polishing public docstrings around the large transmutation,
+  completeness, and multiplier files;
+- factor large proof-heavy files (notably `Multipliers/NonArchimedeanProperty.lean`
+  and `WeakGrid/Transmutation.lean`) into smaller topic-focused modules if
   compilation time or navigation becomes cumbersome;
-- clean deprecation/style warnings in the new comparison files.
+- clean deprecation/style warnings in the newer files.

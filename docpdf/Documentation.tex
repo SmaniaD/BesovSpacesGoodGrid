@@ -90,13 +90,17 @@ the following pipeline:
   \item specialize the transmutation machinery to compare Souza atoms, Besov
     atoms, and atom families sandwiched between them on good grids;
   \item introduce Haar and standard representation gauges on good grids and
-    compare them with the mean-oscillation norm.
+    compare them with the mean-oscillation norm;
+  \item develop a pointwise-multiplier layer on good grids: the level-tail
+    Souza \verb|selfs| classes, boundedness of \verb|selfs| multipliers, the
+    \(B^s_{1,1}\) multiplier characterization, and the non-Archimedean
+    multiplier estimate.
 \end{enumerate}
 
 The repository also contains good-grid Souza-space results and auxiliary
-block-sum notation.  At the date of this document the newest comparison modules
-check individually, while the aggregate root module still has an import/name
-organization issue involving \verb|GoodGridSpace.GoodGridCell.toLevelCell|.
+block-sum notation.  At the date of this document a full \verb|lake build|
+succeeds; the earlier aggregate-root import/name issue involving
+\verb|GoodGridSpace.GoodGridCell.toLevelCell| has been resolved.
 
 \newpage
 
@@ -758,6 +762,75 @@ that
 
 \newpage
 
+\section{Pointwise Multipliers}
+
+The files in \verb|GoodGrid/Multipliers/| formalize the pointwise-multiplier
+theory of Souza Besov spaces, following the multiplier sections of the paper.
+
+\subsection{The \texttt{selfs} classes}
+
+A function \(g\) is tested as a multiplier through its products with the Souza
+atoms.  For a tail level \(t\), \verb|SouzaPointwiseSelfsTailBound G b p qt t g C|
+records that, for every Souza atom on a cell of level at least \(t\), the
+product \(g\cdot a_Q\) admits a \(B^{\beta}_{p,\tilde q}\)-representation of cost
+at most \(C\); \verb|SouzaPointwiseSelfsTailClass| is the qualitative
+"\(g\) has some finite such bound", and \verb|souzaPointwiseSelfsTailNorm| is the
+induced \(\mathcal B^{\beta,t}_{p,\tilde q,\mathrm{selfs}}\) seminorm.  These
+definitions live in \verb|Multipliers/Definition.lean|.
+
+\subsection{Boundedness}
+
+The file \verb|Multipliers/MultipliersareBounded.lean| proves that
+\verb|selfs| multipliers are bounded.  Starting from local
+\(L^p\)/\(L^1\) and integral estimates with the same constant as the global
+theory, the main outputs are
+\[
+  \|g(x)\| \le C(G,s,p,q)\,|g|_{\mathcal B^{\beta,t}_{p,\tilde q,\mathrm{selfs}}}
+  \qquad\text{for a.e. } x,
+\]
+namely \verb|souzaPointwiseSelfsTailBound_norm_ae_le| and
+\verb|souzaPointwiseSelfsTailNorm_norm_ae_le_add|, with a constant independent of
+the tail level \(t\).
+
+\subsection{The \texorpdfstring{$B^s_{1,1}$}{B\^{}s\_\{1,1\}} characterization}
+
+In \verb|Multipliers/Besovs11.lean|, the theorem
+\verb|souzaPointwiseMultiplier_iff_souzaPointwiseSelfsClass_one_one| identifies,
+for \(p=q=1\), the pointwise multipliers of \(B^s_{1,1}\) with the
+\verb|selfs| class.
+
+\subsection{Non-Archimedean behaviour}
+
+The file \verb|Multipliers/NonArchimedeanProperty.lean| proves the
+non-Archimedean estimate.  Given a family of \verb|selfs| multipliers
+\(g_i\), \(i\in\Lambda\), and \(f=\sum_k\sum_Q c_Q a_Q\) satisfying a bounded
+overlap hypothesis (the total \verb|selfs| seminorm of the multipliers active on
+any cell with \(c_Q\neq 0\) is at most \(N\)) and a level/scale hypothesis, the
+product \(\bigl(\sum_i g_i\bigr)f\) has a representation whose coefficient cost is
+at most \(C_{\mathrm{gen}}\,N\) times that of \(f\) --- with \(C_{\mathrm{gen}}\)
+independent of the multipliers, of \(N\), and of \(\Lambda\).  This is
+\verb|souzaNonArchimedeanPropertyLambdaFinite| (finite \(\Lambda\)) and its
+infinite-index pointwise refinement \verb|souzaNonArchimedeanProperty|.
+
+\subsection{Positive cone (in progress)}
+\label{sec:multipliers-positive}
+
+A positive-cone version, \verb|souzaNonArchimedeanPropertyPositiveCone|, is being
+formalized.  Here only the source representation's atoms are assumed canonical
+(coefficients are arbitrary complex numbers), and the two consequences of the
+paper's positivity remark are separated by their true strengths: the
+\emph{support} consequence (every active output cell lies in the support of some
+multiplier) is unconditional, while the \emph{positivity} consequence holds only
+when the source coefficients are nonnegative and is stated with the weaker
+\verb|SouzaConePositiveRepresentation| predicate (nonnegative coefficients and
+atoms in the positive cone, rather than canonical atoms).  The statement, the
+assembly core, the with-errors layer (representation, cost, support, and
+cone-positivity), and the \(N>0\) clean-constant layer are proved; two
+\verb|sorry|s remain (the \(N=0\) degenerate case and the positive local
+transmutation-data builder).
+
+\newpage
+
 \section{Auxiliary Files}
 
 \subsection{Distributions}
@@ -786,20 +859,15 @@ block sums:
 
 \subsection{Repository Status}
 
-At this snapshot, project Lean files outside \verb|.lake/packages| contain no
-Lean \verb|sorry|, no Lean \verb|admit|, no project-local \verb|axiom|
-declarations, and no project-local \verb|constant| declarations.  The former
-Besov-atom comparison target is proved as
-\verb|atoms_between_souza_atoms_and_besov_atoms| in
-\verb|GoodGrid/BesovAtoms.lean|.  The newest oscillation and Haar comparison
-modules also check individually.
-
-The aggregate root file \verb|BesovSpacesGoodGrid.lean| currently has a known
-import/name organization issue: when checked directly, Lean reports that the
-environment already contains
-\verb|GoodGridSpace.GoodGridCell.toLevelCell| from
-\verb|GoodGrid/BesovSpace.lean| while importing \verb|GoodGrid/BesovAtoms.lean|.
-This is recorded in \verb|status.md| as the next repository-level cleanup item.
+At this snapshot, a full \verb|lake build| succeeds: the aggregate root file
+\verb|BesovSpacesGoodGrid.lean| and all imported modules compile.  The earlier
+import/name issue around \verb|GoodGridSpace.GoodGridCell.toLevelCell| has been
+resolved.  Project Lean files outside \verb|.lake/packages| contain no
+\verb|admit| and no project-local \verb|axiom| or \verb|constant| declarations.
+The only Lean \verb|sorry|s are the two in the in-progress positive-cone
+multiplier file \verb|GoodGrid/Multipliers/NonArchimedeanProperty.lean|; they
+build as \verb|sorry| warnings and do not block the project build.  The current
+verification log is kept in \verb|status.md|.
 
 \newpage
 
@@ -857,6 +925,18 @@ The most important public results currently include:
   \item
     \verb|exists_haarL2RepresentationNorm_le_const_mul_meanOscillationNorm|:
     mean oscillation controls the Haar representation norm.
+  \item \verb|souzaPointwiseSelfsTailBound_norm_ae_le| and
+    \verb|souzaPointwiseSelfsTailNorm_norm_ae_le_add|:
+    tail-\verb|selfs| multipliers are bounded, with an \(L^\infty\) estimate
+    uniform in the tail level.
+  \item \verb|souzaPointwiseMultiplier_iff_souzaPointwiseSelfsClass_one_one|:
+    the \(B^s_{1,1}\) pointwise-multiplier characterization.
+  \item \verb|souzaNonArchimedeanPropertyLambdaFinite| and
+    \verb|souzaNonArchimedeanProperty|:
+    the finite and infinite-index non-Archimedean multiplier estimates.
+  \item \verb|souzaNonArchimedeanPropertyPositiveCone| (in progress):
+    the positive-cone version, with the support and cone-positivity consequences
+    separated; see Section~\ref{sec:multipliers-positive}.
 \end{itemize}
 
 \section{File Guide}
@@ -881,6 +961,15 @@ The most important public results currently include:
   \item \verb|GoodGrid/BesovSpace.lean|: Souza atoms and good-grid Besov spaces.
   \item \verb|GoodGrid/BesovAtoms.lean|: Besov atoms on good grids and the
     Souza/Besov atom comparison theorem.
+  \item \verb|GoodGrid/Multipliers.lean| and \verb|GoodGrid/Multipliers/|: the
+    pointwise-multiplier layer --- \verb|Definition.lean| (the \verb|selfs|
+    classes and seminorm), \verb|Besovspq.lean| (induced-cell representations
+    and restriction infrastructure), \verb|Besovs11.lean| (the \(B^s_{1,1}\)
+    characterization), \verb|MultipliersareBounded.lean| (boundedness of
+    \verb|selfs| multipliers), \verb|NonArchimedeanProperty.lean| (the
+    non-Archimedean estimate and the in-progress positive-cone version), and
+    \verb|NonArchimedeanPropertyPositiveStandalone.lean| (the user-facing
+    positive-cone statement).
   \item \verb|GoodGrid/AlternativeRepresentationsAndNorms.lean|: public aggregator for
     the Haar, standard, and mean-oscillation representation and norm-comparison files.
   \item \verb|GoodGrid/AlternativeRepresentationsAndNorms/HaarRepresentationNorm.lean|: normalized Haar
@@ -910,8 +999,12 @@ library: it defines Besov-ish spaces, develops their coefficient-cost norm,
 proves scale, compactness, completeness, and transmutation statements, and
 specializes the theory to Souza atoms on good grids.  The good-grid layer now
 also contains the main finite-constant comparisons among the standard atomic
-norm, Haar representation norm, and mean-oscillation norm.  The most reusable
-API is currently the weak-grid layer; the good-grid files show how the
-abstract machinery is intended to specialize to concrete Besov spaces.
+norm, Haar representation norm, and mean-oscillation norm, together with a
+pointwise-multiplier layer: the \verb|selfs| classes, boundedness of
+\verb|selfs| multipliers, the \(B^s_{1,1}\) characterization, and the
+non-Archimedean multiplier estimate, with a positive-cone version in progress.
+The most reusable API is currently the weak-grid layer; the good-grid files show
+how the abstract machinery is intended to specialize to concrete Besov spaces
+and to their pointwise multipliers.
 
 \end{document}
