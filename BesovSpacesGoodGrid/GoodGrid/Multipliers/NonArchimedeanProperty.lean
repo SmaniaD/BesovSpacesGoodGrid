@@ -1401,6 +1401,85 @@ private theorem inducedSouzaBetaBesov_to_ambientSouzaS_geometric
             ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) ^ (j - Q.level) := by
           rw [show j - Q.level = n by rfl]
 
+/-- **Rung B (positivity transfer).** Reading a *positive* ambient `β`-representation
+that is supported on `Qc` (zero blocks before `Qc.level`, zero coefficients outside
+`Qc.cell`) as a representation on the grid induced by `Qc` keeps the coefficients
+nonnegative reals and the atoms pointwise positive on their cells.  The induced
+blocks are literal reindexings of the ambient blocks, so positivity is inherited. -/
+private theorem ambientSupportedRepresentationToInduced_souzaPositive
+    (G : GoodGridSpace (α := α)) (β : ℝ) (p : ℝ≥0∞)
+    (hβ : 0 < β) (hp : 1 ≤ p) (hp_top : p ≠ ∞) [Fact (1 ≤ p)]
+    (Qc : GoodGridCell G)
+    {g : Lp ℂ p G.toWeakGridSpace.measure}
+    (R : WeakGridSpace.LpGridRepresentation (souzaAtomFamily G β p hβ hp hp_top) g)
+    (hR : SouzaPositiveRepresentation G β p hβ hp hp_top R)
+    (hbefore : ∀ n, n < Qc.level →
+      (R.block n).toLp (souzaAtomFamily G β p hβ hp hp_top) = 0)
+    (houtside : ∀ n (P : WeakGridSpace.LevelCell G.toWeakGridSpace n),
+      ¬ P.1 ⊆ Qc.cell → (R.block n).coeff P = 0) :
+    (∀ (i : ℕ) (P : WeakGridSpace.LevelCell
+        (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Qc.toLevelCell) i),
+      ∃ r : NNReal,
+        ((WeakGridSpace.ambientSupportedRepresentationToInduced G.toWeakGridSpace
+          Qc.toLevelCell (souzaAtomFamily G β p hβ hp hp_top) R hbefore houtside).block i).coeff P
+          = (r : ℂ)) ∧
+    (∀ (i : ℕ) (P : WeakGridSpace.LevelCell
+        (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Qc.toLevelCell) i)
+        (x : α), x ∈ P.1 →
+      ∃ a : NNReal, 0 < a ∧
+        (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Qc.toLevelCell
+            (souzaAtomFamily G β p hβ hp hp_top)).toFunction
+          (WeakGridSpace.levelCellToWeakGridCell
+            (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Qc.toLevelCell) i P)
+          (((WeakGridSpace.ambientSupportedRepresentationToInduced G.toWeakGridSpace
+            Qc.toLevelCell (souzaAtomFamily G β p hβ hp hp_top) R hbefore houtside).block i).atom P)
+            x
+          = (a : ℂ)) := by
+  classical
+  refine ⟨?_, ?_⟩
+  · intro i P
+    obtain ⟨c, hc, hcoeff, _⟩ :=
+      hR (Qc.level + i)
+        (WeakGridSpace.inducedLevelCellToAmbient G.toWeakGridSpace Qc.toLevelCell P)
+    refine ⟨⟨c, hc⟩, ?_⟩
+    show (WeakGridSpace.ambientLevelBlockToInduced G.toWeakGridSpace Qc.toLevelCell
+        (souzaAtomFamily G β p hβ hp hp_top) (R.block (Qc.level + i))).coeff P = _
+    rw [WeakGridSpace.ambientLevelBlockToInduced_coeff, hcoeff]
+    norm_cast
+  · intro i P x hx
+    obtain ⟨c, hc, _, hatom⟩ :=
+      hR (Qc.level + i)
+        (WeakGridSpace.inducedLevelCellToAmbient G.toWeakGridSpace Qc.toLevelCell P)
+    have hμpos : 0 < (G.grid.μ P.1).toReal := by
+      have hp1 : 0 < G.grid.μ P.1 := by
+        simpa [WeakGridSpace.inducedWeakGridSpace, WeakGridSpace.inducedWeakGrid,
+          GoodGridSpace.toWeakGridSpace, GoodGridSpace.toWeakGrid,
+          WeakGridSpace.WeakGridSpace.measure] using
+          (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Qc.toLevelCell).grid.positive_measure
+            i P.1 P.2
+      have hpfin : G.grid.μ P.1 ≠ ∞ := by
+        letI : MeasureTheory.IsFiniteMeasure G.grid.μ := G.grid.isFinite
+        exact MeasureTheory.measure_ne_top G.grid.μ P.1
+      exact ENNReal.toReal_pos hp1.ne' hpfin
+    have haval_pos : 0 < (G.grid.μ P.1).toReal ^ (β - (p.toReal)⁻¹) :=
+      Real.rpow_pos_of_pos hμpos _
+    refine ⟨⟨(G.grid.μ P.1).toReal ^ (β - (p.toReal)⁻¹), haval_pos.le⟩, ?_, ?_⟩
+    · rw [← NNReal.coe_lt_coe]; simpa using haval_pos
+    · show (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace Qc.toLevelCell
+          (souzaAtomFamily G β p hβ hp hp_top)).toFunction
+          (WeakGridSpace.levelCellToWeakGridCell
+            (WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace Qc.toLevelCell) i P)
+          ((WeakGridSpace.ambientLevelBlockToInduced G.toWeakGridSpace Qc.toLevelCell
+            (souzaAtomFamily G β p hβ hp hp_top) (R.block (Qc.level + i))).atom P) x = _
+      rw [WeakGridSpace.ambientLevelBlockToInduced_atom_toFunction, hatom]
+      have hcan : canonicalSouzaAtom G β p (goodGridCellOfLevelCell G
+            (WeakGridSpace.inducedLevelCellToAmbient G.toWeakGridSpace Qc.toLevelCell P)) x
+          = (((G.grid.μ P.1).toReal ^ (β - (p.toReal)⁻¹) : ℝ) : ℂ) := by
+        simp [canonicalSouzaAtom, goodGridCellOfLevelCell,
+          WeakGridSpace.inducedLevelCellToAmbient, hx]
+      rw [hcan]
+      norm_cast
+
 /--
 Local transmutation datum for a source Souza atom of smoothness `s`.
 

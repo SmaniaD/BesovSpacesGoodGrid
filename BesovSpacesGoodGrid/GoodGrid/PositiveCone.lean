@@ -301,6 +301,30 @@ noncomputable def souzaPositivePointwiseSelfsTailNorm
     (t : ℕ) (m : α → ℂ) : ℝ≥0∞ :=
   sInf (souzaPositivePointwiseSelfsTailBoundSet G s p q hs hp hp_top t m)
 
+/-- If the positive gauge of `f` is finite, then for every `ε > 0` there is a
+positive Souza representation of `f` whose extended `(p,q)` cost is within `ε`
+of the gauge.  (`sInf`-extraction for the positive cone.) -/
+theorem exists_souzaPositiveRepresentation_pqCostENNReal_lt
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (f : WeakGridSpace.BesovishSpace (souzaAtomFamily G s p hs hp hp_top) q)
+    (hfin : souzaPositiveNorm G s p q hs hp hp_top f ≠ ∞)
+    {ε : ℝ≥0∞} (hε : 0 < ε) :
+    ∃ R : WeakGridSpace.LpGridRepresentation (souzaAtomFamily G s p hs hp hp_top)
+        (f : Lp ℂ p G.toWeakGridSpace.measure),
+      SouzaPositiveRepresentation G s p hs hp hp_top R ∧
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R ∧
+      WeakGridSpace.LpGridRepresentation.pqCostENNReal (q := q) R
+        < souzaPositiveNorm G s p q hs hp hp_top f + ε := by
+  have hlt : souzaPositiveNorm G s p q hs hp hp_top f
+      < souzaPositiveNorm G s p q hs hp hp_top f + ε :=
+    ENNReal.lt_add_right hfin hε.ne'
+  rw [souzaPositiveNorm] at hlt
+  obtain ⟨C', hC'mem, hC'lt⟩ := sInf_lt_iff.mp hlt
+  obtain ⟨R, hRpos, hRfin, hRle⟩ := hC'mem
+  exact ⟨R, hRpos, hRfin, lt_of_le_of_lt hRle hC'lt⟩
+
 private theorem souzaPositiveLevelBlock_smul_nonneg
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
