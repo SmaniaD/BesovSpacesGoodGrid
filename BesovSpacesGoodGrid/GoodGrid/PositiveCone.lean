@@ -325,6 +325,28 @@ theorem exists_souzaPositiveRepresentation_pqCostENNReal_lt
   obtain ⟨R, hRpos, hRfin, hRle⟩ := hC'mem
   exact ⟨R, hRpos, hRfin, lt_of_le_of_lt hRle hC'lt⟩
 
+/-- If the positive tail seminorm of `m` at level `t` is finite, then for every
+`ε > 0` there is a concrete positive tail bound within `ε` of the seminorm.
+(`sInf`-extraction for the positive tail bound set.) -/
+theorem exists_souzaPositivePointwiseSelfsTailBound_lt_norm_add
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (t : ℕ) (m : α → ℂ)
+    (hfin : souzaPositivePointwiseSelfsTailNorm G s p q hs hp hp_top t m ≠ ∞)
+    {ε : ℝ≥0∞} (hε : 0 < ε) :
+    ∃ C : ℝ≥0∞,
+      SouzaPositivePointwiseSelfsTailBound G s p q hs hp hp_top t m C ∧
+      C < souzaPositivePointwiseSelfsTailNorm G s p q hs hp hp_top t m + ε := by
+  have hlt : souzaPositivePointwiseSelfsTailNorm G s p q hs hp hp_top t m
+      < souzaPositivePointwiseSelfsTailNorm G s p q hs hp hp_top t m + ε :=
+    ENNReal.lt_add_right hfin hε.ne'
+  obtain ⟨C, hCmem, hClt⟩ := sInf_lt_iff.mp
+    (by
+      rw [souzaPositivePointwiseSelfsTailNorm] at hlt
+      exact hlt)
+  exact ⟨C, hCmem, hClt⟩
+
 private theorem souzaPositiveLevelBlock_smul_nonneg
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
@@ -356,7 +378,7 @@ theorem souzaPositiveRepresentation_smul_nonneg
       (WeakGridSpace.LpGridRepresentation.smul (a : ℂ) R) :=
   fun k => souzaPositiveLevelBlock_smul_nonneg G s p hs hp hp_top ha (hR k)
 
-private noncomputable def souzaPositiveLevelBlockAdd
+noncomputable def souzaPositiveLevelBlockAdd
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     {k : ℕ}
@@ -367,7 +389,7 @@ private noncomputable def souzaPositiveLevelBlockAdd
   atom := B.atom
   atom_mem := B.atom_mem
 
-private theorem souzaPositiveLevelBlockAdd_positive
+theorem souzaPositiveLevelBlockAdd_positive
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     {k : ℕ}
@@ -384,7 +406,7 @@ private theorem souzaPositiveLevelBlockAdd_positive
   · simp [souzaPositiveLevelBlockAdd, hBcoeff, hCcoeff]
   · simpa [souzaPositiveLevelBlockAdd] using hBatom
 
-private theorem souzaPositiveLevelBlockAdd_toLp
+theorem souzaPositiveLevelBlockAdd_toLp
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)]
@@ -426,7 +448,7 @@ private theorem souzaPositiveLevelBlockAdd_toLp
   unfold WeakGridSpace.LevelBlock.term
   simp [souzaPositiveLevelBlockAdd, A, hatomLp, add_smul]
 
-private noncomputable def souzaPositiveRepresentationAdd
+noncomputable def souzaPositiveRepresentationAdd
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)]
@@ -445,7 +467,7 @@ private noncomputable def souzaPositiveRepresentationAdd
     simpa [souzaPositiveLevelBlockAdd_toLp G s p hs hp hp_top (hR _) (hS _)] using
       R.hasSum.add S.hasSum
 
-private theorem souzaPositiveRepresentationAdd_positive
+theorem souzaPositiveRepresentationAdd_positive
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)]
@@ -461,7 +483,7 @@ private theorem souzaPositiveRepresentationAdd_positive
   intro k
   exact souzaPositiveLevelBlockAdd_positive G s p hs hp hp_top (hR k) (hS k)
 
-private theorem pqCost_le_of_pqCostENNReal_le
+theorem pqCost_le_of_pqCostENNReal_le
     {G : WeakGridSpace.WeakGridSpace (α := α)} {s : ℝ} {p u q : ℝ≥0∞}
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
     {A : WeakGridSpace.AtomFamily G s p u} {g : Lp ℂ p G.measure} {C : ℝ}
@@ -494,7 +516,7 @@ private theorem pqCost_le_of_pqCostENNReal_le
           (div_nonneg zero_le_one hq_pos.le)] at hENNReal
     exact (ENNReal.ofReal_le_ofReal_iff hC).mp hENNReal
 
-private theorem pqCostENNReal_le_of_finitePQCost_pqCost_le
+theorem pqCostENNReal_le_of_finitePQCost_pqCost_le
     {G : WeakGridSpace.WeakGridSpace (α := α)} {s : ℝ} {p u q : ℝ≥0∞}
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
     {A : WeakGridSpace.AtomFamily G s p u} {g : Lp ℂ p G.measure} {C : ℝ}
@@ -521,7 +543,7 @@ private theorem pqCostENNReal_le_of_finitePQCost_pqCost_le
           (div_nonneg zero_le_one hq_pos.le)]
     exact ENNReal.ofReal_le_ofReal hcost
 
-private theorem souzaPositiveRepresentationAdd_levelCoeffPower
+theorem souzaPositiveRepresentationAdd_levelCoeffPower
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)]
@@ -543,7 +565,7 @@ private theorem souzaPositiveRepresentationAdd_levelCoeffPower
     WeakGridSpace.LpGridRepresentation.add, WeakGridSpace.LevelBlock.add, hBcoeff, hCcoeff,
     Complex.norm_real, Real.norm_of_nonneg hb, Real.norm_of_nonneg hc]
 
-private theorem souzaPositiveRepresentationAdd_finitePQCost
+theorem souzaPositiveRepresentationAdd_finitePQCost
     (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
@@ -573,7 +595,65 @@ private theorem souzaPositiveRepresentationAdd_finitePQCost
     intro k
     rw [souzaPositiveRepresentationAdd_levelCoeffPower G s p hs hp hp_top hRpos hSpos k]
 
-private theorem souzaPositiveRepresentationAdd_pqCost_le
+/-- The coefficient of the positive sum of two representations is the sum of
+the coefficients. -/
+theorem souzaPositiveRepresentationAdd_coeff
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {x y : Lp ℂ p G.toWeakGridSpace.measure}
+    {R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) x}
+    {S : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) y}
+    (hR : SouzaPositiveRepresentation G s p hs hp hp_top R)
+    (hS : SouzaPositiveRepresentation G s p hs hp hp_top S)
+    (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) :
+    ((souzaPositiveRepresentationAdd G s p hs hp hp_top R S hR hS).block k).coeff Q =
+      (R.block k).coeff Q + (S.block k).coeff Q := rfl
+
+/-- Levelwise Minkowski inequality for the positive sum of two
+representations: the `p`-th root of the level coefficient power is
+subadditive. -/
+theorem souzaPositiveRepresentationAdd_levelCoeffRoot_le
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {x y : Lp ℂ p G.toWeakGridSpace.measure}
+    {R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) x}
+    {S : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) y}
+    (hR : SouzaPositiveRepresentation G s p hs hp hp_top R)
+    (hS : SouzaPositiveRepresentation G s p hs hp hp_top S) (k : ℕ) :
+    ((souzaPositiveRepresentationAdd G s p hs hp hp_top R S hR hS).levelCoeffPower k)
+        ^ (1 / p.toReal) ≤
+      (R.levelCoeffPower k) ^ (1 / p.toReal) +
+        (S.levelCoeffPower k) ^ (1 / p.toReal) := by
+  have hp1 : 1 ≤ p.toReal := (ENNReal.dichotomy p).resolve_left hp_top
+  have hsum :
+      (souzaPositiveRepresentationAdd G s p hs hp hp_top R S hR hS).levelCoeffPower k =
+        ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+          (‖(R.block k).coeff Q‖ + ‖(S.block k).coeff Q‖) ^ p.toReal := by
+    unfold WeakGridSpace.LpGridRepresentation.levelCoeffPower
+    refine Finset.sum_congr rfl ?_
+    intro Q _
+    rcases hR k Q with ⟨b, hb, hBcoeff, _⟩
+    rcases hS k Q with ⟨c, hc, hCcoeff, _⟩
+    rw [souzaPositiveRepresentationAdd_coeff G s p hs hp hp_top hR hS k Q,
+      hBcoeff, hCcoeff, ← Complex.ofReal_add, Complex.norm_real, Complex.norm_real,
+      Complex.norm_real, Real.norm_of_nonneg (add_nonneg hb hc),
+      Real.norm_of_nonneg hb, Real.norm_of_nonneg hc]
+  rw [hsum]
+  unfold WeakGridSpace.LpGridRepresentation.levelCoeffPower
+  exact Real.Lp_add_le_of_nonneg
+    (s := (Finset.univ : Finset (WeakGridSpace.LevelCell G.toWeakGridSpace k)))
+    (p := p.toReal)
+    (f := fun Q => ‖(R.block k).coeff Q‖)
+    (g := fun Q => ‖(S.block k).coeff Q‖)
+    hp1 (fun Q _ => norm_nonneg _) (fun Q _ => norm_nonneg _)
+
+theorem souzaPositiveRepresentationAdd_pqCost_le
     (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
@@ -708,7 +788,7 @@ private theorem souzaPositiveZeroLevelBlock_toLp
   simp [WeakGridSpace.LevelBlock.toLp, WeakGridSpace.LevelBlock.term,
     souzaPositiveZeroLevelBlock]
 
-private noncomputable def souzaPositiveZeroRepresentation
+noncomputable def souzaPositiveZeroRepresentation
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] :
@@ -719,7 +799,7 @@ private noncomputable def souzaPositiveZeroRepresentation
   hasSum := by
     simp [souzaPositiveZeroLevelBlock_toLp G s p hs hp hp_top]
 
-private theorem souzaPositiveZeroRepresentation_positive
+theorem souzaPositiveZeroRepresentation_positive
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] :
@@ -728,7 +808,7 @@ private theorem souzaPositiveZeroRepresentation_positive
   intro k
   exact souzaPositiveZeroLevelBlock_positive G s p hs hp hp_top
 
-private theorem souzaPositiveZeroRepresentation_levelCoeffPower
+theorem souzaPositiveZeroRepresentation_levelCoeffPower
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] (k : ℕ) :
@@ -738,7 +818,14 @@ private theorem souzaPositiveZeroRepresentation_levelCoeffPower
   simp [souzaPositiveZeroRepresentation, souzaPositiveZeroLevelBlock,
     WeakGridSpace.LpGridRepresentation.levelCoeffPower, Real.zero_rpow hp_pos.ne']
 
-private theorem souzaPositiveZeroRepresentation_finitePQCost
+/-- Every coefficient of the positive zero representation vanishes. -/
+theorem souzaPositiveZeroRepresentation_coeff
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) :
+    ((souzaPositiveZeroRepresentation G s p hs hp hp_top).block k).coeff Q = 0 := rfl
+
+theorem souzaPositiveZeroRepresentation_finitePQCost
     (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
@@ -760,7 +847,7 @@ private theorem souzaPositiveZeroRepresentation_finitePQCost
     simp [souzaPositiveZeroRepresentation_levelCoeffPower G s p hs hp hp_top,
       Real.zero_rpow hpow_pos.ne']
 
-private theorem souzaPositiveZeroRepresentation_pqCostENNReal_zero
+theorem souzaPositiveZeroRepresentation_pqCostENNReal_zero
     (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
@@ -789,6 +876,70 @@ private theorem souzaPositiveZeroRepresentation_pqCostENNReal_zero
         Real.zero_rpow hpow_pos.ne']
     rw [hsum]
     exact ENNReal.zero_rpow_of_pos (one_div_pos.mpr hq_pos)
+
+/-- **Finite positive sums of positive representations.**  Given positive
+finite-cost representations `R i` of `x i` for `i ∈ Λ`, there is a positive
+finite-cost representation of `∑ i ∈ Λ, x i` whose coefficients are the sums of
+the coefficients and whose levelwise coefficient roots satisfy the Minkowski
+bound.  This is the representation-level additivity used to assemble the
+positive multiplier blocks one multiplier at a time. -/
+theorem exists_souzaPositiveRepresentation_finset_sum
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    {ι : Type*} [DecidableEq ι] (Λ : Finset ι)
+    (x : ι → Lp ℂ p G.toWeakGridSpace.measure)
+    (R : (i : ι) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) (x i))
+    (hpos : ∀ i ∈ Λ, SouzaPositiveRepresentation G s p hs hp hp_top (R i))
+    (hfin : ∀ i ∈ Λ, WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (R i)) :
+    ∃ T : WeakGridSpace.LpGridRepresentation
+        (souzaAtomFamily G s p hs hp hp_top) (∑ i ∈ Λ, x i),
+      SouzaPositiveRepresentation G s p hs hp hp_top T ∧
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) T ∧
+      (∀ (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        (T.block k).coeff Q = ∑ i ∈ Λ, ((R i).block k).coeff Q) ∧
+      (∀ k : ℕ, (T.levelCoeffPower k) ^ (1 / p.toReal) ≤
+        ∑ i ∈ Λ, ((R i).levelCoeffPower k) ^ (1 / p.toReal)) := by
+  classical
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le hp).ne' hp_top
+  induction Λ using Finset.induction_on with
+  | empty =>
+      rw [Finset.sum_empty]
+      refine ⟨souzaPositiveZeroRepresentation G s p hs hp hp_top,
+        souzaPositiveZeroRepresentation_positive G s p hs hp hp_top,
+        souzaPositiveZeroRepresentation_finitePQCost G s p q hs hp hp_top,
+        ?_, ?_⟩
+      · intro k Q
+        rw [Finset.sum_empty]
+        exact souzaPositiveZeroRepresentation_coeff G s p hs hp hp_top k Q
+      · intro k
+        rw [Finset.sum_empty,
+          souzaPositiveZeroRepresentation_levelCoeffPower G s p hs hp hp_top k,
+          Real.zero_rpow (one_div_pos.mpr hp_pos).ne']
+  | insert a Λ ha ih =>
+      obtain ⟨T, hTpos, hTfin, hTcoeff, hTroot⟩ :=
+        ih (fun i hi => hpos i (Finset.mem_insert_of_mem hi))
+          (fun i hi => hfin i (Finset.mem_insert_of_mem hi))
+      have haR : SouzaPositiveRepresentation G s p hs hp hp_top (R a) :=
+        hpos a (Finset.mem_insert_self a Λ)
+      have haRfin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (R a) :=
+        hfin a (Finset.mem_insert_self a Λ)
+      rw [Finset.sum_insert ha]
+      refine ⟨souzaPositiveRepresentationAdd G s p hs hp hp_top (R a) T haR hTpos,
+        souzaPositiveRepresentationAdd_positive G s p hs hp hp_top haR hTpos,
+        souzaPositiveRepresentationAdd_finitePQCost G s p q hs hp hp_top
+          haR hTpos haRfin hTfin,
+        ?_, ?_⟩
+      · intro k Q
+        rw [souzaPositiveRepresentationAdd_coeff G s p hs hp hp_top haR hTpos k Q,
+          hTcoeff k Q, Finset.sum_insert ha]
+      · intro k
+        refine (souzaPositiveRepresentationAdd_levelCoeffRoot_le
+          G s p hs hp hp_top haR hTpos k).trans ?_
+        rw [Finset.sum_insert ha]
+        exact add_le_add le_rfl (hTroot k)
 
 private theorem zero_mem_souzaPositiveCostUpperSet
     (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
@@ -4031,6 +4182,80 @@ theorem souzaPositiveRepresentation_coeff_eq_zero_of_not_subset_cell
     · refine hP_pos.ne' ?_
       have hPeq : P.1 \ Qc.cell = P.1 := sdiff_eq_left.mpr hdisj.symm
       rwa [hPeq] at hdiff_zero
+
+/-- A cell strictly coarser than a good-grid cell `Qc` is never contained in
+`Qc.cell`: by the nesting dichotomy it would have to contain `Qc.cell`, and the
+strict measure decay `λ₂ < 1` between levels makes mutual containment
+impossible. -/
+theorem goodGridCell_not_subset_of_level_lt
+    (G : GoodGridSpace (α := α)) (Qc : GoodGridCell G)
+    {n : ℕ} (P : WeakGridSpace.LevelCell G.toWeakGridSpace n)
+    (hn : n < Qc.level) :
+    ¬ P.1 ⊆ Qc.cell := by
+  intro hPsub
+  have hP_pos : 0 < G.toWeakGridSpace.measure P.1 :=
+    G.toWeakGridSpace.grid.positive_measure n P.1 P.2
+  rcases G.grid.partition_subset_or_disjoint_of_le n Qc.level hn.le P.1 P.2
+    Qc.cell Qc.mem with hsub | hdisj
+  · -- `Qc.cell ⊆ P.1 ⊆ Qc.cell` forces equal measures, contradicting `λ₂ < 1`.
+    have hμcellpos : 0 < G.grid.μ Qc.cell := GoodGridCell.measure_pos Qc
+    have hμcelltop : G.grid.μ Qc.cell ≠ ∞ := GoodGridCell.measure_ne_top Qc
+    have hk_pos : 0 < Qc.level - n := Nat.sub_pos_of_lt hn
+    have hcellbd : G.grid.μ Qc.cell ≤
+        (ENNReal.ofReal G.grid.lambda2) ^ (Qc.level - n) * G.grid.μ P.1 := by
+      have h := cell_measure_le_lambda2_pow_mul_cell G ⟨n, P.1, P.2⟩ (Qc.level - n) Qc.cell
+        (by rw [show n + (Qc.level - n) = Qc.level from Nat.add_sub_cancel' hn.le]
+            exact Qc.mem)
+        hsub
+      simpa using h
+    have hμP_le : G.grid.μ P.1 ≤ G.grid.μ Qc.cell :=
+      MeasureTheory.measure_mono hPsub
+    have hlam_lt1 : ENNReal.ofReal G.grid.lambda2 < 1 := by
+      rw [ENNReal.ofReal_lt_one]; exact G.grid.hlambda2_lt_one
+    have hc_lt1 : (ENNReal.ofReal G.grid.lambda2) ^ (Qc.level - n) < 1 :=
+      pow_lt_one₀ zero_le hlam_lt1 hk_pos.ne'
+    have hchain : G.grid.μ Qc.cell ≤
+        (ENNReal.ofReal G.grid.lambda2) ^ (Qc.level - n) * G.grid.μ Qc.cell :=
+      hcellbd.trans (mul_le_mul_left' hμP_le _)
+    have hlt : (ENNReal.ofReal G.grid.lambda2) ^ (Qc.level - n) * G.grid.μ Qc.cell
+        < G.grid.μ Qc.cell := by
+      rw [mul_comm]
+      calc G.grid.μ Qc.cell * (ENNReal.ofReal G.grid.lambda2) ^ (Qc.level - n)
+          < G.grid.μ Qc.cell * 1 :=
+            ENNReal.mul_lt_mul_right hμcellpos.ne' hμcelltop hc_lt1
+        _ = G.grid.μ Qc.cell := mul_one _
+    exact (lt_irrefl _) (lt_of_le_of_lt hchain hlt)
+  · -- `P.1` disjoint from `Qc.cell` yet contained in it: `P.1` is null.
+    have hPdisj : Disjoint P.1 P.1 := (hdisj.symm).mono_right hPsub
+    have hPempty : P.1 = ∅ := by
+      simpa using disjoint_self.mp hPdisj
+    rw [hPempty] at hP_pos
+    simpa using hP_pos
+
+/-- Blocks of a positive representation of a function supported (a.e.) in a
+good-grid cell `Qc` vanish in `L^p` strictly before the level of `Qc`: all of
+their coefficients are zero by the support theorem.  This is the `hbefore`
+hypothesis needed to read such a representation on the grid induced by `Qc`. -/
+theorem souzaPositiveRepresentation_block_toLp_eq_zero_of_level_lt
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (Qc : GoodGridCell G)
+    {g : Lp ℂ p G.toWeakGridSpace.measure}
+    (R : WeakGridSpace.LpGridRepresentation (souzaAtomFamily G s p hs hp hp_top) g)
+    (hR : SouzaPositiveRepresentation G s p hs hp hp_top R)
+    (hsupp : ∀ᵐ x ∂ G.toWeakGridSpace.measure, x ∉ Qc.cell → (g : α → ℂ) x = 0)
+    {n : ℕ} (hn : n < Qc.level) :
+    (R.block n).toLp (souzaAtomFamily G s p hs hp hp_top) = 0 := by
+  classical
+  unfold WeakGridSpace.LevelBlock.toLp
+  refine Finset.sum_eq_zero ?_
+  intro Q _
+  have hzero : (R.block n).coeff Q = 0 :=
+    souzaPositiveRepresentation_coeff_eq_zero_of_not_subset_cell
+      G s p q hs hp hp_top Qc R hR hsupp Q
+      (goodGridCell_not_subset_of_level_lt G Qc Q hn)
+  simp [WeakGridSpace.LevelBlock.term, hzero]
 
 /--
 If a positive Souza-Besov function has nonzero integral, then the countable

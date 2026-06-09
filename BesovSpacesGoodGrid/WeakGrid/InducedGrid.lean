@@ -768,6 +768,20 @@ theorem cast_levelCell_coe
   subst h
   rfl
 
+/-- Transporting a `LevelBlock` along an equality of levels does not change the
+function realized by its atom at a transported cell. -/
+theorem cast_levelBlock_atom_toFunction
+    (G : WeakGridSpace (α := α)) {m n : ℕ}
+    {s : ℝ} {p u : ℝ≥0∞} (A : AtomFamily G s p u)
+    (h : m = n) (B : LevelBlock A m) (P : LevelCell G n) :
+    A.toFunction (levelCellToWeakGridCell G n P)
+        ((cast (congrArg (LevelBlock A) h) B).atom P) =
+      A.toFunction
+        (levelCellToWeakGridCell G m (cast (congrArg (LevelCell G) h.symm) P))
+        (B.atom (cast (congrArg (LevelCell G) h.symm) P)) := by
+  subst h
+  rfl
+
 /-- The same `L^p` element, viewed from the induced grid as an ambient element. -/
 abbrev inducedLpToAmbient
     (G : WeakGridSpace (α := α)) {k₀ : ℕ} (Q : LevelCell G k₀)
@@ -989,6 +1003,55 @@ theorem inducedRepresentationToAmbient_coeff_nnreal
   · refine ⟨0, ?_⟩
     simp only [inducedRepresentationToAmbient, inducedRepresentationBlockToAmbient,
       dif_neg hn, LevelBlock.zero, NNReal.coe_zero, Complex.ofReal_zero]
+
+/-- Pointwise positivity of atoms passes from an induced representation to its
+ambient reindexing, on cells inside the parent at levels `≥ k₀`.  (At cells
+outside the parent or at levels `< k₀` the reindexed coefficients vanish, so no
+positivity information is needed there.) -/
+theorem inducedRepresentationToAmbient_atom_toFunction_pos
+    (G : WeakGridSpace (α := α)) {k₀ : ℕ} (Q : LevelCell G k₀)
+    {s : ℝ} {p u : ℝ≥0∞} [Fact (1 ≤ p)] (A : AtomFamily G s p u)
+    {f : Lp ℂ p (inducedWeakGridSpace G Q).measure}
+    (R : LpGridRepresentation (inducedAtomFamily G Q A) f)
+    (hatom : ∀ (i : ℕ) (P : LevelCell (inducedWeakGridSpace G Q) i) (x : α),
+      x ∈ P.1 →
+      ∃ a : NNReal, 0 < a ∧
+        (inducedAtomFamily G Q A).toFunction
+          (levelCellToWeakGridCell (inducedWeakGridSpace G Q) i P)
+          ((R.block i).atom P) x = (a : ℂ))
+    {n : ℕ} (hn : k₀ ≤ n) (S : LevelCell G n) (hS : S.1 ⊆ Q.1)
+    (x : α) (hx : x ∈ S.1) :
+    ∃ a : NNReal, 0 < a ∧
+      A.toFunction (levelCellToWeakGridCell G n S)
+        (((inducedRepresentationToAmbient G Q A R).block n).atom S) x = (a : ℂ) := by
+  classical
+  have h : k₀ + (n - k₀) = n := by omega
+  have hblock :
+      (inducedRepresentationToAmbient G Q A R).block n =
+        cast (congrArg (LevelBlock A) h)
+          (inducedLevelBlockToAmbient G Q A (R.block (n - k₀))) := by
+    simp only [inducedRepresentationToAmbient, inducedRepresentationBlockToAmbient,
+      dif_pos hn]
+  rw [hblock, cast_levelBlock_atom_toFunction (G := G) A h]
+  have hS' : (cast (congrArg (LevelCell G) h.symm) S).1 ⊆ Q.1 := by
+    rw [cast_levelCell_coe G h.symm S]
+    exact hS
+  have hatom_eq :
+      (inducedLevelBlockToAmbient G Q A (R.block (n - k₀))).atom
+          (cast (congrArg (LevelCell G) h.symm) S) =
+        (R.block (n - k₀)).atom
+          (ambientLevelCellToInduced G Q
+            (cast (congrArg (LevelCell G) h.symm) S) hS') := by
+    simp only [inducedLevelBlockToAmbient, dif_pos hS']
+  rw [hatom_eq]
+  have hx' : x ∈ (ambientLevelCellToInduced G Q
+      (cast (congrArg (LevelCell G) h.symm) S) hS').1 := by
+    show x ∈ (cast (congrArg (LevelCell G) h.symm) S).1
+    rw [cast_levelCell_coe G h.symm S]
+    exact hx
+  obtain ⟨a, ha, hval⟩ := hatom (n - k₀)
+    (ambientLevelCellToInduced G Q (cast (congrArg (LevelCell G) h.symm) S) hS') x hx'
+  exact ⟨a, ha, hval⟩
 
 /--
 Reindexing an induced representation into the ambient grid preserves finite

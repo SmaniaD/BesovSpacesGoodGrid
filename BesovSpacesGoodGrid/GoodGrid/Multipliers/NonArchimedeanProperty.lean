@@ -1480,6 +1480,383 @@ private theorem ambientSupportedRepresentationToInduced_souzaPositive
       rw [hcan]
       norm_cast
 
+/-- The canonical `(s,p)`-Souza atom equals `μ(Q)^(s-β)` times the canonical
+`(β,p)`-Souza atom on the same cell. -/
+private theorem canonicalSouzaAtom_eq_smul_beta
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p : ℝ≥0∞)
+    (Qc : GoodGridCell G) (x : α) :
+    canonicalSouzaAtom G s p Qc x =
+      (((G.grid.μ Qc.cell).toReal ^ (s - β) : ℝ) : ℂ) *
+        canonicalSouzaAtom G β p Qc x := by
+  classical
+  have hμ_pos : 0 < (G.grid.μ Qc.cell).toReal :=
+    ENNReal.toReal_pos (GoodGridCell.measure_pos Qc).ne'
+      (GoodGridCell.measure_ne_top Qc)
+  by_cases hx : x ∈ Qc.cell
+  · simp only [canonicalSouzaAtom, dif_pos hx]
+    rw [← Complex.ofReal_mul, ← Real.rpow_add hμ_pos,
+      show s - β + (β - (p.toReal)⁻¹) = s - (p.toReal)⁻¹ from by ring]
+  · simp [canonicalSouzaAtom, hx]
+
+/-- **Positive local product block for a single multiplier.**
+
+If the multiplier `m` has a finite positive `selfs` tail seminorm at level
+`t ≤ k`, then the product of `m` with the canonical `(s,p)`-Souza atom on a
+cell `Q` of level `k` admits a **positive** ambient Souza-`s` representation
+supported in `Q`, starting at level `k`, with levelwise coefficient roots
+decaying geometrically with ratio `lambda2^(β-s)` and constant
+`(tail seminorm) + εTail`.
+
+This is the single-multiplier brick: the local data for the positive
+non-Archimedean theorem is the finite sum of these bricks over the
+multipliers. -/
+private theorem exists_souzaPositiveTailProduct_single_s_atom_geometric
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p q qtilde : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] [Fact (1 ≤ qtilde)]
+    {t : ℕ} {m : α → ℂ}
+    (hfin : souzaPositivePointwiseSelfsTailNorm G β p qtilde hβ hp hp_top t m ≠ ∞)
+    {k : ℕ} (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k)
+    (htk : t ≤ k)
+    {εTail : ℝ} (hεTail : 0 < εTail) :
+    ∃ hLp : Lp ℂ p G.toWeakGridSpace.measure,
+    ∃ R : WeakGridSpace.LpGridRepresentation
+        (souzaAtomFamily G s p hs hp hp_top) hLp,
+      WeakGridSpace.RepresentsFunction (G := G.toWeakGridSpace) (p := p)
+        (fun z => m z * canonicalSouzaAtom G s p (goodGridCellOfLevelCell G Q) z)
+        hLp ∧
+      SouzaPositiveRepresentation G s p hs hp hp_top R ∧
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R ∧
+      (∀ j : ℕ, ∀ S : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        (¬ S.1 ⊆ Q.1 → (R.block j).coeff S = 0) ∧
+        (j < k → (R.block j).coeff S = 0)) ∧
+      ∀ j : ℕ, k ≤ j →
+        (R.levelCoeffPower j) ^ (1 / p.toReal) ≤
+          ((souzaPositivePointwiseSelfsTailNorm G β p qtilde
+              hβ hp hp_top t m).toReal + εTail) *
+            (G.grid.lambda2 ^ (β - s)) ^ (j - k) := by
+  classical
+  let QG : GoodGridCell G := goodGridCellOfLevelCell G Q
+  let Aβ := souzaAtomFamily G β p hβ hp hp_top
+  let AS := souzaAtomFamily G s p hs hp hp_top
+  let Wi := WeakGridSpace.inducedWeakGridSpace G.toWeakGridSpace QG.toLevelCell
+  let normT : ℝ≥0∞ := souzaPositivePointwiseSelfsTailNorm G β p qtilde hβ hp hp_top t m
+  let D : ℝ := normT.toReal + εTail
+  let μQ : ℝ := (G.grid.μ QG.cell).toReal
+  let cscale : ℂ := ((μQ ^ (s - β) : ℝ) : ℂ)
+  let lamRoot : ℝ := G.grid.lambda2 ^ (β - s)
+  let lam : ℝ := lamRoot ^ p.toReal
+  -- basic numeric facts
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne' hp_top
+  have hdelta_pos : 0 < β - s := sub_pos.mpr hβs
+  have hlambda2_pos : 0 < G.grid.lambda2 :=
+    lt_of_lt_of_le G.grid.hlambda1_pos G.grid.hlambda1_le_lambda2
+  have hlambda2_nonneg : 0 ≤ G.grid.lambda2 := hlambda2_pos.le
+  have hlamRoot_pos : 0 < lamRoot := Real.rpow_pos_of_pos hlambda2_pos (β - s)
+  have hlamRoot_lt_one : lamRoot < 1 :=
+    Real.rpow_lt_one hlambda2_pos.le G.grid.hlambda2_lt_one hdelta_pos
+  have hlam_pos : 0 < lam := Real.rpow_pos_of_pos hlamRoot_pos p.toReal
+  have hlam_lt : lam < 1 := Real.rpow_lt_one hlamRoot_pos.le hlamRoot_lt_one hp_pos
+  have hμQ_pos : 0 < μQ :=
+    ENNReal.toReal_pos (GoodGridCell.measure_pos QG).ne'
+      (GoodGridCell.measure_ne_top QG)
+  have hscale_nonneg : 0 ≤ μQ ^ (s - β) := Real.rpow_nonneg hμQ_pos.le _
+  have hscaleβ_nonneg : 0 ≤ μQ ^ (β - s) := Real.rpow_nonneg hμQ_pos.le _
+  have hD_nonneg : 0 ≤ D := add_nonneg ENNReal.toReal_nonneg hεTail.le
+  have hnorm_c : ‖cscale‖ = μQ ^ (s - β) := by
+    simp [cscale, Complex.norm_real, Real.norm_of_nonneg hscale_nonneg]
+  have hmul_scale : μQ ^ (s - β) * μQ ^ (β - s) = 1 := by
+    rw [← Real.rpow_add hμQ_pos,
+      show s - β + (β - s) = (0 : ℝ) from by ring, Real.rpow_zero]
+  have hε2 : (0 : ℝ≥0∞) < ENNReal.ofReal (εTail / 2) := by
+    rw [ENNReal.ofReal_pos]
+    linarith
+  -- 1. extract a concrete positive tail bound below `normT + εTail/2`
+  obtain ⟨C, hC, hClt⟩ :=
+    exists_souzaPositivePointwiseSelfsTailBound_lt_norm_add
+      G β p qtilde hβ hp hp_top t m hfin hε2
+  -- 2. apply it to the cell `Q`
+  obtain ⟨yβ, hyβ_rep, _hyβ_pos, hyβ_norm⟩ := hC QG htk
+  have hyβnorm_lt :
+      souzaPositiveNorm G β p qtilde hβ hp hp_top yβ
+        < normT + ENNReal.ofReal (εTail / 2) :=
+    lt_of_le_of_lt hyβ_norm hClt
+  have hyβ_fin : souzaPositiveNorm G β p qtilde hβ hp hp_top yβ ≠ ∞ :=
+    (hyβnorm_lt.trans_le le_top).ne
+  -- 3. extract a positive representation with controlled cost
+  obtain ⟨Rβ, hRβ_pos, hRβ_fin, hRβ_cost⟩ :=
+    exists_souzaPositiveRepresentation_pqCostENNReal_lt
+      G β p qtilde hβ hp hp_top yβ hyβ_fin hε2
+  have hcostENN :
+      WeakGridSpace.LpGridRepresentation.pqCostENNReal (q := qtilde) Rβ
+        ≤ ENNReal.ofReal D := by
+    have hhalf :
+        ENNReal.ofReal (εTail / 2) + ENNReal.ofReal (εTail / 2) =
+          ENNReal.ofReal εTail := by
+      rw [← ENNReal.ofReal_add (by linarith) (by linarith)]
+      norm_num
+    calc
+      WeakGridSpace.LpGridRepresentation.pqCostENNReal (q := qtilde) Rβ
+          ≤ souzaPositiveNorm G β p qtilde hβ hp hp_top yβ +
+              ENNReal.ofReal (εTail / 2) := hRβ_cost.le
+      _ ≤ (normT + ENNReal.ofReal (εTail / 2)) + ENNReal.ofReal (εTail / 2) :=
+            add_le_add hyβnorm_lt.le le_rfl
+      _ = normT + ENNReal.ofReal εTail := by rw [add_assoc, hhalf]
+      _ = ENNReal.ofReal D := by
+            rw [← ENNReal.ofReal_toReal (show normT ≠ ∞ from hfin),
+              ← ENNReal.ofReal_add ENNReal.toReal_nonneg hεTail.le]
+  have hRβ_cost_real :
+      WeakGridSpace.LpGridRepresentation.pqCost (q := qtilde) Rβ ≤ D :=
+    pqCost_le_of_pqCostENNReal_le Rβ hcostENN hD_nonneg
+  -- 4. the represented function vanishes outside `Q`
+  have hsupp : ∀ᵐ x ∂ G.toWeakGridSpace.measure, x ∉ QG.cell →
+      ((yβ : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) x = 0 := by
+    filter_upwards [hyβ_rep] with x hx hxQ
+    rw [hx]
+    simp [canonicalSouzaAtom, hxQ]
+  have houtside : ∀ n (P : WeakGridSpace.LevelCell G.toWeakGridSpace n),
+      ¬ P.1 ⊆ QG.toLevelCell.1 → (Rβ.block n).coeff P = 0 := fun n P hP =>
+    souzaPositiveRepresentation_coeff_eq_zero_of_not_subset_cell
+      G β p qtilde hβ hp hp_top QG Rβ hRβ_pos hsupp P hP
+  have hbefore : ∀ n, n < QG.level → (Rβ.block n).toLp Aβ = 0 := fun n hn =>
+    souzaPositiveRepresentation_block_toLp_eq_zero_of_level_lt
+      G β p qtilde hβ hp hp_top QG Rβ hRβ_pos hsupp hn
+  -- 5. read the representation on the induced grid; positivity transfers
+  let Rβi := WeakGridSpace.ambientSupportedRepresentationToInduced
+    G.toWeakGridSpace QG.toLevelCell Aβ Rβ hbefore houtside
+  obtain ⟨hRβi_coeff, hRβi_atom⟩ :=
+    ambientSupportedRepresentationToInduced_souzaPositive
+      G β p hβ hp hp_top QG Rβ hRβ_pos hbefore houtside
+  have hRβi_fin :
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := qtilde) Rβi :=
+    WeakGridSpace.ambientSupportedRepresentationToInduced_finitePQCost
+      G.toWeakGridSpace QG.toLevelCell Aβ Rβ hbefore houtside hRβ_fin
+  have hRβi_cost :
+      WeakGridSpace.LpGridRepresentation.pqCost (q := qtilde) Rβi ≤ D :=
+    (WeakGridSpace.ambientSupportedRepresentationToInduced_pqCost_le
+      G.toWeakGridSpace QG.toLevelCell Aβ Rβ hbefore houtside hRβ_fin).trans
+      hRβ_cost_real
+  -- 6. convert the induced representation from smoothness β to smoothness s
+  let Rsi := inducedSouzaBetaRepresentationToSouzaS G s β p hs hβ
+    (inferInstance : Fact (1 ≤ p)) hp_top QG Rβi
+  have hRsi_root : ∀ n : ℕ,
+      (Rsi.levelCoeffPower n) ^ (1 / p.toReal) ≤ (μQ ^ (β - s) * D) * lamRoot ^ n := by
+    intro n
+    have hroot₀ :
+        (Rsi.levelCoeffPower n) ^ (1 / p.toReal) ≤
+          WeakGridSpace.LpGridRepresentation.levelMeasureWeight Wi (β - s) p p n *
+            WeakGridSpace.LpGridRepresentation.pqCost (q := qtilde) Rβi := by
+      simpa [Rsi, Wi, inducedSouzaBetaRepresentationToSouzaS_levelCoeffPower] using
+        besovToSouzaScaledCoeffPower_root_le
+          G s β p qtilde hβ hβs hp_top QG Rβi hRβi_fin n
+    have hweight :
+        WeakGridSpace.LpGridRepresentation.levelMeasureWeight Wi (β - s) p p n
+          ≤ μQ ^ (β - s) * lamRoot ^ n := by
+      have h := induced_levelMeasureWeight_le_geometric G QG (β - s) p hdelta_pos n
+      have hgeom : (G.grid.lambda2 ^ n : ℝ) ^ (β - s) = lamRoot ^ n := by
+        calc
+          (G.grid.lambda2 ^ n : ℝ) ^ (β - s) =
+              G.grid.lambda2 ^ ((n : ℝ) * (β - s)) := by
+                simpa [mul_comm] using
+                  (Real.rpow_natCast_mul hlambda2_nonneg n (β - s)).symm
+          _ = G.grid.lambda2 ^ ((β - s) * n) := by ring_nf
+          _ = lamRoot ^ n := by
+                simpa [lamRoot, mul_comm] using
+                  Real.rpow_mul_natCast hlambda2_nonneg (β - s) n
+      simpa [Wi, μQ, hgeom] using h
+    have hcost_nonneg :
+        0 ≤ WeakGridSpace.LpGridRepresentation.pqCost (q := qtilde) Rβi :=
+      WeakGridSpace.LpGridRepresentation.pqCost_nonneg Rβi
+    have hgeom_nonneg : 0 ≤ μQ ^ (β - s) * lamRoot ^ n :=
+      mul_nonneg hscaleβ_nonneg (pow_nonneg hlamRoot_pos.le n)
+    calc
+      (Rsi.levelCoeffPower n) ^ (1 / p.toReal)
+          ≤ WeakGridSpace.LpGridRepresentation.levelMeasureWeight Wi (β - s) p p n *
+              WeakGridSpace.LpGridRepresentation.pqCost (q := qtilde) Rβi := hroot₀
+      _ ≤ (μQ ^ (β - s) * lamRoot ^ n) *
+            WeakGridSpace.LpGridRepresentation.pqCost (q := qtilde) Rβi :=
+          mul_le_mul_of_nonneg_right hweight hcost_nonneg
+      _ ≤ (μQ ^ (β - s) * lamRoot ^ n) * D :=
+          mul_le_mul_of_nonneg_left hRβi_cost hgeom_nonneg
+      _ = (μQ ^ (β - s) * D) * lamRoot ^ n := by ring
+  have hRsi_coeff : ∀ (n : ℕ) (P : WeakGridSpace.LevelCell Wi n),
+      ∃ r : NNReal, (Rsi.block n).coeff P = (r : ℂ) := by
+    intro n P
+    obtain ⟨r, hr⟩ := hRβi_coeff n P
+    exact inducedSouzaBetaBlockToSouzaS_coeff_nnreal G s β p hs hβ
+      (inferInstance : Fact (1 ≤ p)) hp_top QG (Rβi.block n) P hr
+  have hRsi_atom : ∀ (n : ℕ) (P : WeakGridSpace.LevelCell Wi n) (x : α),
+      x ∈ P.1 →
+      ∃ a : NNReal, 0 < a ∧
+        (WeakGridSpace.inducedAtomFamily G.toWeakGridSpace QG.toLevelCell AS).toFunction
+          (WeakGridSpace.levelCellToWeakGridCell Wi n P) ((Rsi.block n).atom P) x
+          = (a : ℂ) := by
+    intro n P x hx
+    obtain ⟨a, ha, hval⟩ := hRβi_atom n P x hx
+    exact inducedSouzaBetaBlockToSouzaS_atom_toFunction_pos G s β p hs hβ
+      (inferInstance : Fact (1 ≤ p)) hp_top QG (Rβi.block n) P x hx ha hval
+  -- 7. reindex to the ambient grid and rescale by `μ(Q)^(s-β)`
+  let RA := WeakGridSpace.inducedRepresentationToAmbient
+    G.toWeakGridSpace QG.toLevelCell AS Rsi
+  let hLp : Lp ℂ p G.toWeakGridSpace.measure :=
+    cscale • (yβ : Lp ℂ p G.toWeakGridSpace.measure)
+  let Rscaled : WeakGridSpace.LpGridRepresentation AS hLp :=
+    WeakGridSpace.LpGridRepresentation.smul (A := AS) cscale RA
+  -- the represented function
+  have hrep : WeakGridSpace.RepresentsFunction (G := G.toWeakGridSpace) (p := p)
+      (fun z => m z * canonicalSouzaAtom G s p QG z) hLp := by
+    have hrep0 : WeakGridSpace.RepresentsFunction (G := G.toWeakGridSpace) (p := p)
+        (fun z => cscale * (m z * canonicalSouzaAtom G β p QG z)) hLp := by
+      simpa [hLp] using
+        WeakGridSpace.representsFunction_smul (G := G.toWeakGridSpace) (p := p)
+          cscale hyβ_rep
+    refine hrep0.trans ?_
+    filter_upwards with z
+    rw [canonicalSouzaAtom_eq_smul_beta G s β p QG z]
+    ring
+  -- coefficients of the rescaled representation are nonnegative reals
+  have hRscaled_coeff : ∀ (j : ℕ) (S : WeakGridSpace.LevelCell G.toWeakGridSpace j),
+      ∃ r : NNReal, (Rscaled.block j).coeff S = (r : ℂ) := by
+    intro j S
+    obtain ⟨r, hr⟩ := WeakGridSpace.inducedRepresentationToAmbient_coeff_nnreal
+      G.toWeakGridSpace QG.toLevelCell AS Rsi hRsi_coeff j S
+    refine ⟨⟨μQ ^ (s - β), hscale_nonneg⟩ * r, ?_⟩
+    show cscale * (RA.block j).coeff S = _
+    rw [hr, ← Complex.ofReal_mul]
+    norm_cast
+  -- atoms are pointwise positive wherever the coefficient does not vanish
+  have hRscaled_atom : ∀ (j : ℕ) (S : WeakGridSpace.LevelCell G.toWeakGridSpace j),
+      (Rscaled.block j).coeff S ≠ 0 → ∀ x ∈ S.1, ∃ a : NNReal, 0 < a ∧
+        AS.toFunction (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace j S)
+          ((Rscaled.block j).atom S) x = (a : ℂ) := by
+    intro j S hne x hx
+    have hRA_ne : (RA.block j).coeff S ≠ 0 := by
+      intro h0
+      apply hne
+      show cscale * (RA.block j).coeff S = 0
+      rw [h0, mul_zero]
+    have hjk : QG.level ≤ j := by
+      by_contra hlt
+      exact hRA_ne (WeakGridSpace.inducedRepresentationToAmbient_coeff_lt
+        G.toWeakGridSpace QG.toLevelCell AS Rsi (Nat.lt_of_not_ge hlt) S)
+    have hSsub : S.1 ⊆ QG.toLevelCell.1 := by
+      by_contra hnot
+      exact hRA_ne (WeakGridSpace.inducedRepresentationToAmbient_coeff_eq_zero_of_not_subset
+        G.toWeakGridSpace QG.toLevelCell AS Rsi S hnot)
+    have hatomRA := WeakGridSpace.inducedRepresentationToAmbient_atom_toFunction_pos
+      G.toWeakGridSpace QG.toLevelCell AS Rsi hRsi_atom hjk S hSsub x hx
+    simpa [Rscaled, WeakGridSpace.LpGridRepresentation.smul,
+      WeakGridSpace.LevelBlock.smul] using hatomRA
+  -- 8. canonicalize: replace the junk atoms outside `Q` by canonical atoms
+  obtain ⟨Rfin, hRfin_pos, hRfin_lcp, hRfin_reflect⟩ :=
+    exists_souzaPositiveRepresentation_of_canonicalizable
+      G s p hs hp hp_top Rscaled hRscaled_coeff hRscaled_atom
+  -- support of the final representation
+  have hRfin_support : ∀ (j : ℕ) (S : WeakGridSpace.LevelCell G.toWeakGridSpace j),
+      (¬ S.1 ⊆ Q.1 → (Rfin.block j).coeff S = 0) ∧
+      (j < k → (Rfin.block j).coeff S = 0) := by
+    intro j S
+    constructor
+    · intro hS
+      by_contra hne
+      apply hRfin_reflect j S hne
+      show cscale * (RA.block j).coeff S = 0
+      rw [WeakGridSpace.inducedRepresentationToAmbient_coeff_eq_zero_of_not_subset
+        G.toWeakGridSpace QG.toLevelCell AS Rsi S hS, mul_zero]
+    · intro hj
+      by_contra hne
+      apply hRfin_reflect j S hne
+      show cscale * (RA.block j).coeff S = 0
+      rw [WeakGridSpace.inducedRepresentationToAmbient_coeff_lt
+        G.toWeakGridSpace QG.toLevelCell AS Rsi hj S, mul_zero]
+  -- decay of the final representation, in root form
+  have hRfin_root : ∀ j : ℕ, k ≤ j →
+      (Rfin.levelCoeffPower j) ^ (1 / p.toReal) ≤ D * lamRoot ^ (j - k) := by
+    intro j hj
+    have hsmul : Rscaled.levelCoeffPower j =
+        ‖cscale‖ ^ p.toReal * RA.levelCoeffPower j :=
+      lpGridRepresentation_smul_levelCoeffPower (A := AS) cscale RA j
+    have hRA_eq : RA.levelCoeffPower j = Rsi.levelCoeffPower (j - k) := by
+      have hjeq : j = k + (j - k) := by omega
+      conv_lhs => rw [hjeq]
+      exact WeakGridSpace.inducedRepresentationToAmbient_levelCoeffPower_add
+        G.toWeakGridSpace QG.toLevelCell AS Rsi
+    calc
+      (Rfin.levelCoeffPower j) ^ (1 / p.toReal)
+          ≤ (Rscaled.levelCoeffPower j) ^ (1 / p.toReal) :=
+            Real.rpow_le_rpow (Rfin.levelCoeffPower_nonneg j) (hRfin_lcp j)
+              (one_div_nonneg.mpr hp_pos.le)
+      _ = (‖cscale‖ ^ p.toReal * RA.levelCoeffPower j) ^ (1 / p.toReal) := by
+            rw [hsmul]
+      _ = ‖cscale‖ * (RA.levelCoeffPower j) ^ (1 / p.toReal) := by
+            rw [Real.mul_rpow (Real.rpow_nonneg (norm_nonneg _) _)
+              (RA.levelCoeffPower_nonneg j),
+              ← Real.rpow_mul (norm_nonneg _), mul_one_div, div_self hp_pos.ne',
+              Real.rpow_one]
+      _ = ‖cscale‖ * (Rsi.levelCoeffPower (j - k)) ^ (1 / p.toReal) := by
+            rw [hRA_eq]
+      _ ≤ ‖cscale‖ * ((μQ ^ (β - s) * D) * lamRoot ^ (j - k)) :=
+            mul_le_mul_of_nonneg_left (hRsi_root (j - k)) (norm_nonneg _)
+      _ = D * lamRoot ^ (j - k) := by
+            rw [hnorm_c,
+              show μQ ^ (s - β) * (μQ ^ (β - s) * D * lamRoot ^ (j - k)) =
+                (μQ ^ (s - β) * μQ ^ (β - s)) * (D * lamRoot ^ (j - k)) from by ring,
+              hmul_scale, one_mul]
+  -- decay in power form on the full level range, for the finite cost
+  have hRfin_decay_all : ∀ j : ℕ,
+      Rfin.levelCoeffPower j ≤ (D ^ p.toReal * (lam ^ k)⁻¹) * lam ^ j := by
+    intro j
+    by_cases hj : k ≤ j
+    · have hroot := hRfin_root j hj
+      have hleft : ((Rfin.levelCoeffPower j) ^ (1 / p.toReal)) ^ p.toReal =
+          Rfin.levelCoeffPower j := by
+        rw [← Real.rpow_mul (Rfin.levelCoeffPower_nonneg j), one_div,
+          inv_mul_cancel₀ hp_pos.ne', Real.rpow_one]
+      have hpow := Real.rpow_le_rpow
+        (Real.rpow_nonneg (Rfin.levelCoeffPower_nonneg j) _) hroot hp_pos.le
+      rw [hleft] at hpow
+      have hgeom : (D * lamRoot ^ (j - k)) ^ p.toReal =
+          D ^ p.toReal * lam ^ (j - k) := by
+        rw [Real.mul_rpow hD_nonneg (pow_nonneg hlamRoot_pos.le _)]
+        congr 1
+        calc
+          (lamRoot ^ (j - k) : ℝ) ^ p.toReal =
+              lamRoot ^ (((j - k : ℕ) : ℝ) * p.toReal) := by
+                simpa [mul_comm] using
+                  (Real.rpow_natCast_mul hlamRoot_pos.le (j - k) p.toReal).symm
+          _ = lamRoot ^ (p.toReal * ((j - k : ℕ) : ℝ)) := by ring_nf
+          _ = lam ^ (j - k) := by
+                simpa [lam, mul_comm] using
+                  Real.rpow_mul_natCast hlamRoot_pos.le p.toReal (j - k)
+      rw [hgeom] at hpow
+      refine hpow.trans (le_of_eq ?_)
+      rw [pow_sub₀ lam hlam_pos.ne' hj]
+      ring
+    · push_neg at hj
+      have hRA0 : RA.levelCoeffPower j = 0 :=
+        WeakGridSpace.inducedRepresentationToAmbient_levelCoeffPower_lt
+          G.toWeakGridSpace QG.toLevelCell AS Rsi hj
+      have hzero : Rfin.levelCoeffPower j ≤ 0 := by
+        calc
+          Rfin.levelCoeffPower j ≤ Rscaled.levelCoeffPower j := hRfin_lcp j
+          _ = ‖cscale‖ ^ p.toReal * RA.levelCoeffPower j :=
+              lpGridRepresentation_smul_levelCoeffPower (A := AS) cscale RA j
+          _ = 0 := by rw [hRA0, mul_zero]
+      exact hzero.trans
+        (mul_nonneg
+          (mul_nonneg (Real.rpow_nonneg hD_nonneg _)
+            (inv_nonneg.mpr (pow_nonneg hlam_pos.le k)))
+          (pow_nonneg hlam_pos.le j))
+  have hCfin_nonneg : 0 ≤ D ^ p.toReal * (lam ^ k)⁻¹ :=
+    mul_nonneg (Real.rpow_nonneg hD_nonneg _)
+      (inv_nonneg.mpr (pow_nonneg hlam_pos.le k))
+  have hRfin_finq : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Rfin :=
+    finitePQCost_of_levelCoeffPower_geometric_decay Rfin
+      (D ^ p.toReal * (lam ^ k)⁻¹) lam hCfin_nonneg hlam_pos hlam_lt hRfin_decay_all
+  exact ⟨hLp, Rfin, hrep, hRfin_pos, hRfin_finq, hRfin_support, hRfin_root⟩
+
 /--
 Local transmutation datum for a source Souza atom of smoothness `s`.
 
@@ -1994,6 +2371,42 @@ private theorem exists_nonArchimedeanLocalTransmutationData
     have hspec := Classical.choose_spec (Classical.choose_spec (existsLocal i Q))
     exact hspec.1 hcoeff
 
+/-- A block of a positive Souza representation satisfies the coefficient/atom
+clause of `RepresentationWsubGandALS_pos`: the coefficient is a nonnegative
+real and the (canonical) atom is strictly positive on its cell. -/
+private theorem souzaPositiveRepresentation_block_pos_clause
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {f : Lp ℂ p G.toWeakGridSpace.measure}
+    {R : WeakGridSpace.LpGridRepresentation (souzaAtomFamily G s p hs hp hp_top) f}
+    (hR : SouzaPositiveRepresentation G s p hs hp hp_top R)
+    (j : ℕ) (S : WeakGridSpace.LevelCell G.toWeakGridSpace j) :
+    ∃ r : NNReal, (R.block j).coeff S = (r : ℂ) ∧
+      ∀ x, x ∈ S.1 →
+        ∃ a : NNReal, 0 < a ∧
+          (souzaAtomFamily G s p hs hp hp_top).toFunction
+            (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace j S)
+            ((R.block j).atom S) x = (a : ℂ) := by
+  obtain ⟨c, hc, hcoeff, hatom⟩ := hR j S
+  refine ⟨⟨c, hc⟩, by rw [hcoeff]; norm_cast, ?_⟩
+  intro x hx
+  have hμ_pos : 0 < (G.grid.μ S.1).toReal := by
+    have hfin : G.grid.μ S.1 ≠ ∞ := by
+      letI : MeasureTheory.IsFiniteMeasure G.grid.μ := G.grid.isFinite
+      exact MeasureTheory.measure_ne_top G.grid.μ S.1
+    exact ENNReal.toReal_pos (G.grid.positive_measure j S.1 S.2).ne' hfin
+  have hval_pos : 0 < (G.grid.μ S.1).toReal ^ (s - (p.toReal)⁻¹) :=
+    Real.rpow_pos_of_pos hμ_pos _
+  refine ⟨⟨(G.grid.μ S.1).toReal ^ (s - (p.toReal)⁻¹), hval_pos.le⟩, ?_, ?_⟩
+  · rw [← NNReal.coe_lt_coe]
+    simpa using hval_pos
+  · have hcan : canonicalSouzaAtom G s p (goodGridCellOfLevelCell G S) x
+        = (((G.grid.μ S.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ) := by
+      simp [canonicalSouzaAtom, goodGridCellOfLevelCell, hx]
+    rw [hatom, hcan]
+    norm_cast
+
 /-- **Positive local transmutation data.**
 
 Positive-cone analogue of `exists_nonArchimedeanLocalTransmutationData`.  When the
@@ -2087,7 +2500,286 @@ private theorem exists_nonArchimedeanLocalTransmutationData_pos
           (j : ℕ) (P : WeakGridSpace.LevelCell G.toWeakGridSpace j),
         ((Rt i Q).block j).coeff P ≠ 0 →
           ∃ r ∈ Λ, ∀ᵐ z ∂(G.toWeakGridSpace.measure.restrict P.1), g r z ≠ 0) := by
-  sorry
+  classical
+  let AS := souzaAtomFamily G s p hs hp hp_top
+  let lamRoot : ℝ := G.grid.lambda2 ^ (β - s)
+  let lam : ℝ := lamRoot ^ p.toReal
+  let C : ℝ :=
+    ((2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) *
+        (N + (Λ.card : ℝ) * εTail) + εGeom) ^ p.toReal
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne' hp_top
+  have hdelta_pos : 0 < β - s := sub_pos.mpr hβs
+  have hlambda2_pos : 0 < G.grid.lambda2 :=
+    lt_of_lt_of_le G.grid.hlambda1_pos G.grid.hlambda1_le_lambda2
+  have hlamRoot_pos : 0 < lamRoot := Real.rpow_pos_of_pos hlambda2_pos _
+  have hlamRoot_nonneg : 0 ≤ lamRoot := hlamRoot_pos.le
+  have hlam_nonneg : 0 ≤ lam := (Real.rpow_pos_of_pos hlamRoot_pos _).le
+  have hK0 : 0 ≤ souzaAmbientRestrictionMultiplierConstant G β p :=
+    souzaAmbientRestrictionMultiplierConstant_nonneg G β p hp hp_top
+  have hK_nonneg : 0 ≤ 2 * souzaAmbientRestrictionMultiplierConstant G β p + 1 := by
+    linarith
+  have hBtail_nonneg : 0 ≤ N + (Λ.card : ℝ) * εTail :=
+    add_nonneg hN (mul_nonneg (by exact_mod_cast Nat.zero_le Λ.card) hεTail.le)
+  have hC_nonneg : 0 ≤ C :=
+    Real.rpow_nonneg (add_nonneg (mul_nonneg hK_nonneg hBtail_nonneg) hεGeom.le) _
+  have hbase_le : N + (Λ.card : ℝ) * εTail ≤
+      (2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) *
+        (N + (Λ.card : ℝ) * εTail) + εGeom := by
+    have hprod : 0 ≤ 2 * souzaAmbientRestrictionMultiplierConstant G β p *
+        (N + (Λ.card : ℝ) * εTail) :=
+      mul_nonneg (by linarith) hBtail_nonneg
+    nlinarith
+  have existsLocal :
+      ∀ i : ℕ, ∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace i,
+        ∃ hLp : Lp ℂ p G.toWeakGridSpace.measure,
+        ∃ Rloc : WeakGridSpace.LpGridRepresentation AS hLp,
+          ((Rsrc.block i).coeff Q ≠ 0 →
+            WeakGridSpace.RepresentsFunction
+              (G := G.toWeakGridSpace) (p := p)
+              (fun z => ∑ r ∈ Λ,
+                g r z *
+                  (souzaAtomFamily G s p hs hp hp_top).toFunction
+                    (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace i Q)
+                    ((Rsrc.block i).atom Q) z)
+              hLp) ∧
+          SouzaPositiveRepresentation G s p hs hp hp_top Rloc ∧
+          WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Rloc ∧
+          (∀ j : ℕ, ∀ S : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+            (¬ S.1 ⊆ Q.1 → (Rloc.block j).coeff S = 0) ∧
+            (j < i → (Rloc.block j).coeff S = 0)) ∧
+          (∀ j : ℕ, i ≤ j → Rloc.levelCoeffPower j ≤ C * lam ^ (j - i)) ∧
+          (∀ (j : ℕ) (P : WeakGridSpace.LevelCell G.toWeakGridSpace j),
+            (Rloc.block j).coeff P ≠ 0 →
+              ∃ r ∈ Λ, ∀ᵐ z ∂(G.toWeakGridSpace.measure.restrict P.1), g r z ≠ 0) := by
+    intro i Q
+    by_cases hcoeff : (Rsrc.block i).coeff Q = 0
+    · -- Inactive source cell: the positive zero representation.
+      refine ⟨0, souzaPositiveZeroRepresentation G s p hs hp hp_top, ?_,
+        souzaPositiveZeroRepresentation_positive G s p hs hp hp_top,
+        souzaPositiveZeroRepresentation_finitePQCost G s p q hs hp hp_top,
+        ?_, ?_, ?_⟩
+      · intro hne
+        exact (hne hcoeff).elim
+      · intro j S
+        constructor <;> intro _ <;>
+          exact souzaPositiveZeroRepresentation_coeff G s p hs hp hp_top j S
+      · intro j hj
+        rw [souzaPositiveZeroRepresentation_levelCoeffPower G s p hs hp hp_top j]
+        exact mul_nonneg hC_nonneg (pow_nonneg hlam_nonneg _)
+      · intro j P hne
+        exact (hne (souzaPositiveZeroRepresentation_coeff G s p hs hp hp_top j P)).elim
+    · -- Active source cell: sum the per-multiplier positive bricks.
+      have hAQ := hA i Q hcoeff
+      have hAQ' : (∑ r ∈ Λ, if goodGridLevelCellMeetsSupport G Q (g r) then
+            souzaPositivePointwiseSelfsTailNorm G β p qtilde hβ hp hp_top (t r) (g r)
+          else 0) ≤ ENNReal.ofReal N := by
+        simpa [nonArchimedeanRelevantPositiveTailSelfsSum] using hAQ
+      have hfin_r : ∀ r ∈ Λ, goodGridLevelCellMeetsSupport G Q (g r) →
+          souzaPositivePointwiseSelfsTailNorm G β p qtilde hβ hp hp_top (t r) (g r)
+            ≠ ∞ := by
+        intro r hr hm
+        have h := le_trans (Finset.single_le_sum
+          (f := fun r' => if goodGridLevelCellMeetsSupport G Q (g r') then
+            souzaPositivePointwiseSelfsTailNorm G β p qtilde hβ hp hp_top (t r') (g r')
+          else 0) (fun r' _ => zero_le) hr) hAQ'
+        simp only [if_pos hm] at h
+        exact (h.trans_lt ENNReal.ofReal_lt_top).ne
+      let QG : GoodGridCell G := goodGridCellOfLevelCell G Q
+      let D : ℕ → ℝ := fun r =>
+        if r ∈ Λ ∧ goodGridLevelCellMeetsSupport G Q (g r) then
+          (souzaPositivePointwiseSelfsTailNorm G β p qtilde hβ hp hp_top
+            (t r) (g r)).toReal + εTail
+        else 0
+      have existsPer : ∀ r : ℕ,
+          ∃ xr : Lp ℂ p G.toWeakGridSpace.measure,
+          ∃ Rr : WeakGridSpace.LpGridRepresentation AS xr,
+            (r ∈ Λ → WeakGridSpace.RepresentsFunction
+              (G := G.toWeakGridSpace) (p := p)
+              (fun z => g r z * canonicalSouzaAtom G s p QG z) xr) ∧
+            SouzaPositiveRepresentation G s p hs hp hp_top Rr ∧
+            WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Rr ∧
+            (∀ j : ℕ, ∀ S : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+              (¬ S.1 ⊆ Q.1 → (Rr.block j).coeff S = 0) ∧
+              (j < i → (Rr.block j).coeff S = 0)) ∧
+            (∀ j : ℕ, i ≤ j →
+              (Rr.levelCoeffPower j) ^ (1 / p.toReal) ≤ D r * lamRoot ^ (j - i)) := by
+        intro r
+        by_cases hcase : r ∈ Λ ∧ goodGridLevelCellMeetsSupport G Q (g r)
+        · obtain ⟨hrΛ, hmeets⟩ := hcase
+          obtain ⟨xr, Rr, hrep, hpos, hfinq, hsupp, hdecay⟩ :=
+            exists_souzaPositiveTailProduct_single_s_atom_geometric
+              G s β p q qtilde hs hβ hβs hp hp_top
+              (hfin_r r hrΛ hmeets) Q (hB i Q r hrΛ hcoeff hmeets) hεTail
+          refine ⟨xr, Rr, fun _ => hrep, hpos, hfinq, hsupp, ?_⟩
+          intro j hj
+          rw [show D r = (souzaPositivePointwiseSelfsTailNorm G β p qtilde hβ hp hp_top
+              (t r) (g r)).toReal + εTail from if_pos ⟨hrΛ, hmeets⟩]
+          exact hdecay j hj
+        · refine ⟨0, souzaPositiveZeroRepresentation G s p hs hp hp_top, ?_,
+            souzaPositiveZeroRepresentation_positive G s p hs hp hp_top,
+            souzaPositiveZeroRepresentation_finitePQCost G s p q hs hp hp_top,
+            ?_, ?_⟩
+          · intro hrΛ
+            have hnm : ¬ goodGridLevelCellMeetsSupport G Q (g r) := fun hm =>
+              hcase ⟨hrΛ, hm⟩
+            have hzero : (fun z => g r z * canonicalSouzaAtom G s p QG z) =
+                fun _ => (0 : ℂ) := by
+              funext z
+              by_cases hz : z ∈ Q.1
+              · have hg0 : g r z = 0 := by
+                  by_contra hgz
+                  exact hnm ⟨z, hz, hgz⟩
+                simp [hg0]
+              · simp [canonicalSouzaAtom, QG, goodGridCellOfLevelCell, hz]
+            rw [hzero]
+            simpa [WeakGridSpace.RepresentsFunction] using
+              (MeasureTheory.Lp.coeFn_zero ℂ p G.toWeakGridSpace.measure)
+          · intro j S
+            constructor <;> intro _ <;>
+              exact souzaPositiveZeroRepresentation_coeff G s p hs hp hp_top j S
+          · intro j hj
+            rw [souzaPositiveZeroRepresentation_levelCoeffPower G s p hs hp hp_top j,
+              Real.zero_rpow (one_div_pos.mpr hp_pos).ne',
+              show D r = 0 from if_neg hcase, zero_mul]
+      choose xs Rs hreps hposs hfinqs hsupps hdecays using existsPer
+      obtain ⟨T, hTpos, hTfin, hTcoeff, hTroot⟩ :=
+        exists_souzaPositiveRepresentation_finset_sum G s p q hs hp hp_top Λ xs Rs
+          (fun r _ => hposs r) (fun r _ => hfinqs r)
+      have hDsum : ∑ r ∈ Λ, D r ≤ N + (Λ.card : ℝ) * εTail := by
+        have hD_le : ∀ r ∈ Λ, D r ≤
+            (if goodGridLevelCellMeetsSupport G Q (g r) then
+              souzaPositivePointwiseSelfsTailNorm G β p qtilde hβ hp hp_top
+                (t r) (g r)
+            else 0).toReal + εTail := by
+          intro r hr
+          by_cases hm : goodGridLevelCellMeetsSupport G Q (g r)
+          · rw [show D r = _ + εTail from if_pos ⟨hr, hm⟩, if_pos hm]
+          · rw [show D r = 0 from if_neg (fun hc => hm hc.2), if_neg hm]
+            simpa using hεTail.le
+        refine (Finset.sum_le_sum hD_le).trans ?_
+        rw [Finset.sum_add_distrib]
+        have hfinite : ∀ r ∈ Λ,
+            (if goodGridLevelCellMeetsSupport G Q (g r) then
+              souzaPositivePointwiseSelfsTailNorm G β p qtilde hβ hp hp_top
+                (t r) (g r)
+            else 0) ≠ ∞ := by
+          intro r hr
+          by_cases hm : goodGridLevelCellMeetsSupport G Q (g r)
+          · rw [if_pos hm]
+            exact hfin_r r hr hm
+          · rw [if_neg hm]
+            exact ENNReal.zero_ne_top
+        have hsumT : ∑ r ∈ Λ,
+            ((if goodGridLevelCellMeetsSupport G Q (g r) then
+              souzaPositivePointwiseSelfsTailNorm G β p qtilde hβ hp hp_top
+                (t r) (g r)
+            else 0)).toReal ≤ N := by
+          calc
+            ∑ r ∈ Λ, ((if goodGridLevelCellMeetsSupport G Q (g r) then
+                souzaPositivePointwiseSelfsTailNorm G β p qtilde hβ hp hp_top
+                  (t r) (g r)
+              else 0)).toReal
+                = (∑ r ∈ Λ, if goodGridLevelCellMeetsSupport G Q (g r) then
+                    souzaPositivePointwiseSelfsTailNorm G β p qtilde hβ hp hp_top
+                      (t r) (g r)
+                  else 0).toReal := (ENNReal.toReal_sum hfinite).symm
+            _ ≤ (ENNReal.ofReal N).toReal :=
+                ENNReal.toReal_mono ENNReal.ofReal_ne_top hAQ'
+            _ = N := ENNReal.toReal_ofReal hN
+        have hcard : ∑ _r ∈ Λ, εTail = (Λ.card : ℝ) * εTail := by
+          rw [Finset.sum_const, nsmul_eq_mul]
+        linarith
+      refine ⟨∑ r ∈ Λ, xs r, T, ?_, hTpos, hTfin, ?_, ?_, ?_⟩
+      · -- the represented function
+        intro _
+        have hsum := WeakGridSpace.representsFunction_finset_sum
+          (G := G.toWeakGridSpace) (p := p) Λ
+          (fun r => fun z => g r z * canonicalSouzaAtom G s p QG z) xs
+          (fun r hr => hreps r hr)
+        refine hsum.trans ?_
+        filter_upwards with z
+        refine Finset.sum_congr rfl ?_
+        intro r _
+        rw [hRsrcCanon i Q]
+      · -- support
+        intro j S
+        constructor
+        · intro hS
+          rw [hTcoeff j S]
+          exact Finset.sum_eq_zero fun r _ => ((hsupps r) j S).1 hS
+        · intro hj
+          rw [hTcoeff j S]
+          exact Finset.sum_eq_zero fun r _ => ((hsupps r) j S).2 hj
+      · -- geometric decay
+        intro j hj
+        have hroot : (T.levelCoeffPower j) ^ (1 / p.toReal) ≤
+            (N + (Λ.card : ℝ) * εTail) * lamRoot ^ (j - i) := by
+          refine (hTroot j).trans ?_
+          have hsum_le : ∑ r ∈ Λ, ((Rs r).levelCoeffPower j) ^ (1 / p.toReal)
+              ≤ ∑ r ∈ Λ, D r * lamRoot ^ (j - i) :=
+            Finset.sum_le_sum fun r _ => hdecays r j hj
+          refine hsum_le.trans ?_
+          rw [← Finset.sum_mul]
+          exact mul_le_mul_of_nonneg_right hDsum (pow_nonneg hlamRoot_nonneg _)
+        have hleft : ((T.levelCoeffPower j) ^ (1 / p.toReal)) ^ p.toReal =
+            T.levelCoeffPower j := by
+          rw [← Real.rpow_mul (T.levelCoeffPower_nonneg j), one_div,
+            inv_mul_cancel₀ hp_pos.ne', Real.rpow_one]
+        have hgeom : ((N + (Λ.card : ℝ) * εTail) * lamRoot ^ (j - i)) ^ p.toReal
+            = (N + (Λ.card : ℝ) * εTail) ^ p.toReal * lam ^ (j - i) := by
+          rw [Real.mul_rpow hBtail_nonneg (pow_nonneg hlamRoot_nonneg _)]
+          congr 1
+          calc
+            (lamRoot ^ (j - i) : ℝ) ^ p.toReal =
+                lamRoot ^ (((j - i : ℕ) : ℝ) * p.toReal) := by
+                  simpa [mul_comm] using
+                    (Real.rpow_natCast_mul hlamRoot_nonneg (j - i) p.toReal).symm
+            _ = lamRoot ^ (p.toReal * ((j - i : ℕ) : ℝ)) := by ring_nf
+            _ = lam ^ (j - i) := by
+                  simpa [lam, mul_comm] using
+                    Real.rpow_mul_natCast hlamRoot_nonneg p.toReal (j - i)
+        have hpow := Real.rpow_le_rpow
+          (Real.rpow_nonneg (T.levelCoeffPower_nonneg j) _) hroot hp_pos.le
+        rw [hleft, hgeom] at hpow
+        refine hpow.trans (mul_le_mul_of_nonneg_right ?_ (pow_nonneg hlam_nonneg _))
+        exact Real.rpow_le_rpow hBtail_nonneg hbase_le hp_pos.le
+      · -- support witness
+        intro j P hne
+        rw [hTcoeff j P] at hne
+        obtain ⟨r, hrΛ, hr_ne⟩ : ∃ r ∈ Λ, ((Rs r).block j).coeff P ≠ 0 := by
+          by_contra hall
+          push_neg at hall
+          exact hne (Finset.sum_eq_zero hall)
+        refine ⟨r, hrΛ, ?_⟩
+        have hae := souzaPositiveRepresentation_ae_ne_zero_on_active_cell
+          G s p q hs hp hp_top (Rs r) (hposs r) P hr_ne
+        filter_upwards [hae, MeasureTheory.ae_restrict_of_ae (hreps r hrΛ)]
+          with z hz1 hz2 hgz
+        exact hz1 (by rw [hz2, hgz, zero_mul])
+  let h : (i : ℕ) → WeakGridSpace.LevelCell G.toWeakGridSpace i →
+      Lp ℂ p G.toWeakGridSpace.measure :=
+    fun i Q => Classical.choose (existsLocal i Q)
+  let Rt : (i : ℕ) → (Q : WeakGridSpace.LevelCell G.toWeakGridSpace i) →
+      WeakGridSpace.LpGridRepresentation AS (h i Q) :=
+    fun i Q => Classical.choose (Classical.choose_spec (existsLocal i Q))
+  refine ⟨h, Rt, ?_, ?_, ?_⟩
+  · intro i Q
+    have hspec := Classical.choose_spec (Classical.choose_spec (existsLocal i Q))
+    obtain ⟨_, hpos, hfin, hsupp, hdecay, _⟩ := hspec
+    refine ⟨?_, ?_, hdecay⟩
+    · simpa [WeakGridSpace.CoeffFinitePQCost,
+        WeakGridSpace.LpGridRepresentation.FinitePQCost,
+        WeakGridSpace.LpGridRepresentation.levelCoeffPower, h, Rt] using hfin
+    · intro j S
+      obtain ⟨r, hr_coeff, hr_atom⟩ :=
+        souzaPositiveRepresentation_block_pos_clause G s p hs hp hp_top hpos j S
+      exact ⟨(hsupp j S).1, (hsupp j S).2, r, hr_coeff, hr_atom⟩
+  · intro i Q hcoeff
+    exact (Classical.choose_spec (Classical.choose_spec (existsLocal i Q))).1 hcoeff
+  · intro i Q j P hne
+    exact (Classical.choose_spec
+      (Classical.choose_spec (existsLocal i Q))).2.2.2.2.2 j P hne
 
 /--
 The local product representatives produced for each source cell identify the
