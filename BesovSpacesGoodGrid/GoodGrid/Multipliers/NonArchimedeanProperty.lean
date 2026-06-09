@@ -1915,6 +1915,101 @@ private theorem exists_nonArchimedeanLocalTransmutationData
     have hspec := Classical.choose_spec (Classical.choose_spec (existsLocal i Q))
     exact hspec.1 hcoeff
 
+/-- **Positive local transmutation data.**
+
+Positive-cone analogue of `exists_nonArchimedeanLocalTransmutationData`.  When the
+source representation `Rsrc` is canonical and the multipliers `g i` are positive
+Souza functions controlled by positive `selfs` tail bounds, the local product
+representations of `(∑_{r∈Λ} g_r)·a_Q` can be chosen so that the assembled data
+satisfies the **positive** transmutation hypothesis `RepresentationWsubGandALS_pos`
+(nonnegative real coefficients and pointwise-positive atoms), with the same
+geometric decay constant as in the non-positive version. -/
+private theorem exists_nonArchimedeanLocalTransmutationData_pos
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p q qtilde : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β)
+    (hβ_lt_inv : β < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] [Fact (1 ≤ qtilde)]
+    (Λ : Finset ℕ) (t : ℕ → ℕ) (g : ℕ → α → ℂ) {N : ℝ}
+    (hN : 0 ≤ N)
+    (hgPos : ∀ i ∈ Λ, SouzaPositiveFunction G β p qtilde hβ hp hp_top (g i))
+    (hPosTail : ∀ i ∈ Λ, ∃ C : ℝ≥0∞,
+      SouzaPositivePointwiseSelfsTailBound G β p qtilde hβ hp hp_top (t i) (g i) C)
+    {RsrcTarget : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rsrc : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      RsrcTarget)
+    (hRsrcCanon : SouzaCanonicalRepresentation G s p hs hp hp_top Rsrc)
+    (hA : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      (Rsrc.block k).coeff Q ≠ 0 →
+        nonArchimedeanRelevantPositiveTailSelfsSum
+          G β p qtilde hβ hp hp_top Λ t g Q ≤ ENNReal.ofReal N)
+    (hB : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) i,
+      i ∈ Λ →
+        (Rsrc.block k).coeff Q ≠ 0 →
+          goodGridLevelCellMeetsSupport G Q (g i) →
+            t i ≤ k)
+    {εTail εGeom : ℝ} (hεTail : 0 < εTail) (hεGeom : 0 < εGeom) :
+    ∃ h : (i : ℕ) → WeakGridSpace.LevelCell G.toWeakGridSpace i →
+        Lp ℂ p G.toWeakGridSpace.measure,
+    ∃ Rt : (i : ℕ) → (Q : WeakGridSpace.LevelCell G.toWeakGridSpace i) →
+        WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top) (h i Q),
+      WeakGridSpace.RepresentationWsubGandALS_pos
+        (p := p) (q := q) G.toWeakGridSpace G.toWeakGridSpace
+        (souzaAtomFamily G s p hs hp hp_top) (fun i : ℕ => i)
+        ⟨0, 0, 1, by norm_num, nonArchimedean_id_almostLinear_bound⟩
+        ((G.grid.lambda2 ^ (β - s)) ^ p.toReal)
+        (by
+          have hlambda2_pos : 0 < G.grid.lambda2 :=
+            lt_of_lt_of_le G.grid.hlambda1_pos G.grid.hlambda1_le_lambda2
+          have hroot_pos : 0 < G.grid.lambda2 ^ (β - s) :=
+            Real.rpow_pos_of_pos hlambda2_pos (β - s)
+          exact Real.rpow_pos_of_pos hroot_pos p.toReal)
+        (by
+          have hp_pos : 0 < p.toReal :=
+            ENNReal.toReal_pos
+              (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne' hp_top
+          have hdelta : 0 < β - s := sub_pos.mpr hβs
+          have hlambda2_pos : 0 < G.grid.lambda2 :=
+            lt_of_lt_of_le G.grid.hlambda1_pos G.grid.hlambda1_le_lambda2
+          have hroot_pos : 0 < G.grid.lambda2 ^ (β - s) :=
+            Real.rpow_pos_of_pos hlambda2_pos (β - s)
+          have hroot_lt : G.grid.lambda2 ^ (β - s) < 1 :=
+            Real.rpow_lt_one hlambda2_pos.le G.grid.hlambda2_lt_one hdelta
+          exact Real.rpow_lt_one hroot_pos.le hroot_lt hp_pos)
+        (((2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) *
+            (N + (Λ.card : ℝ) * εTail) + εGeom) ^ p.toReal)
+        (by
+          have hK0 : 0 ≤ 2 * souzaAmbientRestrictionMultiplierConstant G β p + 1 := by
+            have hK := souzaAmbientRestrictionMultiplierConstant_nonneg G β p hp hp_top
+            linarith
+          have hBtail : 0 ≤ N + (Λ.card : ℝ) * εTail := by
+            exact add_nonneg hN (mul_nonneg (by exact_mod_cast Nat.zero_le Λ.card) hεTail.le)
+          have hbase :
+              0 ≤ (2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) *
+                  (N + (Λ.card : ℝ) * εTail) + εGeom := by
+            exact add_nonneg (mul_nonneg hK0 hBtail) hεGeom.le
+          exact Real.rpow_nonneg hbase _)
+        h Rt ∧
+      (∀ i : ℕ, ∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace i,
+        (Rsrc.block i).coeff Q ≠ 0 →
+          WeakGridSpace.RepresentsFunction
+            (G := G.toWeakGridSpace) (p := p)
+            (fun z => ∑ r ∈ Λ,
+              g r z *
+                (souzaAtomFamily G s p hs hp hp_top).toFunction
+                  (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace i Q)
+                  ((Rsrc.block i).atom Q) z)
+            (h i Q)) ∧
+      -- Support witness (for consequence [ii]): a nonzero local block coefficient
+      -- at a target cell `P` forces `P` into the support of some multiplier.
+      (∀ (i : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace i)
+          (j : ℕ) (P : WeakGridSpace.LevelCell G.toWeakGridSpace j),
+        ((Rt i Q).block j).coeff P ≠ 0 →
+          ∃ r ∈ Λ, P.1 ⊆ {z | g r z ≠ 0}) := by
+  sorry
+
 /--
 The local product representatives produced for each source cell identify the
 finite transmutation source sum with multiplication of the finite source
@@ -3952,6 +4047,736 @@ theorem souzaNonArchimedeanProperty
     G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
     hN hCgen_nonneg hCrep_le_Cgen Λ t g f h x R
     hRep hRfin hTail hA hB hseries
+
+
+
+
+/-- **Positive non-Archimedean product representation with explicit errors.**
+
+Positive-cone analogue of `exists_nonArchimedeanProductRepresentation_with_errors`.
+The `represents` and `cost` parts mirror the non-positive assembly (using the
+positive local data and the plain `RepresentationWsubGandALS` extracted from it);
+the support consequence `[ii]` is read off `Transmutation_of_Atoms_Claim_B` and the
+positivity consequence `[i]` off `Transmutation_of_Atoms_Claim_B_sharp`. -/
+private theorem exists_nonArchimedeanProductRepresentation_pos_with_errors
+    (G : GoodGridSpace (α := α))
+    (s β : ℝ) (p q qtilde : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β)
+    (hβ_lt_inv : β < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] [Fact (1 ≤ qtilde)]
+    (Λ : Finset ℕ) (t : ℕ → ℕ) (g : ℕ → α → ℂ) {N : ℝ}
+    (hN : 0 ≤ N)
+    (f : α → ℂ)
+    {RsrcTarget : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rsrc : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      RsrcTarget)
+    (hRfin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Rsrc)
+    (hRep : WeakGridSpace.RepresentsFunction
+      (G := G.toWeakGridSpace) (p := p) f RsrcTarget)
+    (hRcanon : SouzaCanonicalRepresentation G s p hs hp hp_top Rsrc)
+    (hgPos : ∀ i ∈ Λ,
+      SouzaPositiveFunction G β p qtilde hβ hp hp_top (g i))
+    (hPosTail : ∀ i ∈ Λ,
+      ∃ C : ℝ≥0∞,
+        SouzaPositivePointwiseSelfsTailBound
+          G β p qtilde hβ hp hp_top (t i) (g i) C)
+    (hA : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      (Rsrc.block k).coeff Q ≠ 0 →
+        nonArchimedeanRelevantPositiveTailSelfsSum
+          G β p qtilde hβ hp hp_top Λ t g Q ≤ ENNReal.ofReal N)
+    (hB : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) i,
+      i ∈ Λ →
+        (Rsrc.block k).coeff Q ≠ 0 →
+          goodGridLevelCellMeetsSupport G Q (g i) →
+            t i ≤ k)
+    {εTail εGeom : ℝ} (hεTail : 0 < εTail) (hεGeom : 0 < εGeom) :
+    ∃ y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+    ∃ S : WeakGridSpace.LpGridRepresentation
+        (souzaAtomFamily G s p hs hp hp_top)
+        (y : Lp ℂ p G.toWeakGridSpace.measure),
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p)
+        (fun z => (∑ i ∈ Λ, g i z) * f z)
+        (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
+        (if q = ∞ then
+          (G.toWeakGridSpace.grid.Cmult1 : ℝ) *
+            ((((2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) *
+                (N + (Λ.card : ℝ) * εTail) + εGeom) ^ p.toReal) ^
+              (1 / p.toReal)) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ
+                ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) 0 1)
+        else
+          (G.toWeakGridSpace.grid.Cmult1 : ℝ) *
+            ((((2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) *
+                (N + (Λ.card : ℝ) * εTail) + εGeom) ^ p.toReal) ^
+              (1 / p.toReal)) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ
+                ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) 0 1) *
+            (Nat.ceil (1 : ℝ) : ℝ) ^ (1 / q.toReal)) *
+          WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rsrc ∧
+      (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        (S.block k).coeff Q ≠ 0 →
+          ∃ i ∈ Λ, Q.1 ⊆ {z | g i z ≠ 0}) ∧
+      (SouzaPositiveRepresentation G s p hs hp hp_top Rsrc →
+        SouzaConePositiveRepresentation G s p hs hp hp_top S) := by
+  classical
+  let Gi := G.toWeakGridSpace
+  let AS := souzaAtomFamily G s p hs hp hp_top
+  let lam : ℝ := (G.grid.lambda2 ^ (β - s)) ^ p.toReal
+  let C : ℝ :=
+    ((2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) *
+        (N + (Λ.card : ℝ) * εTail) + εGeom) ^ p.toReal
+  have hlam_pos : 0 < lam := by
+    dsimp [lam]
+    have hlambda2_pos : 0 < G.grid.lambda2 :=
+      lt_of_lt_of_le G.grid.hlambda1_pos G.grid.hlambda1_le_lambda2
+    have hroot_pos : 0 < G.grid.lambda2 ^ (β - s) :=
+      Real.rpow_pos_of_pos hlambda2_pos (β - s)
+    exact Real.rpow_pos_of_pos hroot_pos p.toReal
+  have hlam_lt : lam < 1 := by
+    dsimp [lam]
+    have hp_pos : 0 < p.toReal :=
+      ENNReal.toReal_pos
+        (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne' hp_top
+    have hdelta : 0 < β - s := sub_pos.mpr hβs
+    have hlambda2_pos : 0 < G.grid.lambda2 :=
+      lt_of_lt_of_le G.grid.hlambda1_pos G.grid.hlambda1_le_lambda2
+    have hroot_pos : 0 < G.grid.lambda2 ^ (β - s) :=
+      Real.rpow_pos_of_pos hlambda2_pos (β - s)
+    have hroot_lt : G.grid.lambda2 ^ (β - s) < 1 :=
+      Real.rpow_lt_one hlambda2_pos.le G.grid.hlambda2_lt_one hdelta
+    exact Real.rpow_lt_one hroot_pos.le hroot_lt hp_pos
+  have hC_nonneg : 0 ≤ C := by
+    have hK0 : 0 ≤ 2 * souzaAmbientRestrictionMultiplierConstant G β p + 1 := by
+      have hK := souzaAmbientRestrictionMultiplierConstant_nonneg G β p hp hp_top
+      linarith
+    have hBtail : 0 ≤ N + (Λ.card : ℝ) * εTail := by
+      exact add_nonneg hN (mul_nonneg (by exact_mod_cast Nat.zero_le Λ.card) hεTail.le)
+    have hbase :
+        0 ≤ (2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) *
+            (N + (Λ.card : ℝ) * εTail) + εGeom := by
+      exact add_nonneg (mul_nonneg hK0 hBtail) hεGeom.le
+    exact Real.rpow_nonneg hbase _
+  rcases exists_nonArchimedeanLocalTransmutationData_pos
+      G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
+      Λ t g hN hgPos hPosTail Rsrc hRcanon hA hB hεTail hεGeom with
+    ⟨h, Rt, hRt_pos, hLocal, hSupp⟩
+  have hRt :
+      WeakGridSpace.RepresentationWsubGandALS (p := p) (q := q) Gi Gi AS
+        (fun i : ℕ => i)
+        ⟨0, 0, 1, by norm_num, nonArchimedean_id_almostLinear_bound⟩
+        lam hlam_pos hlam_lt C hC_nonneg h Rt := by
+    intro i Q
+    rcases hRt_pos i Q with ⟨hfin, hloc, hdecay⟩
+    refine ⟨hfin, ?_, hdecay⟩
+    intro j S
+    exact ⟨(hloc j S).1, (hloc j S).2.1⟩
+  let c : (i : ℕ) → WeakGridSpace.LevelCell Gi i → ℂ :=
+    fun i Q => (Rsrc.block i).coeff Q
+  have hc : WeakGridSpace.CoeffFinitePQCost (p := p) (q := q) Gi c := by
+    simpa [Gi, c, WeakGridSpace.CoeffFinitePQCost,
+      WeakGridSpace.CoeffPLevel, WeakGridSpace.LpGridRepresentation.FinitePQCost,
+      WeakGridSpace.LpGridRepresentation.levelCoeffPower] using hRfin
+  have hcost_eq :
+      WeakGridSpace.CoeffPQCost (p := p) (q := q) Gi c =
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rsrc := by
+    simp [Gi, c, WeakGridSpace.CoeffPQCost, WeakGridSpace.CoeffPLevel,
+      WeakGridSpace.LpGridRepresentation.pqCost,
+      WeakGridSpace.LpGridRepresentation.levelCoeffPower]
+  have hsrc_tendsto :
+      Filter.Tendsto
+        (fun n => ∑ i ∈ Finset.range n, (Rsrc.block i).toLp AS)
+        Filter.atTop (𝓝 RsrcTarget) := by
+    simpa [AS] using Rsrc.hasSum.tendsto_sum_nat
+  by_cases hqtop : q = ∞
+  · subst q
+    haveI : Fact ((1 : ℝ≥0∞) ≤ (∞ : ℝ≥0∞)) := ⟨by simp⟩
+    rcases WeakGridSpace.Transmutation_of_Atoms_Claim_A_top
+        (G := Gi) (W := Gi) (AW := AS)
+        (p := p) (u := ∞)
+        (fun i : ℕ => i) 0 0 1 (by norm_num)
+        nonArchimedean_id_almostLinear_bound
+        lam hlam_pos hlam_lt C hC_nonneg h Rt hRt c hc
+        (souza_assumptionG2 G s p ∞ hs hp hp_top)
+        hp_top hs with
+      ⟨gLim, hsum, hmem, hfin, htend, hcost⟩
+    let S : WeakGridSpace.LpGridRepresentation AS gLim :=
+      { block := WeakGridSpace.TransmutationBlockLimit Gi Gi AS h Rt c 0 1
+        hasSum := hsum }
+    let y : WeakGridSpace.BesovishSpace AS ∞ := ⟨gLim, ⟨S, hfin⟩⟩
+    have hprod :
+        WeakGridSpace.RepresentsPointwiseProduct
+          (G := Gi) (p := p) (fun z => ∑ i ∈ Λ, g i z)
+          RsrcTarget gLim := by
+      exact WeakGridSpace.RepresentsPointwiseProduct.of_tendsto_Lp
+        (G := Gi) (p := p)
+        hsrc_tendsto htend
+        (fun n =>
+          nonArchimedean_partialSum_representsPointwiseProduct
+            G s p hs hp hp_top Λ g Rsrc h hLocal n)
+    have hrep :
+        WeakGridSpace.RepresentsFunction
+          (G := Gi) (p := p)
+          (fun z => (∑ i ∈ Λ, g i z) * f z) gLim := by
+      filter_upwards [hprod, hRep] with z hz hfz
+      rw [hz, hfz]
+    refine ⟨y, S, ?_, ?_, ?_, ?_⟩
+    · simpa [y, Gi, AS] using hrep
+    · calc
+        WeakGridSpace.LpGridRepresentation.pqCost (q := ∞) S
+            ≤ (Gi.grid.Cmult1 : ℝ) *
+                C ^ (1 / p.toReal) *
+                lam ^ (-(0 : ℝ) / p.toReal) *
+                WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                  (WeakGridSpace.transmutationKernelZ lam 0 1) *
+                WeakGridSpace.CoeffPQCost (p := p) (q := ∞) Gi c := by
+              simpa [S] using hcost
+        _ =
+            (if (∞ : ℝ≥0∞) = ∞ then
+              (Gi.grid.Cmult1 : ℝ) *
+                C ^ (1 / p.toReal) *
+                WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                  (WeakGridSpace.transmutationKernelZ lam 0 1)
+            else
+              (Gi.grid.Cmult1 : ℝ) *
+                C ^ (1 / p.toReal) *
+                WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                  (WeakGridSpace.transmutationKernelZ lam 0 1) *
+                (Nat.ceil (1 : ℝ) : ℝ) ^ (1 / (∞ : ℝ≥0∞).toReal)) *
+              WeakGridSpace.LpGridRepresentation.pqCost (q := ∞) Rsrc := by
+              simp [hcost_eq, C, lam, Gi]
+    · intro k P hP_coeff
+      have hm_real :
+          WeakGridSpace.TransmutationCoeffLimit Gi Gi AS h Rt c 0 1 P ≠ 0 := by
+        intro h0
+        apply hP_coeff
+        show (WeakGridSpace.TransmutationCoeffLimit Gi Gi AS h Rt c 0 1 P : ℂ) = 0
+        exact_mod_cast h0
+      rcases WeakGridSpace.transmutationCoeff_support_witness
+          Gi Gi AS (fun i : ℕ => i) 0 0 1 (by norm_num)
+          nonArchimedean_id_almostLinear_bound
+          lam hlam_pos hlam_lt C hC_nonneg h Rt hRt_pos c
+          (WeakGridSpace.transmutationStabilizationIndex 0 1 k) P hm_real with
+        ⟨i₀, hi₀, Q', hQ', hPQ', hcQ', r, hr_pos, hr_coeff⟩
+      exact hSupp i₀ Q' k P (by rw [hr_coeff]; exact_mod_cast hr_pos.ne')
+    · intro hRpos k P
+      refine ⟨⟨WeakGridSpace.TransmutationCoeffLimit Gi Gi AS h Rt c 0 1 P, ?_, rfl⟩, ?_⟩
+      · unfold WeakGridSpace.TransmutationCoeffLimit WeakGridSpace.TransmutationCoeff
+        exact Finset.sum_nonneg
+          (fun i _ => Finset.sum_nonneg (fun Q _ => norm_nonneg _))
+      · have hc_nonneg :
+            ∀ i (Q : WeakGridSpace.LevelCell Gi i), ∃ r : NNReal, c i Q = (r : ℂ) := by
+          intro i Q
+          rcases hRpos i Q with ⟨d, hd_nonneg, hd_coeff, _⟩
+          exact ⟨⟨d, hd_nonneg⟩, by
+            show (Rsrc.block i).coeff Q = ((⟨d, hd_nonneg⟩ : NNReal) : ℂ)
+            rw [hd_coeff]⟩
+        refine Filter.Eventually.of_forall (fun x => ?_)
+        by_cases hxP : x ∈ P.1
+        · exact WeakGridSpace.TransmutationAtomLocalLimit_toFunction_nonneg
+            Gi Gi AS (fun i : ℕ => i) 0 0 1 (by norm_num)
+            nonArchimedean_id_almostLinear_bound
+            lam hlam_pos hlam_lt C hC_nonneg h Rt hRt_pos c hc_nonneg P hxP
+        · refine ⟨0, le_refl 0, ?_⟩
+          have hsupp := AS.local_support
+            (WeakGridSpace.levelCellToWeakGridCell Gi k P)
+            (WeakGridSpace.TransmutationAtomLocalLimit Gi Gi AS h Rt c 0 1 P) x hxP
+          rw [Complex.ofReal_zero]
+          exact hsupp
+  · rcases WeakGridSpace.Transmutation_of_Atoms_Claim_A
+        (G := Gi) (W := Gi) (AW := AS)
+        (p := p) (q := q) (u := ∞)
+        (fun i : ℕ => i) 0 0 1 (by norm_num)
+        nonArchimedean_id_almostLinear_bound
+        lam hlam_pos hlam_lt C hC_nonneg h Rt hRt c hc hqtop
+        (souza_assumptionG2 G s p q hs hp hp_top)
+        hp_top hs with
+      ⟨gLim, hsum, hmem, hfin, htend, hcost⟩
+    let S : WeakGridSpace.LpGridRepresentation AS gLim :=
+      { block := WeakGridSpace.TransmutationBlockLimit Gi Gi AS h Rt c 0 1
+        hasSum := hsum }
+    let y : WeakGridSpace.BesovishSpace AS q := ⟨gLim, ⟨S, hfin⟩⟩
+    have hprod :
+        WeakGridSpace.RepresentsPointwiseProduct
+          (G := Gi) (p := p) (fun z => ∑ i ∈ Λ, g i z)
+          RsrcTarget gLim := by
+      exact WeakGridSpace.RepresentsPointwiseProduct.of_tendsto_Lp
+        (G := Gi) (p := p)
+        hsrc_tendsto htend
+        (fun n =>
+          nonArchimedean_partialSum_representsPointwiseProduct
+            G s p hs hp hp_top Λ g Rsrc h hLocal n)
+    have hrep :
+        WeakGridSpace.RepresentsFunction
+          (G := Gi) (p := p)
+          (fun z => (∑ i ∈ Λ, g i z) * f z) gLim := by
+      filter_upwards [hprod, hRep] with z hz hfz
+      rw [hz, hfz]
+    refine ⟨y, S, ?_, ?_, ?_, ?_⟩
+    · simpa [y, Gi, AS] using hrep
+    · calc
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) S
+            ≤ (Gi.grid.Cmult1 : ℝ) *
+                C ^ (1 / p.toReal) *
+                lam ^ (-(0 : ℝ) / p.toReal) *
+                WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                  (WeakGridSpace.transmutationKernelZ lam 0 1) *
+                (Nat.ceil (1 : ℝ) : ℝ) ^ (1 / q.toReal) *
+                WeakGridSpace.CoeffPQCost (p := p) (q := q) Gi c := by
+              simpa [S] using hcost
+        _ =
+            (if q = ∞ then
+              (Gi.grid.Cmult1 : ℝ) *
+                C ^ (1 / p.toReal) *
+                WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                  (WeakGridSpace.transmutationKernelZ lam 0 1)
+            else
+              (Gi.grid.Cmult1 : ℝ) *
+                C ^ (1 / p.toReal) *
+                WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                  (WeakGridSpace.transmutationKernelZ lam 0 1) *
+                (Nat.ceil (1 : ℝ) : ℝ) ^ (1 / q.toReal)) *
+              WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rsrc := by
+              simp [hqtop, hcost_eq, C, lam, Gi]
+    · intro k P hP_coeff
+      have hm_real :
+          WeakGridSpace.TransmutationCoeffLimit Gi Gi AS h Rt c 0 1 P ≠ 0 := by
+        intro h0
+        apply hP_coeff
+        show (WeakGridSpace.TransmutationCoeffLimit Gi Gi AS h Rt c 0 1 P : ℂ) = 0
+        exact_mod_cast h0
+      rcases WeakGridSpace.transmutationCoeff_support_witness
+          Gi Gi AS (fun i : ℕ => i) 0 0 1 (by norm_num)
+          nonArchimedean_id_almostLinear_bound
+          lam hlam_pos hlam_lt C hC_nonneg h Rt hRt_pos c
+          (WeakGridSpace.transmutationStabilizationIndex 0 1 k) P hm_real with
+        ⟨i₀, hi₀, Q', hQ', hPQ', hcQ', r, hr_pos, hr_coeff⟩
+      exact hSupp i₀ Q' k P (by rw [hr_coeff]; exact_mod_cast hr_pos.ne')
+    · intro hRpos k P
+      refine ⟨⟨WeakGridSpace.TransmutationCoeffLimit Gi Gi AS h Rt c 0 1 P, ?_, rfl⟩, ?_⟩
+      · unfold WeakGridSpace.TransmutationCoeffLimit WeakGridSpace.TransmutationCoeff
+        exact Finset.sum_nonneg
+          (fun i _ => Finset.sum_nonneg (fun Q _ => norm_nonneg _))
+      · have hc_nonneg :
+            ∀ i (Q : WeakGridSpace.LevelCell Gi i), ∃ r : NNReal, c i Q = (r : ℂ) := by
+          intro i Q
+          rcases hRpos i Q with ⟨d, hd_nonneg, hd_coeff, _⟩
+          exact ⟨⟨d, hd_nonneg⟩, by
+            show (Rsrc.block i).coeff Q = ((⟨d, hd_nonneg⟩ : NNReal) : ℂ)
+            rw [hd_coeff]⟩
+        refine Filter.Eventually.of_forall (fun x => ?_)
+        by_cases hxP : x ∈ P.1
+        · exact WeakGridSpace.TransmutationAtomLocalLimit_toFunction_nonneg
+            Gi Gi AS (fun i : ℕ => i) 0 0 1 (by norm_num)
+            nonArchimedean_id_almostLinear_bound
+            lam hlam_pos hlam_lt C hC_nonneg h Rt hRt_pos c hc_nonneg P hxP
+        · refine ⟨0, le_refl 0, ?_⟩
+          have hsupp := AS.local_support
+            (WeakGridSpace.levelCellToWeakGridCell Gi k P)
+            (WeakGridSpace.TransmutationAtomLocalLimit Gi Gi AS h Rt c 0 1 P) x hxP
+          rw [Complex.ofReal_zero]
+          exact hsupp
+
+/-- **Positive non-Archimedean product representation (clean constant).**
+
+Single assembly lemma behind the positive-cone theorem: given a canonical source
+representation `Rsrc` and positive multipliers, it produces one output
+representation `S` of `(∑ᵢ gᵢ)·f` with the cost bound (clean constant, no error
+parameters), the support consequence `[ii]`, and the conditional positivity
+consequence `[i]`.  Internally it builds positive local transmutation data and
+reads everything off `Claim A` / `Claim B` / `Claim B_sharp`; the error
+parameters of the underlying construction are sent to zero proportionally to
+`N`. -/
+theorem exists_nonArchimedeanProductRepresentation_positive
+    (G : GoodGridSpace (α := α))
+    (s β : ℝ) (p q qtilde : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β)
+    (hβ_lt_inv : β < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] [Fact (1 ≤ qtilde)]
+    (Λ : Finset ℕ) (t : ℕ → ℕ) (g : ℕ → α → ℂ) (N : ℝ)
+    (f : α → ℂ)
+    {RsrcTarget : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rsrc : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      RsrcTarget)
+    (hN : 0 ≤ N)
+    (hRep : WeakGridSpace.RepresentsFunction
+      (G := G.toWeakGridSpace) (p := p) f RsrcTarget)
+    (hRfin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Rsrc)
+    (hRcanon : SouzaCanonicalRepresentation G s p hs hp hp_top Rsrc)
+    (hgPos : ∀ i ∈ Λ,
+      SouzaPositiveFunction G β p qtilde hβ hp hp_top (g i))
+    (hPosTail : ∀ i ∈ Λ,
+      ∃ C : ℝ≥0∞,
+        SouzaPositivePointwiseSelfsTailBound
+          G β p qtilde hβ hp hp_top (t i) (g i) C)
+    (hA : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      (Rsrc.block k).coeff Q ≠ 0 →
+        nonArchimedeanRelevantPositiveTailSelfsSum
+          G β p qtilde hβ hp hp_top Λ t g Q ≤ ENNReal.ofReal N)
+    (hB : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) i,
+      i ∈ Λ →
+        (Rsrc.block k).coeff Q ≠ 0 →
+          goodGridLevelCellMeetsSupport G Q (g i) →
+            t i ≤ k) :
+    ∃ y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+    ∃ S : WeakGridSpace.LpGridRepresentation
+        (souzaAtomFamily G s p hs hp hp_top)
+        (y : Lp ℂ p G.toWeakGridSpace.measure),
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p)
+        (fun z => (∑ i ∈ Λ, g i z) * f z)
+        (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
+        ((G.toWeakGridSpace.grid.Cmult1 : ℝ) *
+          (2 * (2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) + 1) *
+          WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+            (WeakGridSpace.transmutationKernelZ
+              ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) 0 1)) *
+          N * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rsrc ∧
+      (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        (S.block k).coeff Q ≠ 0 →
+          ∃ i ∈ Λ, Q.1 ⊆ {z | g i z ≠ 0}) ∧
+      (SouzaPositiveRepresentation G s p hs hp hp_top Rsrc →
+        SouzaConePositiveRepresentation G s p hs hp hp_top S) := by
+  classical
+  by_cases hNzero : N = 0
+  · subst N
+    sorry
+  have hNpos : 0 < N := lt_of_le_of_ne hN (Ne.symm hNzero)
+  let Gi := G.toWeakGridSpace
+  let lam : ℝ := (G.grid.lambda2 ^ (β - s)) ^ p.toReal
+  let Ktail : ℝ := 2 * souzaAmbientRestrictionMultiplierConstant G β p + 1
+  let epsTail : ℝ := N / ((Λ.card : ℝ) + 1)
+  let epsGeom : ℝ := N
+  have hden_pos : 0 < (Λ.card : ℝ) + 1 := by positivity
+  have hεTail : 0 < epsTail := div_pos hNpos hden_pos
+  have hεGeom : 0 < epsGeom := hNpos
+  rcases exists_nonArchimedeanProductRepresentation_pos_with_errors
+      G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
+      Λ t g hN f Rsrc hRfin hRep hRcanon hgPos hPosTail hA hB hεTail hεGeom with
+    ⟨y, S, hSrep, hScost, hSupp, hPos⟩
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos
+      (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne' hp_top
+  have hKtail_nonneg : 0 ≤ Ktail := by
+    have hK := souzaAmbientRestrictionMultiplierConstant_nonneg G β p hp hp_top
+    dsimp [Ktail]
+    linarith
+  have hcard_eps_le :
+      (Λ.card : ℝ) * epsTail ≤ N := by
+    have hfrac_le_one : ((Λ.card : ℝ) / ((Λ.card : ℝ) + 1) : ℝ) ≤ 1 := by
+      rw [div_le_iff₀ hden_pos]
+      linarith [show 0 ≤ (Λ.card : ℝ) by exact_mod_cast Nat.zero_le Λ.card]
+    calc
+      (Λ.card : ℝ) * epsTail
+          = ((Λ.card : ℝ) / ((Λ.card : ℝ) + 1)) * N := by
+              change (Λ.card : ℝ) * (N / ((Λ.card : ℝ) + 1)) =
+                ((Λ.card : ℝ) / ((Λ.card : ℝ) + 1)) * N
+              ring_nf
+      _ ≤ 1 * N := mul_le_mul_of_nonneg_right hfrac_le_one hNpos.le
+      _ = N := by ring
+  have htail_le : N + (Λ.card : ℝ) * epsTail ≤ 2 * N := by
+    linarith
+  have hbase_nonneg :
+      0 ≤ Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom := by
+    exact add_nonneg
+      (mul_nonneg hKtail_nonneg
+        (add_nonneg hNpos.le
+          (mul_nonneg (by exact_mod_cast Nat.zero_le Λ.card) hεTail.le)))
+      hεGeom.le
+  have hbase_le :
+      Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom ≤
+        (2 * Ktail + 1) * N := by
+    have hmul := mul_le_mul_of_nonneg_left htail_le hKtail_nonneg
+    calc
+      Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom
+          ≤ Ktail * (2 * N) + N := by
+              exact add_le_add hmul le_rfl
+      _ = (2 * Ktail + 1) * N := by ring
+  have hroot_le :
+      ((Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom) ^ p.toReal) ^
+          (1 / p.toReal) ≤
+        (2 * Ktail + 1) * N := by
+    have hroot_eq :
+        ((Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom) ^ p.toReal) ^
+            (1 / p.toReal) =
+          Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom := by
+      have hmul : p.toReal * (1 / p.toReal) = 1 := by
+        field_simp [hp_pos.ne']
+      calc
+        ((Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom) ^ p.toReal) ^
+            (1 / p.toReal)
+            =
+          (Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom) ^
+            (p.toReal * (1 / p.toReal)) := by
+              rw [← Real.rpow_mul hbase_nonneg]
+        _ = Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom := by
+              rw [hmul, Real.rpow_one]
+    rw [hroot_eq]
+    exact hbase_le
+  have hkernel_nonneg :
+      ∀ n : ℤ, 0 ≤ WeakGridSpace.transmutationKernelZ lam 0 1 n := by
+    intro n
+    dsimp [WeakGridSpace.transmutationKernelZ]
+    split_ifs
+    · exact Real.rpow_nonneg (le_of_lt (by
+        dsimp [lam]
+        have hlambda2_pos : 0 < G.grid.lambda2 :=
+          lt_of_lt_of_le G.grid.hlambda1_pos G.grid.hlambda1_le_lambda2
+        have hroot_pos : 0 < G.grid.lambda2 ^ (β - s) :=
+          Real.rpow_pos_of_pos hlambda2_pos (β - s)
+        exact Real.rpow_pos_of_pos hroot_pos p.toReal)) _
+    · rfl
+  have hcoef_nonneg :
+      0 ≤ WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+        (WeakGridSpace.transmutationKernelZ lam 0 1) :=
+    cCoefficientInt_nonneg_local p ∞ _ hkernel_nonneg
+  have hpq_nonneg :
+      0 ≤ WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rsrc :=
+    WeakGridSpace.LpGridRepresentation.pqCost_nonneg Rsrc
+  refine ⟨y, S, hSrep, ?_, hSupp, hPos⟩
+  refine hScost.trans ?_
+  by_cases hqtop : q = ∞
+  · subst q
+    have hfactor_le :
+        (Gi.grid.Cmult1 : ℝ) *
+            ((Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom) ^ p.toReal) ^
+              (1 / p.toReal) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ lam 0 1)
+          ≤
+        (Gi.grid.Cmult1 : ℝ) * (2 * Ktail + 1) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ lam 0 1) * N := by
+      calc
+        (Gi.grid.Cmult1 : ℝ) *
+            ((Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom) ^ p.toReal) ^
+              (1 / p.toReal) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ lam 0 1)
+            ≤
+          (Gi.grid.Cmult1 : ℝ) * ((2 * Ktail + 1) * N) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ lam 0 1) := by
+              exact mul_le_mul_of_nonneg_right
+                (mul_le_mul_of_nonneg_left hroot_le
+                  (by exact_mod_cast Nat.zero_le Gi.grid.Cmult1))
+                hcoef_nonneg
+        _ =
+          (Gi.grid.Cmult1 : ℝ) * (2 * Ktail + 1) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ lam 0 1) * N := by ring
+    calc
+      ((if (∞ : ℝ≥0∞) = ∞ then
+          (Gi.grid.Cmult1 : ℝ) *
+            ((Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom) ^ p.toReal) ^
+              (1 / p.toReal) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ lam 0 1)
+        else
+          (Gi.grid.Cmult1 : ℝ) *
+              ((Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom) ^ p.toReal) ^
+                (1 / p.toReal) *
+              WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                (WeakGridSpace.transmutationKernelZ lam 0 1) *
+            (Nat.ceil (1 : ℝ) : ℝ) ^ (1 / (∞ : ℝ≥0∞).toReal)) *
+          WeakGridSpace.LpGridRepresentation.pqCost (q := ∞) Rsrc)
+          ≤
+        ((Gi.grid.Cmult1 : ℝ) * (2 * Ktail + 1) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ lam 0 1) * N) *
+          WeakGridSpace.LpGridRepresentation.pqCost (q := ∞) Rsrc := by
+            simpa using mul_le_mul_of_nonneg_right hfactor_le hpq_nonneg
+      _ =
+        ((Gi.grid.Cmult1 : ℝ) *
+          (2 * (2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) + 1) *
+          WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+            (WeakGridSpace.transmutationKernelZ
+              ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) 0 1)) *
+          N * WeakGridSpace.LpGridRepresentation.pqCost (q := ∞) Rsrc := by
+            simp [Gi, Ktail, lam]
+  · have hceil_one :
+        (Nat.ceil (1 : ℝ) : ℝ) ^ (1 / q.toReal) = 1 := by
+      norm_num
+    have hfactor_le :
+        (Gi.grid.Cmult1 : ℝ) *
+              ((Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom) ^ p.toReal) ^
+                (1 / p.toReal) *
+              WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                (WeakGridSpace.transmutationKernelZ lam 0 1) *
+            (Nat.ceil (1 : ℝ) : ℝ) ^ (1 / q.toReal)
+          ≤
+        (Gi.grid.Cmult1 : ℝ) * (2 * Ktail + 1) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ lam 0 1) * N := by
+      calc
+        (Gi.grid.Cmult1 : ℝ) *
+              ((Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom) ^ p.toReal) ^
+                (1 / p.toReal) *
+              WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                (WeakGridSpace.transmutationKernelZ lam 0 1) *
+            (Nat.ceil (1 : ℝ) : ℝ) ^ (1 / q.toReal)
+            =
+          (Gi.grid.Cmult1 : ℝ) *
+              ((Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom) ^ p.toReal) ^
+                (1 / p.toReal) *
+              WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                (WeakGridSpace.transmutationKernelZ lam 0 1) := by
+              rw [hceil_one, mul_one]
+        _ ≤
+          (Gi.grid.Cmult1 : ℝ) * ((2 * Ktail + 1) * N) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ lam 0 1) := by
+              exact mul_le_mul_of_nonneg_right
+                (mul_le_mul_of_nonneg_left hroot_le
+                  (by exact_mod_cast Nat.zero_le Gi.grid.Cmult1))
+                hcoef_nonneg
+        _ =
+          (Gi.grid.Cmult1 : ℝ) * (2 * Ktail + 1) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ lam 0 1) * N := by ring
+    calc
+      ((if q = ∞ then
+          (Gi.grid.Cmult1 : ℝ) *
+            ((Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom) ^ p.toReal) ^
+              (1 / p.toReal) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ lam 0 1)
+        else
+          (Gi.grid.Cmult1 : ℝ) *
+              ((Ktail * (N + (Λ.card : ℝ) * epsTail) + epsGeom) ^ p.toReal) ^
+                (1 / p.toReal) *
+              WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+                (WeakGridSpace.transmutationKernelZ lam 0 1) *
+            (Nat.ceil (1 : ℝ) : ℝ) ^ (1 / q.toReal)) *
+          WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rsrc)
+          ≤
+        ((Gi.grid.Cmult1 : ℝ) * (2 * Ktail + 1) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ lam 0 1) * N) *
+          WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rsrc := by
+            simpa [hqtop] using mul_le_mul_of_nonneg_right hfactor_le hpq_nonneg
+      _ =
+        ((Gi.grid.Cmult1 : ℝ) *
+          (2 * (2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) + 1) *
+          WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+            (WeakGridSpace.transmutationKernelZ
+              ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) 0 1)) *
+          N * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rsrc := by
+            simp [hqtop, Gi, Ktail, lam]
+
+/-- **Positive-cone non-Archimedean estimate (assembly core).**
+
+Public entry point that performs the full positive-cone assembly using the
+private positive machinery of this file.  It builds the positive local
+transmutation data (`exists_nonArchimedeanLocalTransmutationData_pos`) and reads
+cost / support / positivity off the transmutation `Claim A` / `Claim B` /
+`Claim B_sharp`.  The user-facing wrapper `souzaNonArchimedeanPropertyPositiveCone`
+(in the standalone file) just forwards to this lemma.
+
+See that wrapper's docstring for the precise statement and the reason the
+support consequence `[ii]` is unconditional while the positivity consequence
+`[i]` needs `c_Q ≥ 0`. -/
+theorem souzaNonArchimedeanPropertyPositiveCone_core
+    (G : GoodGridSpace (α := α))
+    (s β : ℝ) (p q qtilde : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β)
+    (hβ_lt_inv : β < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] [Fact (1 ≤ qtilde)] :
+    ∃ Cgen : ℝ,
+      0 ≤ Cgen ∧
+      ∀ (Λ : Finset ℕ) (t : ℕ → ℕ) (g : ℕ → α → ℂ) (N : ℝ)
+        (f : α → ℂ)
+        (x : WeakGridSpace.BesovishSpace
+          (souzaAtomFamily G s p hs hp hp_top) q)
+        (R : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (x : Lp ℂ p G.toWeakGridSpace.measure)),
+          0 ≤ N →
+          WeakGridSpace.RepresentsFunction
+            (G := G.toWeakGridSpace) (p := p) f
+            (x : Lp ℂ p G.toWeakGridSpace.measure) →
+          WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R →
+          SouzaCanonicalRepresentation G s p hs hp hp_top R →
+          (∀ i ∈ Λ,
+            SouzaPositiveFunction G β p qtilde hβ hp hp_top (g i)) →
+          (∀ i ∈ Λ,
+            ∃ C : ℝ≥0∞,
+              SouzaPositivePointwiseSelfsTailBound
+                G β p qtilde hβ hp hp_top (t i) (g i) C) →
+          (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+            (R.block k).coeff Q ≠ 0 →
+              nonArchimedeanRelevantPositiveTailSelfsSum
+                G β p qtilde hβ hp hp_top Λ t g Q ≤ ENNReal.ofReal N) →
+          (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) i,
+            i ∈ Λ →
+              (R.block k).coeff Q ≠ 0 →
+                goodGridLevelCellMeetsSupport G Q (g i) →
+                  t i ≤ k) →
+          ∃ y : WeakGridSpace.BesovishSpace
+              (souzaAtomFamily G s p hs hp hp_top) q,
+            ∃ S : WeakGridSpace.LpGridRepresentation
+                (souzaAtomFamily G s p hs hp hp_top)
+                (y : Lp ℂ p G.toWeakGridSpace.measure),
+              WeakGridSpace.RepresentsFunction
+                (G := G.toWeakGridSpace) (p := p)
+                (fun z => (∑ i ∈ Λ, g i z) * f z)
+                (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+              WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
+                Cgen * N *
+                  WeakGridSpace.LpGridRepresentation.pqCost (q := q) R ∧
+              (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+                (S.block k).coeff Q ≠ 0 →
+                  ∃ i ∈ Λ, Q.1 ⊆ {z | g i z ≠ 0}) ∧
+              (SouzaPositiveRepresentation G s p hs hp hp_top R →
+                SouzaConePositiveRepresentation G s p hs hp hp_top S) := by
+  classical
+  refine ⟨(G.toWeakGridSpace.grid.Cmult1 : ℝ) *
+            (2 * (2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) + 1) *
+            WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+              (WeakGridSpace.transmutationKernelZ
+                ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) 0 1), ?_, ?_⟩
+  · have hK := souzaAmbientRestrictionMultiplierConstant_nonneg G β p hp hp_top
+    have hmiddle :
+        0 ≤ 2 * (2 * souzaAmbientRestrictionMultiplierConstant G β p + 1) + 1 := by
+      linarith
+    have hkernel_nonneg :
+        ∀ n : ℤ, 0 ≤ WeakGridSpace.transmutationKernelZ
+          ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) 0 1 n := by
+      intro n
+      dsimp [WeakGridSpace.transmutationKernelZ]
+      split_ifs
+      · exact Real.rpow_nonneg (le_of_lt (by
+          have hlambda2_pos : 0 < G.grid.lambda2 :=
+            lt_of_lt_of_le G.grid.hlambda1_pos G.grid.hlambda1_le_lambda2
+          have hroot_pos : 0 < G.grid.lambda2 ^ (β - s) :=
+            Real.rpow_pos_of_pos hlambda2_pos (β - s)
+          exact Real.rpow_pos_of_pos hroot_pos p.toReal)) _
+      · rfl
+    have hcoef_nonneg :
+        0 ≤ WeakGridSpace.LpGridRepresentation.cCoefficientInt p ∞
+          (WeakGridSpace.transmutationKernelZ
+            ((G.grid.lambda2 ^ (β - s)) ^ p.toReal) 0 1) :=
+      cCoefficientInt_nonneg_local p ∞ _ hkernel_nonneg
+    exact mul_nonneg
+      (mul_nonneg
+        (by exact_mod_cast Nat.zero_le G.toWeakGridSpace.grid.Cmult1)
+        hmiddle)
+      hcoef_nonneg
+  · intro Λ t g N f x R hN hRep hRfin hRcanon hgPos hPosTail hA hB
+    exact exists_nonArchimedeanProductRepresentation_positive
+      G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
+      Λ t g N f R hN hRep hRfin hRcanon hgPos hPosTail hA hB
 
 
 

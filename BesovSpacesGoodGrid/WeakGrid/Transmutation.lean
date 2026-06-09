@@ -108,7 +108,7 @@ This is the finiteness statement behind all later truncations: once `k i ≤ j`,
 the lower affine bound in `AlmostLinearSequence` forces `i` to lie below an
 explicit constant depending on `j`.  As a result, every sum over
 `{ i | k i ≤ j }` is automatically finite. -/
-private lemma almostLinearSequence_finite_le_level
+lemma almostLinearSequence_finite_le_level
     {k : ℕ → ℕ} (hk : AlmostLinearSequence k) (j : ℕ) :
     {i : ℕ | k i ≤ j}.Finite := by
   classical
@@ -4513,6 +4513,141 @@ theorem Transmutation_of_Atoms_Claim_A_top
   exact ⟨gLim, hRlim, hmem, hfin, hg_tendsto, by simpa [K, Rlim] using hcost⟩
 
 
+/-- **Explicit finite formula for the transmutation mass `m_P`.**
+
+For a fixed target cell `P ∈ 𝒲ʲ`, the limit coefficient `m_{P,∞}` appearing in
+the representation of Claim A is the finite sum, over the source levels `i` with
+`k i ≤ j`, of the local masses
+`∑_{Q ∈ 𝒢ⁱ, P ⊆ Q} ‖c_Q · s_{P,Q}‖`, where `s_{P,Q} = ((R i Q).block j).coeff P`.
+
+The index set `{i | k i ≤ j}` is finite — its finiteness `hfin` is exactly what
+`almostLinearSequence_finite_le_level ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ j`
+provides. Restricting to `k i ≤ j` loses nothing: when `j < k i` the cutoff in
+`RepresentationWsubGandALS` forces `s_{P,Q} = 0` for every `Q`, so those source
+levels contribute zero. -/
+theorem TransmutationCoeffLimit_eq_sum_le_level
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    {j : ℕ} (P : LevelCell W j)
+    (hfin : {i : ℕ | k i ≤ j}.Finite) :
+    TransmutationCoeffLimit G W AW h R c A_als r_als P =
+      ∑ i ∈ hfin.toFinset,
+        ∑ Q ∈ (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1),
+          ‖c i Q * ((R i Q).block j).coeff P‖ := by
+  classical
+  have hsubset :
+      hfin.toFinset ⊆ Finset.range (transmutationStabilizationIndex A_als r_als j) := by
+    intro i hi
+    rw [Set.Finite.mem_toFinset] at hi
+    simp only [Set.mem_setOf_eq] at hi
+    rw [Finset.mem_range]
+    by_contra hge
+    push Not at hge
+    have hji : j < k i :=
+      transmutation_lt_level_of_ge_stabilization (B := B_als) hr_als hk_bound hge
+    omega
+  have hzero :
+      ∀ i ∈ Finset.range (transmutationStabilizationIndex A_als r_als j),
+        i ∉ hfin.toFinset →
+        (∑ Q ∈ (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1),
+            ‖c i Q * ((R i Q).block j).coeff P‖) = 0 := by
+    intro i hi hni
+    rw [Set.Finite.mem_toFinset] at hni
+    simp only [Set.mem_setOf_eq] at hni
+    push Not at hni
+    apply Finset.sum_eq_zero
+    intro Q hQ
+    have hcoeff : ((R i Q).block j).coeff P = 0 := ((hR i Q).2.1 j P).2 hni
+    rw [hcoeff, mul_zero, norm_zero]
+  show (∑ i ∈ Finset.range (transmutationStabilizationIndex A_als r_als j),
+          ∑ Q ∈ (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1),
+            ‖c i Q * ((R i Q).block j).coeff P‖)
+      = ∑ i ∈ hfin.toFinset,
+          ∑ Q ∈ (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1),
+            ‖c i Q * ((R i Q).block j).coeff P‖
+  exact (Finset.sum_subset hsubset hzero).symm
+
+/-- **Explicit finite formula for the transmutation atom `d_P`.**
+
+Companion to `TransmutationCoeffLimit_eq_sum_le_level`. For a fixed target cell
+`P ∈ 𝒲ʲ`, the limit atom `d_{P,∞}` appearing in the representation of Claim A
+(as an element of the local vector space) is, when `m_P ≠ 0`, the normalised
+finite sum
+`m_P⁻¹ · ∑_{i : k i ≤ j} ∑_{Q ∈ 𝒢ⁱ, P ⊆ Q} c_Q · s_{P,Q} · b_{P,Q}`
+(with `s_{P,Q} = ((R i Q).block j).coeff P` and `b_{P,Q} = ((R i Q).block j).atom P`),
+and `0` when `m_P = 0`. As in the mass formula, the source levels with `j < k i`
+contribute zero, so restricting to the finite set `{i | k i ≤ j}` changes
+nothing. -/
+theorem TransmutationAtomLocalLimit_eq_sum_le_level
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    {j : ℕ} (P : LevelCell W j)
+    (hfin : {i : ℕ | k i ≤ j}.Finite) :
+    TransmutationAtomLocalLimit G W AW h R c A_als r_als P =
+      (if TransmutationCoeffLimit G W AW h R c A_als r_als P = 0 then 0
+       else (TransmutationCoeffLimit G W AW h R c A_als r_als P : ℂ)⁻¹ •
+         ∑ i ∈ hfin.toFinset,
+           ∑ Q ∈ (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1),
+             (c i Q * ((R i Q).block j).coeff P) • ((R i Q).block j).atom P) := by
+  classical
+  have hsubset :
+      hfin.toFinset ⊆ Finset.range (transmutationStabilizationIndex A_als r_als j) := by
+    intro i hi
+    rw [Set.Finite.mem_toFinset] at hi
+    simp only [Set.mem_setOf_eq] at hi
+    rw [Finset.mem_range]
+    by_contra hge
+    push Not at hge
+    have hji : j < k i :=
+      transmutation_lt_level_of_ge_stabilization (B := B_als) hr_als hk_bound hge
+    omega
+  have hzero :
+      ∀ i ∈ Finset.range (transmutationStabilizationIndex A_als r_als j),
+        i ∉ hfin.toFinset →
+        (∑ Q ∈ (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1),
+            (c i Q * ((R i Q).block j).coeff P) • ((R i Q).block j).atom P) = 0 := by
+    intro i hi hni
+    rw [Set.Finite.mem_toFinset] at hni
+    simp only [Set.mem_setOf_eq] at hni
+    push Not at hni
+    apply Finset.sum_eq_zero
+    intro Q hQ
+    have hcoeff : ((R i Q).block j).coeff P = 0 := ((hR i Q).2.1 j P).2 hni
+    rw [hcoeff, mul_zero, zero_smul]
+  have hlim :
+      TransmutationCoeffLimit G W AW h R c A_als r_als P
+        = TransmutationCoeff G W AW h R c
+            (transmutationStabilizationIndex A_als r_als j) P := rfl
+  rw [TransmutationAtomLocalLimit]
+  simp only [TransmutationAtomLocal]
+  rw [Finset.sum_sigma, hlim, ← Finset.sum_subset hsubset hzero]
+
 /-- The coefficient `m_P` from Claim B, for a fixed target cell `P`.
 
 The finite set `source` represents the source cells `Q` that are available in
@@ -5106,6 +5241,77 @@ private lemma TransmutationAtomLocalLimit_ne_zero_of_coeff_ne_zero
       AtomFamily.toFunction, map_smul, map_sum, Finset.sum_apply, smul_eq_mul]
   rw [hfun, hsum_eq]
   exact mul_ne_zero (inv_ne_zero (by exact_mod_cast hmN)) (by exact_mod_cast hsum_pos.ne')
+
+omit [Fact (1 ≤ u)] [Fact (1 ≤ q)] in
+/-- Under nonnegative source coefficients and positive local data, the limiting
+transmutation atom takes nonnegative real values on its target cell.  Combined
+with the nonnegativity of the limiting mass, this places the output block in the
+positive cone (without the atoms being canonical). -/
+lemma TransmutationAtomLocalLimit_toFunction_nonneg
+    (G W : WeakGridSpace (α := α))
+    (AW : AtomFamily W s p u)
+    (k : ℕ → ℕ)
+    (A_als B_als r_als : ℝ)
+    (hr_als : 0 < r_als)
+    (hk_bound : ∀ i : ℕ,
+      (k i : NNReal) ≤ r_als * (i : NNReal) + B_als ∧
+      r_als * (i : NNReal) + A_als ≤ (k i : NNReal))
+    (lam : ℝ) (hlam_pos : 0 < lam) (hlam_lt : lam < 1)
+    (C : ℝ) (hC : 0 ≤ C)
+    (h : (i : ℕ) → LevelCell G i → Lp ℂ p W.measure)
+    (R : (i : ℕ) → (Q : LevelCell G i) → LpGridRepresentation AW (h i Q))
+    (hR : RepresentationWsubGandALS_pos (p := p) (q := q) G W AW k
+      ⟨A_als, B_als, r_als, hr_als, hk_bound⟩ lam hlam_pos hlam_lt C hC h R)
+    (c : (i : ℕ) → LevelCell G i → ℂ)
+    (hc_nonneg : ∀ i : ℕ, ∀ Q : LevelCell G i, ∃ r : NNReal, c i Q = (r : ℂ))
+    {j : ℕ} (P : LevelCell W j) {x : α} (hxP : x ∈ P.1) :
+    ∃ d : ℝ, 0 ≤ d ∧
+      AW.toFunction (levelCellToWeakGridCell W j P)
+        (TransmutationAtomLocalLimit G W AW h R c A_als r_als P) x = (d : ℂ) := by
+  classical
+  let N := transmutationStabilizationIndex A_als r_als j
+  let m := TransmutationCoeff G W AW h R c N P
+  let Pg := levelCellToWeakGridCell W j P
+  let FS : Finset (Σ i : ℕ, LevelCell G i) :=
+    (Finset.range N).sigma
+      (fun i => (G.grid.partitions i).attach.filter (fun Q => P.1 ⊆ Q.1))
+  have hterm :
+      ∀ iQ : Σ i : ℕ, LevelCell G i, ∃ a : NNReal,
+        (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P) *
+          AW.toFunction Pg (((R iQ.1 iQ.2).block j).atom P) x = (a : ℂ) := by
+    intro iQ
+    rcases hc_nonneg iQ.1 iQ.2 with ⟨rc, hrc_eq⟩
+    rcases ((hR iQ.1 iQ.2).2.1 j P).2.2 with ⟨rs, hrs_eq, hatom_pos⟩
+    rcases hatom_pos x hxP with ⟨a, _ha_pos, ha_eq⟩
+    exact ⟨rc * rs * a, by simp [Pg, hrc_eq, hrs_eq, ha_eq, mul_assoc]⟩
+  choose a ha using hterm
+  have hm_nonneg : 0 ≤ m :=
+    Finset.sum_nonneg (fun i _ => Finset.sum_nonneg (fun Q _ => norm_nonneg _))
+  by_cases hmN : m = 0
+  · refine ⟨0, le_refl 0, ?_⟩
+    have hd0 : TransmutationAtomLocalLimit G W AW h R c A_als r_als P = 0 := by
+      simp [TransmutationAtomLocalLimit, TransmutationAtomLocal, N, m, hmN]
+    rw [hd0, Complex.ofReal_zero]
+    simp only [AtomFamily.toFunction, map_zero, Pi.zero_apply]
+  · refine ⟨m⁻¹ * ((∑ iQ ∈ FS, a iQ : NNReal) : ℝ),
+      mul_nonneg (inv_nonneg.mpr hm_nonneg) (by positivity), ?_⟩
+    have hsum_eq :
+        (∑ iQ ∈ FS,
+          (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P) *
+            AW.toFunction Pg (((R iQ.1 iQ.2).block j).atom P) x) =
+          ((∑ iQ ∈ FS, a iQ : NNReal) : ℂ) := by
+      simp [ha]
+    have hfun :
+        AW.toFunction Pg (TransmutationAtomLocalLimit G W AW h R c A_als r_als P) x =
+          (m : ℂ)⁻¹ *
+            ∑ iQ ∈ FS,
+              (c iQ.1 iQ.2 * ((R iQ.1 iQ.2).block j).coeff P) *
+                AW.toFunction Pg (((R iQ.1 iQ.2).block j).atom P) x := by
+      simp [TransmutationAtomLocalLimit, TransmutationAtomLocal, N, m, Pg, FS, hmN,
+        AtomFamily.toFunction, map_smul, map_sum, Finset.sum_apply, smul_eq_mul]
+    rw [hfun, hsum_eq]
+    push_cast
+    ring
 
 /-- A sharper Claim B under nonnegative source coefficients.
 

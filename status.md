@@ -3,6 +3,73 @@
 Este arquivo resume o estado recente dos arquivos centrais em
 `BesovSpacesGoodGrid/GoodGrid`.
 
+## Em andamento: versão positiva do teorema não-Arquimediano
+
+Arquivos:
+
+- `BesovSpacesGoodGrid/GoodGrid/PositiveCone.lean`
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanProperty.lean`
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanPropertyPositiveStandalone.lean`
+
+Objetivo: reescrever `souzaNonArchimedeanPropertyPositiveCone` com o enunciado
+correto da Remark `posrem` do paper, separando as duas consequências por força:
+
+- hipótese sobre `R` enfraquecida para `SouzaCanonicalRepresentation` (átomos
+  canônicos, coeficientes livres em ℂ);
+- **[ii]** suporte: incondicional (Transmutação `Claim B`);
+- **[i]** positividade `SouzaPositiveRepresentation R → SouzaPositiveRepresentation S`:
+  condicional em `c_Q ≥ 0` (Transmutação `Claim B_sharp`).
+
+Feito até agora (build verde via `lake build`):
+
+- `PositiveCone.lean`: novos `SouzaCanonicalLevelBlock`, `SouzaCanonicalRepresentation`
+  e equivalências `souzaPositive…_iff_canonical_and_nonneg`.
+- Enunciado corrigido travado em `souzaNonArchimedeanPropertyPositiveCone` (corpo `sorry`).
+- Removido helper quebrado `souzaPointwiseSelfsTailNorm_le_toReal_of_positive_bound`
+  (erros pré-existentes de `‖(φ:ℂ)‖`, da abordagem antiga, não usado).
+- Adicionada a assinatura do Sub-lema 1 `exists_nonArchimedeanLocalTransmutationData_pos`
+  (análogo positivo de `exists_nonArchimedeanLocalTransmutationData`, saída
+  `RepresentationWsubGandALS_pos`), corpo `sorry`.
+- Arquitetura completa fechada (compila verde):
+  - `souzaNonArchimedeanPropertyPositiveCone` (Standalone) — wrapper, forwarda (sem sorry).
+  - `souzaNonArchimedeanPropertyPositiveCone_core` (NonArch) — wrapper que define `Cgen`,
+    split `N`, chama o lemma de montagem (sem sorry).
+  - `exists_nonArchimedeanProductRepresentation_positive` (NonArch) — lemma de montagem
+    (constante limpa, 4 conclusões), corpo `sorry`.
+
+Progresso na montagem (tudo compila verde):
+
+- `..._core` (wrapper Cgen + split N) — PROVADO.
+- `exists_nonArchimedeanProductRepresentation_pos_with_errors` (L2) — represents + custo
+  PROVADOS (espelham `_with_errors`, com Sub-lema 1 positivo); [ii]/[i] ainda `sorry`.
+- Sub-lema 1 refinado para expor testemunhas de **suporte** (para [ii]) e **canonicidade**
+  (para [i]) na saída.
+
+Sutileza de [i] (decidida — opção 1): a saída deve ser `S'` = bloco com átomo CANÔNICO nas
+células `m_P = 0` (pois `TransmutationAtomLocal` dá `0` ali, e `SouzaPositiveLevelBlock` exige
+canônico em toda célula). Não muda toLp/custo/coef. Falta construir `S'`.
+
+**L2 (`exists_nonArchimedeanProductRepresentation_pos_with_errors`) está 100% PROVADO**:
+represents + custo + [ii] (suporte) + [i] (positividade).
+
+- [i] foi reformulado (decisão do usuário): a conclusão sobre `S` agora é
+  `SouzaConePositiveRepresentation` (coef real ≥ 0 e átomos no **cone positivo**, valor real ≥ 0),
+  predicado novo em `PositiveCone.lean`. Isso evita `S'` e canonicidade: `S = TransmutationBlockLimit`
+  serve direto (células `m_P=0` têm átomo 0, que está no cone).
+- Lemma novo em `Transmutation.lean`: `TransmutationAtomLocalLimit_toFunction_nonneg`
+  (`toFunction(d_P) ≥ 0` q.t.p., de dados positivos), usado em [i].
+
+#1 (`exists_nonArchimedeanProductRepresentation_positive`): **caso N>0 PROVADO** (espelha `_of_pos`
+chamando L2, com [ii]/[i] passando direto). A testemunha de canonicidade do Sub-lema 1 foi
+**removida** (cone-positivo dispensa).
+
+`sorry` atuais (2 — folhas):
+
+- #1, **caso N=0** — degenerado: a função `(∑g)f = 0`; precisa do argumento de ínfimo (espelha
+  `_of_zero`) + uma representação **cone-positiva de 0** (coef 0, átomo 0) como saída.
+- `exists_nonArchimedeanLocalTransmutationData_pos` (Sub-lema 1) — a peça pesada (inclui provar
+  a testemunha de suporte).
+
 ## Resultado recente: tail `selfs` implica `L∞` uniformemente em `t`
 
 Arquivos principais:

@@ -8,6 +8,8 @@
 - Make the code as reusable for other projects as possible. It should be readable and easy to reuse.
 - Follow Mathlib Style Guidelines: https://leanprover-community.github.io/contribute/style.html
 - Do not add axioms or admits. Add `sorry` only when appropriate to divide the task into subproblems, and after the run report which sorries you added.
+-Keep status.md updated with the current status (use english) of the repository
+
 
 ## Moral Directives
 - Be honest. Do not use hacks or bugs to prove something in Lean that is not mathematically honest.

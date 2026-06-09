@@ -64,6 +64,109 @@ def SouzaPositiveRepresentation
   ∀ k, SouzaPositiveLevelBlock G s p hs hp hp_top (R.block k)
 
 /--
+A level block is *canonical* when every chosen atom is the canonical Souza atom
+on its cell.  This is the atom half of `SouzaPositiveLevelBlock`, with **no**
+constraint on the coefficients (they may be arbitrary complex numbers). -/
+def SouzaCanonicalLevelBlock
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞) {k : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (souzaAtomFamily G s p hs hp hp_top) k) : Prop :=
+  ∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+    (souzaAtomFamily G s p hs hp hp_top).toFunction
+        (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+        (B.atom Q) =
+      canonicalSouzaAtom G s p (goodGridCellOfLevelCell G Q)
+
+/-- A Besov representation is *canonical* when all of its level blocks use
+canonical Souza atoms.  Coefficients are unconstrained. -/
+def SouzaCanonicalRepresentation
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {f : Lp ℂ p G.toWeakGridSpace.measure}
+    (R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) f) : Prop :=
+  ∀ k, SouzaCanonicalLevelBlock G s p hs hp hp_top (R.block k)
+
+/-- A positive level block is exactly a canonical level block with nonnegative
+real coefficients. -/
+theorem souzaPositiveLevelBlock_iff_canonical_and_nonneg
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞) {k : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (souzaAtomFamily G s p hs hp hp_top) k) :
+    SouzaPositiveLevelBlock G s p hs hp hp_top B ↔
+      (∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        ∃ c : ℝ, 0 ≤ c ∧ B.coeff Q = (c : ℂ)) ∧
+      SouzaCanonicalLevelBlock G s p hs hp hp_top B := by
+  constructor
+  · intro h
+    refine ⟨fun Q => ?_, fun Q => ?_⟩
+    · obtain ⟨c, hc0, hcoeff, _⟩ := h Q
+      exact ⟨c, hc0, hcoeff⟩
+    · obtain ⟨_, _, _, hcan⟩ := h Q
+      exact hcan
+  · rintro ⟨h1, h2⟩ Q
+    obtain ⟨c, hc0, hcoeff⟩ := h1 Q
+    exact ⟨c, hc0, hcoeff, h2 Q⟩
+
+/-- A positive representation is exactly a canonical representation with
+nonnegative real coefficients.  This is the bridge that lets us state the
+positive-cone consequences with the weaker *canonical* hypothesis on the source
+and recover full positivity only when the coefficients are also nonnegative. -/
+theorem souzaPositiveRepresentation_iff_canonical_and_nonneg
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {f : Lp ℂ p G.toWeakGridSpace.measure}
+    (R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) f) :
+    SouzaPositiveRepresentation G s p hs hp hp_top R ↔
+      (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        ∃ c : ℝ, 0 ≤ c ∧ (R.block k).coeff Q = (c : ℂ)) ∧
+      SouzaCanonicalRepresentation G s p hs hp hp_top R := by
+  constructor
+  · intro h
+    refine ⟨fun k Q => ?_, fun k => ?_⟩
+    · exact ((souzaPositiveLevelBlock_iff_canonical_and_nonneg
+        G s p hs hp hp_top (R.block k)).mp (h k)).1 Q
+    · exact ((souzaPositiveLevelBlock_iff_canonical_and_nonneg
+        G s p hs hp hp_top (R.block k)).mp (h k)).2
+  · rintro ⟨h1, h2⟩ k
+    exact (souzaPositiveLevelBlock_iff_canonical_and_nonneg
+      G s p hs hp hp_top (R.block k)).mpr ⟨h1 k, h2 k⟩
+
+/-- A level block is *cone-positive* when every coefficient is a nonnegative real
+number and every atom's function lies, almost everywhere, in the positive cone
+(its value is a nonnegative real).  This is weaker than `SouzaPositiveLevelBlock`:
+it does **not** require the atoms to be the canonical Souza atoms, only to be
+nonnegative. -/
+def SouzaConePositiveLevelBlock
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞) {k : ℕ}
+    (B : WeakGridSpace.LevelBlock
+      (souzaAtomFamily G s p hs hp hp_top) k) : Prop :=
+  ∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+    (∃ c : ℝ, 0 ≤ c ∧ B.coeff Q = (c : ℂ)) ∧
+    (∀ᵐ x ∂ G.toWeakGridSpace.measure,
+      ∃ d : ℝ, 0 ≤ d ∧
+        (souzaAtomFamily G s p hs hp hp_top).toFunction
+            (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+            (B.atom Q) x = (d : ℂ))
+
+/-- A Besov representation is *cone-positive* when all of its level blocks are
+cone-positive: nonnegative real coefficients and atoms in the positive cone. -/
+def SouzaConePositiveRepresentation
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {f : Lp ℂ p G.toWeakGridSpace.measure}
+    (R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) f) : Prop :=
+  ∀ k, SouzaConePositiveLevelBlock G s p hs hp hp_top (R.block k)
+
+/--
 The positive cone in the Souza-Besov space.  An element belongs to the cone
 when it admits at least one positive Souza representation.
 -/
