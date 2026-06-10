@@ -5,16 +5,22 @@ This file maps the published paper
 Daniel Smania, *Besov-ish spaces through atomic decomposition*,
 Analysis & PDE 15 (2022), no. 1
 
-to the current Lean formalization in this repository.  The numbering below follows
-the final published version of the article, not the older preprint numbering.
+to the current Lean formalization in this repository (last revised 2026-06-09,
+zero `sorry`, full `lake build` green).
+
+The numbering X.Y below follows the order of the theorem-like environments in
+`latex/besovish-2021-07-19.tex` within each section; for Sections 6, 7, 8, 15
+and 16 it agrees with the published numbering. For Sections 17-21 the LaTeX
+`\label`s (`boup`, `sepa`, `posrem`, `23er`, `pm1`, `mult`, `mult33`, `rema`,
+`expo`) are the reliable reference.
 
 Status labels:
 
 - `proved`: there is a Lean theorem or definition covering the item.
-- `partial`: the main infrastructure exists, but the published statement is not yet
-  formalized as a matching theorem.
+- `partial`: the main infrastructure exists, but the published statement is not
+  yet formalized as a matching theorem.
 - `not started`: no substantial Lean formalization is currently present here.
-- `external`: the topic is expected to come from another library or repository.
+- `external`: the topic comes from another library or repository.
 - `documentation`: mathematical motivation or notation rather than a formal target.
 
 ## Published Table of Contents
@@ -22,112 +28,104 @@ Status labels:
 | Paper section | Title | Current Lean status |
 |---|---|---|
 | 1 | Introduction | documentation |
-| 2 | Notation | partial |
-| Part I | Divide and rule | partial |
-| 3 | Measure spaces and grids | partial |
-| 4 | A bag of tricks | partial |
+| 2 | Notation | documentation |
+| Part I | Divide and rule | mostly proved |
+| 3 | Measure spaces and grids | proved (weak-grid form) |
+| 4 | A bag of tricks | inlined in proofs, no standalone statements |
 | 5 | Atoms | proved |
-| 6 | Besov-ish spaces | partial |
-| 7 | Scales of spaces | partial |
-| 8 | Transmutation of atoms | proved for the needed form |
+| 6 | Besov-ish spaces | proved |
+| 7 | Scales of spaces | proved |
+| 8 | Transmutation of atoms | proved |
 | 9 | Good grids | proved |
-| 10 | Induced spaces | partial |
-| 11 | Examples of classes of atoms | partial |
-| Part II | Spaces defined by Souza's atoms | partial |
-| 12 | Besov spaces in a measure space with a good grid | partial |
-| 13 | Positive cone | not started |
-| 14 | Unbalanced Haar wavelets | external / not started here |
-| 15 | Alternative characterizations, I: Messing with norms | not started |
-| 16 | Alternative characterizations, II: Messing with atoms | partial; Proposition 16.1 is proved |
+| 10 | Induced spaces | proved for the needed form |
+| 11 | Examples of classes of atoms | Souza atoms proved; Holder/BV not started |
+| Part II | Spaces defined by Souza's atoms | mostly proved |
+| 12 | Besov spaces in a measure space with a good grid | proved |
+| 13 | Positive cone | proved (goes beyond the paper) |
+| 14 | Unbalanced Haar wavelets | external (SmaniaD repos) + local Haar API |
+| 15 | Alternative characterizations, I: Messing with norms | proved in pieces |
+| 16 | Alternative characterizations, II: Messing with atoms | Prop 16.1 proved; 16.2-16.3 not started |
 | 17 | Dirac's approximations | not started |
-| Part III | Applications | not started |
-| 18 | Pointwise multipliers acting on \(B^s_{p,q}\) | not started |
+| Part III | Applications | Section 18 largely proved; 19-21 not started |
+| 18 | Pointwise multipliers acting on \(B^s_{p,q}\) | Props 18.1, 18.3, 18.4 and Remark posrem proved |
 | 19 | \(B^s_{p,q} \cap L^\infty\) is a quasialgebra | not started |
 | 20 | A remarkable description of \(B^s_{1,1}\) | not started |
 | 21 | Left compositions | not started |
 
-## Main Formalization Anchors
+## Part I — Divide and rule
 
 | Paper item | Mathematical content | Lean item | File | Status |
 |---|---|---|---|---|
-| Section 3 | Weak grids and overlap control | `WeakGridSpace.WeakGrid`, `WeakGridSpace.WeakGridSpace` | `BesovSpacesGoodGrid/WeakGrid/Definition.lean` | partial |
-| Section 5 | Classes of \((s,p,u)\)-atoms and assumptions A1-A7 | `WeakGridSpace.LocalVectorSpace`, `WeakGridSpace.AtomFamily` | `BesovSpacesGoodGrid/WeakGrid/Atoms.lean` | proved |
-| Section 6 | Besov-ish spaces defined by atomic decompositions | `WeakGridSpace.BesovishSpace`, `WeakGridSpace.LpGridRepresentation`, `WeakGridSpace.Norm_Costpq` | `BesovSpacesGoodGrid/WeakGrid/BesovishSpaces.lean` | partial |
-| Proposition 6.1 | Embedding of Besov-ish spaces in \(L^p\) | Besov-ish embedding and cost-norm API | `BesovSpacesGoodGrid/WeakGrid/BesovishSpaces.lean` | partial |
-| Propositions 6.3-6.7 | Limit representation, completeness, compactness mechanisms | `representation_limit`, `representation_limit_strong`, `representation_limit_strong_existence`, `representation_limit_weak_existence`, `besovishSpace_costNorm_completeSpace` | `BesovSpacesGoodGrid/WeakGrid/Completeness.lean` | partial |
-| Proposition 7.1 | Scale inclusions for different smoothness parameters | `smoothnessScaleBesovishSpace_subset`, `smoothnessScaleBesovishSpaceInclusion_Norm_Costpq_le` | `BesovSpacesGoodGrid/WeakGrid/Scales.lean` | partial |
-| Proposition 8.1 | Transmutation of atoms | `Transmutation_of_Atoms_Claim_A`, `Transmutation_of_Atoms_Claim_B`, `Transmutation_of_Atoms_Claim_C_explicit`, `Transmutation_of_Atoms_continuous_embedding_explicit` | `BesovSpacesGoodGrid/WeakGrid/Transmutation.lean` | proved for the current use |
-| Section 9 | Good grids and their constants | `GoodGridSpace.GoodGrid`, `GoodGridSpace.GoodGridSpace` | `BesovSpacesGoodGrid/GoodGrid/Definition.lean` | proved |
-| Section 10 | Induced grids and induced atomic decompositions | `inducedWeakGrid`, `inducedWeakGridSpace`, `inducedRepresentationToAmbient` | `BesovSpacesGoodGrid/WeakGrid/InducedGrid.lean` | partial |
-| Section 11A | Souza atoms | `GoodGridSpace.IsSouzaAtom`, `GoodGridSpace.souzaAtomFamily` | `BesovSpacesGoodGrid/GoodGrid/BesovSpace.lean` | proved |
-| Sections 11B-11C | Holder atoms and bounded variation atoms | none | none | not started |
-| Section 12 | Souza Besov spaces on a good grid | `GoodGridSpace.SouzaBesovSpace` | `BesovSpacesGoodGrid/GoodGrid/BesovSpace.lean` | partial |
-| Section 12 | Compactness and density for Souza Besov spaces | `souzaBesovSpace_costNorm_completeSpace`, `souza_closedCostBallInLp_isCompact`, `souza_closedCostBallInL1_isCompact`, `souzaBesovSpace_dense`, `souzaBesovSpace_dense_inL1` | `BesovSpacesGoodGrid/GoodGrid/BesovSpace.lean` | proved |
-| Proposition 16.1 | Souza atoms and Besov atoms define the same Besov space under the sandwich hypotheses | `atoms_between_souza_atoms_and_besov_atoms` | `BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean` | proved |
-| Claim inside Proposition 16.1 | A Besov atom has a Souza-atom representation with geometric decay | `besovAtom_to_souza_representation_decay`, `besovAtom_to_induced_souzaS_representation_decay_claimC` | `BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean` | proved |
-| Propositions 16.2-16.3 | Holder atoms and bounded variation atoms as examples in Proposition 16.1 | none | none | not started |
-| Sections 18-21 | Multiplier, quasialgebra, \(B^s_{1,1}\), and composition applications | none | none | not started |
+| Section 3 | Measure spaces and grids | `WeakGrid`, `WeakGridSpace` | `BesovSpacesGoodGrid/WeakGrid/Definition.lean` | proved (weak-grid form) |
+| Proposition 4.1 (`holder`) | Holder-like trick | none standalone; estimates inlined in Scales/Transmutation proofs | — | inlined |
+| Proposition 4.2 (`young`) | Convolution trick | none standalone; block-sum infrastructure `blockTsum` etc. | `BesovSpacesGoodGrid/Sums.lean` | inlined |
+| Section 5 (A1-A7) | Classes of \((s,p,u)\)-atoms | `LocalVectorSpace`, `AtomFamily`, `IsAtom` | `BesovSpacesGoodGrid/WeakGrid/Atoms.lean` | proved |
+| Section 6 (definitions) | Besov-ish spaces, cost norm | `BesovishSpace`, `LpGridRepresentation`, `pqCost`, `Norm_Costpq` | `BesovSpacesGoodGrid/WeakGrid/BesovishSpaces.lean` | proved |
+| Proposition 6.1 (`lp`) | Embedding \(\mathcal B^s_{p,q}(\mathcal A) \subset L^p\) | `lp_embedding_adapted_statement` | `BesovSpacesGoodGrid/WeakGrid/BesovishSpaces.lean` | proved (adapted form) |
+| Proposition 6.3 | Linear space, \(\rho\)-norm | `levelBlocksLinear` + cost-norm API | `BesovSpacesGoodGrid/WeakGrid/BesovishSpaces.lean` | partial |
+| Proposition 6.4 (`compa2`) | Limit of representations | `representation_limit`, `representation_limit_strong` | `BesovSpacesGoodGrid/WeakGrid/Completeness.lean` | proved |
+| Corollary 6.5 (`compa1`) | Existence of strong/weak limits | `representation_limit_strong_existence`, `representation_limit_weak_existence` | `BesovSpacesGoodGrid/WeakGrid/Completeness.lean` | proved |
+| Corollary 6.6 (`compa12`) | Sequential compactness of cost balls | `exists_strongly_convergent_subseq_of_uniform_pqCost`, `closed_Norm_Costpq_ball_strongly_seqCompact` | `BesovSpacesGoodGrid/WeakGrid/Completeness.lean` | proved |
+| Corollary 6.7 | Completeness (closed / finite-dimensional atoms) | `besovishSpace_costNorm_completeSpace` | `BesovSpacesGoodGrid/WeakGrid/Completeness.lean` | proved |
+| Proposition 7.1 (`compa`) | Scale inclusions for smoothness parameters | `smoothnessScaleBesovishSpace_subset`, `smoothnessScaleBesovishSpaceInclusion_Norm_Costpq_le` | `BesovSpacesGoodGrid/WeakGrid/Scales.lean` | proved |
+| Proposition 8.1 (`trans`) | Transmutation of atoms (Claims A/B/C) | `Transmutation_of_Atoms_Claim_A`, `_Claim_B`, `_Claim_B_sharp`, `_Claim_C_explicit`, `_continuous_embedding_explicit` | `BesovSpacesGoodGrid/WeakGrid/Transmutation.lean` | proved |
+| Section 9 | Good grids | `GoodGrid`, `GoodGridSpace` (extends `UnbalancedHaarWavelet.Grid`) | `BesovSpacesGoodGrid/GoodGrid/Definition.lean` | proved |
+| Section 10 | Induced grids and induced decompositions | `inducedWeakGrid`, `inducedWeakGridSpace`, `inducedAtomFamily`, `inducedRepresentationToAmbient` | `BesovSpacesGoodGrid/WeakGrid/InducedGrid.lean` | proved for the needed form |
+| Section 11A | Souza atoms | `IsSouzaAtom`, `canonicalSouzaAtom_isSouzaAtom`, Souza atom family | `BesovSpacesGoodGrid/GoodGrid/BesovSpace.lean` | proved |
+| Sections 11B-11C | Holder atoms and bounded variation atoms | none | — | not started |
 
-## Proposition 16.1: Current Completed Bridge
+## Part II — Spaces defined by Souza's atoms
 
-The most important completed theorem is the formal version of Proposition 16.1,
-which compares Souza atoms, an intermediate atom family, and Besov atoms.
+| Paper item | Mathematical content | Lean item | File | Status |
+|---|---|---|---|---|
+| Section 12 | Souza Besov spaces: completeness, compactness, density | `SouzaBesovSpace`, `souzaBesovSpace_costNorm_completeSpace`, `souza_closedCostBallInLp_isCompact`, `souza_closedCostBallInL1_isCompact`, `souzaBesovSpace_dense`, `souzaBesovSpace_dense_inL1` | `BesovSpacesGoodGrid/GoodGrid/BesovSpace.lean` | proved |
+| Proposition 13.1 | Support of \(f \in \mathcal B^{s+}_{p,q}\) is a union of cells | `support_ae_countable_iUnion_goodGridCells_of_souzaPositiveFunction`, `souzaPositiveRepresentation_coeff_eq_zero_of_not_subset_cell` | `BesovSpacesGoodGrid/GoodGrid/PositiveCone.lean` | proved |
+| Section 13 (beyond the paper) | Density of the positive cone, positive decompositions | `souzaPositiveCone_dense_in_LpNonnegativeCone`, `exists_souzaPositive_decomposition_of_aeRealValued` / `_aeComplexValued` | `BesovSpacesGoodGrid/GoodGrid/PositiveCone.lean` | proved |
+| Section 14 | Unbalanced Haar wavelets (Girardi-Sweldens basis) | external deps `UnbalancedHaarWavelet`, `UnconditionalSchauderBasis`, `LaminarFamiliesMaximalBinaryTrees`, `Burkholder`; local API `L2normalizedHaar`, `Coeff` | external SmaniaD repos + `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/HaarRepresentationNorm.lean` | external / partial here |
+| Theorem 15.1 (`alte`) | Equivalence of \(\|f\|_{\mathcal B}\), \(N_{st}\), \(N_{haar}\), \(N_{osc}\) | inequality cycle: `exists_standardRepresentationNorm_le_const_mul_souzaBesovNorm`, `exists_standardRepresentationNorm_le_const_mul_haarL2RepresentationNorm`, `exists_haarL2RepresentationNorm_le_const_mul_meanOscillationNorm`, `exists_meanOscillationNorm_le_const_mul_souzaBesovNorm`, `finite_standardRepresentationNorm_implies_memBesov_and_standardRepresentation`, `finite_haarL2RepresentationNorm_implies_memLp_and_hasSum`, `exists_haarRepresentationNorms_equivalent` | `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/` (StandarRepresentationNormleqBesovNorm, standardNormleqHaarRepresenstionNorm, HaarNormleqOscillationNorm, OscillationNormleqBesovNorm, FiniteStandardNormimpliesBesov, FiniteHaarNormimpliesLp, ComparingHaarRepresentationsl) | proved in pieces; no single wrap-up equivalence theorem |
+| Corollary 15.2 (`fou`) | Linear functional reading a Haar coefficient | `Coeff`, `hasSum_coeff_smul_l2normalizedHaar_toLp` | `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/HaarRepresentationNorm.lean` | partial (coefficient yes, \(L^1\) functional no) |
+| Proposition 16.1 (`besova`) | Souza atoms vs. Besov atoms (sandwich hypotheses) | `atoms_between_souza_atoms_and_besov_atoms` + decay claims `besovAtom_to_souza_representation_decay`, `besovAtom_to_induced_souzaS_representation_decay_claimC` | `BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean` | proved |
+| Proposition 16.2 (`hold`) | Holder atoms case | none | — | not started |
+| Proposition 16.3 | Bounded variation atoms case | none | — | not started |
+| Proposition 17.1 (`boup`) | Dirac's approximations | none (only distribution infrastructure: `TestFunctions`, `Distributions`) | `BesovSpacesGoodGrid/GoodGrid/Distribution.lean` | not started |
 
-In paper notation, the proposition assumes a good grid \(\mathcal P\), a class
-\(\mathcal A\) of \((s,p,u)\)-atoms, \(s < \beta\), and constants \(C_1,C_2 > 0\)
-such that, for every \(Q \in \mathcal P\),
+## Part III — Section 18: Pointwise multipliers
 
-\[
-\frac{1}{C_1}\mathcal A^{sz}_{s,p}(Q)
-  \subset \mathcal A(Q)
-  \subset C_2\mathcal A^{bs}_{s,\beta,p,\tilde q}(Q).
-\]
+| Paper item | Mathematical content | Lean item | File | Status |
+|---|---|---|---|---|
+| Proposition 18.1 | \(M(\mathcal B^s_{1,1}) = \mathcal B^s_{1,1,selfs}\) | `souzaPointwiseMultiplier_iff_souzaPointwiseSelfsClass_one_one` (⟸ in Besovs11; ⟹ via `souzaPointwiseSelfsClass_of_souzaPointwiseMultiplier` in Besovspq) | `BesovSpacesGoodGrid/GoodGrid/Multipliers/Besovs11.lean`, `BesovSpacesGoodGrid/GoodGrid/Multipliers/Besovspq.lean` | proved |
+| Lemma 18.2 (`incint3`) | Restriction to \(W \in \mathcal P\) is bounded | restriction machinery: `souzaCellIndicatorRestrictsToInduced`, `souzaIndicatorRestrictionBound_of_ambientRestrictionTransmutation_*`, `souzaCellIndicatorPointwiseMultiplier` | `BesovSpacesGoodGrid/GoodGrid/Multipliers/Besovspq.lean` | proved (grid-cell version) |
+| Proposition 18.3 | \(\mathcal B^{s,t}_{p,q,selfs} \subset L^\infty\) continuously, uniformly in \(t\) | `souzaPointwiseSelfsTailBound_norm_ae_le`, `souzaPointwiseSelfsTailNorm_norm_ae_le`, `souzaPointwiseSelfsTailClass_norm_ae_bounded` | `BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lean` | proved |
+| Proposition 18.4 (`sepa`) | Non-Archimedean behaviour in \(\mathcal B^\beta_{p,\tilde q,selfs}\) | `souzaNonArchimedeanPropertyLambdaFinite` (finite \(\Lambda\)), `souzaNonArchimedeanProperty` (infinite \(\Lambda\)) | `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanProperty.lean` | proved |
+| Remark 18.5 (`posrem`) | Positive version of the non-Archimedean theorem | `souzaNonArchimedeanPropertyPositiveCone`, `souzaNonArchimedeanPropertyPositiveConeInfinite`, `exists_nonArchimedeanProductRepresentation_positive` | `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanPropertyPositiveStandalone.lean` (cores in NonArchimedeanProperty.lean) | proved (2026-06-09; axioms checked: `propext, Classical.choice, Quot.sound`) |
+| Corollary 18.6 (`23er`) | \(\mathcal B^\beta_{p,\tilde q,selfs} \subset M(\mathcal B^s_{p,q})\) continuously | follows from the formalized `sepa`, but the corollary itself is not stated | — | not stated |
+| Definition/Proposition 18.7-18.8 (`pos2`) | Strongly regular domains; \(\chi_\Omega\) is a multiplier | special case proved for grid-cell indicators: `souzaCellIndicatorPointwiseMultiplierBound_uniform`, `souzaCellIndicatorPointwiseMultiplier` | `BesovSpacesGoodGrid/GoodGrid/Multipliers/Besovspq.lean` | partial |
+| Proposition 18.9 (`pm1`) | Pointwise Multipliers I | none | — | not started |
+| Proposition 18.10 (`mult`) | Pointwise Multipliers II (\(\mathcal B^{1/p}_{p,\infty} \cap L^\infty\)) | none | — | not started |
 
-The formal theorem is
+## Part III — Sections 19-21
 
-```lean
-GoodGridSpace.atoms_between_souza_atoms_and_besov_atoms
-```
-
-and it proves the continuous comparison of the corresponding Besov-ish spaces,
-using the explicit Claim C transmutation theorem.
-
-The internal geometric-decay claim from the proof is formalized as
-
-```lean
-GoodGridSpace.besovAtom_to_souza_representation_decay
-GoodGridSpace.besovAtom_to_induced_souzaS_representation_decay_claimC
-```
-
-The paper's decay estimate has the form
-
-\[
-\left(\sum_{\substack{P \in \mathcal P^k\\P\subset J}} |m_P|^p\right)^{1/p}
-  \leq C \lambda^{(k-j)(\beta-s)}.
-\]
-
-In Lean this estimate is packaged in the representation format required by
-`Transmutation_of_Atoms_Claim_C_explicit`.
+| Paper item | Mathematical content | Lean item | Status |
+|---|---|---|---|
+| Proposition 19.1 (`mult33`) | Pointwise Multipliers III: \(\mathcal B^s_{p,q} \cap L^\infty\) is a quasialgebra | none | not started |
+| Definition/Proposition 19.x | Regular families of domains | none | not started |
+| Proposition 20.1 (`rema`) | \(B^{1-s} = \mathcal B^s_{1,1}\) (description via sums of indicators) | none (related: Besovs11.lean, but it treats multipliers, not this characterization) | not started |
+| Proposition 21.1 (`expo`) | Left compositions | none | not started |
 
 ## Next Formalization Targets
 
-The natural next target is Section 15 or the remaining examples in Section 16.
+Natural candidates, in rough order of leverage:
 
-Section 16 is probably the most direct continuation:
-
-1. Formalize the paper's Holder atom family from Section 11B.
-2. Prove Proposition 16.2 by applying
-   `atoms_between_souza_atoms_and_besov_atoms`.
-3. Formalize the bounded variation atom family from Section 11C.
-4. Prove Proposition 16.3 by the same sandwich strategy.
-
-Section 15 is more structural:
-
-1. Formalize the alternative norm appearing in Theorem 15.1.
-2. Prove the comparison between the original Souza Besov cost norm and the
-   alternative norm.
-3. Derive Corollary 15.2.
-
-The application sections, especially Sections 18 and 19, should probably wait
-until Sections 15 and 16 are more complete, because they use the alternative
-characterizations and atom comparisons heavily.
+1. State and prove Corollary 18.6 (`23er`) — it should be a short derivation
+   from the already formalized non-Archimedean property.
+2. A single wrap-up equivalence theorem for Theorem 15.1, packaging the
+   already-proved inequality cycle, plus the \(L^1\) functional of
+   Corollary 15.2.
+3. Section 16 examples: formalize the Holder atom family (Section 11B) and
+   prove Proposition 16.2 by applying
+   `atoms_between_souza_atoms_and_besov_atoms`; same for bounded variation
+   atoms and Proposition 16.3.
+4. Strongly regular domains (Definition 18.7 / Proposition `pos2`) in full
+   generality, extending the grid-cell indicator case in Besovspq.lean; then
+   Pointwise Multipliers I and II.
+5. Sections 19-21 depend heavily on the above and should come last.
