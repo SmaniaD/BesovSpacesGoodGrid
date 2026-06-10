@@ -1,63 +1,66 @@
-# Status atual
+# Current status
 
-Este arquivo resume o estado recente dos arquivos centrais em
+This file summarizes the recent state of the central files in
 `BesovSpacesGoodGrid/GoodGrid`.
 
-## CONCLUÍDO: versão positiva do teorema não-Arquimediano (2026-06-09)
+## DONE: positive version of the non-Archimedean theorem (2026-06-09)
 
-**O projeto inteiro compila sem nenhum `sorry`** (`lake build` verde, 3454 jobs,
-incluindo agora `NonArchimedeanPropertyPositiveStandalone`, que passou a ser
-importado pelo umbrella `GoodGrid/Multipliers.lean`).
+**The whole project compiles with no `sorry`** (`lake build` green, 3454 jobs,
+now including `NonArchimedeanPropertyPositiveStandalone`, which is imported by
+the umbrella `GoodGrid/Multipliers.lean`).
 
-Verificação de axiomas (sem `sorryAx`, apenas os axiomas padrão
+Axiom check (no `sorryAx`, only the standard axioms
 `propext, Classical.choice, Quot.sound`):
 
 ```lean
-souzaNonArchimedeanProperty                       -- versão infinita não positiva
-souzaNonArchimedeanPropertyLambdaFinite           -- versão finita não positiva
-souzaNonArchimedeanPropertyPositiveCone           -- versão positiva (pública, Standalone)
+souzaNonArchimedeanProperty                       -- infinite non-positive version
+souzaNonArchimedeanPropertyLambdaFinite           -- finite non-positive version
+souzaNonArchimedeanPropertyPositiveCone           -- positive version (public, Standalone)
 exists_nonArchimedeanProductRepresentation_positive
 ```
 
-Arquivos:
+Files:
 
 - `BesovSpacesGoodGrid/GoodGrid/PositiveCone.lean`
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanProperty.lean`
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanPropertyPositiveStandalone.lean`
 - `BesovSpacesGoodGrid/WeakGrid/InducedGrid.lean`
 
-O enunciado final de `souzaNonArchimedeanPropertyPositiveCone` segue a Remark
-`posrem` do paper, com as duas consequências separadas por força:
+The final statement of `souzaNonArchimedeanPropertyPositiveCone` follows
+Remark `posrem` of the paper, with the two consequences separated according to
+their true strengths:
 
-- hipótese sobre `R`: apenas `SouzaCanonicalRepresentation` (átomos canônicos,
-  coeficientes livres em ℂ);
-- **[ii]** suporte: incondicional, enfraquecido para q.t.p. —
-  célula ativa `Q` de `S` ⟹ `∃ i ∈ Λ`, `g i ≠ 0` q.t.p. em `Q`;
-- **[i]** positividade: `SouzaPositiveRepresentation R →
-  SouzaConePositiveRepresentation S` (cone positivo: coef real ≥ 0, átomos com
-  valores reais ≥ 0 q.t.p.).
+- hypothesis on `R`: only `SouzaCanonicalRepresentation` (canonical atoms,
+  arbitrary complex coefficients);
+- **[ii]** support: unconditional, weakened to a.e. —
+  active cell `Q` of `S` ⟹ `∃ i ∈ Λ`, `g i ≠ 0` a.e. on `Q`;
+- **[i]** positivity: `SouzaPositiveRepresentation R →
+  SouzaConePositiveRepresentation S` (positive cone: real coefficients ≥ 0,
+  atoms with real values ≥ 0 a.e.).
 
-### Como a última peça foi fechada (Sub-lema 1)
+### How the last piece was closed (Sub-lemma 1)
 
-`exists_nonArchimedeanLocalTransmutationData_pos` (antes o último `sorry`) foi
-provado por **montagem aditiva por multiplicador**:
+`exists_nonArchimedeanLocalTransmutationData_pos` (previously the last `sorry`)
+was proved by **additive assembly, one multiplier at a time**:
 
-- Tijolo por multiplicador
-  (`exists_souzaPositiveTailProduct_single_s_atom_geometric`): cadeia
-  tail-bound positivo → extração de rep positiva com custo controlado →
-  suporte exato em `Q` (teorema de suporte + `hbefore` por separação de medida)
-  → leitura no grid induzido (transfer de positividade) → transmutação β→s →
-  reindexação ambiente → escala `μ(Q)^{s-β}` → canonicalização.
-- Soma sobre `Λ` com `exists_souzaPositiveRepresentation_finset_sum`
-  (coeficientes somam, átomos canônicos, Minkowski por nível); constantes
-  somam para `N + |Λ|·εTail`.
-- Testemunha de suporte: coef da soma ≠ 0 ⟹ algum somando ≠ 0 (nnreals) ⟹
-  linchpin `souzaPositiveRepresentation_ae_ne_zero_on_active_cell` ⟹
-  `g_r ≠ 0` q.t.p. na célula.
+- Per-multiplier brick
+  (`exists_souzaPositiveTailProduct_single_s_atom_geometric`): chain
+  positive tail bound → extraction of a positive representation with
+  controlled cost → exact support in `Q` (support theorem + `hbefore` by
+  measure separation) → reading on the induced grid (positivity transfer) →
+  β→s transmutation → ambient reindexing → scaling by `μ(Q)^{s-β}` →
+  canonicalization.
+- Sum over `Λ` with `exists_souzaPositiveRepresentation_finset_sum`
+  (coefficients add, canonical atoms, levelwise Minkowski); the constants add
+  up to `N + |Λ|·εTail`.
+- Support witness: nonzero coefficient of the sum ⟹ some summand is nonzero
+  (nnreals) ⟹ linchpin
+  `souzaPositiveRepresentation_ae_ne_zero_on_active_cell` ⟹ `g_r ≠ 0` a.e.
+  on the cell.
 
-Infra nova/exposta reutilizável:
+New / exposed reusable infrastructure:
 
-- `PositiveCone.lean`: soma/zero positivos públicos
+- `PositiveCone.lean`: public positive sum/zero
   (`souzaPositiveRepresentationAdd*`, `souzaPositiveZeroRepresentation*`),
   `souzaPositiveRepresentationAdd_levelCoeffRoot_le` (Minkowski),
   `exists_souzaPositiveRepresentation_finset_sum`,
@@ -71,17 +74,17 @@ Infra nova/exposta reutilizável:
   `ambientSupportedRepresentationToInduced_souzaPositive`,
   `souzaPositiveRepresentation_block_pos_clause`.
 
-## Resultado anterior: tail `selfs` implica `L∞` uniformemente em `t`
+## Earlier result: tail `selfs` implies `L∞` uniformly in `t`
 
-Arquivos principais:
+Main files:
 
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers/Definition.lean`
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lean`
 
-Provados: `SouzaPointwiseSelfsTailClass`,
-`ae_le_of_eventually_goodGridLevelAverage_le`, estimativas locais tail
-(produto com átomo canônico, `MemLp` local, cotas de `eLpNorm` em `p` e `1`,
-integral de `‖m‖` em célula tail), e
+Proved: `SouzaPointwiseSelfsTailClass`,
+`ae_le_of_eventually_goodGridLevelAverage_le`, the local tail estimates
+(product with the canonical atom, local `MemLp`, `eLpNorm` bounds at exponents
+`p` and `1`, integral of `‖m‖` on a tail cell), and
 
 ```lean
 souzaPointwiseSelfsTailBound_norm_ae_le
@@ -89,88 +92,93 @@ souzaPointwiseSelfsTailNorm_norm_ae_le
 souzaPointwiseSelfsTailClass_norm_ae_bounded
 ```
 
-isto é, `‖m(x)‖ ≤ C(G,s,p,q) · |m|_{B^{s,t}_{p,q,selfs}}` q.t.p., com constante
-independente de `t`.
+that is, `‖m(x)‖ ≤ C(G,s,p,q) · |m|_{B^{s,t}_{p,q,selfs}}` a.e., with a
+constant independent of `t`.
 
-## Resultados anteriores em PositiveCone.lean
+## Earlier results in PositiveCone.lean
 
-Sem `sorry`; principais:
+No `sorry`; main statements:
 
 - `exists_souzaPositive_decomposition_of_aeRealValued`
 - `exists_souzaPositive_decomposition_of_aeComplexValued`
 - `souzaPositiveCone_dense_in_LpNonnegativeCone`
 - `support_ae_countable_iUnion_goodGridCells_of_souzaPositiveFunction`
-- linchpin `souzaPositiveRepresentation_ae_ne_zero_on_active_cell` e o teorema
-  de suporte `souzaPositiveRepresentation_coeff_eq_zero_of_not_subset_cell`.
+- the linchpin `souzaPositiveRepresentation_ae_ne_zero_on_active_cell` and the
+  support theorem
+  `souzaPositiveRepresentation_coeff_eq_zero_of_not_subset_cell`.
 
-## Versões não positivas (NonArchimedeanProperty.lean)
+## Non-positive versions (NonArchimedeanProperty.lean)
 
-- `souzaNonArchimedeanPropertyLambdaFinite` (finita) — provada.
-- `souzaNonArchimedeanProperty` (infinita, condição A com `HasSum`
-  testemunhada) — provada, via `exists_nonArchimedeanInfinite_pointwise_hasSum`
-  (parte pontual), compactness de representações com custo uniforme
-  (`exists_strongly_convergent_subseq_of_uniform_pqCost`) e identificação do
-  limite pelas somas parciais q.t.p.
+- `souzaNonArchimedeanPropertyLambdaFinite` (finite) — proved.
+- `souzaNonArchimedeanProperty` (infinite, condition A with a witnessed
+  `HasSum`) — proved, via `exists_nonArchimedeanInfinite_pointwise_hasSum`
+  (pointwise part), compactness of representations with uniform cost
+  (`exists_strongly_convergent_subseq_of_uniform_pqCost`), and identification
+  of the limit through the a.e. partial sums.
 
-## CONCLUÍDO: versão INFINITA do teorema positivo (2026-06-09)
+## DONE: INFINITE version of the positive theorem (2026-06-09)
 
-`souzaNonArchimedeanPropertyPositiveConeInfinite` (Standalone; core em
-NonArchimedeanProperty.lean) — análogo infinito (`Λ : Set ℕ`) do teorema
-positivo, com axiomas verificados (`propext, Classical.choice, Quot.sound`).
+`souzaNonArchimedeanPropertyPositiveConeInfinite` (Standalone; core in
+NonArchimedeanProperty.lean) — the infinite-index analogue (`Λ : Set ℕ`) of
+the positive theorem, with axioms checked
+(`propext, Classical.choice, Quot.sound`).
 
-Enunciado: condição A infinita como série em `ℝ≥0∞`
+Statement: the infinite condition A is an `ℝ≥0∞`-valued series bound
 (`∑' i : Λ, nonArchimedeanRelevantPositiveTailSelfsInfiniteTerm ≤ ofReal N`,
-sem testemunha de somabilidade); conclusões da versão infinita não positiva
-(somabilidade absoluta pontual com cota `Cgen·N` em `{f ≠ 0}`, função-limite
-`h`, `MemLp`, representação `S` com `pqCost S ≤ Cgen·N·pqCost R`) **mais**:
+no summability witness needed); the conclusions are those of the non-positive
+infinite version (pointwise absolute summability with bound `Cgen·N` on
+`{f ≠ 0}`, the limit function `h`, `MemLp`, a representation `S` with
+`pqCost S ≤ Cgen·N·pqCost R`) **plus**:
 
-- **[ii]** suporte: célula ativa de `S` ⟹ `∃ i ∈ Λ`, `g i ≠ 0` q.t.p. nela;
-- **[i]** `R` positiva ⟹ `S` cone-positiva.
+- **[ii]** support: active cell of `S` ⟹ `∃ i ∈ Λ`, `g i ≠ 0` a.e. on it;
+- **[i]** `R` positive ⟹ `S` cone-positive.
 
-Arquitetura da prova:
+Proof architecture:
 
-- **Refatoração canônica do tail `L∞`** (MultipliersareBounded): novo
-  `SouzaPointwiseCanonicalSelfsTailBound` (só produtos com átomos canônicos);
-  a cadeia interna de 8 lemas tail foi generalizada para essa hipótese (os
-  usos consomem o bound só em átomos canônicos); `Bound.toCanonical` e
-  `SouzaPositivePointwiseSelfsTailBound.toCanonical` (com `C ≠ ∞`) fazem as
-  pontes.  Daí `souzaPositivePointwiseSelfsTailNorm_norm_ae_le`:
-  `‖m‖ ≤ K·(norma tail positiva).toReal` q.t.p.
-- **Parte pontual** (`exists_nonArchimedeanInfinite_pointwise_hasSum_pos`):
-  espelha a não positiva; somabilidade via comparação com `(Term i).toReal`
-  (`ENNReal.summable_toReal`/`tsum_toReal_eq`); mensurabilidade dos produtos
-  parciais via o teorema positivo finito.
-- **Compacidade estendida** (Completeness):
-  `exists_strongly_convergent_subseq_of_uniform_pqCost` agora devolve também
-  convergência de coeficientes e de átomos (`atomLp`) para o limite.
-- **Truncações** (`exists_nonArchimedean_finite_representation_initial_pos`):
-  teorema positivo finito em `nonArchimedeanLambdaInitial Λ n` (que agora
-  expõe `FinitePQCost S`), custo uniforme
+- **Canonical refactor of the tail `L∞`** (MultipliersareBounded): new
+  `SouzaPointwiseCanonicalSelfsTailBound` (only products with canonical
+  atoms); the internal chain of 8 tail lemmas was generalized to this
+  hypothesis (their proofs only ever test the multiplier against canonical
+  atoms); `Bound.toCanonical` and
+  `SouzaPositivePointwiseSelfsTailBound.toCanonical` (given `C ≠ ∞`) provide
+  the bridges.  This yields `souzaPositivePointwiseSelfsTailNorm_norm_ae_le`:
+  `‖m‖ ≤ K·(positive tail seminorm).toReal` a.e.
+- **Pointwise part** (`exists_nonArchimedeanInfinite_pointwise_hasSum_pos`):
+  mirrors the non-positive one; summability by comparison with
+  `(Term i).toReal` (`ENNReal.summable_toReal`/`tsum_toReal_eq`);
+  measurability of the partial products via the finite positive theorem.
+- **Extended compactness** (Completeness):
+  `exists_strongly_convergent_subseq_of_uniform_pqCost` now also returns the
+  convergence of coefficients and of atoms (`atomLp`) to the limit.
+- **Truncations** (`exists_nonArchimedean_finite_representation_initial_pos`):
+  the finite positive theorem on `nonArchimedeanLambdaInitial Λ n` (which now
+  exposes `FinitePQCost S`), uniform cost
   `nonArchimedeanPositiveRepresentationConstant·N·pqCost R`.
-- **Limite** (`exists_limit_representation_of_finite_sequence_pos`):
-  [ii] passa pela convergência de coeficientes (lim ≠ 0 ⟹ algum n com
-  coeff ≠ 0 ⟹ testemunha finita); [i] passa pelo fechamento do raio real
-  não-negativo em ℂ (`complex_nonnegReal_isClosed`) para coeficientes e por
-  convergência q.t.p. de subsequência dos átomos em `Lp` para os átomos.
+- **Limit** (`exists_limit_representation_of_finite_sequence_pos`):
+  [ii] passes through the coefficient convergence (limit ≠ 0 ⟹ some n with
+  a nonzero coefficient ⟹ finite witness); [i] passes through the closedness
+  of the nonnegative real ray in ℂ (`complex_nonnegReal_isClosed`) for the
+  coefficients, and a.e. convergence of a subsequence of the atoms in `Lp`
+  for the atoms.
 
-## O que falta
+## What remains
 
-Nada pendente: **zero `sorry` no projeto**, build completo verde (3454 jobs),
-axiomas dos teoremas principais (finito/infinito, positivo/não positivo)
-verificados.
+Nothing pending: **zero `sorry` in the project**, full build green
+(3454 jobs), axioms of the main theorems (finite/infinite,
+positive/non-positive) verified.
 
-Possíveis próximos passos (a decidir):
+Possible next steps (to be decided):
 
-- Limpeza estilística: warnings de linter (`simpa`→`simp`, argumentos de
-  `simp` não usados, `push_neg` deprecado) espalhados pelos arquivos.
-- Commitar as mudanças (sorry 1 + import do Standalone + versão infinita
-  positiva estão no working tree, sem commit).
+- Stylistic cleanup: linter warnings (`simpa`→`simp`, unused `simp`
+  arguments, deprecated `push_neg`) scattered across the files.
+- Commit the changes (sorry 1 + the Standalone import + the infinite
+  positive version are in the working tree, uncommitted).
 
-## Checks recentes (2026-06-09)
+## Recent checks (2026-06-09)
 
 ```bash
-lake build                      # verde, 3454 jobs, projeto inteiro
-grep -rn "sorry" BesovSpacesGoodGrid --include="*.lean"   # vazio
+lake build                      # green, 3454 jobs, whole project
+grep -rn "sorry" BesovSpacesGoodGrid --include="*.lean"   # empty
 #print axioms souzaNonArchimedeanPropertyPositiveConeInfinite
 #  → [propext, Classical.choice, Quot.sound]
 #print axioms souzaNonArchimedeanPropertyPositiveCone
