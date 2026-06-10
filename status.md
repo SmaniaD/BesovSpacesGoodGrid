@@ -3,6 +3,101 @@
 This file summarizes the recent state of the central files in
 `BesovSpacesGoodGrid/GoodGrid`.
 
+## DONE: Strongly regular domains + Pointwise Multipliers I (2026-06-10)
+
+New file `BesovSpacesGoodGrid/GoodGrid/Multipliers/StronglyRegularDomains.lean`
+(imported by the umbrella `GoodGrid/Multipliers.lean`), formalizing the
+paper's subsection `srd`:
+
+- `StronglyRegularDecomposition` / `StronglyRegularDomain`: the definition of
+  an `(a, K, k₁)`-strongly regular domain (exact disjoint tiling of `Q ∩ Ω`
+  by grid cells, with the level-by-level cost `∑_P μ(P)^a ≤ K·μ(Q)^a`).
+- `souzaPositiveSelfsTailBound_of_stronglyRegularDomain` — **Prop 18.7/18.8
+  (`pos2`)**: `|1_Ω|_{B^{β+,k₁}_{p,∞,selfs}} ≤ K^{1/p}` for a
+  `(1−βp, K, k₁)`-strongly regular `Ω`, as a positive tail `selfs` bound.
+  Weighted variant `souzaPositiveSelfsTailBound_smul_of_stronglyRegularDomain`
+  (`Θ·1_Ω`, constant `Θ·K^{1/p}`).
+- `souzaPositiveFunction_of_stronglyRegularDomain`: `Θ·1_Ω` lies in the
+  positive Souza-Besov cone `B^{β+}_{p,∞}` (sum of the `pos2` pieces over the
+  level-`k₁` cells, glued with `exists_souzaPositiveRepresentation_finset_sum`).
+- `souzaPointwiseMultipliersI` — **Prop 18.9 (`pm1`)**: for finite families of
+  `(1−βp, K_i, t_i)`-strongly regular domains with weights `Θ_i > 0` and a
+  canonical finite-cost representation `R` of `f` satisfying conditions A
+  (`stronglyRegularOverlapCost ≤ N` on active cells) and B, the product
+  `(∑ Θ_i·1_{Ω_i})·f` has a representation `S` with
+  `pqCost S ≤ Cgen2·N·pqCost R`, every active cell of `S` lies a.e. in some
+  `Ω_i`, and positivity of `R` gives cone-positivity of `S`.  Derived from
+  `souzaNonArchimedeanPropertyPositiveCone` with `qtilde = ∞`.
+- `souzaPointwiseMultipliersIInfinite` — **Prop 18.9 (`pm1`), infinite `Λ`**:
+  the family may be indexed by an arbitrary `Λ ⊆ ℕ`; condition A is the
+  `ℝ≥0∞`-series bound `stronglyRegularOverlapCostInfinite ≤ N` (no
+  summability witness).  Conclusions: a.e. absolute convergence of
+  `∑ Θ_i·1_{Ω_i}(z)` on `{f ≠ 0}` with bound `Cgen2·N`, the limit function
+  `h ∈ L^p`, a representation `S` of `h` with finite cost and
+  `pqCost S ≤ Cgen2·N·pqCost R`, plus the same [i]/[ii] as the finite case.
+  Derived from `souzaNonArchimedeanPropertyPositiveConeInfinite`.
+
+Proof core of `pos2` (`exists_souzaPositiveElement_indicator_mul_atom`): the
+representation of `Θ·1_Ω·a_Q` has, at level `k`, coefficients
+`Θ·(μP/μQ)^{1/p−β}` on the cells `P ∈ ℱ^k` with canonical atoms; its level
+cost is `≤ Θ^p·K` by the decomposition cost; the `hasSum` field is the new
+`L^p` convergence lemma `hasSum_indicatorConstLp_iUnion` (indicators of
+countably many disjoint sets sum in `L^p` to the indicator of the union — the
+remainder measure tends to zero by countable additivity).  Other reusable
+private helpers: `sum_indicatorConstLp_disjoint` (finite case),
+`grid_level_eq_of_mem_mem` (a set is a grid cell at only one level).
+
+Notes on fidelity to the paper: the support conclusion [i] of `pm1` is stated
+in the a.e. form (`Q ⊆ Ω_i` up to measure zero), matching the formalized
+Remark `posrem`; positivity [ii] is cone-positivity of `S`, as in `posrem`.
+
+## DONE: Corollary 18.6 (`23er`) — selfs classes are multipliers (2026-06-10)
+
+New file `BesovSpacesGoodGrid/GoodGrid/Multipliers/SelfsSubsetMultipliers.lean`
+(imported by the umbrella `GoodGrid/Multipliers.lean`), proving the paper's
+Corollary `23er`: for `0 < s < β < 1/p` and `q, qtilde ∈ [1,∞]`,
+`B^{β,t}_{p,qtilde,selfs} ⊂ M(B^s_{p,q})`, and the inclusion is continuous.
+Note: the formal statement carries `β < 1/p` (inherited from the formalized
+non-Archimedean property `sepa`), consistent with the Part III standing box.
+
+Public theorems (axioms checked: `propext, Classical.choice, Quot.sound`):
+
+```lean
+souzaPointwiseSelfsTailBound_levelZero            -- tail bound at t ⟹ at 0, constant ·|P^t|
+exists_souzaSelfsMultiplierConstant               -- quantitative: tail bound C ⟹ multiplier bound Cmult·C
+souzaPointwiseMultiplier_of_souzaPointwiseSelfsTailClass  -- the inclusion
+souzaPointwiseMultiplierNorm_le_const_mul_selfsTailNorm   -- continuity (norm form)
+```
+
+Proof structure:
+
+- **Core (cutoff `t = 0`)**: `souzaNonArchimedeanPropertyLambdaFinite` applied
+  to the singleton family `Λ = {0}`, `g_0 = g`, all cutoffs `0`, `N = C`;
+  conditions A and B hold trivially (A reduces to
+  `souzaPointwiseSelfsTailNorm ≤ C`, B to `0 ≤ k`).  The product representative
+  is unique in `Lp` (a.e. equality), so optimizing over near-optimal
+  representations of `x` (`exists_cost_lt_Norm_Costpq_add` + ε-argument)
+  upgrades the cost bound to `Norm_Costpq y ≤ Cgen·C·Norm_Costpq x`.
+- **Level lowering** (`souzaPointwiseSelfsTailBound_levelZero`): an atom on a
+  cell `Q` of level `< t` is exactly the finite sum of its restrictions to the
+  level-`t` cells `P ⊆ Q` (nested partitions: covering + disjointness +
+  `partition_subset_or_disjoint_of_le`).  Each piece is `λ_P · (atom on P)`
+  with `λ_P = (μQ/μP)^(β−1/p) ≤ 1`, so the tail hypothesis applies on each
+  `P`; the candidate is `Σ λ_P • y_P`, with cost `≤ |P^t| · C` by a finite-sum
+  triangle inequality for `Norm_Costpq`.
+- The general corollary composes the two; constant `Cgen · |P^t|`.
+
+Supporting changes:
+
+- `souzaNonArchimedeanPropertyLambdaFinite` (NonArchimedeanProperty.lean) now
+  also returns `FinitePQCost S` in its conclusion (the inner private lemmas
+  already provided it; one internal use adapted).
+- New API in `WeakGrid/Multipliers.lean`:
+  `pointwiseMultiplierBoundSet_bddBelow`, `pointwiseMultiplierNorm_le_of_bound`.
+- New generic private helpers in SelfsSubsetMultipliers.lean: zero
+  representation has finite/zero cost, finite-sum triangle inequality for
+  `Norm_Costpq` (any atom family).
+
 ## DONE: positive version of the non-Archimedean theorem (2026-06-09)
 
 **The whole project compiles with no `sorry`** (`lake build` green, 3454 jobs,
@@ -172,13 +267,16 @@ Possible next steps (to be decided):
 - Stylistic cleanup: linter warnings (`simpa`→`simp`, unused `simp`
   arguments, deprecated `push_neg`) scattered across the files.
 
-## Recent checks (2026-06-09)
+## Recent checks (2026-06-10)
 
 ```bash
-lake build                      # green, 3454 jobs, whole project
+lake build                      # green, whole project (now 3455 jobs)
 grep -rn "sorry" BesovSpacesGoodGrid --include="*.lean"   # empty
 #print axioms souzaNonArchimedeanPropertyPositiveConeInfinite
 #  → [propext, Classical.choice, Quot.sound]
 #print axioms souzaNonArchimedeanPropertyPositiveCone
+#  → [propext, Classical.choice, Quot.sound]
+#print axioms exists_souzaSelfsMultiplierConstant            (and the other
+#  three public theorems of SelfsSubsetMultipliers.lean)
 #  → [propext, Classical.choice, Quot.sound]
 ```

@@ -3811,6 +3811,7 @@ theorem souzaNonArchimedeanPropertyLambdaFinite
                 (G := G.toWeakGridSpace) (p := p)
                 (fun z => (∑ i ∈ Λ, g i z) * f z)
                 (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+              WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
               WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
                 Cgen * N *
                   WeakGridSpace.LpGridRepresentation.pqCost (q := q) R := by
@@ -3853,8 +3854,8 @@ theorem souzaNonArchimedeanPropertyLambdaFinite
       rcases exists_nonArchimedeanProductRepresentation_of_zero
           G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
           Λ t g f R hRfin hRep hTail hA hB with
-        ⟨y, S, hSrep, _hSfin, hScost⟩
-      refine ⟨y, S, hSrep, ?_⟩
+        ⟨y, S, hSrep, hSfin, hScost⟩
+      refine ⟨y, S, hSrep, hSfin, ?_⟩
       calc
         WeakGridSpace.LpGridRepresentation.pqCost (q := q) S
             ≤ 0 := hScost
@@ -3864,8 +3865,8 @@ theorem souzaNonArchimedeanPropertyLambdaFinite
       rcases exists_nonArchimedeanProductRepresentation_of_pos
           G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
           Λ t g hNpos f R hRfin hRep hTail hA hB with
-        ⟨y, S, hSrep, _hSfin, hScost⟩
-      refine ⟨y, S, hSrep, ?_⟩
+        ⟨y, S, hSrep, hSfin, hScost⟩
+      refine ⟨y, S, hSrep, hSfin, ?_⟩
       simpa [Cgen, lam] using hScost
 
 /-- The explicit coefficient-cost constant used by the finite representation step. -/
@@ -4062,7 +4063,7 @@ private theorem nonArchimedean_partialProducts_aestronglyMeasurable
     intro k Q i hi hQcoeff hmeet
     exact hB k Q i ((Finset.mem_filter.mp hi).2) hQcoeff hmeet
   rcases hfinite Λn t g N f x R hN hRep hRfin hTail_fin hA_fin hB_fin with
-    ⟨y, _Srep, hy_rep, _hy_cost⟩
+    ⟨y, _Srep, hy_rep, _hSfin, _hy_cost⟩
   have hy_meas :
       AEStronglyMeasurable ((y : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ)
         G.toWeakGridSpace.measure :=

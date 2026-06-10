@@ -5,7 +5,7 @@ This file maps the published paper
 Daniel Smania, *Besov-ish spaces through atomic decomposition*,
 Analysis & PDE 15 (2022), no. 1
 
-to the current Lean formalization in this repository (last revised 2026-06-09,
+to the current Lean formalization in this repository (last revised 2026-06-10,
 zero `sorry`, full `lake build` green).
 
 The numbering X.Y below follows the order of the theorem-like environments in
@@ -47,7 +47,7 @@ Status labels:
 | 16 | Alternative characterizations, II: Messing with atoms | Prop 16.1 proved; 16.2-16.3 not started |
 | 17 | Dirac's approximations | not started |
 | Part III | Applications | Section 18 largely proved; 19-21 not started |
-| 18 | Pointwise multipliers acting on \(B^s_{p,q}\) | Props 18.1, 18.3, 18.4 and Remark posrem proved |
+| 18 | Pointwise multipliers acting on \(B^s_{p,q}\) | Props 18.1, 18.3, 18.4, Remark posrem, Cor 18.6, Def/Prop 18.7-18.8 and Prop 18.9 proved |
 | 19 | \(B^s_{p,q} \cap L^\infty\) is a quasialgebra | not started |
 | 20 | A remarkable description of \(B^s_{1,1}\) | not started |
 | 21 | Left compositions | not started |
@@ -98,9 +98,9 @@ Status labels:
 | Proposition 18.3 | \(\mathcal B^{s,t}_{p,q,selfs} \subset L^\infty\) continuously, uniformly in \(t\) | `souzaPointwiseSelfsTailBound_norm_ae_le`, `souzaPointwiseSelfsTailNorm_norm_ae_le`, `souzaPointwiseSelfsTailClass_norm_ae_bounded` | `BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lean` | proved |
 | Proposition 18.4 (`sepa`) | Non-Archimedean behaviour in \(\mathcal B^\beta_{p,\tilde q,selfs}\) | `souzaNonArchimedeanPropertyLambdaFinite` (finite \(\Lambda\)), `souzaNonArchimedeanProperty` (infinite \(\Lambda\)) | `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanProperty.lean` | proved |
 | Remark 18.5 (`posrem`) | Positive version of the non-Archimedean theorem | `souzaNonArchimedeanPropertyPositiveCone`, `souzaNonArchimedeanPropertyPositiveConeInfinite`, `exists_nonArchimedeanProductRepresentation_positive` | `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanPropertyPositiveStandalone.lean` (cores in NonArchimedeanProperty.lean) | proved (2026-06-09; axioms checked: `propext, Classical.choice, Quot.sound`) |
-| Corollary 18.6 (`23er`) | \(\mathcal B^\beta_{p,\tilde q,selfs} \subset M(\mathcal B^s_{p,q})\) continuously | follows from the formalized `sepa`, but the corollary itself is not stated | — | not stated |
-| Definition/Proposition 18.7-18.8 (`pos2`) | Strongly regular domains; \(\chi_\Omega\) is a multiplier | special case proved for grid-cell indicators: `souzaCellIndicatorPointwiseMultiplierBound_uniform`, `souzaCellIndicatorPointwiseMultiplier` | `BesovSpacesGoodGrid/GoodGrid/Multipliers/Besovspq.lean` | partial |
-| Proposition 18.9 (`pm1`) | Pointwise Multipliers I | none | — | not started |
+| Corollary 18.6 (`23er`) | \(\mathcal B^{\beta,t}_{p,\tilde q,selfs} \subset M(\mathcal B^s_{p,q})\) continuously | `exists_souzaSelfsMultiplierConstant` (quantitative), `souzaPointwiseMultiplier_of_souzaPointwiseSelfsTailClass` (inclusion), `souzaPointwiseMultiplierNorm_le_const_mul_selfsTailNorm` (continuity), plus the level-lowering lemma `souzaPointwiseSelfsTailBound_levelZero` | `BesovSpacesGoodGrid/GoodGrid/Multipliers/SelfsSubsetMultipliers.lean` | proved (2026-06-10; axioms: `propext, Classical.choice, Quot.sound`) |
+| Definition/Proposition 18.7-18.8 (`pos2`) | Strongly regular domains; positive tail `selfs` bound for \(\chi_\Omega\) | `StronglyRegularDomain` / `StronglyRegularDecomposition` (definition), `souzaPositiveSelfsTailBound_of_stronglyRegularDomain` (`pos2`), plus `souzaPositiveSelfsTailBound_smul_of_stronglyRegularDomain` and `souzaPositiveFunction_of_stronglyRegularDomain`; earlier grid-cell special case in Besovspq.lean | `BesovSpacesGoodGrid/GoodGrid/Multipliers/StronglyRegularDomains.lean` | proved (2026-06-10) |
+| Proposition 18.9 (`pm1`) | Pointwise Multipliers I | `souzaPointwiseMultipliersI` (finite `Λ`) and `souzaPointwiseMultipliersIInfinite` (arbitrary `Λ ⊆ ℕ`; support conclusion in the a.e. form, positivity as cone-positivity, via the positive non-Archimedean theorems) | `BesovSpacesGoodGrid/GoodGrid/Multipliers/StronglyRegularDomains.lean` | proved (2026-06-10) |
 | Proposition 18.10 (`mult`) | Pointwise Multipliers II (\(\mathcal B^{1/p}_{p,\infty} \cap L^\infty\)) | none | — | not started |
 
 ## Part III — Sections 19-21
@@ -116,16 +116,13 @@ Status labels:
 
 Natural candidates, in rough order of leverage:
 
-1. State and prove Corollary 18.6 (`23er`) — it should be a short derivation
-   from the already formalized non-Archimedean property.
-2. A single wrap-up equivalence theorem for Theorem 15.1, packaging the
+1. A single wrap-up equivalence theorem for Theorem 15.1, packaging the
    already-proved inequality cycle, plus the \(L^1\) functional of
    Corollary 15.2.
-3. Section 16 examples: formalize the Holder atom family (Section 11B) and
+2. Section 16 examples: formalize the Holder atom family (Section 11B) and
    prove Proposition 16.2 by applying
    `atoms_between_souza_atoms_and_besov_atoms`; same for bounded variation
    atoms and Proposition 16.3.
-4. Strongly regular domains (Definition 18.7 / Proposition `pos2`) in full
-   generality, extending the grid-cell indicator case in Besovspq.lean; then
-   Pointwise Multipliers I and II.
-5. Sections 19-21 depend heavily on the above and should come last.
+3. Pointwise Multipliers II (Proposition 18.10, `mult`), now that strongly
+   regular domains, `pos2` and Pointwise Multipliers I are formalized.
+4. Sections 19-21 depend heavily on the above and should come last.

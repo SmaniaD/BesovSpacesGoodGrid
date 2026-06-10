@@ -156,6 +156,23 @@ noncomputable def pointwiseMultiplierNorm
     (m : α → ℂ) : ℝ :=
   sInf (pointwiseMultiplierBoundSet (A := A) q m)
 
+/-- The set of multiplier operator bounds is bounded below by zero. -/
+theorem pointwiseMultiplierBoundSet_bddBelow
+    (A : AtomFamily G s p u) (q : ℝ≥0∞) [Fact (1 ≤ q)]
+    (m : α → ℂ) :
+    BddBelow (pointwiseMultiplierBoundSet (A := A) q m) := by
+  refine ⟨0, ?_⟩
+  intro C hC
+  exact hC.1
+
+/-- Every concrete multiplier operator bound is an upper bound for the
+multiplier norm. -/
+theorem pointwiseMultiplierNorm_le_of_bound
+    {A : AtomFamily G s p u} {m : α → ℂ} {C : ℝ}
+    (hC : PointwiseMultiplierBound (A := A) q m C) :
+    pointwiseMultiplierNorm (A := A) q m ≤ C :=
+  csInf_le (pointwiseMultiplierBoundSet_bddBelow (A := A) q m) hC
+
 /--
 An `L^p` vector is represented by one atom of the family `A`.
 -/
