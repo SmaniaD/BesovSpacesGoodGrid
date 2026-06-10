@@ -9,6 +9,7 @@
 - Follow Mathlib Style Guidelines: https://leanprover-community.github.io/contribute/style.html
 - Do not add axioms or admits. Add `sorry` only when appropriate to divide the task into subproblems, and after the run report which sorries you added.
 -Keep status.md updated with the current status (use english) of the repository
+-read the source latex files in the folder latex to use as reference and get ideas
 
 
 ## Moral Directives
