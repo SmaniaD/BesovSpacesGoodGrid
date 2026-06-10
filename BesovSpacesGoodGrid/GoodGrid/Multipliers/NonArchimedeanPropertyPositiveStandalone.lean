@@ -189,6 +189,7 @@ theorem souzaNonArchimedeanPropertyPositiveCone
                 (G := G.toWeakGridSpace) (p := p)
                 (fun z => (∑ i ∈ Λ, g i z) * f z)
                 (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+              WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
               WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
                 Cgen * N *
                   WeakGridSpace.LpGridRepresentation.pqCost (q := q) R ∧
@@ -200,6 +201,101 @@ theorem souzaNonArchimedeanPropertyPositiveCone
               (SouzaPositiveRepresentation G s p hs hp hp_top R →
                 SouzaConePositiveRepresentation G s p hs hp hp_top S) :=
   souzaNonArchimedeanPropertyPositiveCone_core
+    G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
+
+/--
+**Infinite positive-cone non-Archimedean estimate.**
+
+Infinite-index version of `souzaNonArchimedeanPropertyPositiveCone`: the
+multiplier family `g i`, `i ∈ Λ ⊆ ℕ`, may be infinite.  The per-cell overlap
+condition A is stated as an `ℝ≥0∞`-valued series bound (the positive tail
+seminorms make summability witnesses unnecessary).  The conclusions are those
+of the non-positive infinite theorem `souzaNonArchimedeanProperty` — pointwise
+absolute summability with bound `Cgen·N` on the support of `f`, the limit
+function `h`, its `L^p` membership, and a Souza-Besov representation `S` of
+`h` with `pqCost S ≤ Cgen·N·pqCost R` — **plus** the two positive-cone
+consequences for the limit representation:
+
+* **[ii]** support: every active cell of `S` lies (a.e.) in the support of
+  some multiplier `g i`, `i ∈ Λ`;
+* **[i]** positivity: if `R` is fully positive then `S` is cone-positive.
+-/
+theorem souzaNonArchimedeanPropertyPositiveConeInfinite
+    (G : GoodGridSpace (α := α))
+    (s β : ℝ) (p q qtilde : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β)
+    (hβ_lt_inv : β < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] [Fact (1 ≤ qtilde)] :
+    ∃ Cgen : ℝ,
+      0 ≤ Cgen ∧
+      1 ≤ Cgen ∧
+      ∀ (Λ : Set ℕ) (t : ℕ → ℕ) (g : ℕ → α → ℂ) (N : ℝ)
+        (f : α → ℂ)
+        (x : WeakGridSpace.BesovishSpace
+          (souzaAtomFamily G s p hs hp hp_top) q)
+        (R : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (x : Lp ℂ p G.toWeakGridSpace.measure)),
+          0 ≤ N →
+          WeakGridSpace.RepresentsFunction
+            (G := G.toWeakGridSpace) (p := p) f
+            (x : Lp ℂ p G.toWeakGridSpace.measure) →
+          WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R →
+          SouzaCanonicalRepresentation G s p hs hp hp_top R →
+          (∀ i ∈ Λ,
+            SouzaPositiveFunction G β p qtilde hβ hp hp_top (g i)) →
+          (∀ i ∈ Λ,
+            ∃ C : ℝ≥0∞,
+              SouzaPositivePointwiseSelfsTailBound
+                G β p qtilde hβ hp hp_top (t i) (g i) C) →
+          (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+            (R.block k).coeff Q ≠ 0 →
+              (∑' i : {i // i ∈ Λ},
+                nonArchimedeanRelevantPositiveTailSelfsInfiniteTerm
+                  G β p qtilde hβ hp hp_top Λ t g Q i) ≤ ENNReal.ofReal N) →
+          (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) i,
+            i ∈ Λ →
+              (R.block k).coeff Q ≠ 0 →
+                goodGridLevelCellMeetsSupport G Q (g i) →
+                  t i ≤ k) →
+          ∃ h : α → ℂ,
+            ∃ absSum : α → ℝ,
+              (∀ᵐ z ∂G.toWeakGridSpace.measure,
+                f z ≠ 0 →
+                  HasSum
+                    (fun i : {i // i ∈ Λ} => ‖g i.1 z‖)
+                    (absSum z) ∧
+                  absSum z ≤ Cgen * N) ∧
+              (∀ᵐ z ∂G.toWeakGridSpace.measure,
+                HasSum
+                  (fun i : {i // i ∈ Λ} => g i.1 z * f z)
+                  (h z)) ∧
+              (∀ᵐ z ∂G.toWeakGridSpace.measure,
+                ‖h z‖ ≤ Cgen * N * ‖f z‖) ∧
+              (∃ hmem : MemLp h p G.toWeakGridSpace.measure,
+                ‖MemLp.toLp h hmem‖ ≤
+                  Cgen * N * ‖(x : Lp ℂ p G.toWeakGridSpace.measure)‖) ∧
+              ∃ y : WeakGridSpace.BesovishSpace
+                  (souzaAtomFamily G s p hs hp hp_top) q,
+                ∃ S : WeakGridSpace.LpGridRepresentation
+                    (souzaAtomFamily G s p hs hp hp_top)
+                    (y : Lp ℂ p G.toWeakGridSpace.measure),
+                  WeakGridSpace.RepresentsFunction
+                    (G := G.toWeakGridSpace) (p := p) h
+                    (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+                  WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+                  WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
+                    Cgen * N *
+                      WeakGridSpace.LpGridRepresentation.pqCost (q := q) R ∧
+                  (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+                    (S.block k).coeff Q ≠ 0 →
+                      ∃ i ∈ Λ,
+                        ∀ᵐ z ∂(G.toWeakGridSpace.measure.restrict Q.1),
+                          g i z ≠ 0) ∧
+                  (SouzaPositiveRepresentation G s p hs hp hp_top R →
+                    SouzaConePositiveRepresentation G s p hs hp hp_top S) :=
+  souzaNonArchimedeanPropertyPositiveConeInfinite_core
     G s β p q qtilde hs hβ hβs hβ_lt_inv hp hp_top
 
 end

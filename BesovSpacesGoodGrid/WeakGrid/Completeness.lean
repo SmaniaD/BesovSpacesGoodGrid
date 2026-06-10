@@ -2678,7 +2678,17 @@ theorem exists_strongly_convergent_subseq_of_uniform_pqCost
         MemBesovishCoeffCost A q gLim ∧
         LpGridRepresentation.FinitePQCost (q := q) Rlim ∧
         LpGridRepresentation.pqCost (q := q) Rlim ≤ C ∧
-        Tendsto (fun n => gseq (φ n)) atTop (𝓝 gLim) := by
+        Tendsto (fun n => gseq (φ n)) atTop (𝓝 gLim) ∧
+        (∀ (k : ℕ) (Q : LevelCell G k),
+          Tendsto (fun n => ((Rseq (φ n)).block k).coeff Q) atTop
+            (𝓝 ((Rlim.block k).coeff Q))) ∧
+        (∀ (k : ℕ) (Q : LevelCell G k),
+          Tendsto
+            (fun n => atomLp A (levelCellToWeakGridCell G k Q)
+              (((Rseq (φ n)).block k).atom Q))
+            atTop
+            (𝓝 (atomLp A (levelCellToWeakGridCell G k Q)
+              ((Rlim.block k).atom Q)))) := by
   classical
   have uniform_bound_enn : ∀ n,
       LpGridRepresentation.pqCostENNReal (q := q) (Rseq n) ≤ ENNReal.ofReal C := by
@@ -2735,7 +2745,7 @@ theorem exists_strongly_convergent_subseq_of_uniform_pqCost
       RlimBlocks hcoeff_lim' hatom_lim' with
       ⟨gLim, hRlim, hmem, hfin, hcost, htend⟩
   let Rlim : LpGridRepresentation A gLim := { block := RlimBlocks, hasSum := hRlim }
-  exact ⟨φ, hφ, gLim, Rlim, hmem, hfin, hcost, htend⟩
+  exact ⟨φ, hφ, gLim, Rlim, hmem, hfin, hcost, htend, hcoeff_lim', hatom_lim'⟩
 
 /--
 The closed `Norm_Costpq` ball is sequentially compact for the ambient strong
