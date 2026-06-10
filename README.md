@@ -1,6 +1,6 @@
 # BesovSpacesGoodGrid
 
-[Read the PDF documentation](docpdf/Documentation.pdf)
+[Read the PDF documentation](docpdf/documentation.pdf)
 
 A Lean 4/mathlib project formalizing parts of the theory of Besov spaces built
 from atomic decompositions over weak grids and good grids.  The development is
@@ -175,20 +175,25 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
   and distributions associated with a good grid.
 - `BesovSpacesGoodGrid/Sums.lean`: reusable block-index and block-sum
   notation.
-- `docpdf/Documentation.tex` and `docpdf/Documentation.pdf`: narrative
-  documentation for the current formalization.
+- `docpdf/documentation.tex` and `docpdf/documentation.pdf`:
+  the unified documentation — the results of the paper formalized in Lean,
+  organized to mirror the repository (Part I: weak-grid library, Part II:
+  good-grid library, sections in file-dependency order, each opened by a
+  box with the Lean file and its imports), with in-text descriptions of the
+  Lean declarations, code snapshots, mathematical overviews of each file,
+  the purpose of the formalization, and a guide to the repository files.
+  References to numbered statements follow the published version of the
+  paper (Analysis & PDE 15 (2022), no. 1).
 - `lakefile.toml`: Lake package configuration.
 - `lean-toolchain`: Lean toolchain pin.
 - `lake-manifest.json`: resolved dependency manifest.
 
 ## Next Work
 
-Likely next steps are:
+The project currently builds with **zero `sorry`** (the positive-cone
+non-Archimedean theorems, finite and infinite, are fully proved with axioms
+checked). Likely next steps are:
 
-- finish the positive-cone non-Archimedean multiplier theorem: discharge the
-  two remaining `sorry`s in `GoodGrid/Multipliers/NonArchimedeanProperty.lean`
-  (the `N = 0` degenerate case and the positive local transmutation-data
-  builder `exists_nonArchimedeanLocalTransmutationData_pos`);
 - continue polishing public docstrings around the large transmutation,
   completeness, and multiplier files;
 - factor large proof-heavy files (notably `Multipliers/NonArchimedeanProperty.lean`
