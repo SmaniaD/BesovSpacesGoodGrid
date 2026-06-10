@@ -171,8 +171,6 @@ Possible next steps (to be decided):
 
 - Stylistic cleanup: linter warnings (`simpa`→`simp`, unused `simp`
   arguments, deprecated `push_neg`) scattered across the files.
-- Commit the changes (sorry 1 + the Standalone import + the infinite
-  positive version are in the working tree, uncommitted).
 
 ## Recent checks (2026-06-09)
 
