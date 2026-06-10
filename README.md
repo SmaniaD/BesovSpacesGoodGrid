@@ -10,7 +10,6 @@ Daniel Smania, *Besov-ish spaces through atomic decomposition*,
 Analysis & PDE 15 (2022), no. 1, 123-174.
 DOI: <https://doi.org/10.2140/apde.2022.15.123>
 
-[Doc-Gen documentation](https://smaniad.github.io/BesovSpacesGoodGrid/BesovSpacesGoodGrid.html)
 
 ## Current State
 
