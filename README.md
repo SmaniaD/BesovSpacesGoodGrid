@@ -15,9 +15,10 @@ DOI: <https://doi.org/10.2140/apde.2022.15.123>
 
 The aggregate root module is `BesovSpacesGoodGrid.lean`.  Its source imports
 the weak-grid API, atom families, Besov-ish spaces, scale inclusions,
-completeness theorems, induced grids, weak-grid transmutation, the good-grid
-Besov-atom comparison layer, and the current Haar/standard/oscillation
-comparison files.  The repository also contains auxiliary indexed-sum
+completeness theorems, weak-grid multipliers, induced grids, weak-grid
+transmutation, the good-grid Besov-atom comparison layer, the
+Haar/standard/oscillation comparison files, the good-grid multiplier layer,
+and the positive cone.  The repository also contains auxiliary indexed-sum
 infrastructure.
 
 The formalization currently includes:
@@ -55,9 +56,18 @@ The formalization currently includes:
   spaces associated to Souza atoms, any atom family sandwiched between Souza
   and Besov atoms, and Besov atoms themselves, with the norm constants from
   the paper.
+- Pointwise-multiplier definitions on weak grids
+  (`WeakGrid/Multipliers.lean`): pointwise multiplication packaged as a
+  bounded operation on an atomic Besov-ish space, together with the
+  Triebel-style `selfs` condition obtained by testing on unit atoms.
 - Haar and standard representation gauges on good grids, including the
   comparison
-  `exists_standardRepresentationNorm_le_const_mul_haarL2RepresentationNorm`.
+  `exists_standardRepresentationNorm_le_const_mul_haarL2RepresentationNorm`,
+  a second, parametrized Haar representation whose atoms carry the Besov
+  parameter directly, the two-sided comparison between the `L^2`-normalized
+  and parametrized Haar gauges, and the packaged bound
+  `N_st(f) <= C * ||f||_Besov` of the standard representation norm by the
+  Souza-Besov gauge.
 - Finite-norm endpoint results showing that finite standard norm gives
   `L^p` membership, a canonical standard representation, finite cost, and
   Souza-Besov membership, and that finite Haar norm gives `L^p` membership
@@ -74,21 +84,25 @@ The formalization currently includes:
   `souzaPointwiseMultiplier_iff_souzaPointwiseSelfsClass_one_one`; and the
   non-Archimedean multiplier estimate `souzaNonArchimedeanPropertyLambdaFinite`
   and its infinite-index pointwise form `souzaNonArchimedeanProperty`.
-- A positive-cone version of the non-Archimedean estimate
-  (`souzaNonArchimedeanPropertyPositiveCone`) is in progress: the statement and
-  the assembly core are in place, with the support consequence and the
-  cone-positivity consequence proved at the with-errors and `N > 0` layers; two
-  `sorry`s remain (the `N = 0` degenerate case and the positive local
-  transmutation-data builder).
+- The positive cone for Souza-Besov spaces (`GoodGrid/PositiveCone.lean`):
+  positive level blocks and representations with canonical Souza atoms and
+  nonnegative real coefficients, and the associated positive coefficient-cost
+  gauge.
+- The fully proved positive-cone version of the non-Archimedean estimate
+  (`souzaNonArchimedeanPropertyPositiveCone`, public statement in
+  `NonArchimedeanPropertyPositiveStandalone.lean`), following Remark `posrem`
+  of the paper, with the two consequences separated by their true strengths:
+  the support consequence is unconditional (a.e. nonvanishing on active
+  cells), and cone positivity of the product representation follows from
+  positivity of the input representation.
 
-At this snapshot, a full `lake build` succeeds: the aggregate root module and
-all imported modules compile.  The previous root import/name issue involving
-`GoodGridSpace.GoodGridCell.toLevelCell` has been resolved.  Project Lean files
-outside `.lake/packages` contain no `admit` and no project-local `axiom` or
-`constant` declarations; the only Lean `sorry`s are the two in the in-progress
-positive-cone multiplier file `GoodGrid/Multipliers/NonArchimedeanProperty.lean`
-(they build as `sorry` warnings).  See `status.md` for the current
-verification log.
+At this snapshot, a full `lake build` succeeds with **zero `sorry`**: the
+aggregate root module and all imported modules compile.  Project Lean files
+outside `.lake/packages` contain no `sorry`, no `admit`, and no project-local
+`axiom` or `constant` declarations; the main non-Archimedean theorems
+(finite, infinite, and positive-cone versions) check with only the standard
+axioms (`propext`, `Classical.choice`, `Quot.sound`).  See `status.md` for
+the current verification log.
 
 ## Build
 
@@ -101,8 +115,7 @@ The full-project check is:
 lake build
 ```
 
-At the current snapshot this succeeds (the only warnings come from the two
-`sorry`s in the in-progress positive-cone multiplier file).
+At the current snapshot this succeeds with no `sorry` warnings.
 
 To check an individual module in isolation, for example the multiplier files:
 
@@ -127,6 +140,9 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
   and smoothness-scale inclusions.
 - `BesovSpacesGoodGrid/WeakGrid/Completeness.lean`:
   representation limits, compactness of cost balls, and completeness.
+- `BesovSpacesGoodGrid/WeakGrid/Multipliers.lean`: pointwise multiplication as
+  a bounded operation on Besov-ish spaces and the `selfs` condition on weak
+  grids.
 - `BesovSpacesGoodGrid/WeakGrid/InducedGrid.lean`: induced weak grids on a
   fixed cell and the contraction into the ambient Besov-ish space.
 - `BesovSpacesGoodGrid/WeakGrid/Transmutation.lean`: weak-grid transmutation and
@@ -150,11 +166,19 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
   non-Archimedean multiplier estimate and the in-progress positive-cone version.
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanPropertyPositiveStandalone.lean`:
   the user-facing positive-cone statement, forwarding to the assembly core.
+- `BesovSpacesGoodGrid/GoodGrid/PositiveCone.lean`: positive Souza
+  representations and the positive coefficient-cost gauge for Souza-Besov
+  spaces.
 - `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms.lean`: public
   aggregator for the Haar, standard, and mean-oscillation representation and
   norm-comparison files.
 - `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/HaarRepresentationNorm.lean`: normalized Haar
   coefficients and the Haar representation gauge.
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/HaarParametrizedRepresentation.lean`: the
+  parametrized Haar representation whose atoms carry the Besov parameter, with
+  its unweighted coefficient gauge.
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/ComparingHaarRepresentationsl.lean`: two-sided
+  comparison between the `L^2`-normalized and parametrized Haar gauges.
 - `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/standardRepresentation.lean`: standard atomic
   coefficients and the standard representation gauge.
 - `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/standardNormleqHaarRepresenstionNorm.lean`:
@@ -170,6 +194,10 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
   mean oscillation by the standard representation norm.
 - `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/HaarNormleqOscillationNorm.lean`: control of
   the Haar representation norm by mean oscillation.
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/StandarRepresentationNormleqBesovNorm.lean`:
+  the packaged bound of the standard representation norm by the Souza-Besov
+  gauge, chaining the standard/Haar, Haar/oscillation, and oscillation/Besov
+  comparisons.
 - `BesovSpacesGoodGrid/GoodGrid/Distribution.lean`: test functions
   and distributions associated with a good grid.
 - `BesovSpacesGoodGrid/Sums.lean`: reusable block-index and block-sum
@@ -183,6 +211,9 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
   the purpose of the formalization, and a guide to the repository files.
   References to numbered statements follow the published version of the
   paper (Analysis & PDE 15 (2022), no. 1).
+- `status.md`: current verification log and progress notes.
+- `paper-map.md`: correspondence between the paper's statements and the Lean
+  declarations.
 - `lakefile.toml`: Lake package configuration.
 - `lean-toolchain`: Lean toolchain pin.
 - `lake-manifest.json`: resolved dependency manifest.
