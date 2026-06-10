@@ -1,6 +1,6 @@
 # BesovSpacesGoodGrid
 
-[Read the PDF documentation](docpdf/documentation.pdf)
+[Read the PDF documentation](docpdf/Documentation.pdf)
 
 A Lean 4/mathlib project formalizing parts of the theory of Besov spaces built
 from atomic decompositions over weak grids and good grids.  The development is
@@ -175,7 +175,7 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
   and distributions associated with a good grid.
 - `BesovSpacesGoodGrid/Sums.lean`: reusable block-index and block-sum
   notation.
-- `docpdf/documentation.tex` and `docpdf/documentation.pdf`:
+- `docpdf/Documentation.tex` and `docpdf/Documentation.pdf`:
   the unified documentation — the results of the paper formalized in Lean,
   organized to mirror the repository (Part I: weak-grid library, Part II:
   good-grid library, sections in file-dependency order, each opened by a
