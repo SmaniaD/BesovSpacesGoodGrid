@@ -3,6 +3,50 @@
 This file summarizes the recent state of the central files in
 `BesovSpacesGoodGrid/GoodGrid`.
 
+## IN PROGRESS: Pointwise Multipliers II (`mult`, Prop 18.10) — 2 sorries
+
+New file `BesovSpacesGoodGrid/GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean`
+(imported by the umbrella).  Main statement `souzaPointwiseMultipliersII`:
+for `0 < s < 1/p`, every `g` represented by `xg ∈ B^{1/p}_{p,∞}` with
+`‖g‖ ≤ M` a.e. is a pointwise multiplier of `B^s_{p,q}` with operator bound
+`Cmult · |xg|_{B^{1/p}_{p,∞}} + M`.
+
+The **outer proof is complete** (ε-optimization over near-optimal
+representations of `f`, uniqueness of the product representative in `L^p` —
+same pattern as Corollary 23er).  Two inner sublemmas remain `sorry`:
+
+1. `exists_fouRepresentation`: a canonical-atom representation `Rg` of `g`
+   with `pqCost_{(p,∞)} Rg ≤ Cfou·|xg|` and all ancestor-tower coefficient
+   sums (`ancestorCoeffSum`, new def) bounded by `M`.  Mathematical content:
+   Corollary 15.2 (`fou`, standard representation — partially formalized in
+   `AlternativeRepresentationsAndNorms`) plus Proposition 17.1 (`boup`).B
+   (tower sums are cell averages of `g`, hence ≤ `‖g‖_∞`) — `boup` is not
+   yet formalized.
+2. `exists_mult_product_representation`: the `u₁ + u₂` construction —
+   `u₁` via the level convolution with kernel `λ₂^{(j−k)(1/p−s)}` (Young),
+   `u₂` via the tower-sum `L^∞` bound, and `g·f = u₁ + u₂` through
+   `L¹`-convergent truncations and `representation_limit_strong_existence`
+   (Corollary `compa1`, formalized).
+   **Progress on `u₂` (done)**: `multU2Block` (coefficients
+   `c_Q · ancestorCoeffSum`, atoms of `Rf`) and
+   `multU2Block_levelCoeffPower_le`
+   (`levelCoeffPower(u₂)_k ≤ M^p · levelCoeffPower(Rf)_k`) are proved.
+   **Progress on `u₁` (partial)**: `multU1Block` (coefficients
+   `e_J · ∑_{Q ⊋ J} c_Q v_Q μ(J)^{1/p−s}` over canonical `(s,p)`-atoms) and
+   the pointwise bound `multU1Block_coeff_norm_le`
+   (`‖coeff_J‖ ≤ ‖e_J‖ · ∑_{k<j} λ₂^{(j−k)(1/p−s)} · Σ_{Q ⊇ J, level k} ‖c_Q‖`,
+   via the iterated ratio `cell_measure_le_lambda2_pow_mul_cell` and the
+   Souza atom normalization) are proved.
+   Remaining for this sublemma: aggregate the pointwise `u₁` bound into the
+   level `ℓ^p` estimate (Minkowski over `k < j`, single-ancestor counting)
+   and the `(p,q)`-cost convolution bound (discrete Young, geometric kernel);
+   the `hasSum` of the `u₁`/`u₂` block series in `L^p` (via the geometric
+   level weights, cf. Prop 6.1); and the pointwise identity of truncated
+   products `f_{k₀}·g_{k₀} = u₁-partial + u₂-partial` (atom algebra
+   `a_Q·b_J`), passed to the limit in `L¹` via `compa1`.
+
+Remark `pos3` (positive version) not yet started.
+
 ## DONE: Strongly regular domains + Pointwise Multipliers I (2026-06-10)
 
 New file `BesovSpacesGoodGrid/GoodGrid/Multipliers/StronglyRegularDomains.lean`
