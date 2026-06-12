@@ -17,9 +17,9 @@ The aggregate root module is `BesovSpacesGoodGrid.lean`.  Its source imports
 the weak-grid API, atom families, Besov-ish spaces, scale inclusions,
 completeness theorems, weak-grid multipliers, induced grids, weak-grid
 transmutation, the good-grid Besov-atom comparison layer, the
-Haar/standard/oscillation comparison files, the good-grid multiplier layer,
-and the positive cone.  The repository also contains auxiliary indexed-sum
-infrastructure.
+Haar/standard/oscillation comparison files, the Dirac-approximation layer,
+the good-grid multiplier layer, and the positive cone.  The repository also
+contains auxiliary indexed-sum infrastructure.
 
 The formalization currently includes:
 
@@ -95,14 +95,50 @@ The formalization currently includes:
   the support consequence is unconditional (a.e. nonvanishing on active
   cells), and cone positivity of the product representation follows from
   positivity of the input representation.
+- The continuous inclusion of the tail `selfs` classes in the multiplier
+  space (`GoodGrid/Multipliers/SelfsSubsetMultipliers.lean`, paper
+  Corollary 18.6): `exists_souzaSelfsMultiplierConstant` and the inclusion
+  and continuity forms, via a level-lowering step and the non-Archimedean
+  estimate applied to a one-element family.
+- Strongly regular domains and Pointwise Multipliers I
+  (`GoodGrid/Multipliers/StronglyRegularDomains.lean`, paper 18.7-18.9):
+  the `StronglyRegularDomain` definition, the positive tail-`selfs` bound
+  `K^{1/p}` for indicators of strongly regular domains (Proposition `pos2`),
+  and the multiplier theorems `souzaPointwiseMultipliersI` and
+  `souzaPointwiseMultipliersIInfinite` for finite and countable weighted
+  sums of such indicators, with support localization and preservation of
+  positivity.
+- Dirac approximations (`GoodGrid/DiracApproximations.lean`, paper
+  Section 17): the grid Dirac kernels `1_Q/m(Q)`, the evaluation of the
+  partial sums of the standard representation as cell averages
+  (`partialHaarSum_eq_integral_mul_diracKernel`, `claimB`), and the
+  `L^infinity` bounds of Proposition 17.1.A for the standard representation
+  (`claimA_standard`) and for positive Souza representations
+  (`claimA_positive`).
+- Pointwise Multipliers II, **in progress**
+  (`GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean`, paper
+  Proposition 18.10): every `g` in `B^{1/p}_{p,infinity} ∩ L^infinity` is a
+  pointwise multiplier of `B^s_{p,q}` for `0 < s < 1/p`.  The statement
+  (`souzaPointwiseMultipliersII`), its outer proof, and the input sublemma
+  `exists_fouRepresentation` (the canonical standard representation of `g`
+  with cost control and ancestor-tower sums bounded by `|g|_infinity`, via
+  Corollary `fou` and Proposition 17.1.B) are fully proved; the remaining
+  inner sublemma `exists_mult_product_representation` (the `u₁ + u₂`
+  product construction) is the only declared `sorry` of the repository,
+  and this file is not yet imported by the aggregate root.
 
-At this snapshot, a full `lake build` succeeds with **zero `sorry`**: the
-aggregate root module and all imported modules compile.  Project Lean files
-outside `.lake/packages` contain no `sorry`, no `admit`, and no project-local
-`axiom` or `constant` declarations; the main non-Archimedean theorems
-(finite, infinite, and positive-cone versions) check with only the standard
-axioms (`propext`, `Classical.choice`, `Quot.sound`).  See `status.md` for
-the current verification log.
+At this snapshot, a full `lake build` succeeds (3457 jobs).  The aggregate
+root module and all modules it imports compile with **zero `sorry`**; the
+only declared `sorry` of the repository is the inner sublemma
+`exists_mult_product_representation` of the in-progress file
+`Bp1overpinftyisMultiplier.lean`, which is not yet imported by the root.
+Project Lean files outside `.lake/packages` contain no `admit` and no
+project-local `axiom` or `constant` declarations; the main theorems — the
+non-Archimedean estimates (finite, infinite, and positive-cone versions),
+the `selfs` multiplier inclusion, Pointwise Multipliers I (finite and
+countable), the Dirac-approximation claims, and `exists_fouRepresentation`
+— check with only the standard axioms (`propext`, `Classical.choice`,
+`Quot.sound`).  See `status.md` for the current verification log.
 
 ## Build
 
@@ -115,7 +151,9 @@ The full-project check is:
 lake build
 ```
 
-At the current snapshot this succeeds with no `sorry` warnings.
+At the current snapshot this succeeds; the only `sorry` warning comes from
+the in-progress file `Multipliers/Bp1overpinftyisMultiplier.lean` (see
+above).
 
 To check an individual module in isolation, for example the multiplier files:
 
@@ -163,9 +201,23 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
   boundedness (`L^infinity`) of tail-`selfs` multipliers, uniform in the tail
   level.
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanProperty.lean`: the
-  non-Archimedean multiplier estimate and the in-progress positive-cone version.
+  non-Archimedean multiplier estimate and the cores of its positive-cone
+  versions.
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanPropertyPositiveStandalone.lean`:
   the user-facing positive-cone statement, forwarding to the assembly core.
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/SelfsSubsetMultipliers.lean`: the
+  continuous inclusion of the tail `selfs` classes in the multiplier space
+  (paper Corollary 18.6).
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/StronglyRegularDomains.lean`:
+  strongly regular domains, the positive tail-`selfs` bound for their
+  indicators, and Pointwise Multipliers I (paper 18.7-18.9).
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean`:
+  Pointwise Multipliers II (paper Proposition 18.10), in progress — contains
+  the only declared `sorry` of the repository and is not yet imported by the
+  aggregate root.
+- `BesovSpacesGoodGrid/GoodGrid/DiracApproximations.lean`: the grid Dirac
+  kernels, evaluation of partial standard sums as cell averages, and the
+  bounds of paper Proposition 17.1.
 - `BesovSpacesGoodGrid/GoodGrid/PositiveCone.lean`: positive Souza
   representations and the positive coefficient-cost gauge for Souza-Besov
   spaces.
@@ -220,10 +272,18 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
 
 ## Next Work
 
-The project currently builds with **zero `sorry`** (the positive-cone
-non-Archimedean theorems, finite and infinite, are fully proved with axioms
-checked). Likely next steps are:
+The aggregate root currently builds with **zero `sorry`**; the single
+remaining `sorry` of the repository is the `u₁ + u₂` construction of
+Pointwise Multipliers II.  Likely next steps are:
 
+- complete `exists_mult_product_representation` in
+  `Multipliers/Bp1overpinftyisMultiplier.lean`: the levelwise `ℓ^p`
+  convolution estimate for the `u₁` blocks (Young's inequality with the
+  geometric kernel `λ₂^{n(1/p−s)}`), the assembly of the `u₁` and `u₂`
+  representations via `formalBlockSeq_hasRepresentation`, and the
+  identification `g·f = u₁ + u₂` through `L¹`-convergent truncations and
+  `representation_limit_strong_existence` (Corollary `compa1`); then import
+  the file from the aggregate root;
 - continue polishing public docstrings around the large transmutation,
   completeness, and multiplier files;
 - factor large proof-heavy files (notably `Multipliers/NonArchimedeanProperty.lean`

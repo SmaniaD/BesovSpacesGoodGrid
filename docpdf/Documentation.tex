@@ -49,7 +49,7 @@
     {∉}{{$\notin$}}1 {∑}{{$\sum$}}1 {∞}{{$\infty$}}1 {∧}{{$\wedge$}}1
     {∫}{{$\int$}}1 {≠}{{$\neq$}}1 {≤}{{$\leq$}}1 {≥}{{$\geq$}}1
     {⊆}{{$\subseteq$}}1 {⟨}{{$\langle$}}1 {⟩}{{$\rangle$}}1
-    {𝓝}{{$\mathcal{N}$}}1,
+    {𝓝}{{$\mathcal{N}$}}1 {Θ}{{$\Theta$}}1 {∩}{{$\cap$}}1 {⇑}{{$\uparrow$}}1,
 }
 
 
@@ -141,10 +141,13 @@ running text, by a \emph{Formalization} paragraph naming the corresponding
 Lean declarations, describing what each of them proves, and recording every
 deviation from the published statements, together with a snapshot of the
 Lean code. The document also explains the purpose and architecture of the
-formalization and ends with a guide to the repository files. The repository
-compiles with no \texttt{sorry}, and the main theorems depend only on the
-standard axioms \texttt{propext}, \texttt{Classical.choice},
-\texttt{Quot.sound}.
+formalization and ends with a guide to the repository files. The aggregate
+root of the repository compiles with no \texttt{sorry}, and the main
+theorems depend only on the standard axioms \texttt{propext},
+\texttt{Classical.choice}, \texttt{Quot.sound}; the only declared
+\texttt{sorry} of the repository is one inner sublemma (the $u_1+u_2$
+construction) of the in-progress file formalizing Pointwise
+Multipliers~II, which is not yet imported by the root.
 \end{abstract}
 
 \maketitle
@@ -194,16 +197,23 @@ The mathematical pipeline, in this order, is:
   \item introduce the positive cone, the Haar and standard representation
     gauges, and the mean-oscillation norm, with finite-constant comparison
     theorems;
+  \item prove the Dirac-approximation identities: the partial sums of the
+    standard representation evaluate as averages of the function against the
+    grid Dirac kernels, with the resulting $L^\infty$ bounds on ancestor
+    coefficient sums (paper Proposition~17.1);
   \item develop the pointwise-multiplier layer: the \lean{selfs} classes,
     boundedness of \lean{selfs} multipliers, the $\mathcal{B}^s_{1,1}$
-    multiplier characterization, and the non-Archimedean multiplier estimates,
-    including their positive-cone versions.
+    multiplier characterization, the non-Archimedean multiplier estimates,
+    including their positive-cone versions, and their consequences --- the
+    inclusion of the tail \lean{selfs} classes in the multiplier space,
+    strongly regular domains and Pointwise Multipliers~I, and the
+    in-progress Pointwise Multipliers~II.
 \end{enumerate}
 A guide to the repository files is given in Section~\ref{guide}.
 
 \subsection{How this document was produced}
 
-This is a mathematical description of the current state (June 9, 2026) of the
+This is a mathematical description of the current state (June 11, 2026) of the
 Lean~4 formalization of \cite{paper}. It was produced from a \emph{prerelease
 version of the published paper} (the LaTeX source
 \lean{preprint-source/besovish-2020-07-18.tex}, included in the repository)
@@ -214,12 +224,15 @@ by the following rules.
   the elementary estimates of paper Section~4 (H\"older-like and convolution
   tricks, inlined in the Lean proofs without standalone statements); the
   H\"older and bounded variation atoms (paper Sections~11B--11C) and the
-  corresponding characterizations (paper Propositions~16.2 and~16.3); Dirac's
-  approximations (paper Section~17); Corollary~18.6, strongly regular domains
-  (paper 18.7--18.8, except for the grid-cell case, which is formalized),
-  Pointwise Multipliers~I and~II (paper 18.9--18.10); and all of paper
-  Sections~19--21 (quasialgebra, description of $\SB^s_{1,1}$ by indicators,
-  left compositions).
+  corresponding characterizations (paper Propositions~16.2 and~16.3); and all
+  of paper Sections~19--21 (quasialgebra, description of $\SB^s_{1,1}$ by
+  indicators, left compositions). Dirac's approximations (paper Section~17),
+  Corollary~18.6, strongly regular domains and Pointwise Multipliers~I
+  (paper 18.7--18.9) are formalized and documented in
+  Sections~\ref{diracsec} and~\ref{multsec}; Pointwise Multipliers~II
+  (paper 18.10) is stated, and its proof is complete except for one inner
+  sublemma, the only declared \lean{sorry} of the repository (see
+  Section~\ref{multsec}).
 \item Statements were updated to match the precision of the formalization;
   every change with mathematical content is recorded in the
   \emph{Formalization} paragraph that follows the statement.
@@ -1935,11 +1948,103 @@ theorem souzaPositiveRepresentation_coeff_eq_zero_of_not_subset_cell
     (R.block n).coeff P = 0 := ...
 \end{lstlisting}
 
+\section{Dirac's approximations}\label{diracsec}
+
+\filebox{GoodGrid/DiracApproximations.lean}{GoodGrid/AlternativeRepresentationsAndNorms/standardRepresentation.lean,
+GoodGrid/PositiveCone.lean}
+
+This section documents the formalization of Section~17 of the published
+paper. For a cell $Q \in \mathcal{P}^{k_0}$ the \emph{Dirac kernel}
+$\mathbb{1}_Q/m(Q)$ is the approximation of the identity at scale $k_0$
+attached to the grid. The theme of the section is that the partial sums of
+the standard representation of an integrable function $f$
+(Section~\ref{alt1}) evaluate, at any point $x_0 \in Q$, to the average of
+$f$ against this kernel. Two consequences follow at once: the partial sums
+are bounded by the local $L^\infty$ norm of $f$, and --- since at a point
+$x_0$ only the unique ancestor cell at each level contributes --- the
+\emph{ancestor coefficient sums} of the standard representation are
+controlled by $|f|_\infty$. This is exactly the input that the proof of
+Pointwise Multipliers~II (Section~\ref{multsec}) needs from this section.
+The proof goes through the unbalanced Haar system: a telescoping identity
+expands the Dirac kernel in the Haar functions supported on the ancestors
+of $Q$, the evaluation identity follows by strong induction on the level,
+and the regrouping of the Haar expansion into the standard representation
+(Section~\ref{alt1}) transports the result to the standard partial sums.
+
+\begin{proposition}\label{boup}
+Let $f \in L^1$. Fix $k_0 \in \mathbb{N}$, a point $x_0$, and let
+$Q \in \mathcal{P}^{k_0}$ be the cell containing $x_0$. Write $f_{k_0}$ for
+the partial sum, up to scale $k_0$, of the standard representation of $f$
+(the Haar partial sum regrouped on the cells, Section~\ref{alt1}). Then:
+\begin{itemize}
+\item[A.] $|f_{k_0}(x_0)| \leq |f\,\mathbb{1}_Q|_{\infty}$. Moreover, if
+$f = \sum_k \sum_{P \in \mathcal{P}^k} c_P a_P$ is \emph{any} positive
+$(s,p)$-Souza representation of $f$, then
+$$\sum_{J \supseteq Q} c_J\, m(J)^{s-1/p} \leq |f\,\mathbb{1}_Q|_{\infty},$$
+the sum running over the ancestors $J$ of $Q$ of level at most $k_0$.
+\item[B.] $\displaystyle f_{k_0}(x_0) = \frac{1}{m(Q)} \int_Q f\, dm$.
+\end{itemize}
+\end{proposition}
+
+\formalpar{In \lean{GoodGrid/DiracApproximations.lean} (paper
+Proposition~17.1), namespace \lean{DiracApproximation}. The Dirac kernel is
+\lean{diracKernel}, and the telescoping expansion of the kernel in the Haar
+system is \lean{diracKernel\_eq\_alpha\_add\_sumDown}, transported from
+\lean{Normalized\_indicator\_in\_Haar\_Wavelets\_span} of the dependency
+\lean{UnbalancedHaarWavelet}. The partial sums are \lean{partialHaarSum}
+and \lean{partialStandardSum}, identified pointwise by
+\lean{partialHaarSum\_eq\_partialStandardSum}. The evaluation identity
+$f_{k_0}(x_0) = \int f\, \mathbb{1}_Q/m(Q)\, dm$ is
+\lean{partialHaarSum\_eq\_integral\_mul\_diracKernel} (proved by strong
+induction on the level), and item~B is its standard-representation form
+\lean{claimB}. The first bound of item~A is \lean{claimA\_standard}; the
+positive-representation bound is \lean{claimA\_positive}, where the
+ancestor sum is expressed through \lean{ancestorTerm} (the contribution of
+the unique level-$k$ ancestor, with the canonical normalization
+$m(J)^{s-1/p}$), and the proof goes through a.e.\ convergence of a
+subsequence of the partial sums together with their monotonicity. The
+levelwise collapse of the standard blocks at a point to the single ancestor
+contribution is \lean{standardLevelSum\_eq\_ancestor\_term}. Compared with
+the paper: the partial sums of the standard representation use the
+\emph{tilde} atoms of Section~\ref{alt1}, whose value at $x_0$ has modulus
+at most $m(J)^{s-1/p}$ but need not equal it; the exact form with
+$m(J)^{s-1/p}$, as in item~A, holds for canonical atoms (and is the form
+used in Section~\ref{multsec}). Axioms checked: \lean{propext},
+\lean{Classical.choice}, \lean{Quot.sound}.}
+\begin{lstlisting}[style=lean]
+theorem claimA_standard (G : GoodGridSpace (α := α))
+    [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (Q : GoodGridCell G) {x₀ : α} (hx₀ : x₀ ∈ Q.cell) :
+    ENNReal.ofReal ‖partialHaarSum G F f hf Q.level x₀‖ ≤
+      eLpNorm (Set.indicator Q.cell f) ∞ G.grid.μ := ...
+
+theorem claimA_positive (G : GoodGridSpace (α := α))
+    (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞) [Fact (1 ≤ p)]
+    {f : Lp ℂ p G.toWeakGridSpace.measure}
+    (R : WeakGridSpace.LpGridRepresentation (souzaAtomFamily G s p hs hp hp_top) f)
+    (hR : SouzaPositiveRepresentation G s p hs hp hp_top R)
+    (Q : GoodGridCell G) :
+    ENNReal.ofReal (∑ k ∈ Finset.range (Q.level + 1),
+        ancestorTerm G s p hs hp hp_top R Q k) ≤
+      eLpNorm (Set.indicator Q.cell (⇑f)) ∞ G.toWeakGridSpace.measure := ...
+
+theorem claimB (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (p : ℝ≥0∞) (s : ℝ) (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    (Q : GoodGridCell G) {x₀ : α} (hx₀ : x₀ ∈ Q.cell) :
+    partialStandardSum G F p s f hf Q.level x₀ =
+      ∫ x, f x * ((diracKernel G Q x : ℝ) : ℂ) ∂G.grid.μ := ...
+\end{lstlisting}
+
 \section{Pointwise multipliers acting on $\mathcal{B}^s_{p,q}$}\label{multsec}
 
-This section documents the directory \lean{GoodGrid/Multipliers/} (five
+This section documents the directory \lean{GoodGrid/Multipliers/} (eight
 files plus the standalone interface), which formalizes Section~18 of the
-published paper. From here on $0 < s < 1/p$. The guiding question is: for
+published paper; one statement, Pointwise Multipliers~II, is still in
+progress. From here on $0 < s < 1/p$. The guiding question is: for
 which $g$ is $f \mapsto gf$ bounded on $\mathcal{B}^s_{p,q}$? Because the
 space is built from Souza's atoms, and the product of $g$ with a Souza's
 atom is just $g$ restricted to a cell and rescaled, the natural test is to
@@ -2567,12 +2672,309 @@ theorem souzaNonArchimedeanPropertyPositiveConeInfinite
                     SouzaConePositiveRepresentation G s p hs hp hp_top S) := ...
 \end{lstlisting}
 
-\begin{remark}
-Paper Corollary~18.6 ($\mathcal{B}^\beta_{p,\tilde{q},selfs} \subset
-M(\mathcal{B}^s_{p,q})$ continuously, for $\beta>s$) follows from the
-formalized Theorem~\ref{sepa} exactly as in the paper, but it is not itself
-stated in the repository; it is therefore omitted from this document.
-\end{remark}
+\subsection{The tail selfs classes consist of multipliers}
+
+\filebox{GoodGrid/Multipliers/SelfsSubsetMultipliers.lean}{GoodGrid/Multipliers/NonArchimedeanProperty.lean}
+
+The first consequence of the non-Archimedean property is the continuous
+inclusion of the tail \lean{selfs} classes in the multiplier space.
+
+\begin{corollary}\label{selfsmult}
+Let $0 < s < \beta < 1/p$ and $q, \tilde q \in [1,\infty]$, and fix a cutoff
+level $t \in \mathbb{N}$. Then
+$$\mathcal{B}^{\beta,t}_{p,\tilde q,selfs} \subset M(\mathcal{B}^s_{p,q}),$$
+and the inclusion is continuous:
+$|g|_{M(\mathcal{B}^s_{p,q})} \leq C\, |g|_{\mathcal{B}^{\beta,t}_{p,\tilde q,selfs}}$
+with a constant $C$ independent of $g$.
+\end{corollary}
+
+\formalpar{In \lean{GoodGrid/Multipliers/SelfsSubsetMultipliers.lean}
+(paper Corollary~18.6). The quantitative form is
+\lean{exists\_souzaSelfsMultiplierConstant}: a tail \lean{selfs} bound $C$
+for $g$ produces the multiplier operator bound $C_{mult}\cdot C$. The
+inclusion is
+\lean{souzaPointwiseMultiplier\_of\_souzaPointwiseSelfsTailClass} and the
+continuity at the level of (semi)norms is
+\lean{souzaPointwiseMultiplierNorm\_le\_const\_mul\_selfsTailNorm}. The
+proof applies the non-Archimedean property (Theorem~\ref{sepa}) to the
+one-element family $\{g\}$, after the level-lowering step
+\lean{souzaPointwiseSelfsTailBound\_levelZero}: a tail \lean{selfs} bound
+from level $t$ onward yields a full (level-$0$) bound with constant
+multiplied by the number of level-$t$ cells, because an atom on a shallow
+cell is the finite disjoint sum of its level-$t$ pieces, each a scaled atom
+on a tail cell. Axioms checked: \lean{propext}, \lean{Classical.choice},
+\lean{Quot.sound}.}
+\begin{lstlisting}[style=lean]
+theorem exists_souzaSelfsMultiplierConstant
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p q qtilde : ℝ≥0∞) (t : ℕ)
+    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β)
+    (hβ_lt_inv : β < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] [Fact (1 ≤ qtilde)] :
+    ∃ Cmult : ℝ,
+      0 ≤ Cmult ∧
+      ∀ (g : α → ℂ) (C : ℝ),
+        SouzaPointwiseSelfsTailBound G β p qtilde hβ hp hp_top t g C →
+        SouzaPointwiseMultiplierBound G s p q hs hp hp_top g (Cmult * C) := ...
+
+theorem souzaPointwiseMultiplierNorm_le_const_mul_selfsTailNorm
+    (G : GoodGridSpace (α := α)) (s β : ℝ) (p q qtilde : ℝ≥0∞) (t : ℕ)
+    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β)
+    (hβ_lt_inv : β < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] [Fact (1 ≤ qtilde)] :
+    ∃ Cmult : ℝ,
+      0 ≤ Cmult ∧
+      ∀ g : α → ℂ,
+        SouzaPointwiseSelfsTailClass G β p qtilde hβ hp hp_top t g →
+        WeakGridSpace.pointwiseMultiplierNorm
+            (A := souzaAtomFamily G s p hs hp hp_top) q g ≤
+          Cmult * souzaPointwiseSelfsTailNorm G β p qtilde hβ hp hp_top t g := ...
+\end{lstlisting}
+
+\subsection{Strongly regular domains and Pointwise Multipliers I}
+
+\filebox{GoodGrid/Multipliers/StronglyRegularDomains.lean}{GoodGrid/Multipliers/NonArchimedeanPropertyPositiveStandalone.lean}
+
+The positive-cone version of the non-Archimedean property was designed for
+indicators, and strongly regular domains are the class of sets whose
+indicators it handles.
+
+\begin{definition}\label{srd}
+Let $a \in \mathbb{R}$, $K \geq 0$ and $k_1 \in \mathbb{N}$. A measurable
+set $\Omega$ is an $(a, K, k_1)$-\textbf{strongly regular domain} if for
+every grid cell $Q$ of level at least $k_1$ the intersection $Q \cap
+\Omega$ is an exactly disjoint countable union of grid cells,
+$$Q \cap \Omega = \bigcup_k \bigcup_{P \in \mathcal{F}^k} P,$$
+with $\mathcal{F}^k \subset \mathcal{P}^k$ and the level-by-level cost
+control
+$$\sum_{P \in \mathcal{F}^k} m(P)^a \leq K\, m(Q)^a
+\quad \text{for every } k.$$
+\end{definition}
+
+\begin{proposition}\label{pos2}
+If $\Omega$ is a $(1-\beta p, K, k_1)$-strongly regular domain then
+$$|\mathbb{1}_\Omega|_{\mathcal{B}^{\beta+,k_1}_{p,\infty,selfs}} \leq K^{1/p}:$$
+for every grid cell $Q$ of level at least $k_1$, the product of
+$\mathbb{1}_\Omega$ with the canonical $(\beta,p)$-Souza's atom on $Q$ admits
+a positive Souza representation of positive $(p,\infty)$-gauge at most
+$K^{1/p}$. In particular $\mathbb{1}_\Omega \in \mathcal{B}^{\beta+}_{p,\infty}$.
+\end{proposition}
+
+\formalpar{In \lean{GoodGrid/Multipliers/StronglyRegularDomains.lean}
+(paper 18.7--18.8). The decomposition data inside one cell is the structure
+\lean{StronglyRegularDecomposition} (families $\mathcal{F}^k$ of genuine
+level-$k$ cells, exact disjoint cover of $Q \cap \Omega$, disjointness also
+across levels, and the cost bound), and the definition is
+\lean{StronglyRegularDomain}. Proposition~\ref{pos2} is
+\lean{souzaPositiveSelfsTailBound\_of\_stronglyRegularDomain}, with the
+weighted variant
+\lean{souzaPositiveSelfsTailBound\_smul\_of\_stronglyRegularDomain}
+($\Theta \cdot \mathbb{1}_\Omega$ with constant $\Theta\, K^{1/p}$) and the
+membership \lean{souzaPositiveFunction\_of\_stronglyRegularDomain}: the
+positive representation of $\mathbb{1}_\Omega \cdot a_Q$ is read off
+directly from the decomposition families.}
+\begin{lstlisting}[style=lean]
+def StronglyRegularDomain
+    (G : GoodGridSpace (α := α)) (Ω : Set α) (a K : ℝ) (k₁ : ℕ) : Prop :=
+  MeasurableSet Ω ∧
+    ∀ Q : GoodGridCell G, k₁ ≤ Q.level →
+      Nonempty (StronglyRegularDecomposition G Ω a K Q)
+
+theorem souzaPositiveSelfsTailBound_of_stronglyRegularDomain
+    (G : GoodGridSpace (α := α)) (β : ℝ) (p : ℝ≥0∞)
+    (hβ : 0 < β) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {Ω : Set α} {K : ℝ} {k₁ : ℕ}
+    (hΩ : StronglyRegularDomain G Ω (1 - β * p.toReal) K k₁) :
+    SouzaPositivePointwiseSelfsTailBound G β p ∞ hβ hp hp_top k₁
+      (Ω.indicator fun _ => (1 : ℂ))
+      (ENNReal.ofReal (K ^ (p.toReal)⁻¹)) := ...
+\end{lstlisting}
+
+\begin{theorem}[Pointwise Multipliers I]\label{pm1}
+There is a constant $C$ with the following property. Let $\Omega_i$, for
+$i$ in a finite set $\Lambda$, be $(1-\beta p, K_i, t_i)$-strongly regular
+domains, let $\Theta_i > 0$ be weights, and let $f$ be represented by a
+finite-cost canonical Souza representation $R = (c_Q)_Q$ in
+$\mathcal{B}^s_{p,q}$ such that
+\begin{itemize}
+\item[A.] on every active cell $Q$ ($c_Q \neq 0$), the total weighted cost
+$\sum_{i\colon\, Q \cap \Omega_i \neq \emptyset} \Theta_i\, K_i^{1/p}$ is at
+most $N$;
+\item[B.] every active cell meeting $\Omega_i$ has level at least $t_i$.
+\end{itemize}
+Then $g = \sum_{i \in \Lambda} \Theta_i\, \mathbb{1}_{\Omega_i}$ is a
+multiplier of the represented function: the product $g f$ has a Souza
+representation $S$ with finite cost and
+$$\mathrm{cost}(S) \leq C\, N\, \mathrm{cost}(R),$$
+and moreover (i) every active cell of $S$ is, up to measure zero, contained
+in some $\Omega_i$, and (ii) if $R$ is positive then $S$ is cone-positive.
+An infinite-family version ($\Lambda \subset \mathbb{N}$ countable) holds
+with condition~A stated as an $[0,\infty]$-valued series bound.
+\end{theorem}
+
+\formalpar{In \lean{GoodGrid/Multipliers/StronglyRegularDomains.lean}
+(paper Proposition~18.9). The finite case is
+\lean{souzaPointwiseMultipliersI} and the countable case is
+\lean{souzaPointwiseMultipliersIInfinite}; the weighted overlap costs of
+condition~A are \lean{stronglyRegularOverlapCost} and
+\lean{stronglyRegularOverlapCostInfinite}. Both are direct applications of
+the positive-cone non-Archimedean theorems (Theorem~\ref{posrem}) to the
+weighted indicators, whose positive tail \lean{selfs} bounds come from
+Proposition~\ref{pos2}; the support conclusion ii.\ of Theorem~\ref{posrem}
+(nonvanishing a.e.) here upgrades to a.e.\ \emph{containment} in some
+$\Omega_i$, since the multipliers are indicators. Axioms checked:
+\lean{propext}, \lean{Classical.choice}, \lean{Quot.sound}.}
+\begin{lstlisting}[style=lean,basicstyle=\ttfamily\scriptsize]
+theorem souzaPointwiseMultipliersI
+    (G : GoodGridSpace (α := α))
+    (s β : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hβ : 0 < β) (hβs : s < β)
+    (hβ_lt_inv : β < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
+    ∃ Cgen2 : ℝ,
+      0 ≤ Cgen2 ∧
+      ∀ (Λ : Finset ℕ) (t : ℕ → ℕ) (Ω : ℕ → Set α) (K Θ : ℕ → ℝ) (N : ℝ)
+        (f : α → ℂ)
+        (x : WeakGridSpace.BesovishSpace
+          (souzaAtomFamily G s p hs hp hp_top) q)
+        (R : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (x : Lp ℂ p G.toWeakGridSpace.measure)),
+        0 ≤ N →
+        (∀ i ∈ Λ,
+          StronglyRegularDomain G (Ω i) (1 - β * p.toReal) (K i) (t i)) →
+        (∀ i ∈ Λ, 0 < Θ i) →
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p) f
+          (x : Lp ℂ p G.toWeakGridSpace.measure) →
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R →
+        SouzaCanonicalRepresentation G s p hs hp hp_top R →
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+          (R.block k).coeff Q ≠ 0 →
+            stronglyRegularOverlapCost G p Λ Ω K Θ Q ≤ N) →
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) i,
+          i ∈ Λ →
+            (R.block k).coeff Q ≠ 0 →
+              (Q.1 ∩ Ω i).Nonempty →
+                t i ≤ k) →
+        ∃ y : WeakGridSpace.BesovishSpace
+            (souzaAtomFamily G s p hs hp hp_top) q,
+          ∃ S : WeakGridSpace.LpGridRepresentation
+              (souzaAtomFamily G s p hs hp hp_top)
+              (y : Lp ℂ p G.toWeakGridSpace.measure),
+            WeakGridSpace.RepresentsFunction
+              (G := G.toWeakGridSpace) (p := p)
+              (fun z => (∑ i ∈ Λ,
+                (Θ i : ℂ) * (Ω i).indicator (fun _ => (1 : ℂ)) z) * f z)
+              (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+            WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+            WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
+              Cgen2 * N *
+                WeakGridSpace.LpGridRepresentation.pqCost (q := q) R ∧
+            (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+              (S.block k).coeff Q ≠ 0 →
+                ∃ i ∈ Λ,
+                  ∀ᵐ z ∂(G.toWeakGridSpace.measure.restrict Q.1),
+                    z ∈ Ω i) ∧
+            (SouzaPositiveRepresentation G s p hs hp hp_top R →
+              SouzaConePositiveRepresentation G s p hs hp hp_top S) := ...
+\end{lstlisting}
+
+\subsection{$\mathcal{B}^{1/p}_{p,\infty} \cap L^\infty$ and Pointwise
+Multipliers II (in progress)}\label{pm2sub}
+
+\filebox{GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean}{GoodGrid/Multipliers/NonArchimedeanProperty.lean,
+GoodGrid/DiracApproximations.lean,
+GoodGrid/AlternativeRepresentationsAndNorms/FiniteStandardNormimpliesBesov.lean}
+
+\begin{proposition}[Pointwise Multipliers II]\label{pm2}
+Let $0 < s < 1/p$. There is a constant $C$ such that every
+$g \in \mathcal{B}^{1/p}_{p,\infty} \cap L^\infty$ is a pointwise
+multiplier of $\mathcal{B}^s_{p,q}$, with
+$$|g|_{M(\mathcal{B}^s_{p,q})} \leq C\, |g|_{\mathcal{B}^{1/p}_{p,\infty}}
++ |g|_\infty.$$
+\end{proposition}
+
+\formalpar{In \lean{GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean}
+(paper Proposition~18.10). \emph{This is the only statement of this
+document whose formalization is still in progress.} The statement is
+\lean{souzaPointwiseMultipliersII}, with the hypothesis
+$g \in \mathcal{B}^{1/p}_{p,\infty} \cap L^\infty$ rendered as: $g$ is
+represented by an element \lean{xg} of the $(1/p, p, \infty)$ Souza space
+and $\|g\| \leq M$ a.e. Its proof is organized around two inner sublemmas.
+The first, \lean{exists\_fouRepresentation}, is \emph{fully proved}: it
+packages the input from Corollary \lean{fou} (Section~\ref{alt1}) and
+Proposition~17.1.B (Section~\ref{diracsec}) --- the canonical standard
+representation of $g$ has $(p,\infty)$-cost controlled by
+$|g|_{\mathcal{B}^{1/p}_{p,\infty}}$, and all its ancestor-tower
+coefficient sums (\lean{ancestorCoeffSum}) are bounded by $M$, because for
+$s = 1/p$ the canonical atoms have value $m(J)^{1/p-1/p} = 1$ on their
+cells, so the tower sums are exactly the partial standard sums, i.e.\
+averages of $g$ over cells (axioms checked: \lean{propext},
+\lean{Classical.choice}, \lean{Quot.sound}). The second sublemma,
+\lean{exists\_mult\_product\_representation} --- the paper's splitting
+$gf = u_1 + u_2$ of the product into the convolution piece ($J
+\subsetneq Q$, geometric kernel $\lambda_2^{(j-k)(1/p-s)}$, factor
+$|g|_{\mathcal{B}^{1/p}_{p,\infty}}/(1-\lambda_2^{1/p-s})$) and the
+tower-sum piece ($Q \subseteq J$, factor $|g|_\infty$), identified with
+$gf$ through $L^1$-convergent truncations and Corollary \lean{compa1}
+(Section~\ref{complsec}) --- is the \emph{only declared \lean{sorry} of
+the repository}; the blocks of both pieces (\lean{multU1Block},
+\lean{multU2Block}) and their coefficient estimates
+(\lean{multU1Block\_coeff\_norm\_le},
+\lean{multU2Block\_levelCoeffPower\_le}) are already proved. The outer
+proof of \lean{souzaPointwiseMultipliersII} --- the
+$\varepsilon$-optimization over near-optimal representations of $f$ and
+the uniqueness of the product representative in $L^p$ --- is complete.
+Until the remaining sublemma is closed, this file is \emph{not} imported
+by the aggregate root.}
+\begin{lstlisting}[style=lean,basicstyle=\ttfamily\scriptsize]
+theorem souzaPointwiseMultipliersII
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hs_lt_inv : s < (p.toReal)⁻¹)
+    (h1p : 0 < (p.toReal)⁻¹) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
+    ∃ Cmult : ℝ,
+      0 ≤ Cmult ∧
+      ∀ (g : α → ℂ) (M : ℝ)
+        (xg : WeakGridSpace.BesovishSpace
+          (souzaAtomFamily G (p.toReal)⁻¹ p h1p hp hp_top) ∞),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p) g
+          (xg : Lp ℂ p G.toWeakGridSpace.measure) →
+        (∀ᵐ z ∂G.toWeakGridSpace.measure, ‖g z‖ ≤ M) →
+        SouzaPointwiseMultiplierBound G s p q hs hp hp_top g
+          (Cmult * WeakGridSpace.BesovishSpace.Norm_Costpq
+              (souzaAtomFamily G (p.toReal)⁻¹ p h1p hp hp_top) ∞ xg
+            + M) := ...
+
+theorem exists_fouRepresentation
+    (G : GoodGridSpace (α := α)) (p : ℝ≥0∞)
+    (h1p : 0 < (p.toReal)⁻¹) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] :
+    ∃ Cfou : ℝ,
+      0 ≤ Cfou ∧
+      ∀ (g : α → ℂ) (M : ℝ)
+        (xg : WeakGridSpace.BesovishSpace
+          (souzaAtomFamily G (p.toReal)⁻¹ p h1p hp hp_top) ∞),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p) g
+          (xg : Lp ℂ p G.toWeakGridSpace.measure) →
+        (∀ᵐ z ∂G.toWeakGridSpace.measure, ‖g z‖ ≤ M) →
+        ∃ Rg : WeakGridSpace.LpGridRepresentation
+            (souzaAtomFamily G (p.toReal)⁻¹ p h1p hp hp_top)
+            (xg : Lp ℂ p G.toWeakGridSpace.measure),
+          SouzaCanonicalRepresentation G (p.toReal)⁻¹ p h1p hp hp_top Rg ∧
+          WeakGridSpace.LpGridRepresentation.FinitePQCost (q := ∞) Rg ∧
+          WeakGridSpace.LpGridRepresentation.pqCost (q := ∞) Rg ≤
+            Cfou * WeakGridSpace.BesovishSpace.Norm_Costpq
+              (souzaAtomFamily G (p.toReal)⁻¹ p h1p hp hp_top) ∞ xg ∧
+          ∀ (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+            ‖ancestorCoeffSum G Rg Q‖ ≤ M := ...
+\end{lstlisting}
 
 \vspace{8mm}
 \centerline{\Large\bf III. GUIDE TO THE REPOSITORY}
@@ -2624,6 +3026,10 @@ whole pipeline.
   \item \lean{GoodGrid/PositiveCone.lean}: the positive cone, positive and
     cone-positive representations, decompositions, density, and the support
     theorems (Section~\ref{positivesec}).
+  \item \lean{GoodGrid/DiracApproximations.lean}: the grid Dirac kernels,
+    the evaluation of partial standard sums as cell averages, and the
+    $L^\infty$ bounds on ancestor coefficient sums of paper
+    Proposition~17.1 (Section~\ref{diracsec}).
   \item \lean{GoodGrid/BesovAtoms.lean}: Besov's atoms on good grids and the
     Souza/Besov sandwich theorem (Section~\ref{alt2}).
   \item \lean{GoodGrid/AlternativeRepresentationsAndNorms.lean} and
@@ -2664,8 +3070,16 @@ whole pipeline.
     multipliers, uniform in the tail level, and the canonical tail
     classes), \lean{NonArchimedeanProperty.lean} (the finite and infinite
     non-Archimedean estimates and the cores of their positive versions),
-    and \lean{NonArchimedeanPropertyPositiveStandalone.lean} (the
-    user-facing positive-cone statements, finite and infinite).
+    \lean{NonArchimedeanPropertyPositiveStandalone.lean} (the
+    user-facing positive-cone statements, finite and infinite),
+    \lean{SelfsSubsetMultipliers.lean} (the continuous inclusion of the
+    tail \lean{selfs} classes in the multiplier space, paper
+    Corollary~18.6), \lean{StronglyRegularDomains.lean} (strongly regular
+    domains and Pointwise Multipliers~I, paper 18.7--18.9), and
+    \lean{Bp1overpinftyisMultiplier.lean} (Pointwise Multipliers~II, paper
+    Proposition~18.10; in progress --- it contains the only declared
+    \lean{sorry} of the repository and is not yet imported by the
+    aggregate root).
 \end{itemize}
 
 \subsection{External dependencies}
@@ -2679,17 +3093,30 @@ unconditional basis property used in Section~\ref{haar}.
 
 \subsection{Repository status}
 
-At the date of this document (June 9, 2026) a full \lean{lake build}
-succeeds (3454 jobs) and the project Lean files contain no \lean{sorry}, no
-\lean{admit}, and no project-local \lean{axiom} or \lean{constant}
-declarations. The axioms of the main theorems --- the finite and infinite,
-non-positive and positive non-Archimedean properties, namely
+At the date of this document (June 11, 2026) a full \lean{lake build}
+succeeds (3457 jobs). The project Lean files contain no \lean{admit} and no
+project-local \lean{axiom} or \lean{constant} declarations, and exactly one
+declared \lean{sorry}: the inner sublemma
+\lean{exists\_mult\_product\_representation} (the $u_1+u_2$ construction of
+Pointwise Multipliers~II, Section~\ref{pm2sub}) of
+\lean{GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean}, a file not yet
+imported by the aggregate root \lean{BesovSpacesGoodGrid.lean}; every
+module imported by the root compiles with no \lean{sorry}. The axioms of
+the main theorems --- the finite and infinite, non-positive and positive
+non-Archimedean properties and their consequences, namely
 \begin{center}
 \small
 \lean{souzaNonArchimedeanProperty},\quad
 \lean{souzaNonArchimedeanPropertyLambdaFinite},\\
 \lean{souzaNonArchimedeanPropertyPositiveCone},\\
-\lean{souzaNonArchimedeanPropertyPositiveConeInfinite}
+\lean{souzaNonArchimedeanPropertyPositiveConeInfinite},\\
+\lean{exists\_souzaSelfsMultiplierConstant},\quad
+\lean{souzaPointwiseMultipliersI},\\
+\lean{souzaPointwiseMultipliersIInfinite},\quad
+\lean{claimA\_standard},\quad
+\lean{claimA\_positive},\\
+\lean{claimB},\quad
+\lean{exists\_fouRepresentation}
 \end{center}
 --- were checked
 with \lean{\#print axioms}: only the standard axioms \lean{propext},
