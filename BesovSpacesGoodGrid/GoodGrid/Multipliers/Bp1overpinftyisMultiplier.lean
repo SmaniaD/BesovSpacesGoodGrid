@@ -31,18 +31,18 @@ and the identity `g·f = u₁ + u₂` is obtained from truncations converging in
 
 ## Current state of the proof
 
+The input from Corollary `fou` and Proposition `boup`.B is now proved in
+`exists_fouRepresentation`: a canonical-atom representation of `g` has
+`(p,∞)`-cost controlled by `|g|_{B^{1/p}_{p,∞}}`, and all ancestor-tower
+coefficient sums are bounded by `|g|_∞`.  The proof uses the standard
+representation machinery in `AlternativeRepresentationsAndNorms` and proves
+the needed tower-sum estimate locally from the Dirac-approximation API.
+
 The outer proof (the ε-optimization over near-optimal representations of `f`
-and the uniqueness of the product representative in `L^p`) is complete.  Two
-inner sublemmas are still `sorry`, with their mathematical content clearly
+and the uniqueness of the product representative in `L^p`) is complete.  One
+inner sublemma is still `sorry`, with its mathematical content clearly
 delimited:
 
-* `exists_fouRepresentation` — the input from Corollary `fou` and
-  Proposition `boup`.B: a canonical-atom representation of `g` with
-  `(p,∞)`-cost controlled by `|g|_{B^{1/p}_{p,∞}}` and all ancestor-tower
-  coefficient sums bounded by `|g|_∞`.  This should be derived from the
-  standard-representation machinery in `AlternativeRepresentationsAndNorms`
-  (Theorem 15.1 / Corollary `fou`), plus the not-yet-formalized
-  Proposition 17.1 (`boup`).
 * `exists_mult_product_representation` — the `u₁ + u₂` construction: the
   convolution estimate for `u₁`, the `L^∞` estimate for `u₂`, and the `L¹`
   truncation argument identifying `g·f = u₁ + u₂` via

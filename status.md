@@ -3,7 +3,7 @@
 This file summarizes the recent state of the central files in
 `BesovSpacesGoodGrid/GoodGrid`.
 
-## IN PROGRESS: Pointwise Multipliers II (`mult`, Prop 18.10) — 2 sorries
+## IN PROGRESS: Pointwise Multipliers II (`mult`, Prop 18.10) — 1 sorry
 
 New file `BesovSpacesGoodGrid/GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean`
 (imported by the umbrella).  Main statement `souzaPointwiseMultipliersII`:
@@ -13,16 +13,17 @@ for `0 < s < 1/p`, every `g` represented by `xg ∈ B^{1/p}_{p,∞}` with
 
 The **outer proof is complete** (ε-optimization over near-optimal
 representations of `f`, uniqueness of the product representative in `L^p` —
-same pattern as Corollary 23er).  Two inner sublemmas remain `sorry`:
+same pattern as Corollary 23er).  One inner sublemma remains `sorry`:
 
-1. `exists_fouRepresentation`: a canonical-atom representation `Rg` of `g`
-   with `pqCost_{(p,∞)} Rg ≤ Cfou·|xg|` and all ancestor-tower coefficient
-   sums (`ancestorCoeffSum`, new def) bounded by `M`.  Mathematical content:
-   Corollary 15.2 (`fou`, standard representation — partially formalized in
-   `AlternativeRepresentationsAndNorms`) plus Proposition 17.1 (`boup`).B
-   (tower sums are cell averages of `g`, hence ≤ `‖g‖_∞`) — `boup` is not
-   yet formalized.
-2. `exists_mult_product_representation`: the `u₁ + u₂` construction —
+1. `exists_fouRepresentation` is now proved: it builds a canonical-atom
+   representation `Rg` of `g` with
+   `pqCost_{(p,∞)} Rg ≤ Cfou·|xg|` and all ancestor-tower coefficient sums
+   (`ancestorCoeffSum`) bounded by `M`.  The proof uses the standard
+   representation machinery from `AlternativeRepresentationsAndNorms` and
+   proves the needed `boup`.B-style tower estimate locally via Dirac
+   approximations.
+2. `exists_mult_product_representation` remains `sorry`: the `u₁ + u₂`
+   construction —
    `u₁` via the level convolution with kernel `λ₂^{(j−k)(1/p−s)}` (Young),
    `u₂` via the tower-sum `L^∞` bound, and `g·f = u₁ + u₂` through
    `L¹`-convergent truncations and `representation_limit_strong_existence`
