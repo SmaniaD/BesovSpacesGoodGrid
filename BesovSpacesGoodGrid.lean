@@ -9,6 +9,7 @@ import BesovSpacesGoodGrid.WeakGrid.Transmutation
 import BesovSpacesGoodGrid.WeakGrid.InducedGrid
 import BesovSpacesGoodGrid.GoodGrid.BesovAtoms
 import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms
+import BesovSpacesGoodGrid.GoodGrid.DiracApproximations
 import BesovSpacesGoodGrid.GoodGrid.Multipliers
 import BesovSpacesGoodGrid.GoodGrid.PositiveCone
 
