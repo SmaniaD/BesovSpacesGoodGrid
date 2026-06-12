@@ -3,50 +3,93 @@
 This file summarizes the recent state of the central files in
 `BesovSpacesGoodGrid/GoodGrid`.
 
-## IN PROGRESS: Pointwise Multipliers II (`mult`, Prop 18.10) — 1 sorry
+## DONE: Pointwise Multipliers II (`mult`, Prop 18.10) — 0 sorry (2026-06-12)
 
-New file `BesovSpacesGoodGrid/GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean`
-(imported by the umbrella).  Main statement `souzaPointwiseMultipliersII`:
-for `0 < s < 1/p`, every `g` represented by `xg ∈ B^{1/p}_{p,∞}` with
-`‖g‖ ≤ M` a.e. is a pointwise multiplier of `B^s_{p,q}` with operator bound
-`Cmult · |xg|_{B^{1/p}_{p,∞}} + M`.
+File `BesovSpacesGoodGrid/GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean`
+(imported by the umbrella) is now **complete and `sorry`-free**.  Main
+statement `souzaPointwiseMultipliersII`: for `0 < s < 1/p`, every `g`
+represented by `xg ∈ B^{1/p}_{p,∞}` with `‖g‖ ≤ M` a.e. is a pointwise
+multiplier of `B^s_{p,q}` with operator bound
+`Cmult · |xg|_{B^{1/p}_{p,∞}} + M`.  Axioms checked
+(`propext, Classical.choice, Quot.sound`) for
+`souzaPointwiseMultipliersII`, `exists_mult_product_representation` and
+`exists_fouRepresentation`.
 
-The **outer proof is complete** (ε-optimization over near-optimal
-representations of `f`, uniqueness of the product representative in `L^p` —
-same pattern as Corollary 23er).  One inner sublemma remains `sorry`:
+Structure:
 
-1. `exists_fouRepresentation` is now proved: it builds a canonical-atom
-   representation `Rg` of `g` with
-   `pqCost_{(p,∞)} Rg ≤ Cfou·|xg|` and all ancestor-tower coefficient sums
-   (`ancestorCoeffSum`) bounded by `M`.  The proof uses the standard
-   representation machinery from `AlternativeRepresentationsAndNorms` and
-   proves the needed `boup`.B-style tower estimate locally via Dirac
-   approximations.
-2. `exists_mult_product_representation` remains `sorry`: the `u₁ + u₂`
-   construction —
-   `u₁` via the level convolution with kernel `λ₂^{(j−k)(1/p−s)}` (Young),
-   `u₂` via the tower-sum `L^∞` bound, and `g·f = u₁ + u₂` through
-   `L¹`-convergent truncations and `representation_limit_strong_existence`
-   (Corollary `compa1`, formalized).
-   **Progress on `u₂` (done)**: `multU2Block` (coefficients
-   `c_Q · ancestorCoeffSum`, atoms of `Rf`) and
-   `multU2Block_levelCoeffPower_le`
-   (`levelCoeffPower(u₂)_k ≤ M^p · levelCoeffPower(Rf)_k`) are proved.
-   **Progress on `u₁` (partial)**: `multU1Block` (coefficients
-   `e_J · ∑_{Q ⊋ J} c_Q v_Q μ(J)^{1/p−s}` over canonical `(s,p)`-atoms) and
-   the pointwise bound `multU1Block_coeff_norm_le`
-   (`‖coeff_J‖ ≤ ‖e_J‖ · ∑_{k<j} λ₂^{(j−k)(1/p−s)} · Σ_{Q ⊇ J, level k} ‖c_Q‖`,
-   via the iterated ratio `cell_measure_le_lambda2_pow_mul_cell` and the
-   Souza atom normalization) are proved.
-   Remaining for this sublemma: aggregate the pointwise `u₁` bound into the
-   level `ℓ^p` estimate (Minkowski over `k < j`, single-ancestor counting)
-   and the `(p,q)`-cost convolution bound (discrete Young, geometric kernel);
-   the `hasSum` of the `u₁`/`u₂` block series in `L^p` (via the geometric
-   level weights, cf. Prop 6.1); and the pointwise identity of truncated
-   products `f_{k₀}·g_{k₀} = u₁-partial + u₂-partial` (atom algebra
-   `a_Q·b_J`), passed to the limit in `L¹` via `compa1`.
+1. `exists_fouRepresentation` (Corollary `fou` + Prop `boup`.B): canonical
+   representation `Rg` of `g` with `pqCost_{(p,∞)} Rg ≤ Cfou·|xg|` and all
+   ancestor-tower coefficient sums (`ancestorCoeffSum`) bounded by `M`, via
+   the standard representation machinery and Dirac approximations.
+2. `exists_mult_product_representation` — the `u₁ + u₂` construction, now
+   proved, with constant `Cconv = λ₂^θ/(1−λ₂^θ)`, `θ = 1/p − s`:
+   - **`u₁` cost**: from `multU1Block_coeff_norm_le` plus the
+     single-ancestor collapse (`ancestor_ite_coeff_sum_le_levelRoot`), the
+     level roots obey `root(u₁)_j ≤ pqCost_∞(Rg) · ∑_{k<j} λ₂^{(j−k)θ}
+     root(Rf)_k`; the `(p,q)` cost follows from a self-contained discrete
+     Young inequality with geometric kernel
+     (`geometric_conv_rpow_summable_and_tsum_le`, proved by iterated
+     Minkowski `Real.Lp_add_le_tsum_of_nonneg'` on shifted blocks), with a
+     separate uniform bound at `q = ∞`.
+   - **`u₂` cost**: `multU2Block_levelCoeffPower_le` gives
+     `cost(u₂) ≤ M · pqCost(Rf)` (helpers
+     `souza_abstract_cost_{top,finite}_of_blockLvlCoeff_le`).
+   - **Convergence**: both block families have finite abstract `(p,q)` cost,
+     so their series converge in `L^p` by
+     `WeakGridSpace.formalBlockSeq_hasRepresentation` (no compactness
+     needed); `Norm_Costpq` of each piece is bounded through
+     `Norm_Costpq_le_cost`, and the two pieces are glued by the triangle
+     inequality `Norm_Costpq_add_le`.
+   - **Identity `g·f = u₁ + u₂`**: the truncations satisfy the *exact*
+     pointwise identity `(∑_{j<n} Rg_j)(∑_{k<n} Rf_k) = ∑_{j<n} u₁_j +
+     ∑_{k<n} u₂_k` (`mult_truncated_pointwise_identity`, proved along the
+     tower of cells containing each point, with the scalar triangular-split
+     identity `truncation_scalar_identity` by induction); the identity
+     passes to the limit by
+     `representsPointwiseProduct_of_tendsto_Lp_varying`, a varying-multiplier
+     version of `RepresentsPointwiseProduct.of_tendsto_Lp` via three nested
+     a.e.-convergent subsequences.  (The `L¹`/`compa1` route from the paper
+     was not needed.)
+3. The outer proof (ε-optimization over near-optimal representations of `f`,
+   uniqueness of the product representative in `L^p`) as before.
 
-Remark `pos3` (positive version) not yet started.
+Reusable new infrastructure (private in the file, can be publicized later):
+the geometric discrete Young inequality, the pointwise evaluation lemma
+`souza_toFunLt_eq_coeff_mul_atom` (a Souza level block at a point collapses
+to `coeff·atom` of the unique cell), the tower collapse
+`tower_ite_sum_collapse`, `ancestorCoeffSum_tower_eq`, and
+`coeFn_finset_range_sum_toLp`.
+
+**Remark `pos3` (positive version) — DONE (2026-06-12).**  New theorems in
+the same file, axioms checked (`propext, Classical.choice, Quot.sound`):
+
+- `souzaPointwiseMultipliersIIPositive` — the paper's Remark `pos3`
+  (`B^a_{p,b}` replaced by `B^{a+}_{p,b}` everywhere): if `g` is represented
+  by `xg` in the positive cone of `B^{1/p}_{p,∞}` with finite positive gauge
+  and `‖g‖ ≤ M` a.e., then for every `x` in the positive cone of `B^s_{p,q}`
+  with finite positive gauge there is a positive product representative `y`
+  (`SouzaPositiveElement`) with
+  `souzaPositiveNorm y ≤ (ofReal Cmult · souzaPositiveNorm xg + ofReal M) ·
+  souzaPositiveNorm x` — `ℝ≥0∞` arithmetic with a double ε-optimization
+  (`ENNReal.le_of_forall_pos_le_add`, δ := min 1 (ε/D)), uniqueness of the
+  product representative fixing `y` across runs.
+- `exists_mult_product_representation_pos` — representation form: positive
+  finite-cost `Rg`, `Rf` give a positive representation `Ry` of the product
+  with `pqCost Ry ≤ (Cconv·pqCost_∞ Rg + M)·pqCost_q Rf`.
+
+Proof architecture: the core was refactored into
+`exists_mult_product_blocks` (block form, exposing `R1.block = multU1Block`,
+`R2.block = multU2Block`), shared by the non-positive and positive wrappers.
+For the positive side: `multU1Block_positive`/`multU2Block_positive`
+(positivity is inherited by the `u₁`/`u₂` coefficients, the `u₁` atoms are
+canonical by construction); the canonical hypothesis comes from
+`souzaPositiveRepresentation_canonical` (positive blocks have canonical
+atoms by definition); and the ancestor-tower bound `≤ M` is **derived** from
+positivity (`ancestorCoeffSum_norm_le_essBound_of_positive`, the positive
+form of Prop `boup`.B: the tower partial sums are nondecreasing with an
+a.e.-convergent subsequence to `g`, so they are `≤ M` on a point of each
+cell, hence everywhere by constancy on cells).  The two pieces are summed by
+`souzaPositiveRepresentationAdd` with its cost triangle inequality.
 
 ## DONE: Strongly regular domains + Pointwise Multipliers I (2026-06-10)
 
@@ -304,19 +347,33 @@ Proof architecture:
 ## What remains
 
 Nothing pending: **zero `sorry` in the project**, full build green
-(3454 jobs), axioms of the main theorems (finite/infinite,
-positive/non-positive) verified.
+(3458 jobs, `Bp1overpinftyisMultiplier.lean` now imported by the umbrella
+`GoodGrid/Multipliers.lean` and hence by the aggregate root), axioms of the
+main theorems (finite/infinite, positive/non-positive) verified.
 
-Possible next steps (to be decided):
+Possible next steps (see `todo.md`):
 
+- Theorem 15.1 wrap-up equivalence + the `L¹` functional of Cor 15.2;
+  Section 16 examples; Sections 19–21.
 - Stylistic cleanup: linter warnings (`simpa`→`simp`, unused `simp`
   arguments, deprecated `push_neg`) scattered across the files.
 
-## Recent checks (2026-06-10)
+## Recent checks (2026-06-12)
 
 ```bash
-lake build                      # green, whole project (now 3455 jobs)
-grep -rn "sorry" BesovSpacesGoodGrid --include="*.lean"   # empty
+lake build                      # green, whole project (now 3458 jobs)
+grep -rn "sorry" BesovSpacesGoodGrid --include="*.lean"   # empty (code; only
+#   one docstring mention)
+#print axioms souzaPointwiseMultipliersII
+#  → [propext, Classical.choice, Quot.sound]
+#print axioms souzaPointwiseMultipliersIIPositive
+#  → [propext, Classical.choice, Quot.sound]
+#print axioms exists_mult_product_representation
+#  → [propext, Classical.choice, Quot.sound]
+#print axioms exists_mult_product_representation_pos
+#  → [propext, Classical.choice, Quot.sound]
+#print axioms exists_fouRepresentation
+#  → [propext, Classical.choice, Quot.sound]
 #print axioms souzaNonArchimedeanPropertyPositiveConeInfinite
 #  → [propext, Classical.choice, Quot.sound]
 #print axioms souzaNonArchimedeanPropertyPositiveCone

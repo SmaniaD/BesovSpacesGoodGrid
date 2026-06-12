@@ -3,38 +3,32 @@
 Pending formalization work, in rough priority order.  See `status.md` for
 what is already done and `paper-map.md` for the paper-wide picture.
 
-## 1. Finish Pointwise Multipliers II (Prop 18.10, `mult`)
+## 1. Pointwise Multipliers II (Prop 18.10, `mult`) — DONE (2026-06-12)
 
 File: `BesovSpacesGoodGrid/GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean`.
-The main theorem `souzaPointwiseMultipliersII` is proved modulo two `sorry`s.
+The main theorem `souzaPointwiseMultipliersII` is fully proved (no `sorry`),
+including:
 
-- [ ] `exists_mult_product_representation` (the `u₁ + u₂` construction):
-  - [x] `u₂` block + levelwise cost bound (`multU2Block`,
-        `multU2Block_levelCoeffPower_le`).
-  - [x] `u₁` block + pointwise coefficient bound (`multU1Block`,
-        `multU1Block_coeff_norm_le`).
-  - [ ] Aggregate the `u₁` pointwise bound into the level `ℓ^p` estimate:
-        Minkowski over `k < j` plus single-ancestor counting
-        (the inner sum over `Q ⊇ J` at level `k` has one nonzero term).
-  - [ ] `(p,q)`-cost convolution bound for `u₁` (discrete Young with the
-        geometric kernel `λ₂^{(j−k)(1/p−s)}`; cf. `cCoefficientInt` /
-        `transmutationKernelZ` machinery in `WeakGrid/BesovishSpaces.lean`).
-  - [ ] `hasSum` of the `u₁`/`u₂` block series in `L^p` (geometric level
-        weights, in the spirit of Prop 6.1 `lp`).
-  - [ ] Identity `f_{k₀}·g_{k₀} = (u₁ + u₂)-partial sums` (exact atom algebra
-        `a_Q·b_J`), then the `L¹` limit via
-        `representation_limit_strong_existence` (Cor `compa1`).
-- [ ] `exists_fouRepresentation` (input from Cor 15.2 `fou` + Prop 17.1
-      `boup`.B): canonical-atom representation of `g` with `(p,∞)`-cost
-      `≤ Cfou·|g|_{B^{1/p}_{p,∞}}` and ancestor-tower sums `≤ ‖g‖_∞`.
-      Blocked on formalizing Prop 17.1 (`boup`) — see item 2.
-- [ ] Remark `pos3`: positive version of `mult` (replace `B^a_{p,b}` by
-      `B^{a+}_{p,b}` everywhere).
+- [x] `exists_mult_product_representation` (the `u₁ + u₂` construction),
+      via the block-form core `exists_mult_product_blocks`: level `ℓ^p`
+      aggregation with single-ancestor counting, discrete Young convolution
+      bound (`geometric_conv_rpow_summable_and_tsum_le`), `L^p` convergence
+      of the block series (`formalBlockSeq_hasRepresentation`), and the
+      exact truncated-product identity passed to the limit along
+      a.e.-convergent subsequences (no `compa1` needed).
+- [x] `exists_fouRepresentation` (input from Cor 15.2 `fou` + Prop 17.1
+      `boup`.B via the Dirac-approximation machinery).
+- [x] Remark `pos3`: positive version of `mult`
+      (`souzaPointwiseMultipliersIIPositive`, representation form
+      `exists_mult_product_representation_pos`); the tower bound is derived
+      from positivity (`ancestorCoeffSum_norm_le_essBound_of_positive`).
 
 ## 2. Proposition 17.1 (`boup`, Dirac approximations)
 
-Not started.  Needed for `exists_fouRepresentation` (tower sums of the
-standard representation are cell averages of `g`).  Infrastructure:
+The special case needed for `exists_fouRepresentation` (tower sums of the
+standard representation are cell averages of `g`, claims A/B) is proved in
+`DiracApproximations.lean`; the full distributional statement of Prop 17.1
+is not formalized.  Infrastructure:
 `Distribution.lean` (test functions/distributions) and
 `AlternativeRepresentationsAndNorms` (standard representation).
 

@@ -115,30 +115,39 @@ The formalization currently includes:
   `L^infinity` bounds of Proposition 17.1.A for the standard representation
   (`claimA_standard`) and for positive Souza representations
   (`claimA_positive`).
-- Pointwise Multipliers II, **in progress**
+- Pointwise Multipliers II, **complete**
   (`GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean`, paper
-  Proposition 18.10): every `g` in `B^{1/p}_{p,infinity} ∩ L^infinity` is a
-  pointwise multiplier of `B^s_{p,q}` for `0 < s < 1/p`.  The statement
-  (`souzaPointwiseMultipliersII`), its outer proof, and the input sublemma
+  Proposition 18.10 and Remark `pos3`): every `g` in
+  `B^{1/p}_{p,infinity} ∩ L^infinity` is a pointwise multiplier of
+  `B^s_{p,q}` for `0 < s < 1/p`, with operator bound
+  `Cmult·|g|_{B^{1/p}_{p,infinity}} + |g|_infinity`
+  (`souzaPointwiseMultipliersII`).  The proof comprises the input sublemma
   `exists_fouRepresentation` (the canonical standard representation of `g`
   with cost control and ancestor-tower sums bounded by `|g|_infinity`, via
-  Corollary `fou` and Proposition 17.1.B) are fully proved; the remaining
-  inner sublemma `exists_mult_product_representation` (the `u₁ + u₂`
-  product construction) is the only declared `sorry` of the repository,
-  and this file is not yet imported by the aggregate root.
+  Corollary `fou` and Proposition 17.1.B), and the `u₁ + u₂` product
+  construction `exists_mult_product_representation` (block form
+  `exists_mult_product_blocks`): a discrete Young inequality with geometric
+  kernel for the `u₁` convolution cost, the tower-sum `L^infinity` bound for
+  `u₂`, `L^p` convergence of the block series, and the identification
+  `g·f = u₁ + u₂` through the exact pointwise identity of truncated products
+  passed to the limit along a.e.-convergent subsequences.  The positive-cone
+  version of the paper's Remark `pos3` is `souzaPointwiseMultipliersIIPositive`
+  (bound in the positive gauges `souzaPositiveNorm`; representation form
+  `exists_mult_product_representation_pos`), where the canonical-atom
+  hypothesis and the ancestor-tower bound are derived from positivity (the
+  positive form of Proposition 17.1.B).
 
-At this snapshot, a full `lake build` succeeds (3457 jobs).  The aggregate
-root module and all modules it imports compile with **zero `sorry`**; the
-only declared `sorry` of the repository is the inner sublemma
-`exists_mult_product_representation` of the in-progress file
-`Bp1overpinftyisMultiplier.lean`, which is not yet imported by the root.
+At this snapshot, a full `lake build` succeeds (3458 jobs) and the
+repository compiles with **zero `sorry`**: every project module, including
+`Bp1overpinftyisMultiplier.lean`, is imported by the aggregate root.
 Project Lean files outside `.lake/packages` contain no `admit` and no
 project-local `axiom` or `constant` declarations; the main theorems — the
 non-Archimedean estimates (finite, infinite, and positive-cone versions),
 the `selfs` multiplier inclusion, Pointwise Multipliers I (finite and
-countable), the Dirac-approximation claims, and `exists_fouRepresentation`
-— check with only the standard axioms (`propext`, `Classical.choice`,
-`Quot.sound`).  See `status.md` for the current verification log.
+countable), the Dirac-approximation claims, and Pointwise Multipliers II
+with its positive version — check with only the standard axioms (`propext`,
+`Classical.choice`, `Quot.sound`).  See `status.md` for the current
+verification log.
 
 ## Build
 
@@ -151,9 +160,7 @@ The full-project check is:
 lake build
 ```
 
-At the current snapshot this succeeds; the only `sorry` warning comes from
-the in-progress file `Multipliers/Bp1overpinftyisMultiplier.lean` (see
-above).
+At the current snapshot this succeeds with no `sorry` warnings.
 
 To check an individual module in isolation, for example the multiplier files:
 
@@ -212,9 +219,11 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
   strongly regular domains, the positive tail-`selfs` bound for their
   indicators, and Pointwise Multipliers I (paper 18.7-18.9).
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean`:
-  Pointwise Multipliers II (paper Proposition 18.10), in progress — contains
-  the only declared `sorry` of the repository and is not yet imported by the
-  aggregate root.
+  Pointwise Multipliers II (paper Proposition 18.10): `B^{1/p}_{p,infinity} ∩
+  L^infinity` consists of pointwise multipliers of `B^s_{p,q}`, via the
+  `u₁ + u₂` atomic product construction, a discrete Young inequality with
+  geometric kernel, and the truncated-product identity; includes the
+  positive-cone version of the paper's Remark `pos3`.
 - `BesovSpacesGoodGrid/GoodGrid/DiracApproximations.lean`: the grid Dirac
   kernels, evaluation of partial standard sums as cell averages, and the
   bounds of paper Proposition 17.1.
@@ -272,18 +281,16 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
 
 ## Next Work
 
-The aggregate root currently builds with **zero `sorry`**; the single
-remaining `sorry` of the repository is the `u₁ + u₂` construction of
-Pointwise Multipliers II.  Likely next steps are:
+The repository currently builds with **zero `sorry`**.  Likely next steps
+(see `todo.md` for details) are:
 
-- complete `exists_mult_product_representation` in
-  `Multipliers/Bp1overpinftyisMultiplier.lean`: the levelwise `ℓ^p`
-  convolution estimate for the `u₁` blocks (Young's inequality with the
-  geometric kernel `λ₂^{n(1/p−s)}`), the assembly of the `u₁` and `u₂`
-  representations via `formalBlockSeq_hasRepresentation`, and the
-  identification `g·f = u₁ + u₂` through `L¹`-convergent truncations and
-  `representation_limit_strong_existence` (Corollary `compa1`); then import
-  the file from the aggregate root;
+- the wrap-up equivalence theorem for paper Theorem 15.1 (packaging the
+  proved inequality cycle) and the `L¹` functional of Corollary 15.2;
+- the Section 16 examples: the Holder atom family with Proposition 16.2, and
+  bounded-variation atoms with Proposition 16.3 (applications of
+  `atoms_between_souza_atoms_and_besov_atoms`);
+- paper Sections 19-21 (the quasialgebra structure, `B^{1-s} = B^s_{1,1}`,
+  and left compositions);
 - continue polishing public docstrings around the large transmutation,
   completeness, and multiplier files;
 - factor large proof-heavy files (notably `Multipliers/NonArchimedeanProperty.lean`
