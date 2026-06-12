@@ -1,4 +1,6 @@
 import BesovSpacesGoodGrid.GoodGrid.Multipliers.NonArchimedeanProperty
+import BesovSpacesGoodGrid.GoodGrid.DiracApproximations
+import BesovSpacesGoodGrid.GoodGrid.AlternativeRepresentationsAndNorms.FiniteStandardNormimpliesBesov
 
 /-!
 # Pointwise Multipliers II: `B^{1/p}_{p,∞} ∩ L^∞` consists of multipliers
@@ -80,18 +82,241 @@ def ancestorCoeffSum
       if Q.1 ⊆ J.1 then (R.block j).coeff J else 0
 
 /--
-**Input from Corollary `fou` and Proposition `boup`.B** (still `sorry`).
+The canonical Souza atom of a cell, as the element of the local space `ℂ`
+attached to the cell (the constant `μ(Q)^{s−1/p}`).  Local copy of the
+homonymous private definition of `PositiveCone`.
+-/
+private noncomputable def fouCanonicalLocalAtom
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (Q : GoodGridCell G) : ℂ :=
+  ((G.grid.μ Q.cell).toReal ^ (s - (p.toReal)⁻¹) : ℝ)
+
+/-- The local canonical atom represents the canonical Souza atom function. -/
+private theorem fouCanonicalLocalAtom_toFunction
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    (Q : WeakGridSpace.WeakGridCell G.toWeakGridSpace) :
+    (souzaAtomFamily G s p hs hp hp_top).toFunction Q
+        (fouCanonicalLocalAtom G s p ⟨Q.level, Q.cell, Q.mem⟩) =
+      canonicalSouzaAtom G s p ⟨Q.level, Q.cell, Q.mem⟩ := by
+  funext x
+  by_cases hx : x ∈ Q.cell
+  · change Q.cell.indicator
+        (fun _ => fouCanonicalLocalAtom G s p ⟨Q.level, Q.cell, Q.mem⟩) x =
+      canonicalSouzaAtom G s p ⟨Q.level, Q.cell, Q.mem⟩ x
+    simp [canonicalSouzaAtom, fouCanonicalLocalAtom, hx]
+  · change Q.cell.indicator
+        (fun _ => fouCanonicalLocalAtom G s p ⟨Q.level, Q.cell, Q.mem⟩) x =
+      canonicalSouzaAtom G s p ⟨Q.level, Q.cell, Q.mem⟩ x
+    simp [canonicalSouzaAtom, fouCanonicalLocalAtom, hx]
+
+/--
+The `α`-indexed normalized Haar function (the father function of the full
+Haar system) is constant: it does not depend on the evaluation point.
+-/
+private theorem fou_l2normalizedHaar_alpha_const
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (x y : α) :
+    HaarRepresentation.L2normalizedHaar G F
+        (UnbalancedHaarWavelet.FullHaarSystem.Index.alpha : F.Index) x =
+      HaarRepresentation.L2normalizedHaar G F
+        (UnbalancedHaarWavelet.FullHaarSystem.Index.alpha : F.Index) y := by
+  simp [HaarRepresentation.L2normalizedHaar, HaarRepresentation.l2NormalizationFactor,
+    UnbalancedHaarWavelet.FullHaarSystem.function, F.alphaFunction_def,
+    UnbalancedHaarWavelet.normalizedAlphaFunction]
+
+/--
+**Proposition `boup`.B, coefficient form.**  For the canonical standard
+representation of `f` in the `(1/p, p)` Souza family, the ancestor-tower
+coefficient sum at a cell `Q` of level `k` coincides with the partial
+standard sum of `f` at scale `k`, evaluated at any point of `Q`.
+
+This is where `s = 1/p` is used: the canonical Souza atoms `b_J` have the
+constant value `μ(J)^{1/p − 1/p} = 1` on their cells, so the tower sum of
+coefficients is literally the pointwise partial sum of the representation.
+-/
+private theorem ancestorCoeffSum_canonicalStandard_eq_partialStandardSum
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (p : ℝ≥0∞) (h1p : 0 < (p.toReal)⁻¹) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    {x : Lp ℂ p G.toWeakGridSpace.measure}
+    (R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G (p.toReal)⁻¹ p h1p hp hp_top) x)
+    (hblock : ∀ j, R.block j =
+      StandardAtomicRepresentation.canonicalStandardLpGridBlock G F
+        (p.toReal)⁻¹ p h1p hp hp_top f hf j)
+    {k : ℕ} (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k)
+    {x₀ : α} (hx₀ : x₀ ∈ Q.1) :
+    ancestorCoeffSum G R Q =
+      DiracApproximation.partialStandardSum G F p (p.toReal)⁻¹ f hf k x₀ := by
+  classical
+  -- The level-zero term is the father Haar term.
+  have h0 :
+      (∑ J : WeakGridSpace.LevelCell G.toWeakGridSpace 0,
+          if Q.1 ⊆ J.1 then (R.block 0).coeff J else 0) =
+        HaarRepresentation.Coeff G F f hf .alpha *
+          HaarRepresentation.normalizedFunction G F .alpha x₀ := by
+    have hUmem : Set.univ ∈ G.grid.grid.partitions 0 := by
+      rw [G.grid.grid.first_partition_eq_univ]
+      exact Finset.mem_singleton_self _
+    let U : WeakGridSpace.LevelCell G.toWeakGridSpace 0 := ⟨Set.univ, hUmem⟩
+    rw [Finset.sum_eq_single U
+      (fun J _ hJU => by
+        have hJ1 : J.1 = Set.univ := by
+          have hJ : J.1 ∈ G.grid.grid.partitions 0 := J.2
+          rw [G.grid.grid.first_partition_eq_univ] at hJ
+          exact Finset.mem_singleton.mp hJ
+        exact (hJU (Subtype.ext hJ1)).elim)
+      (fun h => (h (Finset.mem_univ U)).elim)]
+    rw [if_pos (Set.subset_univ _), hblock 0]
+    have hconst : ∀ z : α,
+        HaarRepresentation.L2normalizedHaar G F
+            (UnbalancedHaarWavelet.FullHaarSystem.Index.alpha : F.Index) z =
+          HaarRepresentation.normalizedFunction G F .alpha x₀ := fun z =>
+      (fou_l2normalizedHaar_alpha_const G F z x₀).trans rfl
+    simp only [StandardAtomicRepresentation.canonicalStandardLpGridBlock,
+      StandardAtomicRepresentation.canonicalStandardFatherLevelBlock,
+      sub_self, Real.rpow_zero, Complex.ofReal_one, div_one]
+    rw [hconst]
+  -- Each positive level collapses to the unique ancestor pair.
+  have hsucc : ∀ j ∈ Finset.range k,
+      (∑ J : WeakGridSpace.LevelCell G.toWeakGridSpace (j + 1),
+          if Q.1 ⊆ J.1 then (R.block (j + 1)).coeff J else 0) =
+        ∑ c' ∈ (G.grid.grid.partitions j).attach,
+          StandardAtomicRepresentation.standardCellBlockFunction G F p
+            (p.toReal)⁻¹ f hf ⟨j, c'.1, c'.2⟩ x₀ := by
+    intro j hj
+    have hjk : j < k := Finset.mem_range.mp hj
+    obtain ⟨Pc, hPmem, hQP⟩ :=
+      DiracApproximation.exists_ancestor G ⟨k, Q.1, Q.2⟩ (Nat.succ_le_of_lt hjk)
+    obtain ⟨c, hcmem, hQc⟩ :=
+      DiracApproximation.exists_ancestor G ⟨k, Q.1, Q.2⟩ (le_of_lt hjk)
+    have hx₀P : x₀ ∈ Pc := hQP hx₀
+    have hx₀c : x₀ ∈ c := hQc hx₀
+    have hPsubc : Pc ⊆ c := by
+      obtain ⟨t, htmem, hPt⟩ := G.grid.grid.nested j Pc hPmem
+      have ht : t = c :=
+        DiracApproximation.cell_eq_of_mem_of_mem G htmem hcmem (hPt hx₀P) hx₀c
+      rwa [ht] at hPt
+    let P : WeakGridSpace.LevelCell G.toWeakGridSpace (j + 1) := ⟨Pc, hPmem⟩
+    let C : WeakGridSpace.LevelCell G.toWeakGridSpace j := ⟨c, hcmem⟩
+    -- Collapse the cell sum to the unique level-`(j+1)` ancestor `P`.
+    rw [Finset.sum_eq_single P
+      (fun J _ hJP => by
+        by_cases hQJ : Q.1 ⊆ J.1
+        · exact ((hJP (Subtype.ext
+            (DiracApproximation.cell_eq_of_mem_of_mem G J.2 hPmem
+              (hQJ hx₀) hx₀P))).elim)
+        · rw [if_neg hQJ])
+      (fun h => (h (Finset.mem_univ P)).elim)]
+    rw [if_pos hQP, hblock (j + 1)]
+    -- The block coefficient collapses to the contribution of the parent `c`.
+    have hPchild : P ∈ StandardAtomicRepresentation.childrenOfCell G ⟨j, c, hcmem⟩ := by
+      rw [StandardAtomicRepresentation.mem_childrenOfCell_iff]
+      rw [UnbalancedHaarWavelet.Grid.mem_childrenFinset_iff]
+      exact ⟨hPmem, hPsubc⟩
+    have hcoeff :
+        (StandardAtomicRepresentation.canonicalStandardLpGridBlock G F
+            (p.toReal)⁻¹ p h1p hp hp_top f hf (j + 1)).coeff P =
+          StandardAtomicRepresentation.standardChildCoeff G F (p.toReal)⁻¹ p
+            f hf ⟨j, c, hcmem⟩ P := by
+      show (∑ Q' : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+          let Qg : GoodGridCell G := { level := j, cell := Q'.1, mem := Q'.2 }
+          if _ : P ∈ StandardAtomicRepresentation.childrenOfCell G Qg then
+            StandardAtomicRepresentation.standardChildCoeff G F (p.toReal)⁻¹ p
+              f hf Qg P
+          else 0) = _
+      rw [Finset.sum_eq_single C
+        (fun Q' _ hQ'C => by
+          simp only []
+          by_cases hmem : P ∈ StandardAtomicRepresentation.childrenOfCell G
+            ({ level := j, cell := Q'.1, mem := Q'.2 } : GoodGridCell G)
+          · have hPsub : Pc ⊆ Q'.1 := by
+              have := ((HaarRepresentation.GridOf G).mem_childrenFinset_iff
+                j Q'.1 Pc).1
+                ((StandardAtomicRepresentation.mem_childrenOfCell_iff G
+                  ⟨j, Q'.1, Q'.2⟩ P).1 hmem)
+              exact this.2
+            have : Q'.1 = c :=
+              DiracApproximation.cell_eq_of_mem_of_mem G Q'.2 hcmem
+                (hPsub hx₀P) hx₀c
+            exact ((hQ'C (Subtype.ext this)).elim)
+          · rw [dif_neg hmem])
+        (fun h => (h (Finset.mem_univ C)).elim)]
+      simp only []
+      rw [dif_pos hPchild]
+    rw [hcoeff]
+    -- Pass to the tilde form and collapse the level sum.
+    have hone :
+        canonicalSouzaAtom G (p.toReal)⁻¹ p
+            (StandardAtomicRepresentation.childToGoodGridCell (G := G) (Q := ⟨j, c, hcmem⟩) P) x₀ = 1 := by
+      have hx : x₀ ∈ (StandardAtomicRepresentation.childToGoodGridCell
+          (G := G) (Q := ⟨j, c, hcmem⟩) P).cell := hx₀P
+      simp [canonicalSouzaAtom, hx, sub_self, Real.rpow_zero]
+    calc
+      StandardAtomicRepresentation.standardChildCoeff G F (p.toReal)⁻¹ p
+          f hf ⟨j, c, hcmem⟩ P
+          = StandardAtomicRepresentation.standardChildCoeff G F (p.toReal)⁻¹ p
+              f hf ⟨j, c, hcmem⟩ P *
+              canonicalSouzaAtom G (p.toReal)⁻¹ p
+                (StandardAtomicRepresentation.childToGoodGridCell (G := G) (Q := ⟨j, c, hcmem⟩) P) x₀ := by
+        rw [hone, mul_one]
+      _ = ((StandardAtomicRepresentation.tildeCoeff G F
+              (StandardAtomicRepresentation.c₂ G) p (p.toReal)⁻¹ f hf
+              ⟨j, c, hcmem⟩ P : ℝ) : ℂ) *
+            StandardAtomicRepresentation.tildeAtom G F
+              (StandardAtomicRepresentation.c₂ G) p (p.toReal)⁻¹ f hf
+              ⟨j, c, hcmem⟩ P x₀ :=
+        StandardAtomicRepresentation.standardChildCoeff_mul_canonicalSouzaAtom_eq_tildeCoeff_mul_tildeAtom
+          G F p (p.toReal)⁻¹ f hf ⟨j, c, hcmem⟩ P x₀
+      _ = ∑ c' ∈ (G.grid.grid.partitions j).attach,
+            StandardAtomicRepresentation.standardCellBlockFunction G F p
+              (p.toReal)⁻¹ f hf ⟨j, c'.1, c'.2⟩ x₀ :=
+        (DiracApproximation.standardLevelSum_eq_ancestor_term G F p
+          (p.toReal)⁻¹ f hf hcmem P hPsubc hx₀P).symm
+  -- Assemble the two computations.
+  unfold ancestorCoeffSum DiracApproximation.partialStandardSum
+  rw [Finset.sum_range_succ', h0, Finset.sum_congr rfl hsucc]
+  exact add_comm _ _
+
+/--
+**Proposition `boup`.B, bound form.**  The partial standard sums of `f` at
+scale `k`, evaluated inside a cell of level `k`, are bounded by any essential
+bound for `f` — they are averages of `f` over cells (`claimB`).
+-/
+private theorem norm_partialStandardSum_le_essBound
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G))
+    (p : ℝ≥0∞) (s : ℝ)
+    (f : α → ℂ) (hf : Integrable f G.grid.μ)
+    {M : ℝ} (hM0 : 0 ≤ M) (hMae : ∀ᵐ z ∂G.grid.μ, ‖f z‖ ≤ M)
+    {k : ℕ} (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k)
+    {x₀ : α} (hx₀ : x₀ ∈ Q.1) :
+    ‖DiracApproximation.partialStandardSum G F p s f hf k x₀‖ ≤ M := by
+  have h1 := DiracApproximation.claimA_standard G F f hf ⟨k, Q.1, Q.2⟩ hx₀
+  rw [DiracApproximation.partialHaarSum_eq_partialStandardSum G F p s f hf] at h1
+  have h2 : eLpNorm (Set.indicator Q.1 f) ∞ G.grid.μ ≤ ENNReal.ofReal M := by
+    refine le_trans (eLpNorm_indicator_le f) ?_
+    rw [eLpNorm_exponent_top]
+    exact eLpNormEssSup_le_of_ae_bound hMae
+  exact (ENNReal.ofReal_le_ofReal_iff hM0).1 (le_trans h1 h2)
+
+/--
+**Input from Corollary `fou` and Proposition `boup`.B.**
 
 Every `g ∈ B^{1/p}_{p,∞} ∩ L^∞` admits a canonical-atom Souza representation
 `R_g` whose `(p,∞)`-coefficient cost is controlled by a universal constant
 times `|g|_{B^{1/p}_{p,∞}}`, and whose ancestor-tower coefficient sums are
 all bounded by the essential bound `M` of `g`.
 
-Mathematical content: take the standard representation of `g` (Theorem 15.1
-and Corollary `fou`, already formalized in pieces in
-`AlternativeRepresentationsAndNorms`); its tower sums are conditional
-averages of `g` over cells, hence bounded by `|g|_∞` — this last step is
-Proposition 17.1 (`boup`).B, not yet formalized.
+The representation is the canonical standard representation of `g`
+(Theorem 15.1 and Corollary `fou`, from
+`AlternativeRepresentationsAndNorms`); its tower sums are partial standard
+sums of `g`, hence averages of `g` over cells, hence bounded by `|g|_∞` —
+Proposition 17.1 (`boup`).B, from the Dirac-approximation machinery.
 -/
 theorem exists_fouRepresentation
     (G : GoodGridSpace (α := α)) (p : ℝ≥0∞)
@@ -116,7 +341,130 @@ theorem exists_fouRepresentation
               (souzaAtomFamily G (p.toReal)⁻¹ p h1p hp hp_top) ∞ xg ∧
           ∀ (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
             ‖ancestorCoeffSum G Rg Q‖ ≤ M := by
-  sorry
+  classical
+  letI : DecidableEq (Set α) := Classical.decEq (Set α)
+  haveI : Fact (1 ≤ (∞ : ℝ≥0∞)) := ⟨le_top⟩
+  haveI : IsFiniteMeasure G.grid.μ := G.grid.isFinite
+  have hp_lt_top : p < ∞ := lt_top_iff_ne_top.mpr hp_top
+  -- The full Haar system underlying the standard representation.
+  let H : UnbalancedHaarWavelet.HaarSystem (HaarRepresentation.GridOf G) :=
+    Classical.choice
+      (UnbalancedHaarWavelet.exists_haarSystem (HaarRepresentation.GridOf G))
+  let F : UnbalancedHaarWavelet.FullHaarSystem (G := HaarRepresentation.GridOf G) :=
+    { toHaarSystem := H
+      alphaFunction := UnbalancedHaarWavelet.normalizedAlphaFunction
+        (HaarRepresentation.GridOf G)
+      alphaFunction_def := rfl }
+  letI : DecidableEq F.Index := Classical.decEq F.Index
+  obtain ⟨Cst, hCst_ne_top, hstandard_le⟩ :=
+    StandardAtomicRepresentation.exists_standardRepresentationNorm_le_const_mul_souzaBesovNorm
+      (G := G) (F := F) (s := (p.toReal)⁻¹) (hs := h1p) (p := p)
+      (hp_top := hp_lt_top) (q := (∞ : ℝ≥0∞))
+  refine ⟨Cst.toReal, ENNReal.toReal_nonneg, ?_⟩
+  intro g M xg hgrep hgM
+  let A := souzaAtomFamily G (p.toReal)⁻¹ p h1p hp hp_top
+  let fFun : α → ℂ := ((xg : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ)
+  have hfMemLp : MemLp fFun p G.grid.μ := by
+    simpa [fFun, GoodGridSpace.toWeakGridSpace] using
+      (Lp.memLp (xg : Lp ℂ p G.toWeakGridSpace.measure))
+  have hfint : Integrable fFun G.grid.μ := hfMemLp.integrable (Fact.out : 1 ≤ p)
+  -- The essential bound is nonnegative, since the measure is nonzero.
+  have hM0 : 0 ≤ M := by
+    have hμpos : 0 < G.grid.μ Set.univ := by
+      refine G.grid.positive_measure 0 Set.univ ?_
+      rw [G.grid.grid.first_partition_eq_univ]
+      exact Finset.mem_singleton_self _
+    have hμne : G.toWeakGridSpace.measure ≠ 0 := by
+      intro h0
+      rw [show G.toWeakGridSpace.measure = G.grid.μ from rfl] at h0
+      rw [h0] at hμpos
+      simp at hμpos
+    haveI : (Filter.NeBot (MeasureTheory.ae G.toWeakGridSpace.measure)) :=
+      MeasureTheory.ae_neBot.mpr hμne
+    obtain ⟨z, hz⟩ := hgM.exists
+    exact le_trans (norm_nonneg (g z)) hz
+  -- Cost control: Corollary `fou`.
+  have hstd :
+      StandardAtomicRepresentation.standardRepresentationNorm G F
+          (p.toReal)⁻¹ h1p p hp_lt_top ∞ fFun hfint ≠ ∞ ∧
+        StandardAtomicRepresentation.standardRepresentationNorm G F
+            (p.toReal)⁻¹ h1p p hp_lt_top ∞ fFun hfint ≤
+          Cst * ENNReal.ofReal
+            (WeakGridSpace.BesovishSpace.Norm_Costpq A ∞ xg) := by
+    simpa [A, fFun, GoodGridSpace.toWeakGridSpace] using
+      hstandard_le xg fFun hfint Filter.EventuallyEq.rfl
+  rcases hstd with ⟨hstd_ne_top, hstd_le⟩
+  rcases StandardAtomicRepresentation.finite_standardRepresentationNorm_implies_memBesov_and_standardRepresentation
+      (G := G) (F := F) (s := (p.toReal)⁻¹) (hs := h1p) (p := p)
+      (hp_top := hp_lt_top) (q := (∞ : ℝ≥0∞)) fFun hfint hstd_ne_top with
+    ⟨hfLp, gstd, Rstd, hgstdLp, hRstd_block, hRstd_fin, _hRstd_enn,
+      hRstd_cost, _hgstd_cost⟩
+  -- The represented element is `xg` itself.
+  have hLp_eq : (gstd : Lp ℂ p G.toWeakGridSpace.measure) =
+      (xg : Lp ℂ p G.toWeakGridSpace.measure) := by
+    have hto : hfLp.toLp fFun = (xg : Lp ℂ p G.toWeakGridSpace.measure) := by
+      change hfLp.toLp ((xg : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) =
+        (xg : Lp ℂ p G.toWeakGridSpace.measure)
+      exact Lp.toLp_coeFn (xg : Lp ℂ p G.toWeakGridSpace.measure) hfLp
+    exact hgstdLp.trans hto
+  -- Transport the representation to `xg` (only the target is rewritten).
+  let Rg : WeakGridSpace.LpGridRepresentation A
+      (xg : Lp ℂ p G.toWeakGridSpace.measure) :=
+    { block := Rstd.block
+      hasSum := hLp_eq ▸ Rstd.hasSum }
+  have hRg_block : ∀ j, Rg.block j =
+      StandardAtomicRepresentation.canonicalStandardLpGridBlock G F
+        (p.toReal)⁻¹ p h1p hp hp_top fFun hfint j := fun j =>
+    congrFun hRstd_block j
+  -- The standard representation uses canonical atoms.
+  have hRg_canon : SouzaCanonicalRepresentation G (p.toReal)⁻¹ p h1p hp hp_top Rg := by
+    intro k
+    have hb := hRg_block k
+    intro Q
+    rw [hb]
+    cases k with
+    | zero =>
+        simpa [A, StandardAtomicRepresentation.canonicalStandardLpGridBlock,
+          StandardAtomicRepresentation.canonicalStandardFatherLevelBlock,
+          fouCanonicalLocalAtom, goodGridCellOfLevelCell] using
+          fouCanonicalLocalAtom_toFunction G (p.toReal)⁻¹ p h1p hp hp_top
+            (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace 0 Q)
+    | succ k =>
+        simpa [A, StandardAtomicRepresentation.canonicalStandardLpGridBlock,
+          StandardAtomicRepresentation.canonicalStandardPositiveLevelBlock,
+          fouCanonicalLocalAtom, goodGridCellOfLevelCell] using
+          fouCanonicalLocalAtom_toFunction G (p.toReal)⁻¹ p h1p hp hp_top
+            (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace (k + 1) Q)
+  -- Finite cost and the `fou` cost bound.
+  have hRg_fin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := ∞) Rg :=
+    hRstd_fin
+  have hRg_cost : WeakGridSpace.LpGridRepresentation.pqCost (q := ∞) Rg ≤
+      Cst.toReal * WeakGridSpace.BesovishSpace.Norm_Costpq A ∞ xg := by
+    have hNg0 : 0 ≤ WeakGridSpace.BesovishSpace.Norm_Costpq A ∞ xg :=
+      WeakGridSpace.BesovishSpace.Norm_Costpq_nonneg (A := A) (q := ∞)
+        (WeakGridSpace.BesovishSpace.hasFiniteCostRepresentations A ∞) xg
+    have h2 := ENNReal.toReal_mono
+      (ENNReal.mul_ne_top hCst_ne_top ENNReal.ofReal_ne_top) hstd_le
+    rw [ENNReal.toReal_mul, ENNReal.toReal_ofReal hNg0] at h2
+    exact le_trans hRstd_cost h2
+  -- Tower bound: Proposition `boup`.B.
+  have hMae : ∀ᵐ z ∂G.grid.μ, ‖fFun z‖ ≤ M := by
+    have h1 : (fFun : α → ℂ) =ᵐ[G.grid.μ] g := by
+      simpa [fFun, GoodGridSpace.toWeakGridSpace] using hgrep
+    have h2 : ∀ᵐ z ∂G.grid.μ, ‖g z‖ ≤ M := by
+      simpa [GoodGridSpace.toWeakGridSpace] using hgM
+    filter_upwards [h1, h2] with z hz1 hz2
+    rw [hz1]
+    exact hz2
+  have hRg_tower : ∀ (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      ‖ancestorCoeffSum G Rg Q‖ ≤ M := by
+    intro k Q
+    obtain ⟨x₀, hx₀⟩ := G.grid.partition_nonempty k Q.1 Q.2
+    rw [ancestorCoeffSum_canonicalStandard_eq_partialStandardSum G F p h1p hp
+      hp_top fFun hfint Rg hRg_block Q hx₀]
+    exact norm_partialStandardSum_le_essBound G F p (p.toReal)⁻¹ fFun hfint
+      hM0 hMae Q hx₀
+  exact ⟨Rg, hRg_canon, hRg_fin, hRg_cost, hRg_tower⟩
 
 /--
 The level-`k` block of the piece `u₂` of the paper's proof: it reuses the
