@@ -39,8 +39,10 @@ is not formalized.  Infrastructure:
 - [ ] Section 16 examples: Holder atom family (11B) + Prop 16.2; bounded
       variation atoms + Prop 16.3 (apply
       `atoms_between_souza_atoms_and_besov_atoms`).
-- [ ] Sections 19–21 (quasialgebra, `B^{1-s} = B^s_{1,1}`, left
-      compositions) — after the above.
+- [x] Section 19 (quasialgebra, Prop 19.1 `mult33`) — DONE (2026-06-12),
+      see `GoodGrid/QuasiAlgebra.lean` and `status.md`.
+- [ ] Sections 20–21 (`B^{1-s} = B^s_{1,1}`, left compositions) — after
+      the above.
 
 ## Possible cleanups (low priority)
 

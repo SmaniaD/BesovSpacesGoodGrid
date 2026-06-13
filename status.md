@@ -3,6 +3,10 @@
 This file summarizes the recent state of the central files in
 `BesovSpacesGoodGrid/GoodGrid`.
 
+Notation note: the mathematical documentation writes characteristic functions
+as `\mathbbm{1}_E` (with LaTeX package `bbm`); Lean code continues to use
+`Set.indicator` and related `indicatorConstLp` names.
+
 ## DONE: Pointwise Multipliers III (`mult33`, Prop 19.1) — 0 sorry (2026-06-12)
 
 New file `BesovSpacesGoodGrid/GoodGrid/QuasiAlgebra.lean` (imported by the
@@ -21,6 +25,10 @@ Public API:
 - `souzaPointwiseMultipliersIII`: outer quantitative quasi-algebra statement,
   proved from the core and the `L∞` product estimate:
   `|fg|_B + |fg|∞ ≤ Cqa (|f|_B + Mf)(|g|_B + Mg)`.
+
+Axioms checked (`propext, Classical.choice, Quot.sound`) for
+`souzaPointwiseMultipliersIII` and
+`exists_quasiAlgebra_product_representation`.
 
 Reusable internal infrastructure added in `QuasiAlgebra.lean`: weighted and
 strict weighted ancestor towers for `(s,p)` Souza atoms, pointwise collapse of
@@ -126,18 +134,18 @@ paper's subsection `srd`:
   an `(a, K, k₁)`-strongly regular domain (exact disjoint tiling of `Q ∩ Ω`
   by grid cells, with the level-by-level cost `∑_P μ(P)^a ≤ K·μ(Q)^a`).
 - `souzaPositiveSelfsTailBound_of_stronglyRegularDomain` — **Prop 18.7/18.8
-  (`pos2`)**: `|1_Ω|_{B^{β+,k₁}_{p,∞,selfs}} ≤ K^{1/p}` for a
+  (`pos2`)**: `|\mathbbm{1}_Ω|_{B^{β+,k₁}_{p,∞,selfs}} ≤ K^{1/p}` for a
   `(1−βp, K, k₁)`-strongly regular `Ω`, as a positive tail `selfs` bound.
   Weighted variant `souzaPositiveSelfsTailBound_smul_of_stronglyRegularDomain`
-  (`Θ·1_Ω`, constant `Θ·K^{1/p}`).
-- `souzaPositiveFunction_of_stronglyRegularDomain`: `Θ·1_Ω` lies in the
+  (`Θ·\mathbbm{1}_Ω`, constant `Θ·K^{1/p}`).
+- `souzaPositiveFunction_of_stronglyRegularDomain`: `Θ·\mathbbm{1}_Ω` lies in the
   positive Souza-Besov cone `B^{β+}_{p,∞}` (sum of the `pos2` pieces over the
   level-`k₁` cells, glued with `exists_souzaPositiveRepresentation_finset_sum`).
 - `souzaPointwiseMultipliersI` — **Prop 18.9 (`pm1`)**: for finite families of
   `(1−βp, K_i, t_i)`-strongly regular domains with weights `Θ_i > 0` and a
   canonical finite-cost representation `R` of `f` satisfying conditions A
   (`stronglyRegularOverlapCost ≤ N` on active cells) and B, the product
-  `(∑ Θ_i·1_{Ω_i})·f` has a representation `S` with
+  `(∑ Θ_i·\mathbbm{1}_{Ω_i})·f` has a representation `S` with
   `pqCost S ≤ Cgen2·N·pqCost R`, every active cell of `S` lies a.e. in some
   `Ω_i`, and positivity of `R` gives cone-positivity of `S`.  Derived from
   `souzaNonArchimedeanPropertyPositiveCone` with `qtilde = ∞`.
@@ -145,13 +153,13 @@ paper's subsection `srd`:
   the family may be indexed by an arbitrary `Λ ⊆ ℕ`; condition A is the
   `ℝ≥0∞`-series bound `stronglyRegularOverlapCostInfinite ≤ N` (no
   summability witness).  Conclusions: a.e. absolute convergence of
-  `∑ Θ_i·1_{Ω_i}(z)` on `{f ≠ 0}` with bound `Cgen2·N`, the limit function
+  `∑ Θ_i·\mathbbm{1}_{Ω_i}(z)` on `{f ≠ 0}` with bound `Cgen2·N`, the limit function
   `h ∈ L^p`, a representation `S` of `h` with finite cost and
   `pqCost S ≤ Cgen2·N·pqCost R`, plus the same [i]/[ii] as the finite case.
   Derived from `souzaNonArchimedeanPropertyPositiveConeInfinite`.
 
 Proof core of `pos2` (`exists_souzaPositiveElement_indicator_mul_atom`): the
-representation of `Θ·1_Ω·a_Q` has, at level `k`, coefficients
+representation of `Θ·\mathbbm{1}_Ω·a_Q` has, at level `k`, coefficients
 `Θ·(μP/μQ)^{1/p−β}` on the cells `P ∈ ℱ^k` with canonical atoms; its level
 cost is `≤ Θ^p·K` by the decomposition cost; the `hasSum` field is the new
 `L^p` convergence lemma `hasSum_indicatorConstLp_iUnion` (indicators of
@@ -372,15 +380,14 @@ Proof architecture:
 
 ## What remains
 
-The multiplier files through Proposition 19.1 remain complete.  The last
-checked whole-project build was green before the Section 19 completion; after
-the latest patch, the affected file
-`BesovSpacesGoodGrid/GoodGrid/QuasiAlgebra.lean` checks without `sorry`.
+The multiplier files through Proposition 19.1 remain complete, and the full
+project build is green after the Section 19 completion.
 
 Possible next steps (see `todo.md`):
 
 - Theorem 15.1 wrap-up equivalence + the `L¹` functional of Cor 15.2;
-  Section 16 examples; Sections 19–21.
+  Section 16 examples; Sections 20–21 (the quasialgebra result of
+  Section 19 is done).
 - Stylistic cleanup: linter warnings (`simpa`→`simp`, unused `simp`
   arguments, deprecated `push_neg`) scattered across the files.
 
@@ -390,6 +397,10 @@ Possible next steps (see `todo.md`):
 lake build                      # green, whole project (3459 jobs)
 lake env lean BesovSpacesGoodGrid/GoodGrid/QuasiAlgebra.lean  # green, no sorry
 rg -n "\bsorry\b" BesovSpacesGoodGrid --glob "*.lean"         # only documentation text
+#print axioms souzaPointwiseMultipliersIII
+#  → [propext, Classical.choice, Quot.sound]
+#print axioms exists_quasiAlgebra_product_representation
+#  → [propext, Classical.choice, Quot.sound]
 #print axioms souzaPointwiseMultipliersII
 #  → [propext, Classical.choice, Quot.sound]
 #print axioms souzaPointwiseMultipliersIIPositive

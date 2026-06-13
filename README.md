@@ -18,8 +18,8 @@ the weak-grid API, atom families, Besov-ish spaces, scale inclusions,
 completeness theorems, weak-grid multipliers, induced grids, weak-grid
 transmutation, the good-grid Besov-atom comparison layer, the
 Haar/standard/oscillation comparison files, the Dirac-approximation layer,
-the good-grid multiplier layer, and the positive cone.  The repository also
-contains auxiliary indexed-sum infrastructure.
+the good-grid multiplier layer, the quasi-algebra layer, and the positive
+cone.  The repository also contains auxiliary indexed-sum infrastructure.
 
 The formalization currently includes:
 
@@ -103,13 +103,14 @@ The formalization currently includes:
 - Strongly regular domains and Pointwise Multipliers I
   (`GoodGrid/Multipliers/StronglyRegularDomains.lean`, paper 18.7-18.9):
   the `StronglyRegularDomain` definition, the positive tail-`selfs` bound
-  `K^{1/p}` for indicators of strongly regular domains (Proposition `pos2`),
+  `K^{1/p}` for indicators `\mathbbm{1}_Ω` of strongly regular domains
+  (Proposition `pos2`),
   and the multiplier theorems `souzaPointwiseMultipliersI` and
   `souzaPointwiseMultipliersIInfinite` for finite and countable weighted
   sums of such indicators, with support localization and preservation of
   positivity.
 - Dirac approximations (`GoodGrid/DiracApproximations.lean`, paper
-  Section 17): the grid Dirac kernels `1_Q/m(Q)`, the evaluation of the
+  Section 17): the grid Dirac kernels `\mathbbm{1}_Q/m(Q)`, the evaluation of the
   partial sums of the standard representation as cell averages
   (`partialHaarSum_eq_integral_mul_diracKernel`, `claimB`), and the
   `L^infinity` bounds of Proposition 17.1.A for the standard representation
@@ -136,18 +137,32 @@ The formalization currently includes:
   `exists_mult_product_representation_pos`), where the canonical-atom
   hypothesis and the ancestor-tower bound are derived from positivity (the
   positive form of Proposition 17.1.B).
+- Pointwise Multipliers III, **complete**
+  (`GoodGrid/QuasiAlgebra.lean`, paper Proposition 19.1, `mult33`): the
+  bounded Souza-Besov space `B^s_{p,q} ∩ L^infinity` is closed under
+  pointwise multiplication, with the bilinear bound
+  `|fg|_B + |fg|_infinity ≤ Cqa (|f|_B + |f|_infinity)(|g|_B + |g|_infinity)`
+  (`souzaPointwiseMultipliersIII`).  The technical core
+  `exists_quasiAlgebra_product_representation` runs the `u₁ + u₂`
+  construction for two `(s,p)` Souza representations, with the mixed bound
+  `Cprod (|f|_B·Mg + |g|_B·Mf)`: weighted and strict weighted ancestor
+  towers (`weightedAncestorCoeffSum`) replace the tower sums of Pointwise
+  Multipliers II, a weighted `fou` representation is extracted from the
+  standard-representation machinery and Proposition 17.1.B, and the finite
+  truncation identity is passed to the limit in `L^p`.
 
-At this snapshot, a full `lake build` succeeds (3458 jobs) and the
+At this snapshot, a full `lake build` succeeds (3459 jobs) and the
 repository compiles with **zero `sorry`**: every project module, including
-`Bp1overpinftyisMultiplier.lean`, is imported by the aggregate root.
+`Bp1overpinftyisMultiplier.lean` and `QuasiAlgebra.lean`, is imported by
+the aggregate root.
 Project Lean files outside `.lake/packages` contain no `admit` and no
 project-local `axiom` or `constant` declarations; the main theorems — the
 non-Archimedean estimates (finite, infinite, and positive-cone versions),
 the `selfs` multiplier inclusion, Pointwise Multipliers I (finite and
-countable), the Dirac-approximation claims, and Pointwise Multipliers II
-with its positive version — check with only the standard axioms (`propext`,
-`Classical.choice`, `Quot.sound`).  See `status.md` for the current
-verification log.
+countable), the Dirac-approximation claims, Pointwise Multipliers II with
+its positive version, and Pointwise Multipliers III — check with only the
+standard axioms (`propext`, `Classical.choice`, `Quot.sound`).  See
+`status.md` for the current verification log.
 
 ## Build
 
@@ -227,6 +242,10 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
 - `BesovSpacesGoodGrid/GoodGrid/DiracApproximations.lean`: the grid Dirac
   kernels, evaluation of partial standard sums as cell averages, and the
   bounds of paper Proposition 17.1.
+- `BesovSpacesGoodGrid/GoodGrid/QuasiAlgebra.lean`: the quasi-algebra
+  property of `B^s_{p,q} ∩ L^infinity` — Pointwise Multipliers III (paper
+  Proposition 19.1), via the two-sided `u₁ + u₂` construction with weighted
+  ancestor towers.
 - `BesovSpacesGoodGrid/GoodGrid/PositiveCone.lean`: positive Souza
   representations and the positive coefficient-cost gauge for Souza-Besov
   spaces.
@@ -289,8 +308,8 @@ The repository currently builds with **zero `sorry`**.  Likely next steps
 - the Section 16 examples: the Holder atom family with Proposition 16.2, and
   bounded-variation atoms with Proposition 16.3 (applications of
   `atoms_between_souza_atoms_and_besov_atoms`);
-- paper Sections 19-21 (the quasialgebra structure, `B^{1-s} = B^s_{1,1}`,
-  and left compositions);
+- paper Sections 20-21 (`B^{1-s} = B^s_{1,1}` and left compositions; the
+  quasialgebra result of Section 19 is done);
 - continue polishing public docstrings around the large transmutation,
   completeness, and multiplier files;
 - factor large proof-heavy files (notably `Multipliers/NonArchimedeanProperty.lean`

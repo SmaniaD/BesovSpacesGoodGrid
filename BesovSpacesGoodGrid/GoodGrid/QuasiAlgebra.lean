@@ -12,6 +12,9 @@ The public theorem below packages the proposition in the same style as the
 multiplier files: concrete functions represent `Lp` classes, and `L^∞` data is
 recorded as an almost-everywhere norm bound.  The remaining technical lemma is
 the paper's `u₁ + u₂` construction for two `(s,p)` Souza representations.
+In the paper notation, the canonical Souza atom on `Q` is
+`|Q|^{s-1/p} \mathbbm{1}_Q`; in Lean this characteristic function is
+implemented as `Set.indicator`.
 -/
 
 open scoped ENNReal Topology
@@ -65,7 +68,8 @@ The weighted ancestor tower of a Souza representation at a cell `Q`.
 For a canonical `(s,p)` representation this is exactly the value at any point
 of `Q` of the truncated standard expansion through the level of `Q`: every
 ancestor contributes its coefficient times the local value
-`|J|^{s-1/p}` of the canonical atom on that ancestor.
+`|J|^{s-1/p}` of the canonical atom `|J|^{s-1/p} \mathbbm{1}_J` on that
+ancestor.
 -/
 def weightedAncestorCoeffSum
     (G : GoodGridSpace (α := α)) {s : ℝ} {p : ℝ≥0∞}
