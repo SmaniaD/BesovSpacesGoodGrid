@@ -3,6 +3,31 @@
 This file summarizes the recent state of the central files in
 `BesovSpacesGoodGrid/GoodGrid`.
 
+## DONE: Pointwise Multipliers III (`mult33`, Prop 19.1) — 0 sorry (2026-06-12)
+
+New file `BesovSpacesGoodGrid/GoodGrid/QuasiAlgebra.lean` (imported by the
+root module) formalizes the paper's quasi-algebra result
+`B^s_{p,q} ∩ L∞`.
+
+Public API:
+
+- `ae_norm_mul_le_mul_bounds`: the elementary `L∞` estimate
+  `‖f·g‖ ≤ Mf·Mg` almost everywhere from the two almost-everywhere bounds.
+- `exists_quasiAlgebra_product_representation`: technical core for the
+  paper's `u₁ + u₂` construction with two `(s,p)` Souza representations.
+  The proof constructs the two triangular block families directly, controls
+  their costs by the full and strict weighted ancestor towers, and passes the
+  finite truncation identity to the limit in `L^p`.
+- `souzaPointwiseMultipliersIII`: outer quantitative quasi-algebra statement,
+  proved from the core and the `L∞` product estimate:
+  `|fg|_B + |fg|∞ ≤ Cqa (|f|_B + Mf)(|g|_B + Mg)`.
+
+Reusable internal infrastructure added in `QuasiAlgebra.lean`: weighted and
+strict weighted ancestor towers for `(s,p)` Souza atoms, pointwise collapse of
+finite product truncations, abstract cost transfer for the two block families,
+and the general weighted `fou` representation extracted from the standard
+representation machinery plus Proposition `boup`.B.
+
 ## DONE: Pointwise Multipliers II (`mult`, Prop 18.10) — 0 sorry (2026-06-12)
 
 File `BesovSpacesGoodGrid/GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean`
@@ -188,9 +213,10 @@ Supporting changes:
 
 ## DONE: positive version of the non-Archimedean theorem (2026-06-09)
 
-**The whole project compiles with no `sorry`** (`lake build` green, 3454 jobs,
-now including `NonArchimedeanPropertyPositiveStandalone`, which is imported by
-the umbrella `GoodGrid/Multipliers.lean`).
+At that time the whole project compiled with no `sorry` (`lake build` green,
+3454 jobs, now including `NonArchimedeanPropertyPositiveStandalone`, which is
+imported by the umbrella `GoodGrid/Multipliers.lean`).  Section 19 is now also
+complete in `QuasiAlgebra.lean`.
 
 Axiom check (no `sorryAx`, only the standard axioms
 `propext, Classical.choice, Quot.sound`):
@@ -346,10 +372,10 @@ Proof architecture:
 
 ## What remains
 
-Nothing pending: **zero `sorry` in the project**, full build green
-(3458 jobs, `Bp1overpinftyisMultiplier.lean` now imported by the umbrella
-`GoodGrid/Multipliers.lean` and hence by the aggregate root), axioms of the
-main theorems (finite/infinite, positive/non-positive) verified.
+The multiplier files through Proposition 19.1 remain complete.  The last
+checked whole-project build was green before the Section 19 completion; after
+the latest patch, the affected file
+`BesovSpacesGoodGrid/GoodGrid/QuasiAlgebra.lean` checks without `sorry`.
 
 Possible next steps (see `todo.md`):
 
@@ -361,9 +387,9 @@ Possible next steps (see `todo.md`):
 ## Recent checks (2026-06-12)
 
 ```bash
-lake build                      # green, whole project (now 3458 jobs)
-grep -rn "sorry" BesovSpacesGoodGrid --include="*.lean"   # empty (code; only
-#   one docstring mention)
+lake build                      # green, whole project (3459 jobs)
+lake env lean BesovSpacesGoodGrid/GoodGrid/QuasiAlgebra.lean  # green, no sorry
+rg -n "\bsorry\b" BesovSpacesGoodGrid --glob "*.lean"         # only documentation text
 #print axioms souzaPointwiseMultipliersII
 #  → [propext, Classical.choice, Quot.sound]
 #print axioms souzaPointwiseMultipliersIIPositive
