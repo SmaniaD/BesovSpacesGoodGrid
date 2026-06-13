@@ -17,9 +17,9 @@ The aggregate root module is `BesovSpacesGoodGrid.lean`.  Its source imports
 the weak-grid API, atom families, Besov-ish spaces, scale inclusions,
 completeness theorems, weak-grid multipliers, induced grids, weak-grid
 transmutation, the good-grid Besov-atom comparison layer, the
-Haar/standard/oscillation comparison files, the good-grid multiplier layer,
-and the positive cone.  The repository also contains auxiliary indexed-sum
-infrastructure.
+Haar/standard/oscillation comparison files, the Dirac-approximation layer,
+the good-grid multiplier layer, the quasi-algebra layer, and the positive
+cone.  The repository also contains auxiliary indexed-sum infrastructure.
 
 The formalization currently includes:
 
@@ -95,14 +95,74 @@ The formalization currently includes:
   the support consequence is unconditional (a.e. nonvanishing on active
   cells), and cone positivity of the product representation follows from
   positivity of the input representation.
+- The continuous inclusion of the tail `selfs` classes in the multiplier
+  space (`GoodGrid/Multipliers/SelfsSubsetMultipliers.lean`, paper
+  Corollary 18.6): `exists_souzaSelfsMultiplierConstant` and the inclusion
+  and continuity forms, via a level-lowering step and the non-Archimedean
+  estimate applied to a one-element family.
+- Strongly regular domains and Pointwise Multipliers I
+  (`GoodGrid/Multipliers/StronglyRegularDomains.lean`, paper 18.7-18.9):
+  the `StronglyRegularDomain` definition, the positive tail-`selfs` bound
+  `K^{1/p}` for indicators `\mathbbm{1}_Ω` of strongly regular domains
+  (Proposition `pos2`),
+  and the multiplier theorems `souzaPointwiseMultipliersI` and
+  `souzaPointwiseMultipliersIInfinite` for finite and countable weighted
+  sums of such indicators, with support localization and preservation of
+  positivity.
+- Dirac approximations (`GoodGrid/DiracApproximations.lean`, paper
+  Section 17): the grid Dirac kernels `\mathbbm{1}_Q/m(Q)`, the evaluation of the
+  partial sums of the standard representation as cell averages
+  (`partialHaarSum_eq_integral_mul_diracKernel`, `claimB`), and the
+  `L^infinity` bounds of Proposition 17.1.A for the standard representation
+  (`claimA_standard`) and for positive Souza representations
+  (`claimA_positive`).
+- Pointwise Multipliers II, **complete**
+  (`GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean`, paper
+  Proposition 18.10 and Remark `pos3`): every `g` in
+  `B^{1/p}_{p,infinity} ∩ L^infinity` is a pointwise multiplier of
+  `B^s_{p,q}` for `0 < s < 1/p`, with operator bound
+  `Cmult·|g|_{B^{1/p}_{p,infinity}} + |g|_infinity`
+  (`souzaPointwiseMultipliersII`).  The proof comprises the input sublemma
+  `exists_fouRepresentation` (the canonical standard representation of `g`
+  with cost control and ancestor-tower sums bounded by `|g|_infinity`, via
+  Corollary `fou` and Proposition 17.1.B), and the `u₁ + u₂` product
+  construction `exists_mult_product_representation` (block form
+  `exists_mult_product_blocks`): a discrete Young inequality with geometric
+  kernel for the `u₁` convolution cost, the tower-sum `L^infinity` bound for
+  `u₂`, `L^p` convergence of the block series, and the identification
+  `g·f = u₁ + u₂` through the exact pointwise identity of truncated products
+  passed to the limit along a.e.-convergent subsequences.  The positive-cone
+  version of the paper's Remark `pos3` is `souzaPointwiseMultipliersIIPositive`
+  (bound in the positive gauges `souzaPositiveNorm`; representation form
+  `exists_mult_product_representation_pos`), where the canonical-atom
+  hypothesis and the ancestor-tower bound are derived from positivity (the
+  positive form of Proposition 17.1.B).
+- Pointwise Multipliers III, **complete**
+  (`GoodGrid/QuasiAlgebra.lean`, paper Proposition 19.1, `mult33`): the
+  bounded Souza-Besov space `B^s_{p,q} ∩ L^infinity` is closed under
+  pointwise multiplication, with the bilinear bound
+  `|fg|_B + |fg|_infinity ≤ Cqa (|f|_B + |f|_infinity)(|g|_B + |g|_infinity)`
+  (`souzaPointwiseMultipliersIII`).  The technical core
+  `exists_quasiAlgebra_product_representation` runs the `u₁ + u₂`
+  construction for two `(s,p)` Souza representations, with the mixed bound
+  `Cprod (|f|_B·Mg + |g|_B·Mf)`: weighted and strict weighted ancestor
+  towers (`weightedAncestorCoeffSum`) replace the tower sums of Pointwise
+  Multipliers II, a weighted `fou` representation is extracted from the
+  standard-representation machinery and Proposition 17.1.B, and the finite
+  truncation identity is passed to the limit in `L^p`.
 
-At this snapshot, a full `lake build` succeeds with **zero `sorry`**: the
-aggregate root module and all imported modules compile.  Project Lean files
-outside `.lake/packages` contain no `sorry`, no `admit`, and no project-local
-`axiom` or `constant` declarations; the main non-Archimedean theorems
-(finite, infinite, and positive-cone versions) check with only the standard
-axioms (`propext`, `Classical.choice`, `Quot.sound`).  See `status.md` for
-the current verification log.
+At this snapshot, a full `lake build` succeeds (3459 jobs) and the
+repository compiles with **zero `sorry`**: every project module, including
+`Bp1overpinftyisMultiplier.lean` and `QuasiAlgebra.lean`, is imported by
+the aggregate root.
+Project Lean files outside `.lake/packages` contain no `admit` and no
+project-local `axiom` or `constant` declarations; the main theorems — the
+non-Archimedean estimates (finite, infinite, and positive-cone versions),
+the `selfs` multiplier inclusion, Pointwise Multipliers I (finite and
+countable), the Dirac-approximation claims, Pointwise Multipliers II with
+its positive version, and Pointwise Multipliers III — check with only the
+standard axioms (`propext`, `Classical.choice`, `Quot.sound`).  See
+`status.md` for the current verification log.
 
 ## Build
 
@@ -163,9 +223,29 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
   boundedness (`L^infinity`) of tail-`selfs` multipliers, uniform in the tail
   level.
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanProperty.lean`: the
-  non-Archimedean multiplier estimate and the in-progress positive-cone version.
+  non-Archimedean multiplier estimate and the cores of its positive-cone
+  versions.
 - `BesovSpacesGoodGrid/GoodGrid/Multipliers/NonArchimedeanPropertyPositiveStandalone.lean`:
   the user-facing positive-cone statement, forwarding to the assembly core.
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/SelfsSubsetMultipliers.lean`: the
+  continuous inclusion of the tail `selfs` classes in the multiplier space
+  (paper Corollary 18.6).
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/StronglyRegularDomains.lean`:
+  strongly regular domains, the positive tail-`selfs` bound for their
+  indicators, and Pointwise Multipliers I (paper 18.7-18.9).
+- `BesovSpacesGoodGrid/GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean`:
+  Pointwise Multipliers II (paper Proposition 18.10): `B^{1/p}_{p,infinity} ∩
+  L^infinity` consists of pointwise multipliers of `B^s_{p,q}`, via the
+  `u₁ + u₂` atomic product construction, a discrete Young inequality with
+  geometric kernel, and the truncated-product identity; includes the
+  positive-cone version of the paper's Remark `pos3`.
+- `BesovSpacesGoodGrid/GoodGrid/DiracApproximations.lean`: the grid Dirac
+  kernels, evaluation of partial standard sums as cell averages, and the
+  bounds of paper Proposition 17.1.
+- `BesovSpacesGoodGrid/GoodGrid/QuasiAlgebra.lean`: the quasi-algebra
+  property of `B^s_{p,q} ∩ L^infinity` — Pointwise Multipliers III (paper
+  Proposition 19.1), via the two-sided `u₁ + u₂` construction with weighted
+  ancestor towers.
 - `BesovSpacesGoodGrid/GoodGrid/PositiveCone.lean`: positive Souza
   representations and the positive coefficient-cost gauge for Souza-Besov
   spaces.
@@ -220,10 +300,16 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
 
 ## Next Work
 
-The project currently builds with **zero `sorry`** (the positive-cone
-non-Archimedean theorems, finite and infinite, are fully proved with axioms
-checked). Likely next steps are:
+The repository currently builds with **zero `sorry`**.  Likely next steps
+(see `todo.md` for details) are:
 
+- the wrap-up equivalence theorem for paper Theorem 15.1 (packaging the
+  proved inequality cycle) and the `L¹` functional of Corollary 15.2;
+- the Section 16 examples: the Holder atom family with Proposition 16.2, and
+  bounded-variation atoms with Proposition 16.3 (applications of
+  `atoms_between_souza_atoms_and_besov_atoms`);
+- paper Sections 20-21 (`B^{1-s} = B^s_{1,1}` and left compositions; the
+  quasialgebra result of Section 19 is done);
 - continue polishing public docstrings around the large transmutation,
   completeness, and multiplier files;
 - factor large proof-heavy files (notably `Multipliers/NonArchimedeanProperty.lean`

@@ -6,6 +6,7 @@ import BesovSpacesGoodGrid.GoodGrid.Multipliers.NonArchimedeanProperty
 import BesovSpacesGoodGrid.GoodGrid.Multipliers.NonArchimedeanPropertyPositiveStandalone
 import BesovSpacesGoodGrid.GoodGrid.Multipliers.SelfsSubsetMultipliers
 import BesovSpacesGoodGrid.GoodGrid.Multipliers.StronglyRegularDomains
+import BesovSpacesGoodGrid.GoodGrid.Multipliers.Bp1overpinftyisMultiplier
 
 
 /-!

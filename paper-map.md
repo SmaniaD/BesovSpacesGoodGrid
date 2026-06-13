@@ -5,7 +5,7 @@ This file maps the published paper
 Daniel Smania, *Besov-ish spaces through atomic decomposition*,
 Analysis & PDE 15 (2022), no. 1
 
-to the current Lean formalization in this repository (last revised 2026-06-10,
+to the current Lean formalization in this repository (last revised 2026-06-12,
 zero `sorry`, full `lake build` green).
 
 The numbering X.Y below follows the order of the theorem-like environments in
@@ -45,10 +45,10 @@ Status labels:
 | 14 | Unbalanced Haar wavelets | external (SmaniaD repos) + local Haar API |
 | 15 | Alternative characterizations, I: Messing with norms | proved in pieces |
 | 16 | Alternative characterizations, II: Messing with atoms | Prop 16.1 proved; 16.2-16.3 not started |
-| 17 | Dirac's approximations | not started |
-| Part III | Applications | Section 18 largely proved; 19-21 not started |
-| 18 | Pointwise multipliers acting on \(B^s_{p,q}\) | Props 18.1, 18.3, 18.4, Remark posrem, Cor 18.6, Def/Prop 18.7-18.8 and Prop 18.9 proved |
-| 19 | \(B^s_{p,q} \cap L^\infty\) is a quasialgebra | not started |
+| 17 | Dirac's approximations | Prop 17.1 proved (evaluation/average forms A and B; distributional form not formalized) |
+| Part III | Applications | Sections 18-19 proved; 20-21 not started |
+| 18 | Pointwise multipliers acting on \(B^s_{p,q}\) | fully proved: Props 18.1, 18.3, 18.4, Remark posrem, Cor 18.6, Def/Prop 18.7-18.8, Prop 18.9, Prop 18.10 + Remark pos3 |
+| 19 | \(B^s_{p,q} \cap L^\infty\) is a quasialgebra | Prop 19.1 (`mult33`) proved |
 | 20 | A remarkable description of \(B^s_{1,1}\) | not started |
 | 21 | Left compositions | not started |
 
@@ -87,7 +87,7 @@ Status labels:
 | Proposition 16.1 (`besova`) | Souza atoms vs. Besov atoms (sandwich hypotheses) | `atoms_between_souza_atoms_and_besov_atoms` + decay claims `besovAtom_to_souza_representation_decay`, `besovAtom_to_induced_souzaS_representation_decay_claimC` | `BesovSpacesGoodGrid/GoodGrid/BesovAtoms.lean` | proved |
 | Proposition 16.2 (`hold`) | Holder atoms case | none | — | not started |
 | Proposition 16.3 | Bounded variation atoms case | none | — | not started |
-| Proposition 17.1 (`boup`) | Dirac's approximations | none (only distribution infrastructure: `TestFunctions`, `Distributions`) | `BesovSpacesGoodGrid/GoodGrid/Distribution.lean` | not started |
+| Proposition 17.1 (`boup`) | Dirac's approximations | `diracKernel`, `partialHaarSum_eq_integral_mul_diracKernel` (evaluation as cell average), `claimA_standard` and `claimA_positive` (item A, standard and positive-representation forms), `claimB` (item B), `standardLevelSum_eq_ancestor_term` (levelwise ancestor collapse); the distributional convergence form is not formalized (infrastructure: `TestFunctions`, `Distributions` in Distribution.lean) | `BesovSpacesGoodGrid/GoodGrid/DiracApproximations.lean` | proved (2026-06-11; axioms: `propext, Classical.choice, Quot.sound`) |
 
 ## Part III — Section 18: Pointwise multipliers
 
@@ -101,13 +101,14 @@ Status labels:
 | Corollary 18.6 (`23er`) | \(\mathcal B^{\beta,t}_{p,\tilde q,selfs} \subset M(\mathcal B^s_{p,q})\) continuously | `exists_souzaSelfsMultiplierConstant` (quantitative), `souzaPointwiseMultiplier_of_souzaPointwiseSelfsTailClass` (inclusion), `souzaPointwiseMultiplierNorm_le_const_mul_selfsTailNorm` (continuity), plus the level-lowering lemma `souzaPointwiseSelfsTailBound_levelZero` | `BesovSpacesGoodGrid/GoodGrid/Multipliers/SelfsSubsetMultipliers.lean` | proved (2026-06-10; axioms: `propext, Classical.choice, Quot.sound`) |
 | Definition/Proposition 18.7-18.8 (`pos2`) | Strongly regular domains; positive tail `selfs` bound for \(\chi_\Omega\) | `StronglyRegularDomain` / `StronglyRegularDecomposition` (definition), `souzaPositiveSelfsTailBound_of_stronglyRegularDomain` (`pos2`), plus `souzaPositiveSelfsTailBound_smul_of_stronglyRegularDomain` and `souzaPositiveFunction_of_stronglyRegularDomain`; earlier grid-cell special case in Besovspq.lean | `BesovSpacesGoodGrid/GoodGrid/Multipliers/StronglyRegularDomains.lean` | proved (2026-06-10) |
 | Proposition 18.9 (`pm1`) | Pointwise Multipliers I | `souzaPointwiseMultipliersI` (finite `Λ`) and `souzaPointwiseMultipliersIInfinite` (arbitrary `Λ ⊆ ℕ`; support conclusion in the a.e. form, positivity as cone-positivity, via the positive non-Archimedean theorems) | `BesovSpacesGoodGrid/GoodGrid/Multipliers/StronglyRegularDomains.lean` | proved (2026-06-10) |
-| Proposition 18.10 (`mult`) | Pointwise Multipliers II (\(\mathcal B^{1/p}_{p,\infty} \cap L^\infty\)) | `souzaPointwiseMultipliersII` — outer proof complete (ε-optimization, uniqueness of the product representative); two inner sublemmas still `sorry`: `exists_fouRepresentation` (Cor 15.2 `fou` + Prop 17.1 `boup`.B input) and `exists_mult_product_representation` (the `u₁+u₂` construction) | `BesovSpacesGoodGrid/GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean` | partial (2026-06-10) |
+| Proposition 18.10 (`mult`) | Pointwise Multipliers II (\(\mathcal B^{1/p}_{p,\infty} \cap L^\infty\)) | `souzaPointwiseMultipliersII`; input sublemma `exists_fouRepresentation` (Cor 15.2 `fou` + Prop 17.1 `boup`.B via the Dirac-approximation API), `u₁+u₂` construction `exists_mult_product_representation` (block core `exists_mult_product_blocks`, discrete Young inequality `geometric_conv_rpow_summable_and_tsum_le`, truncated-product identity passed to the limit) | `BesovSpacesGoodGrid/GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean` | proved (2026-06-12; axioms: `propext, Classical.choice, Quot.sound`) |
+| Remark after 18.10 (`pos3`) | Positive version of Pointwise Multipliers II (positive gauges) | `souzaPointwiseMultipliersIIPositive`, representation form `exists_mult_product_representation_pos`; tower bound derived from positivity (`ancestorCoeffSum_norm_le_essBound_of_positive`) | `BesovSpacesGoodGrid/GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean` | proved (2026-06-12; axioms: `propext, Classical.choice, Quot.sound`) |
 
 ## Part III — Sections 19-21
 
 | Paper item | Mathematical content | Lean item | Status |
 |---|---|---|---|
-| Proposition 19.1 (`mult33`) | Pointwise Multipliers III: \(\mathcal B^s_{p,q} \cap L^\infty\) is a quasialgebra | none | not started |
+| Proposition 19.1 (`mult33`) | Pointwise Multipliers III: \(\mathcal B^s_{p,q} \cap L^\infty\) is a quasialgebra | `souzaPointwiseMultipliersIII` (bilinear bound `|fg|_B + |fg|∞ ≤ Cqa (|f|_B + Mf)(|g|_B + Mg)`), core `exists_quasiAlgebra_product_representation` (two-sided `u₁+u₂` with weighted ancestor towers `weightedAncestorCoeffSum` and `exists_weighted_fouRepresentation`), `L∞` part `ae_norm_mul_le_mul_bounds`; in `BesovSpacesGoodGrid/GoodGrid/QuasiAlgebra.lean` | proved (2026-06-12; axioms: `propext, Classical.choice, Quot.sound`) |
 | Definition/Proposition 19.x | Regular families of domains | none | not started |
 | Proposition 20.1 (`rema`) | \(B^{1-s} = \mathcal B^s_{1,1}\) (description via sums of indicators) | none (related: Besovs11.lean, but it treats multipliers, not this characterization) | not started |
 | Proposition 21.1 (`expo`) | Left compositions | none | not started |
@@ -123,6 +124,7 @@ Natural candidates, in rough order of leverage:
    prove Proposition 16.2 by applying
    `atoms_between_souza_atoms_and_besov_atoms`; same for bounded variation
    atoms and Proposition 16.3.
-3. Pointwise Multipliers II (Proposition 18.10, `mult`), now that strongly
-   regular domains, `pos2` and Pointwise Multipliers I are formalized.
-4. Sections 19-21 depend heavily on the above and should come last.
+3. The remaining items of Section 19 (regular families of domains) and
+   Sections 20-21 (`B^{1-s} = B^s_{1,1}`, left compositions).
+4. The distributional form of Proposition 17.1, on top of the proved
+   claims A/B and the `TestFunctions`/`Distributions` infrastructure.
