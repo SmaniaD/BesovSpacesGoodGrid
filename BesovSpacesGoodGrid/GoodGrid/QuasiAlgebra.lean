@@ -86,7 +86,7 @@ def weightedAncestorCoeffSum
 
 /-- The `u₁` block: collect the product terms where the `g` cell contains the
 `f` cell, including equality. -/
-private noncomputable def quasiU1Block
+noncomputable def quasiU1Block
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)]
@@ -102,7 +102,7 @@ private noncomputable def quasiU1Block
   atom_mem := (Rf.block k).atom_mem
 
 /-- Strict weighted ancestor tower, excluding the current level. -/
-private def strictWeightedAncestorCoeffSum
+def strictWeightedAncestorCoeffSum
     (G : GoodGridSpace (α := α)) {s : ℝ} {p : ℝ≥0∞}
     {hs : 0 < s} {hp : 1 ≤ p} {hp_top : p ≠ ∞}
     [Fact (1 ≤ p)]
@@ -119,7 +119,7 @@ private def strictWeightedAncestorCoeffSum
 
 /-- The `u₂` block: collect the product terms where the `f` cell strictly
 contains the `g` cell. -/
-private noncomputable def quasiU2Block
+noncomputable def quasiU2Block
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)]
@@ -135,8 +135,146 @@ private noncomputable def quasiU2Block
     atom := (Rg.block j).atom
     atom_mem := (Rg.block j).atom_mem }
 
+/-- A nonzero coefficient in the `u₁` block comes from a nonzero coefficient
+of the first input representation at the same cell. -/
+theorem quasiU1Block_coeff_ne_zero_left
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {xf xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rf : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xf)
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    {k : ℕ} (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k)
+    (hcoeff :
+      (quasiU1Block G s p hs hp hp_top Rf Rg k).coeff Q ≠ 0) :
+    (Rf.block k).coeff Q ≠ 0 := by
+  intro hzero
+  exact hcoeff (by simp [quasiU1Block, hzero])
+
+/-- A nonzero coefficient in the `u₁` block has a nonzero weighted ancestor
+tower from the second input representation. -/
+theorem quasiU1Block_coeff_ne_zero_right
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {xf xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rf : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xf)
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    {k : ℕ} (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k)
+    (hcoeff :
+      (quasiU1Block G s p hs hp hp_top Rf Rg k).coeff Q ≠ 0) :
+    weightedAncestorCoeffSum G Rg Q ≠ 0 := by
+  intro hzero
+  exact hcoeff (by simp [quasiU1Block, hzero])
+
+/-- A nonzero coefficient in the `u₂` block comes from a nonzero coefficient
+of the second input representation at the same cell. -/
+theorem quasiU2Block_coeff_ne_zero_left
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {xf xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rf : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xf)
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    {j : ℕ} (J : WeakGridSpace.LevelCell G.toWeakGridSpace j)
+    (hcoeff :
+      (quasiU2Block G s p hs hp hp_top Rf Rg j).coeff J ≠ 0) :
+    (Rg.block j).coeff J ≠ 0 := by
+  intro hzero
+  exact hcoeff (by simp [quasiU2Block, hzero])
+
+/-- A nonzero coefficient in the `u₂` block has a nonzero strict weighted
+ancestor tower from the first input representation. -/
+theorem quasiU2Block_coeff_ne_zero_right
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    {xf xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rf : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xf)
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    {j : ℕ} (J : WeakGridSpace.LevelCell G.toWeakGridSpace j)
+    (hcoeff :
+      (quasiU2Block G s p hs hp hp_top Rf Rg j).coeff J ≠ 0) :
+    strictWeightedAncestorCoeffSum G Rf J ≠ 0 := by
+  intro hzero
+  exact hcoeff (by simp [quasiU2Block, hzero])
+
+/-- If a weighted ancestor tower is nonzero, then some ancestor coefficient
+which contributes to it is nonzero. -/
+theorem weightedAncestorCoeffSum_ne_zero_exists
+    (G : GoodGridSpace (α := α)) {s : ℝ} {p : ℝ≥0∞}
+    {hs : 0 < s} {hp : 1 ≤ p} {hp_top : p ≠ ∞}
+    [Fact (1 ≤ p)]
+    {x : Lp ℂ p G.toWeakGridSpace.measure}
+    (R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) x)
+    {k : ℕ} (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k)
+    (hne : weightedAncestorCoeffSum G R Q ≠ 0) :
+    ∃ j ∈ Finset.range (k + 1),
+      ∃ J : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        Q.1 ⊆ J.1 ∧ (R.block j).coeff J ≠ 0 := by
+  classical
+  unfold weightedAncestorCoeffSum at hne
+  by_contra hnone
+  have hzero_outer : ∀ j ∈ Finset.range (k + 1),
+      (∑ J : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        if Q.1 ⊆ J.1 then
+          (R.block j).coeff J * (show ℂ from (R.block j).atom J)
+        else 0) = 0 := by
+    intro j hj
+    refine Finset.sum_eq_zero ?_
+    intro J _
+    by_cases hsub : Q.1 ⊆ J.1
+    · have hcoeff : (R.block j).coeff J = 0 := by
+        by_contra hcoeff
+        exact hnone ⟨j, hj, J, hsub, hcoeff⟩
+      simp [hsub, hcoeff]
+    · simp [hsub]
+  exact hne (Finset.sum_eq_zero hzero_outer)
+
+/-- If a strict weighted ancestor tower is nonzero, then some strict ancestor
+coefficient which contributes to it is nonzero. -/
+theorem strictWeightedAncestorCoeffSum_ne_zero_exists
+    (G : GoodGridSpace (α := α)) {s : ℝ} {p : ℝ≥0∞}
+    {hs : 0 < s} {hp : 1 ≤ p} {hp_top : p ≠ ∞}
+    [Fact (1 ≤ p)]
+    {x : Lp ℂ p G.toWeakGridSpace.measure}
+    (R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) x)
+    {j : ℕ} (J : WeakGridSpace.LevelCell G.toWeakGridSpace j)
+    (hne : strictWeightedAncestorCoeffSum G R J ≠ 0) :
+    ∃ k ∈ Finset.range j,
+      ∃ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        J.1 ⊆ Q.1 ∧ (R.block k).coeff Q ≠ 0 := by
+  classical
+  unfold strictWeightedAncestorCoeffSum at hne
+  by_contra hnone
+  have hzero_outer : ∀ k ∈ Finset.range j,
+      (∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        if J.1 ⊆ Q.1 then
+          (R.block k).coeff Q * (show ℂ from (R.block k).atom Q)
+        else 0) = 0 := by
+    intro k hk
+    refine Finset.sum_eq_zero ?_
+    intro Q _
+    by_cases hsub : J.1 ⊆ Q.1
+    · have hcoeff : (R.block k).coeff Q = 0 := by
+        by_contra hcoeff
+        exact hnone ⟨k, hk, Q, hsub, hcoeff⟩
+      simp [hsub, hcoeff]
+    · simp [hsub]
+  exact hne (Finset.sum_eq_zero hzero_outer)
+
 /-- Levelwise cost of `quasiU1Block` from the `L∞` tower bound on `g`. -/
-private theorem quasiU1Block_levelCoeffPower_le
+theorem quasiU1Block_levelCoeffPower_le
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)]
@@ -188,7 +326,7 @@ private theorem quasiU1Block_levelCoeffPower_le
 
 /-- Levelwise cost of `quasiU2Block` from the strict ancestor tower bound on
 `f`.  The strict tower is bounded by the full weighted tower. -/
-private theorem quasiU2Block_levelCoeffPower_le
+theorem quasiU2Block_levelCoeffPower_le
     (G : GoodGridSpace (α := α)) (s : ℝ) (p : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)]
@@ -677,7 +815,7 @@ private theorem quasi_representsProduct_of_tendsto_Lp_varying
 
 /-- Product construction from two concrete representations whose weighted
 ancestor towers satisfy the `L∞` bounds required in the proof of `mult33`. -/
-private theorem exists_quasi_product_of_tower_representations
+theorem exists_quasi_product_of_tower_representations
     (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
@@ -705,10 +843,21 @@ private theorem exists_quasi_product_of_tower_representations
       ‖strictWeightedAncestorCoeffSum G Rf J‖ ≤ Mf) :
     ∃ y : WeakGridSpace.BesovishSpace
         (souzaAtomFamily G s p hs hp hp_top) q,
+    ∃ R : WeakGridSpace.LpGridRepresentation
+        (souzaAtomFamily G s p hs hp hp_top)
+        (y : Lp ℂ p G.toWeakGridSpace.measure),
       WeakGridSpace.RepresentsFunction
         (G := G.toWeakGridSpace) (p := p)
         (fun z => f z * g z)
         (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R ∧
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) R ≤
+        Mg * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rf +
+          Mf * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg ∧
+      (∀ k, R.block k =
+        WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+          (quasiU1Block G s p hs hp hp_top Rf Rg k)
+          (quasiU2Block G s p hs hp hp_top Rf Rg k)) ∧
       WeakGridSpace.BesovishSpace.Norm_Costpq
           (souzaAtomFamily G s p hs hp hp_top) q y ≤
         Mg * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rf +
@@ -810,6 +959,29 @@ private theorem exists_quasi_product_of_tower_representations
   let y2 : WeakGridSpace.BesovishSpace (souzaAtomFamily G s p hs hp hp_top) q :=
     ⟨y2Lp, ⟨R2, hR2fin⟩⟩
   let y : WeakGridSpace.BesovishSpace (souzaAtomFamily G s p hs hp hp_top) q := y1 + y2
+  let R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (y : Lp ℂ p G.toWeakGridSpace.measure) :=
+    WeakGridSpace.LpGridRepresentation.add R1 R2
+  have hRfin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R :=
+    WeakGridSpace.LpGridRepresentation.add_finitePQCost R1 R2 hp_top Fact.out hR1fin hR2fin
+  have hRcost : WeakGridSpace.LpGridRepresentation.pqCost (q := q) R ≤
+      Mg * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rf +
+        Mf * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg := by
+    calc
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) R
+          ≤ WeakGridSpace.LpGridRepresentation.pqCost (q := q) R1 +
+              WeakGridSpace.LpGridRepresentation.pqCost (q := q) R2 :=
+        WeakGridSpace.LpGridRepresentation.pqCost_triangle R1 R2 hp_top Fact.out hR1fin hR2fin
+      _ ≤ Mg * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rf +
+            Mf * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg :=
+        add_le_add hR1cost hR2cost
+  have hRblock : ∀ k, R.block k =
+      WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+        (quasiU1Block G s p hs hp hp_top Rf Rg k)
+        (quasiU2Block G s p hs hp hp_top Rf Rg k) := by
+    intro k
+    simp [R, WeakGridSpace.LpGridRepresentation.add, hR1block, hR2block]
   have h1sum : HasSum (fun k =>
       (quasiU1Block G s p hs hp hp_top Rf Rg k).toLp
         (souzaAtomFamily G s p hs hp hp_top)) y1Lp := by
@@ -884,7 +1056,7 @@ private theorem exists_quasi_product_of_tower_representations
     filter_upwards [hyprod_gf, hfrep] with z hyz hfz
     rw [hyz, hfz]
     ring
-  refine ⟨y, hyrep, ?_⟩
+  refine ⟨y, R, hyrep, hRfin, hRcost, hRblock, ?_⟩
   have htriangle := WeakGridSpace.BesovishSpace.Norm_Costpq_add_le
     (A := souzaAtomFamily G s p hs hp hp_top) (q := q) hp_top
     (WeakGridSpace.BesovishSpace.hasFiniteCostRepresentations
@@ -1210,7 +1382,7 @@ private theorem norm_partialStandardSum_le_essBound
     exact eLpNormEssSup_le_of_ae_bound hMae
   exact (ENNReal.ofReal_le_ofReal_iff hM0).1 (le_trans h1 h2)
 
-private theorem exists_weighted_fouRepresentation
+theorem exists_weighted_fouRepresentation
     (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)] :
@@ -1383,7 +1555,7 @@ theorem exists_quasiAlgebra_product_representation
     hfou f Mf xf hfrep hfM
   obtain ⟨Rg, hRgfin, hRgcost, htower_g, _hstrict_g⟩ :=
     hfou g Mg xg hgrep hgM
-  obtain ⟨y, hyrep, hycost⟩ :=
+  obtain ⟨y, _R, hyrep, _hRfin, _hRcost, _hRblock, hycost⟩ :=
     exists_quasi_product_of_tower_representations G s p q hs hp hp_top
       f g Mf Mg hMf0 hMg0 xf xg Rf Rg hfrep hgrep hRffin hRgfin
       htower_g hstrict_f

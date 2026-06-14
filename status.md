@@ -3,7 +3,7 @@
 This file summarizes the recent state of the central files in
 `BesovSpacesGoodGrid/GoodGrid`.
 
-## IN PROGRESS: Regular domains (`cf`) — 4 sorry (2026-06-13)
+## IN PROGRESS: Regular domains (`cf`) — 1 sorry (2026-06-14)
 
 New file `BesovSpacesGoodGrid/GoodGrid/RegularDomains.lean` introduces the
 formal API for the paper's subsection `Regular domains`:
@@ -11,12 +11,14 @@ formal API for the paper's subsection `Regular domains`:
 - `firstContainedLevel`, the formal `k₀(Ω)`;
 - `RegularFamily`, for countable disjoint families indexed by `Λ ⊆ ℕ`;
 - `RegularDomain`, the one-set version;
+- both regularity structures now record `C ≥ 0` and `0 ≤ c < 1` as part of
+  the definition, matching the geometric use of `c` in the paper;
 - `RegularDomain.toRegularFamily_singleton`, proved bridge from one regular
   domain to the singleton-family formulation;
 - supporting proved API for the union construction:
   `RegularFamily.cell_subset_domain`, `cell_subset_union`,
-  `selected_cells_disjoint`, `measurable_union`, `unionFamily`,
-  `unionFamily_cover`, `unionFamily_pairwise_disjoint`, and
+  `selected_cells_disjoint`, `cost_summable`, `measurable_union`,
+  `unionFamily`, `unionFamily_cover`, `unionFamily_pairwise_disjoint`, and
   `unionFamily_empty_before`;
 - `RegularFamily.regularDomain_union`, proved from the finite cell selection
   at each level, with the cost estimate obtained by assigning each union cell
@@ -26,20 +28,110 @@ formal API for the paper's subsection `Regular domains`:
   `cell_subset_cell`, `cell_subset_domain`, plus the private candidate family
   assembled over the `k₀(Ω)` partition, with proved `family_subset`,
   `empty_before`, `cover`, and pairwise-disjoint cells;
-- theorem skeletons for: the remaining cost estimate in strongly regular
-  implies regular with ratio `λ₂^((β-s)p)`, the localized restriction representation
-  estimate `(pdd)/(hiip1)`, the indicator norm estimate `(estG)`, and the
-  bounded multiplier operator `g ↦ g·1_Ω` on `B^s_{p,q} ∩ L∞`.
+- proved quantitative strongly-regular-to-regular theorem with ratio
+  `λ₂^((β-s)p)`, the indicator norm estimate `(estG)`, and the bounded
+  multiplier operator `g ↦ g·1_Ω` on `B^s_{p,q} ∩ L∞`;
+- one remaining theorem skeleton: the localized restriction representation
+  estimate `(pdd)/(hiip1)`.
 
-The file compiles with these four planned `sorry`s.  No axioms or admits were
-added.
+The file currently has one planned `sorry`.  No axioms or executable admits
+were added.
 
 The theorem `regularDomain_of_stronglyRegularDomain` now explicitly assumes
 `hΩcell : ContainsGridCell G Ω`, matching the LaTeX proof's use of `k₀(Ω)`.
 It constructs the regular-domain decomposition from the strong decompositions
-of `Q ∩ Ω` over all `Q ∈ P^{k₀(Ω)}`; the remaining `sorry` is only the
-quantitative comparison turning the strong `1-βp` costs into the regular
-`1-sp` geometric cost.
+of `Q ∩ Ω` over all `Q ∈ P^{k₀(Ω)}`; the quantitative comparison turning the
+strong `1-βp` costs into the regular `1-sp` geometric cost is now proved.
+
+The remaining proof obligation is
+`regularFamily_restriction_representations`, the regular-family localization
+estimate producing Souza representations of `g · 1_{Ωᵣ}` with the mixed
+coefficient bound `(hiip1)`.  Its Lean statement now follows the bounded
+version suggested by the paper: the input comes with an essential bound
+`∀ᵐ z, ‖g z‖ ≤ M`, and the target estimate is controlled by the bounded Besov
+gauge `Norm_Costpq xg + M`.
+
+Attempt note (2026-06-14): the LaTeX proof uses the `u₁ + u₂` product
+construction from Proposition `mult33`, but the public formal API
+`exists_quasiAlgebra_product_representation` only returns a global product
+representative and norm bound.  The currently public cell-indicator multiplier
+API similarly returns a Besov element/norm bound, not an inspectable
+`LpGridRepresentation` with localized nonzero coefficients.  A complete proof
+of `regularFamily_restriction_representations` therefore appears to need a new
+localized product/transmutation lemma exposing the output representations
+indexed by `r ∈ Λ`, or a refactor of the existing private local constructions
+in `QuasiAlgebra.lean`/`NonArchimedeanProperty.lean`.
+
+Follow-up refactor (2026-06-14): `QuasiAlgebra.lean` now exposes the
+`quasiU1Block`, `quasiU2Block`, `weightedAncestorCoeffSum`,
+`strictWeightedAncestorCoeffSum`, and `exists_weighted_fouRepresentation`
+definitions/theorems.  The theorem
+`exists_quasi_product_of_tower_representations` returns a concrete finite-cost
+`LpGridRepresentation` together with the explicit block identity
+`R.block k = LevelBlock.add (quasiU1Block ... k) (quasiU2Block ... k)`.
+New support lemmas show that nonzero coefficients in `u₁`/`u₂` and in
+weighted ancestor towers come from nonzero source coefficients.  The remaining
+work is to build the regular-family indicator representations indexed by
+`r ∈ Λ`, prove their tower/support estimates, and feed those estimates into a
+localized product-cost argument for `(hiip1)`.
+
+Continuation (2026-06-14): `RegularDomains.lean` now has the reusable block
+API for the regular-family indicators:
+
+- `regularFamilyIndicatorBlock`, the canonical level block attached to
+  `ℱᵏ(Ωᵢ)`;
+- `regularFamilyIndicatorBlock_coeff_ne_zero_mem` and
+  `regularFamilyIndicatorBlock_coeff_ne_zero_subset_domain`, the support
+  bookkeeping for selected cells;
+- `regularFamilyIndicatorBlock_levelCoeffPower`, identifying the level
+  coefficient power with `∑_{Q∈ℱᵏ(Ωᵢ)} μ(Q)^(1-sp)`;
+- `regularFamilyIndicatorBlock_represents_levelTile`, showing the block
+  represents the finite level tile `⋃_{Q∈ℱᵏ(Ωᵢ)} Q`.
+- `regularFamilyIndicatorBlock_aggregate_levelCoeffPower_le`, the levelwise
+  aggregate `(dom)` estimate rewritten directly for the indicator blocks.
+- `regularFamilyIndicator_quasiU1Block_coeff_ne_zero_subset_domain` and
+  `regularFamilyIndicator_quasiU2Block_coeff_ne_zero_subset_domain`, the
+  formal support step from the `u₁+u₂` construction: when the indicator blocks
+  for `Ωᵢ` are the first product input, every nonzero output coefficient is on
+  a cell contained in `Ωᵢ`.
+- `regularFamilyIndicator_strictWeightedAncestorCoeffSum_norm_le_one`, the
+  strict ancestor tower bound for the canonical indicator representation.
+- `regularFamilyIndicator_quasiU1Block_aggregate_levelCoeffPower_le`, the
+  aggregate level estimate for the `u₁` contribution over all active indices.
+- `regularFamilyIndicator_quasiU2Block_unique_active_index` and
+  `regularFamilyIndicator_quasiU2Block_coeff_norm_rpow_le`, the two local
+  ingredients for the `u₂` aggregate estimate: uniqueness of the active index
+  for a fixed output cell and domination by the corresponding coefficient of
+  the representation of `g`.
+- `regularFamilyIndicator_quasiU2Block_aggregate_levelCoeffPower_le`, the
+  aggregate level estimate for the `u₂` contribution:
+  the sum over all active indices is bounded by the level coefficient power of
+  the representation of `g`.
+
+These compile and are intended as the first layer of the indexed indicator
+representation needed for the remaining restriction theorem.
+
+Technical note: the existing single-domain indicator estimates require
+`q ≠ ∞` to turn levelwise geometric control into a finite global `(p,q)` cost;
+the `0 ≤ c` and `c^(q/p) < 1` facts are now derived from the regular-domain
+field `0 ≤ c < 1`.  The current statement of
+`regularFamily_restriction_representations` now includes the paper's `L∞`
+hypothesis on `g` and replaces the stronger pure-Besov bound by the natural
+bounded-Besov estimate `Crel * (Norm_Costpq xg + M)`.  The remaining proof
+still needs the family-level coefficient estimate with this localized support.
+Concretely, applying the product theorem separately for each active index is
+not enough: it repeats the cost of the representation of `g` over infinitely
+many indices.  The missing formal lemma must estimate the aggregate
+level-power before taking the `(p,q)` gauge, using pairwise disjointness of the
+regular family.  Mathematically this gives a bound of the form
+`C * (pqCost Rg + M * indicatorFamilyCost)`, which then fits the current
+bounded-Besov right hand side.
+
+Formal note: `RegularFamily.cost_summable` is now a theorem, not a field.  The
+proof does not rely on the real-valued `tsum` in `cost`; it uses the stronger
+structural fact that, at each fixed level, the partition is finite and
+pairwise-disjoint active domains cannot select the same level cell.  Hence the
+active level-cost function has finite support.
 
 Notation note: the mathematical documentation writes characteristic functions
 as `\mathbbm{1}_E` (with LaTeX package `bbm`); Lean code continues to use
@@ -420,6 +512,22 @@ Proof architecture:
 
 The multiplier files through Proposition 19.1 remain complete, and the full
 project build is green after the Section 19 completion.
+
+Regular domains update (2026-06-14):
+
+- `RegularDomains.lean` still has one remaining `sorry`, in
+  `regularFamily_restriction_representations`.
+- New proved infrastructure for that theorem:
+  `regularFamilyIndicatorBlock_levelCoeffPower_le_familyCost`,
+  summability of the aggregate `u₁` and `u₂` level costs, the aggregate
+  product-block estimate for `u₁ + u₂`, and
+  `regularFamilyIndicator_besov_representation` for each active member of a
+  regular family.
+- The theorem has been moved below the indicator/union helper lemmas so the
+  final proof can use the `indicatorConstLp` countable-union summation tools.
+- The remaining mathematical step is to turn the product-block level estimate
+  into the mixed `regularFamilyRestrictionCost` bound, separately for
+  `q = ∞` and `q < ∞`, then assemble the per-index product representations.
 
 Possible next steps (see `todo.md`):
 

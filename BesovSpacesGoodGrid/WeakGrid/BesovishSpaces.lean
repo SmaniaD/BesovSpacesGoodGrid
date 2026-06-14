@@ -381,6 +381,18 @@ theorem add_toLp (A : AtomFamily G s p u) {k : ℕ}
     (add A B C).toLp A = B.toLp A + C.toLp A := by
   simp [toLp, add_term A B C, Finset.sum_add_distrib]
 
+/-- A nonzero coefficient in a sum block comes from at least one summand. -/
+theorem add_coeff_ne_zero (A : AtomFamily G s p u) {k : ℕ}
+    (B C : LevelBlock A k) (Q : LevelCell G k)
+    (hcoeff : (add A B C).coeff Q ≠ 0) :
+    B.coeff Q ≠ 0 ∨ C.coeff Q ≠ 0 := by
+  classical
+  by_cases hB : B.coeff Q = 0
+  · by_cases hC : C.coeff Q = 0
+    · exact False.elim (hcoeff (by simp [add, hB, hC]))
+    · exact Or.inr hC
+  · exact Or.inl hB
+
 end LevelBlock
 
 omit [Fact (1 ≤ p)] in
@@ -745,6 +757,16 @@ theorem add_block_toLp
     (S : LpGridRepresentation A h) (k : ℕ) :
     ((add R S).block k).toLp A = (R.block k).toLp A + (S.block k).toLp A := by
   simp [add]
+
+/-- A nonzero coefficient in the canonical sum representation comes from at
+least one nonzero coefficient in the summands. -/
+theorem add_coeff_ne_zero
+    {A : AtomFamily G s p u} {g h : Lp ℂ p G.measure}
+    (R : LpGridRepresentation A g)
+    (S : LpGridRepresentation A h) {k : ℕ} (Q : LevelCell G k)
+    (hcoeff : ((add R S).block k).coeff Q ≠ 0) :
+    (R.block k).coeff Q ≠ 0 ∨ (S.block k).coeff Q ≠ 0 := by
+  exact LevelBlock.add_coeff_ne_zero A (R.block k) (S.block k) Q hcoeff
 
 /-- Representation-level scalar multiplication induced by block linearity. -/
 noncomputable def smul
