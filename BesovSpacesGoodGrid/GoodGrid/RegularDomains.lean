@@ -1284,6 +1284,25 @@ noncomputable def regularFamilyRestrictionCost
       (regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j) ^
         (q.toReal / p.toReal)) ^ (1 / q.toReal)
 
+private theorem regularFamilyRestrictionLevelCoeffPower_nonneg
+    (Λ : Set ℕ)
+    (y : ℕ → WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (R : (i : ℕ) →
+      WeakGridSpace.LpGridRepresentation
+        (souzaAtomFamily G s p hs hp hp_top)
+        ((y i : WeakGridSpace.BesovishSpace
+            (souzaAtomFamily G s p hs hp hp_top) q) :
+          Lp ℂ p G.toWeakGridSpace.measure))
+    (j : ℕ) :
+    0 ≤ regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j := by
+  unfold regularFamilyRestrictionLevelCoeffPower
+  exact tsum_nonneg fun i => by
+    by_cases hi : i ∈ Λ
+    · rw [Set.indicator_of_mem hi]
+      exact Finset.sum_nonneg fun Q _ => Real.rpow_nonneg (norm_nonneg _) _
+    · rw [Set.indicator_of_notMem hi]
+
 end RestrictionCost
 
 section RegularFamilyIndicatorBlocks
@@ -2451,6 +2470,666 @@ theorem regularFamilyIndicator_quasiProductBlock_aggregate_levelCoeffPower_le
           Rg.levelCoeffPower j) := by
       exact mul_le_mul_of_nonneg_left (add_le_add hu1_le hu2_le) hK0
 
+private theorem regularFamilyRestriction_bound_nonneg
+    (G : GoodGridSpace (α := α)) {f : α → ℂ} {M : ℝ}
+    (hM : ∀ᵐ z ∂G.toWeakGridSpace.measure, ‖f z‖ ≤ M) :
+    0 ≤ M := by
+  have hμpos : 0 < G.grid.μ Set.univ := by
+    refine G.grid.positive_measure 0 Set.univ ?_
+    rw [G.grid.grid.first_partition_eq_univ]
+    exact Finset.mem_singleton_self _
+  have hμne : G.toWeakGridSpace.measure ≠ 0 := by
+    intro h0
+    rw [show G.toWeakGridSpace.measure = G.grid.μ from rfl] at h0
+    rw [h0] at hμpos
+    simp at hμpos
+  haveI : Filter.NeBot (ae G.toWeakGridSpace.measure) :=
+    ae_neBot.mpr hμne
+  obtain ⟨z, hz⟩ := hM.exists
+  exact le_trans (norm_nonneg (f z)) hz
+
+private theorem regularFamily_productBlock_coeff_ne_zero_subset_domain
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    {i j : ℕ} (hi : i ∈ Λ)
+    {xind xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rind : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xind)
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (hblock : ∀ m,
+      Rind.block m =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i m)
+    (Q : WeakGridSpace.LevelCell G.toWeakGridSpace j)
+    (hcoeff :
+      (WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+        (quasiU1Block G s p hs hp hp_top Rind Rg j)
+        (quasiU2Block G s p hs hp hp_top Rind Rg j)).coeff Q ≠ 0) :
+    Q.1 ⊆ Ω i := by
+  rcases WeakGridSpace.LevelBlock.add_coeff_ne_zero
+      (souzaAtomFamily G s p hs hp hp_top)
+      (quasiU1Block G s p hs hp hp_top Rind Rg j)
+      (quasiU2Block G s p hs hp hp_top Rind Rg j) Q hcoeff with h1 | h2
+  · exact regularFamilyIndicator_quasiU1Block_coeff_ne_zero_subset_domain
+      (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+      (p := p) hΩ hi Rind Rg hblock Q h1
+  · exact regularFamilyIndicator_quasiU2Block_coeff_ne_zero_subset_domain
+      (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+      (p := p) hΩ hi Rind Rg hblock Q h2
+
+private noncomputable def regularFamilyGeomLevel
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s C c : ℝ) (p : ℝ≥0∞) (j : ℕ) : ℝ :=
+  C * c ^ (j - firstContainedLevel G (regularFamilyUnion Λ Ω)) *
+    (G.grid.μ (regularFamilyUnion Λ Ω)).toReal ^ (1 - p.toReal * s)
+
+private noncomputable def regularFamilyGeomRootCost
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s C c : ℝ) (p q : ℝ≥0∞) : ℝ :=
+  if q = ∞ then
+    sSup (Set.range fun j : ℕ =>
+      (regularFamilyGeomLevel G Λ Ω s C c p j) ^ (1 / p.toReal))
+  else
+    (∑' j : ℕ,
+      (regularFamilyGeomLevel G Λ Ω s C c p j) ^ (q.toReal / p.toReal)) ^
+        (1 / q.toReal)
+
+private theorem regularFamilyGeomLevel_nonneg
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c) (j : ℕ) :
+    0 ≤ regularFamilyGeomLevel G Λ Ω s C c p j := by
+  exact mul_nonneg
+    (mul_nonneg hΩ.C_nonneg (pow_nonneg hΩ.c_nonneg _))
+    (Real.rpow_nonneg ENNReal.toReal_nonneg _)
+
+private theorem regularFamilyGeomRootCost_nonneg
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c) :
+    0 ≤ regularFamilyGeomRootCost G Λ Ω s C c p q := by
+  by_cases hq : q = ∞
+  · rw [regularFamilyGeomRootCost, if_pos hq]
+    exact Real.sSup_nonneg' ⟨_,
+      ⟨0, rfl⟩,
+      Real.rpow_nonneg (regularFamilyGeomLevel_nonneg
+        (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+        (p := p) hΩ 0) _⟩
+  · rw [regularFamilyGeomRootCost, if_neg hq]
+    exact Real.rpow_nonneg
+      (tsum_nonneg fun j =>
+        Real.rpow_nonneg (regularFamilyGeomLevel_nonneg
+          (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+          (p := p) hΩ j) _) _
+
+private theorem regularFamilyGeomLevel_rpow_summable
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    (hp_top : p ≠ ∞)
+    (hq_top : q ≠ ∞) :
+    Summable fun j : ℕ =>
+      (regularFamilyGeomLevel G Λ Ω s C c p j) ^ (q.toReal / p.toReal) := by
+  classical
+  have hp0 : p ≠ 0 := (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne'
+  have hpr : 0 < p.toReal := ENNReal.toReal_pos hp0 hp_top
+  have hqr : 0 < q.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ q)).ne' hq_top
+  have hqp_pos : 0 < q.toReal / p.toReal := div_pos hqr hpr
+  let k₀ := firstContainedLevel G (regularFamilyUnion Λ Ω)
+  let a : ℝ := 1 - p.toReal * s
+  let d : ℝ := c ^ (q.toReal / p.toReal)
+  let B : ℝ :=
+    (C * (G.grid.μ (regularFamilyUnion Λ Ω)).toReal ^ a) ^
+      (q.toReal / p.toReal)
+  have hd0 : 0 ≤ d := Real.rpow_nonneg hΩ.c_nonneg _
+  have hd1 : d < 1 := Real.rpow_lt_one hΩ.c_nonneg hΩ.c_lt_one hqp_pos
+  have hBgeom : Summable (fun m : ℕ => B * d ^ m) :=
+    (summable_geometric_of_lt_one hd0 hd1).mul_left B
+  rw [← summable_nat_add_iff k₀]
+  refine Summable.of_nonneg_of_le
+    (fun m => Real.rpow_nonneg
+      (regularFamilyGeomLevel_nonneg
+        (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+        (p := p) hΩ (m + k₀)) _) ?_ hBgeom
+  intro m
+  have hCμ0 :
+      0 ≤ C * (G.grid.μ (regularFamilyUnion Λ Ω)).toReal ^ a :=
+    mul_nonneg hΩ.C_nonneg (Real.rpow_nonneg ENNReal.toReal_nonneg _)
+  have hbase0 :
+      0 ≤ C * c ^ m *
+        (G.grid.μ (regularFamilyUnion Λ Ω)).toReal ^ a :=
+    mul_nonneg (mul_nonneg hΩ.C_nonneg (pow_nonneg hΩ.c_nonneg _))
+      (Real.rpow_nonneg ENNReal.toReal_nonneg _)
+  calc
+    (regularFamilyGeomLevel G Λ Ω s C c p (m + k₀)) ^
+        (q.toReal / p.toReal)
+        =
+      (C * c ^ m *
+        (G.grid.μ (regularFamilyUnion Λ Ω)).toReal ^ a) ^
+          (q.toReal / p.toReal) := by
+        simp [regularFamilyGeomLevel, k₀, a, Nat.add_sub_cancel]
+    _ = B * d ^ m := by
+      rw [show C * c ^ m *
+            (G.grid.μ (regularFamilyUnion Λ Ω)).toReal ^ a =
+            (C * (G.grid.μ (regularFamilyUnion Λ Ω)).toReal ^ a) * c ^ m by ring]
+      rw [Real.mul_rpow hCμ0 (pow_nonneg hΩ.c_nonneg _)]
+      rw [← Real.rpow_natCast c m,
+        ← Real.rpow_natCast (c ^ (q.toReal / p.toReal)) m,
+        ← Real.rpow_mul hΩ.c_nonneg, ← Real.rpow_mul hΩ.c_nonneg]
+      simp only [B, d, a]
+      congr 1
+      ring_nf
+    _ ≤ B * d ^ m := le_rfl
+
+private theorem regularFamilyGeomLevel_root_le_rootCost
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    (hp_top : p ≠ ∞) (j : ℕ) :
+    (regularFamilyGeomLevel G Λ Ω s C c p j) ^ (1 / p.toReal) ≤
+      regularFamilyGeomRootCost G Λ Ω s C c p q := by
+  classical
+  have hp0 : p ≠ 0 := (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne'
+  have hpr : 0 < p.toReal := ENNReal.toReal_pos hp0 hp_top
+  by_cases hq : q = ∞
+  · rw [regularFamilyGeomRootCost, if_pos hq]
+    let D : ℝ :=
+      C * (G.grid.μ (regularFamilyUnion Λ Ω)).toReal ^ (1 - p.toReal * s)
+    have hD0 : 0 ≤ D :=
+      mul_nonneg hΩ.C_nonneg (Real.rpow_nonneg ENNReal.toReal_nonneg _)
+    have hbdd : BddAbove (Set.range fun j : ℕ =>
+        (regularFamilyGeomLevel G Λ Ω s C c p j) ^ (1 / p.toReal)) := by
+      refine ⟨D ^ (1 / p.toReal), ?_⟩
+      rintro x ⟨k, rfl⟩
+      have hc_pow_le :
+          c ^ (k - firstContainedLevel G (regularFamilyUnion Λ Ω)) ≤ 1 :=
+        pow_le_one₀ hΩ.c_nonneg hΩ.c_lt_one.le
+      have hlevelD : regularFamilyGeomLevel G Λ Ω s C c p k ≤ D := by
+        have hμa0 :
+            0 ≤ (G.grid.μ (regularFamilyUnion Λ Ω)).toReal ^
+              (1 - p.toReal * s) :=
+          Real.rpow_nonneg ENNReal.toReal_nonneg _
+        have hc_mul_le :
+            C * c ^ (k - firstContainedLevel G (regularFamilyUnion Λ Ω)) ≤
+              C * 1 :=
+          mul_le_mul_of_nonneg_left hc_pow_le hΩ.C_nonneg
+        calc
+          regularFamilyGeomLevel G Λ Ω s C c p k
+              ≤ C * 1 *
+                  (G.grid.μ (regularFamilyUnion Λ Ω)).toReal ^
+                    (1 - p.toReal * s) := by
+                exact mul_le_mul_of_nonneg_right hc_mul_le hμa0
+          _ = D := by ring
+      exact Real.rpow_le_rpow
+        (regularFamilyGeomLevel_nonneg
+          (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+          (p := p) hΩ k) hlevelD (one_div_nonneg.mpr hpr.le)
+    exact le_csSup hbdd ⟨j, rfl⟩
+  · have hqr : 0 < q.toReal :=
+      ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ q)).ne' hq
+    rw [regularFamilyGeomRootCost, if_neg hq]
+    have hsum : Summable fun n : ℕ =>
+        (regularFamilyGeomLevel G Λ Ω s C c p n) ^ (q.toReal / p.toReal) :=
+      regularFamilyGeomLevel_rpow_summable
+        (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+        (p := p) (q := q) hΩ hp_top hq
+    have hterm_le :
+        (regularFamilyGeomLevel G Λ Ω s C c p j) ^ (q.toReal / p.toReal) ≤
+          ∑' n : ℕ,
+            (regularFamilyGeomLevel G Λ Ω s C c p n) ^ (q.toReal / p.toReal) := by
+      simpa using
+        sum_le_hasSum ({j} : Finset ℕ)
+          (fun n _ => Real.rpow_nonneg
+            (regularFamilyGeomLevel_nonneg
+              (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+              (p := p) hΩ n) _) hsum.hasSum
+    have hpow_le :=
+      Real.rpow_le_rpow
+        (Real.rpow_nonneg
+          (regularFamilyGeomLevel_nonneg
+            (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+            (p := p) hΩ j) _) hterm_le (one_div_nonneg.mpr hqr.le)
+    have hleft :
+        ((regularFamilyGeomLevel G Λ Ω s C c p j) ^
+            (q.toReal / p.toReal)) ^ (1 / q.toReal) =
+          (regularFamilyGeomLevel G Λ Ω s C c p j) ^ (1 / p.toReal) := by
+      have hdiv : q.toReal / p.toReal * (1 / q.toReal) = 1 / p.toReal := by
+        field_simp [hqr.ne']
+      rw [← Real.rpow_mul
+        (regularFamilyGeomLevel_nonneg
+          (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+          (p := p) hΩ j), hdiv]
+    rwa [hleft] at hpow_le
+
+private theorem regularFamilyIndicatorBlock_inactive_coeff
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    {i k : ℕ} (hi : i ∉ Λ)
+    (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) :
+    (regularFamilyIndicatorBlock
+      (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i k).coeff Q = 0 := by
+  have hQ : Q.1 ∉ hΩ.family i k := by
+    rw [hΩ.family_empty_of_not_mem i hi k]
+    simp
+  simp [regularFamilyIndicatorBlock, hQ]
+
+private theorem regularFamilyIndicatorBlock_inactive_toLp
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    {i k : ℕ} (hi : i ∉ Λ) :
+    (regularFamilyIndicatorBlock
+      (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i k).toLp
+        (souzaAtomFamily G s p hs hp hp_top) = 0 := by
+  classical
+  unfold WeakGridSpace.LevelBlock.toLp WeakGridSpace.LevelBlock.term
+  refine Finset.sum_eq_zero ?_
+  intro Q _
+  rw [regularFamilyIndicatorBlock_inactive_coeff
+    (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+    (p := p) hΩ hi Q]
+  simp
+
+private noncomputable def regularFamilyInactiveIndicatorRepresentation
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    (i : ℕ) (hi : i ∉ Λ) :
+    WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (0 : Lp ℂ p G.toWeakGridSpace.measure) :=
+  { block := fun k =>
+      regularFamilyIndicatorBlock
+        (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i k
+    hasSum := by
+      have hterms :
+          (fun k =>
+            (regularFamilyIndicatorBlock
+              (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i k).toLp
+                (souzaAtomFamily G s p hs hp hp_top)) =
+            fun _ : ℕ => (0 : Lp ℂ p G.toWeakGridSpace.measure) := by
+        funext k
+        exact regularFamilyIndicatorBlock_inactive_toLp
+          (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+          (p := p) hΩ hi
+      rw [hterms]
+      exact (hasSum_zero : HasSum (fun _ : ℕ => (0 : Lp ℂ p G.toWeakGridSpace.measure)) 0) }
+
+private theorem regularFamilyInactiveIndicatorRepresentation_finite
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    (hp_top : p ≠ ∞) {i : ℕ} (hi : i ∉ Λ) :
+    WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q)
+      (regularFamilyInactiveIndicatorRepresentation
+        (hs := hs) (hp := hp) (hp_top := hp_top)
+        (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+        (p := p) hΩ i hi) := by
+  classical
+  let R := regularFamilyInactiveIndicatorRepresentation
+    (hs := hs) (hp := hp) (hp_top := hp_top)
+    (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+    (p := p) hΩ i hi
+  have hp_pos : 0 < p.toReal := ENNReal.toReal_pos
+    (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne' hp_top
+  have hzero : ∀ k, R.levelCoeffPower k = 0 := by
+    intro k
+    unfold WeakGridSpace.LpGridRepresentation.levelCoeffPower
+    simp [R, regularFamilyInactiveIndicatorRepresentation,
+      regularFamilyIndicatorBlock_inactive_coeff
+        (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+        (p := p) hΩ hi, Real.zero_rpow hp_pos.ne']
+  by_cases hq : q = ∞
+  · rw [WeakGridSpace.LpGridRepresentation.FinitePQCost, if_pos hq]
+    refine ⟨0, ?_⟩
+    rintro x ⟨k, rfl⟩
+    have hinv_pos : 0 < 1 / p.toReal := one_div_pos.mpr hp_pos
+    change R.levelCoeffPower k ^ (1 / p.toReal) ≤ 0
+    rw [hzero k, Real.zero_rpow hinv_pos.ne']
+  · rw [WeakGridSpace.LpGridRepresentation.FinitePQCost, if_neg hq]
+    have hq_pos : 0 < q.toReal :=
+      ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ q)).ne' hq
+    have hpow_pos : 0 < q.toReal / p.toReal := div_pos hq_pos hp_pos
+    change Summable (fun k : ℕ => R.levelCoeffPower k ^ (q.toReal / p.toReal))
+    have hfun :
+        (fun k : ℕ => R.levelCoeffPower k ^ (q.toReal / p.toReal)) =
+          fun _ : ℕ => (0 : ℝ) := by
+      funext k
+      rw [hzero k, Real.zero_rpow hpow_pos.ne']
+    rw [hfun]
+    exact summable_zero
+
+private theorem regular_rpow_one_div_rpow {x : ℝ} (hx : 0 ≤ x) {e : ℝ} (he : e ≠ 0) :
+    (x ^ (1 / e)) ^ e = x := by
+  rw [← Real.rpow_mul hx, one_div, inv_mul_cancel₀ he, Real.rpow_one]
+
+private theorem regular_rpow_rpow_one_div {x : ℝ} (hx : 0 ≤ x) {e : ℝ} (he : e ≠ 0) :
+    (x ^ e) ^ (1 / e) = x := by
+  rw [← Real.rpow_mul hx, mul_one_div, div_self he, Real.rpow_one]
+
+private theorem regularFamilyRestrictionCost_le_of_level_bound
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    (hp_top : p ≠ ∞)
+    {xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (hRgfin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Rg)
+    {M : ℝ} (hM0 : 0 ≤ M)
+    (y : ℕ → WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (R : (i : ℕ) →
+      WeakGridSpace.LpGridRepresentation
+        (souzaAtomFamily G s p hs hp hp_top)
+        ((y i : WeakGridSpace.BesovishSpace
+            (souzaAtomFamily G s p hs hp hp_top) q) :
+          Lp ℂ p G.toWeakGridSpace.measure))
+    (hlevel : ∀ j,
+      regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j ≤
+        (2 : ℝ) ^ (p.toReal - 1) *
+          (M ^ p.toReal * regularFamilyGeomLevel G Λ Ω s C c p j +
+            Rg.levelCoeffPower j)) :
+    regularFamilyRestrictionCost G s p q Λ y R ≤
+      ((2 : ℝ) ^ (p.toReal - 1)) ^ (1 / p.toReal) *
+        (M * regularFamilyGeomRootCost G Λ Ω s C c p q +
+          WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg) := by
+  classical
+  let K : ℝ := (2 : ℝ) ^ (p.toReal - 1)
+  let Kroot : ℝ := K ^ (1 / p.toReal)
+  let Droot : ℕ → ℝ := fun j =>
+    (regularFamilyGeomLevel G Λ Ω s C c p j) ^ (1 / p.toReal)
+  let Groot : ℝ := regularFamilyGeomRootCost G Λ Ω s C c p q
+  let Broot : ℕ → ℝ := fun j => (Rg.levelCoeffPower j) ^ (1 / p.toReal)
+  let Rcost : ℝ := WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ p)).ne' hp_top
+  have hp_real : 1 ≤ p.toReal := (ENNReal.dichotomy p).resolve_left hp_top
+  have hK0 : 0 ≤ K := Real.rpow_nonneg (by norm_num : (0 : ℝ) ≤ 2) _
+  have hKroot0 : 0 ≤ Kroot := Real.rpow_nonneg hK0 _
+  have hKroot_pow : Kroot ^ p.toReal = K :=
+    regular_rpow_one_div_rpow hK0 hp_pos.ne'
+  have hD0 : ∀ j, 0 ≤ Droot j := fun j =>
+    Real.rpow_nonneg
+      (regularFamilyGeomLevel_nonneg
+        (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+        (p := p) hΩ j) _
+  have hB0 : ∀ j, 0 ≤ Broot j := fun j =>
+    Real.rpow_nonneg (Rg.levelCoeffPower_nonneg j) _
+  have hG0 : 0 ≤ Groot := regularFamilyGeomRootCost_nonneg
+    (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+    (p := p) (q := q) hΩ
+  have hRcost0 : 0 ≤ Rcost := WeakGridSpace.LpGridRepresentation.pqCost_nonneg Rg
+  have hDroot_le : ∀ j, Droot j ≤ Groot := fun j =>
+    regularFamilyGeomLevel_root_le_rootCost
+      (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+      (p := p) (q := q) hΩ hp_top j
+  have hBroot_le : ∀ j, Broot j ≤ Rcost := fun j =>
+    WeakGridSpace.AtomFamily.levelCoeffRoot_le_pqCost
+      (souzaAtomFamily G s p hs hp hp_top) Rg hRgfin j
+  have hroot_level : ∀ j,
+      (regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j) ^ (1 / p.toReal) ≤
+        Kroot * (M * Droot j + Broot j) := by
+    intro j
+    let L := regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j
+    have hL0 : 0 ≤ L := by
+      dsimp [L, regularFamilyRestrictionLevelCoeffPower]
+      exact tsum_nonneg fun i => by
+        by_cases hi : i ∈ Λ
+        · rw [Set.indicator_of_mem hi]
+          exact Finset.sum_nonneg fun Q _ => Real.rpow_nonneg (norm_nonneg _) _
+        · rw [Set.indicator_of_notMem hi]
+    have ha0 : 0 ≤ M * Droot j := mul_nonneg hM0 (hD0 j)
+    have hb0 : 0 ≤ Broot j := hB0 j
+    have hsum_pow :
+        M ^ p.toReal * regularFamilyGeomLevel G Λ Ω s C c p j +
+            Rg.levelCoeffPower j ≤
+          (M * Droot j + Broot j) ^ p.toReal := by
+      have hMD :
+          (M * Droot j) ^ p.toReal =
+            M ^ p.toReal * regularFamilyGeomLevel G Λ Ω s C c p j := by
+        rw [Real.mul_rpow hM0 (hD0 j)]
+        simp only [Droot]
+        rw [regular_rpow_one_div_rpow
+          (regularFamilyGeomLevel_nonneg
+            (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+            (p := p) hΩ j) hp_pos.ne']
+      have hB :
+          (Broot j) ^ p.toReal = Rg.levelCoeffPower j := by
+        simp only [Broot]
+        rw [regular_rpow_one_div_rpow (Rg.levelCoeffPower_nonneg j) hp_pos.ne']
+      calc
+        M ^ p.toReal * regularFamilyGeomLevel G Λ Ω s C c p j +
+            Rg.levelCoeffPower j
+            = (M * Droot j) ^ p.toReal + (Broot j) ^ p.toReal := by
+                rw [hMD, hB]
+        _ ≤ (M * Droot j + Broot j) ^ p.toReal :=
+          Real.add_rpow_le_rpow_add ha0 hb0 hp_real
+    have hpow_bound :
+        L ≤ (Kroot * (M * Droot j + Broot j)) ^ p.toReal := by
+      have hright0 : 0 ≤ M * Droot j + Broot j := add_nonneg ha0 hb0
+      calc
+        L ≤ K * (M ^ p.toReal * regularFamilyGeomLevel G Λ Ω s C c p j +
+              Rg.levelCoeffPower j) := hlevel j
+        _ ≤ K * (M * Droot j + Broot j) ^ p.toReal :=
+          mul_le_mul_of_nonneg_left hsum_pow hK0
+        _ = (Kroot * (M * Droot j + Broot j)) ^ p.toReal := by
+          rw [Real.mul_rpow hKroot0 hright0, hKroot_pow]
+    calc
+      L ^ (1 / p.toReal)
+          ≤ ((Kroot * (M * Droot j + Broot j)) ^ p.toReal) ^ (1 / p.toReal) :=
+        Real.rpow_le_rpow hL0 hpow_bound (one_div_nonneg.mpr hp_pos.le)
+      _ = Kroot * (M * Droot j + Broot j) := by
+        exact regular_rpow_rpow_one_div
+          (mul_nonneg hKroot0 (add_nonneg ha0 hb0)) hp_pos.ne'
+  by_cases hq : q = ∞
+  · rw [regularFamilyRestrictionCost, if_pos hq]
+    have hbdd : BddAbove (Set.range fun j : ℕ =>
+        (regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j) ^ (1 / p.toReal)) := by
+      refine ⟨Kroot * (M * Groot + Rcost), ?_⟩
+      rintro x ⟨j, rfl⟩
+      exact le_trans (hroot_level j)
+        (mul_le_mul_of_nonneg_left
+          (add_le_add
+            (mul_le_mul_of_nonneg_left (hDroot_le j) hM0)
+            (hBroot_le j)) hKroot0)
+    exact csSup_le (Set.range_nonempty _) (by
+      rintro x ⟨j, rfl⟩
+      exact le_trans (hroot_level j)
+        (mul_le_mul_of_nonneg_left
+          (add_le_add
+            (mul_le_mul_of_nonneg_left (hDroot_le j) hM0)
+            (hBroot_le j)) hKroot0))
+  · have hq_pos : 0 < q.toReal :=
+      ENNReal.toReal_pos (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ q)).ne' hq
+    have hq_real : 1 ≤ q.toReal := by
+      have h := ENNReal.toReal_mono hq (Fact.out : (1 : ℝ≥0∞) ≤ q)
+      simpa using h
+    rw [regularFamilyRestrictionCost, if_neg hq]
+    have hDsum : Summable fun j : ℕ => (M * Droot j) ^ q.toReal := by
+      have hgeom : Summable fun j : ℕ =>
+          (regularFamilyGeomLevel G Λ Ω s C c p j) ^ (q.toReal / p.toReal) :=
+        regularFamilyGeomLevel_rpow_summable
+          (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+          (p := p) (q := q) hΩ hp_top hq
+      have hfun :
+          (fun j : ℕ => (M * Droot j) ^ q.toReal) =
+            fun j : ℕ =>
+              M ^ q.toReal *
+                (regularFamilyGeomLevel G Λ Ω s C c p j) ^
+                  (q.toReal / p.toReal) := by
+        funext j
+        rw [Real.mul_rpow hM0 (hD0 j)]
+        simp only [Droot]
+        rw [← Real.rpow_mul
+          (regularFamilyGeomLevel_nonneg
+            (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+            (p := p) hΩ j)]
+        congr 1
+        ring_nf
+      rw [hfun]
+      exact hgeom.mul_left _
+    have hBsum : Summable fun j : ℕ => (Broot j) ^ q.toReal := by
+      have hfin := hRgfin
+      rw [WeakGridSpace.LpGridRepresentation.FinitePQCost, if_neg hq] at hfin
+      have hfun :
+          (fun j : ℕ => (Broot j) ^ q.toReal) =
+            fun j : ℕ => (Rg.levelCoeffPower j) ^ (q.toReal / p.toReal) := by
+        funext j
+        simp only [Broot]
+        rw [← Real.rpow_mul (Rg.levelCoeffPower_nonneg j)]
+        congr 1
+        ring
+      rw [hfun]
+      exact hfin
+    have hsum_add : Summable fun j : ℕ => (M * Droot j + Broot j) ^ q.toReal :=
+      Real.summable_Lp_add_of_nonneg hq_real
+        (fun j => mul_nonneg hM0 (hD0 j)) hB0 hDsum hBsum
+    have hLsum : Summable fun j : ℕ =>
+        (regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j) ^
+          (q.toReal / p.toReal) := by
+      refine Summable.of_nonneg_of_le
+        (f := fun j : ℕ => (Kroot * (M * Droot j + Broot j)) ^ q.toReal)
+        (g := fun j : ℕ =>
+          (regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j) ^
+            (q.toReal / p.toReal))
+        (fun j => Real.rpow_nonneg
+          (regularFamilyRestrictionLevelCoeffPower_nonneg
+            (G := G) (s := s) (p := p) (q := q)
+            (hs := hs) (hp := hp) (hp_top := hp_top) Λ y R j) _) ?_ ?_
+      · intro j
+        have hL0 : 0 ≤ regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j :=
+          regularFamilyRestrictionLevelCoeffPower_nonneg
+            (G := G) (s := s) (p := p) (q := q)
+            (hs := hs) (hp := hp) (hp_top := hp_top) Λ y R j
+        have hleft :
+            (regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j) ^
+                (q.toReal / p.toReal) =
+              ((regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j) ^
+                (1 / p.toReal)) ^ q.toReal := by
+          rw [← Real.rpow_mul hL0]
+          congr 1
+          ring
+        change
+          (regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j) ^
+              (q.toReal / p.toReal) ≤
+            (Kroot * (M * Droot j + Broot j)) ^ q.toReal
+        rw [hleft]
+        exact Real.rpow_le_rpow
+          (Real.rpow_nonneg hL0 _) (hroot_level j) hq_pos.le
+      · have hscaled : Summable fun j : ℕ =>
+            (Kroot * (M * Droot j + Broot j)) ^ q.toReal := by
+          have hfun :
+              (fun j : ℕ => (Kroot * (M * Droot j + Broot j)) ^ q.toReal) =
+                fun j : ℕ => Kroot ^ q.toReal *
+                  (M * Droot j + Broot j) ^ q.toReal := by
+            funext j
+            rw [Real.mul_rpow hKroot0 (add_nonneg (mul_nonneg hM0 (hD0 j)) (hB0 j))]
+          rw [hfun]
+          exact hsum_add.mul_left _
+        exact hscaled
+    have htsum_le :
+        (∑' j : ℕ,
+          (regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j) ^
+            (q.toReal / p.toReal)) ≤
+          ∑' j : ℕ, (Kroot * (M * Droot j + Broot j)) ^ q.toReal := by
+      refine hLsum.tsum_le_tsum ?_ ?_
+      · intro j
+        have hL0 : 0 ≤ regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j :=
+          regularFamilyRestrictionLevelCoeffPower_nonneg
+            (G := G) (s := s) (p := p) (q := q)
+            (hs := hs) (hp := hp) (hp_top := hp_top) Λ y R j
+        have hleft :
+            (regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j) ^
+                (q.toReal / p.toReal) =
+              ((regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j) ^
+                (1 / p.toReal)) ^ q.toReal := by
+          rw [← Real.rpow_mul hL0]
+          congr 1
+          ring
+        change
+          (regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j) ^
+              (q.toReal / p.toReal) ≤
+            (Kroot * (M * Droot j + Broot j)) ^ q.toReal
+        rw [hleft]
+        exact Real.rpow_le_rpow
+          (Real.rpow_nonneg hL0 _) (hroot_level j) hq_pos.le
+      · have hfun :
+            (fun j : ℕ => (Kroot * (M * Droot j + Broot j)) ^ q.toReal) =
+              fun j : ℕ => Kroot ^ q.toReal *
+                (M * Droot j + Broot j) ^ q.toReal := by
+          funext j
+          rw [Real.mul_rpow hKroot0 (add_nonneg (mul_nonneg hM0 (hD0 j)) (hB0 j))]
+        rw [hfun]
+        exact hsum_add.mul_left _
+    have hscaled_root :
+        (∑' j : ℕ, (Kroot * (M * Droot j + Broot j)) ^ q.toReal) ^
+            (1 / q.toReal) =
+          Kroot * (∑' j : ℕ, (M * Droot j + Broot j) ^ q.toReal) ^
+            (1 / q.toReal) := by
+      have hfun :
+          (fun j : ℕ => (Kroot * (M * Droot j + Broot j)) ^ q.toReal) =
+            fun j : ℕ => Kroot ^ q.toReal *
+              (M * Droot j + Broot j) ^ q.toReal := by
+        funext j
+        rw [Real.mul_rpow hKroot0 (add_nonneg (mul_nonneg hM0 (hD0 j)) (hB0 j))]
+      rw [hfun, tsum_mul_left, Real.mul_rpow
+        (Real.rpow_nonneg hKroot0 _)
+        (tsum_nonneg fun j =>
+          Real.rpow_nonneg (add_nonneg (mul_nonneg hM0 (hD0 j)) (hB0 j)) _),
+        regular_rpow_rpow_one_div hKroot0 hq_pos.ne']
+    have hadd_root :
+        (∑' j : ℕ, (M * Droot j + Broot j) ^ q.toReal) ^ (1 / q.toReal) ≤
+          M * Groot + Rcost := by
+      have hLp := Real.Lp_add_le_tsum_of_nonneg' hq_real
+        (fun j => mul_nonneg hM0 (hD0 j)) hB0 hDsum hBsum
+      refine le_trans hLp ?_
+      have hDroot_cost :
+          (∑' j : ℕ, (M * Droot j) ^ q.toReal) ^ (1 / q.toReal) =
+            M * Groot := by
+        have hfun :
+            (fun j : ℕ => (M * Droot j) ^ q.toReal) =
+              fun j : ℕ => M ^ q.toReal * Droot j ^ q.toReal := by
+          funext j
+          rw [Real.mul_rpow hM0 (hD0 j)]
+        have hDfun :
+            (fun j : ℕ => Droot j ^ q.toReal) =
+              fun j : ℕ =>
+                (regularFamilyGeomLevel G Λ Ω s C c p j) ^
+                  (q.toReal / p.toReal) := by
+          funext j
+          simp only [Droot]
+          rw [← Real.rpow_mul
+            (regularFamilyGeomLevel_nonneg
+              (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+              (p := p) hΩ j)]
+          congr 1
+          ring
+        rw [hfun, tsum_mul_left, hDfun]
+        dsimp [Groot, regularFamilyGeomRootCost]
+        rw [if_neg hq]
+        rw [Real.mul_rpow (Real.rpow_nonneg hM0 _)
+          (tsum_nonneg fun j =>
+            Real.rpow_nonneg
+              (regularFamilyGeomLevel_nonneg
+                (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+                (p := p) hΩ j) _),
+          regular_rpow_rpow_one_div hM0 hq_pos.ne']
+      have hBroot_cost :
+          (∑' j : ℕ, Broot j ^ q.toReal) ^ (1 / q.toReal) = Rcost := by
+        have hBfun :
+            (fun j : ℕ => Broot j ^ q.toReal) =
+              fun j : ℕ => (Rg.levelCoeffPower j) ^ (q.toReal / p.toReal) := by
+          funext j
+          simp only [Broot]
+          rw [← Real.rpow_mul (Rg.levelCoeffPower_nonneg j)]
+          congr 1
+          ring
+        rw [hBfun]
+        dsimp [Rcost]
+        rw [WeakGridSpace.LpGridRepresentation.pqCost, if_neg hq]
+      linarith
+    calc
+      (∑' j : ℕ,
+        (regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j) ^
+          (q.toReal / p.toReal)) ^ (1 / q.toReal)
+          ≤ (∑' j : ℕ, (Kroot * (M * Droot j + Broot j)) ^ q.toReal) ^
+              (1 / q.toReal) :=
+        Real.rpow_le_rpow
+          (tsum_nonneg fun j => Real.rpow_nonneg
+            (regularFamilyRestrictionLevelCoeffPower_nonneg
+              (G := G) (s := s) (p := p) (q := q)
+              (hs := hs) (hp := hp) (hp_top := hp_top) Λ y R j) _)
+          htsum_le (one_div_nonneg.mpr hq_pos.le)
+      _ = Kroot * (∑' j : ℕ, (M * Droot j + Broot j) ^ q.toReal) ^
+            (1 / q.toReal) := hscaled_root
+      _ ≤ Kroot * (M * Groot + Rcost) :=
+        mul_le_mul_of_nonneg_left hadd_root hKroot0
+
 end RegularFamilyIndicatorBlocks
 
 /-- A finite sum of `indicatorConstLp`'s of pairwise disjoint sets is the
@@ -3231,7 +3910,220 @@ theorem regularFamily_restriction_representations
               Crel *
                 (WeakGridSpace.BesovishSpace.Norm_Costpq
                     (souzaAtomFamily G s p hs hp hp_top) q xg + M) := by
-  sorry
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  obtain ⟨Cfou, hCfou0, hCfou⟩ :=
+    exists_weighted_fouRepresentation G s p q hs hp hp_top
+  let Krel : ℝ :=
+    ((2 : ℝ) ^ (p.toReal - 1)) ^ (1 / p.toReal) *
+      (regularFamilyGeomRootCost G Λ Ω s C c p q + Cfou)
+  refine ⟨Krel, ?_, ?_⟩
+  · exact mul_nonneg
+      (Real.rpow_nonneg (Real.rpow_nonneg (by norm_num : (0 : ℝ) ≤ 2) _) _)
+      (add_nonneg
+        (regularFamilyGeomRootCost_nonneg
+          (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+          (p := p) (q := q) hΩ)
+        hCfou0)
+  intro g M xg hgrepr hgbdd
+  have hM0 : 0 ≤ M := regularFamilyRestriction_bound_nonneg G hgbdd
+  obtain ⟨Rg, hRgfin, hRgcost, htower_g, _hstrict_g⟩ :=
+    hCfou g M xg hgrepr hgbdd
+  let zeroBesov : WeakGridSpace.BesovishSpace A q :=
+    ⟨0, WeakGridSpace.memBesovishCoeffCost_zero (A := A) (q := q)⟩
+  let indExists := fun i (hi : i ∈ Λ) =>
+    regularFamilyIndicator_besov_representation
+      G Λ Ω s C c p q hs hs_lt_inv hp hp_top hΩ hi
+  let activeIndY := fun i (hi : i ∈ Λ) =>
+    Classical.choose (indExists i hi)
+  let activeIndR := fun i (hi : i ∈ Λ) =>
+    Classical.choose (Classical.choose_spec (indExists i hi))
+  let indPkg :
+      (i : ℕ) →
+        Σ yind : WeakGridSpace.BesovishSpace A q,
+          WeakGridSpace.LpGridRepresentation A
+            (yind : Lp ℂ p G.toWeakGridSpace.measure) := fun i =>
+    if hi : i ∈ Λ then
+      ⟨activeIndY i hi, activeIndR i hi⟩
+    else
+      ⟨zeroBesov,
+        regularFamilyInactiveIndicatorRepresentation
+          (hs := hs) (hp := hp) (hp_top := hp_top)
+          (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+          (p := p) hΩ i hi⟩
+  let yind : ℕ → WeakGridSpace.BesovishSpace A q := fun i => (indPkg i).1
+  let Rind : (i : ℕ) → WeakGridSpace.LpGridRepresentation A
+      (yind i : Lp ℂ p G.toWeakGridSpace.measure) := fun i => (indPkg i).2
+  have hind_active :
+      ∀ i (hi : i ∈ Λ),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          ((Ω i).indicator fun _ => (1 : ℂ))
+          (yind i : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (Rind i) ∧
+        ∀ k, (Rind i).block k =
+          regularFamilyIndicatorBlock
+            (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i k := by
+    intro i hi
+    have hspec := Classical.choose_spec (Classical.choose_spec (indExists i hi))
+    dsimp [yind, Rind, indPkg]
+    rw [dif_pos hi]
+    simpa [indExists, activeIndY, activeIndR] using hspec
+  have hblock_all : ∀ i k,
+      (Rind i).block k =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i k := by
+    intro i k
+    by_cases hi : i ∈ Λ
+    · exact (hind_active i hi).2.2 k
+    · dsimp [Rind, yind, indPkg]
+      rw [dif_neg hi]
+      rfl
+  let prodStrict :
+      ∀ i, i ∈ Λ →
+        ∀ (j : ℕ) (J : WeakGridSpace.LevelCell G.toWeakGridSpace j),
+          ‖strictWeightedAncestorCoeffSum G (Rind i) J‖ ≤ 1 := fun i hi j J =>
+    regularFamilyIndicator_strictWeightedAncestorCoeffSum_norm_le_one
+      (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+      (p := p) hΩ hi (Rind i) (fun m => hblock_all i m) J
+  let prodExists := fun i (hi : i ∈ Λ) =>
+    exists_quasi_product_of_tower_representations
+      G s p q hs hp hp_top
+      ((Ω i).indicator fun _ => (1 : ℂ)) g 1 M
+      (by norm_num : (0 : ℝ) ≤ 1) hM0
+      (yind i) xg (Rind i) Rg
+      (hind_active i hi).1 hgrepr
+      (hind_active i hi).2.1 hRgfin
+      htower_g (prodStrict i hi)
+  let activeProdY := fun i (hi : i ∈ Λ) =>
+    Classical.choose (prodExists i hi)
+  let activeProdR := fun i (hi : i ∈ Λ) =>
+    Classical.choose (Classical.choose_spec (prodExists i hi))
+  let prodPkg :
+      (i : ℕ) →
+        Σ yprod : WeakGridSpace.BesovishSpace A q,
+          WeakGridSpace.LpGridRepresentation A
+            (yprod : Lp ℂ p G.toWeakGridSpace.measure) := fun i =>
+    if hi : i ∈ Λ then
+      ⟨activeProdY i hi, activeProdR i hi⟩
+    else
+      ⟨xg, Rg⟩
+  let y : ℕ → WeakGridSpace.BesovishSpace A q := fun i => (prodPkg i).1
+  let R : (i : ℕ) → WeakGridSpace.LpGridRepresentation A
+      (y i : Lp ℂ p G.toWeakGridSpace.measure) := fun i => (prodPkg i).2
+  have hprod_active :
+      ∀ i (hi : i ∈ Λ),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          (fun z => ((Ω i).indicator (fun _ => (1 : ℂ)) z) * g z)
+          (y i : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (R i) ∧
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) (R i) ≤
+          M * WeakGridSpace.LpGridRepresentation.pqCost (q := q) (Rind i) +
+            1 * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg ∧
+        (∀ k, (R i).block k =
+          WeakGridSpace.LevelBlock.add A
+            (quasiU1Block G s p hs hp hp_top (Rind i) Rg k)
+            (quasiU2Block G s p hs hp hp_top (Rind i) Rg k)) := by
+    intro i hi
+    have hspec := Classical.choose_spec (Classical.choose_spec (prodExists i hi))
+    dsimp [y, R, prodPkg]
+    rw [dif_pos hi]
+    refine ⟨?_, ?_, ?_, ?_⟩
+    · simpa [prodExists, activeProdY, activeProdR] using hspec.1
+    · simpa [prodExists, activeProdY, activeProdR] using hspec.2.1
+    · simpa [prodExists, activeProdY, activeProdR, one_mul] using hspec.2.2.1
+    · simpa [prodExists, activeProdY, activeProdR, A] using hspec.2.2.2.1
+  refine ⟨y, R, ?_, ?_, ?_, ?_⟩
+  · intro i hi
+    have hrep := (hprod_active i hi).1
+    filter_upwards [hrep] with z hz
+    rw [hz]
+    ring
+  · intro i hi
+    exact (hprod_active i hi).2.1
+  · intro i hi j Q hcoeff
+    have hblock := (hprod_active i hi).2.2.2 j
+    rw [hblock] at hcoeff
+    exact regularFamily_productBlock_coeff_ne_zero_subset_domain
+      (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+      (p := p) hΩ hi (Rind i) Rg (fun m => hblock_all i m) Q hcoeff
+  · have hlevel : ∀ j,
+        regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j ≤
+          (2 : ℝ) ^ (p.toReal - 1) *
+            (M ^ p.toReal * regularFamilyGeomLevel G Λ Ω s C c p j +
+              Rg.levelCoeffPower j) := by
+      intro j
+      have hcongr :
+          regularFamilyRestrictionLevelCoeffPower G s p q Λ y R j =
+            ∑' i : ℕ,
+              Set.indicator Λ
+                (fun i =>
+                  ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                    ‖(WeakGridSpace.LevelBlock.add A
+                      (quasiU1Block G s p hs hp hp_top (Rind i) Rg j)
+                      (quasiU2Block G s p hs hp hp_top (Rind i) Rg j)).coeff Q‖ ^
+                      p.toReal) i := by
+        unfold regularFamilyRestrictionLevelCoeffPower
+        apply tsum_congr
+        intro i
+        by_cases hi : i ∈ Λ
+        · rw [Set.indicator_of_mem hi, Set.indicator_of_mem hi]
+          apply Finset.sum_congr rfl
+          intro Q _
+          rw [(hprod_active i hi).2.2.2 j]
+        · rw [Set.indicator_of_notMem hi, Set.indicator_of_notMem hi]
+      rw [hcongr]
+      exact regularFamilyIndicator_quasiProductBlock_aggregate_levelCoeffPower_le
+        (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+        (p := p) hΩ Rind Rg hblock_all hM0 htower_g j
+    calc
+      regularFamilyRestrictionCost G s p q Λ y R
+          ≤ ((2 : ℝ) ^ (p.toReal - 1)) ^ (1 / p.toReal) *
+              (M * regularFamilyGeomRootCost G Λ Ω s C c p q +
+                WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg) :=
+        regularFamilyRestrictionCost_le_of_level_bound
+          (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+          (p := p) (q := q) hΩ hp_top Rg hRgfin hM0 y R hlevel
+      _ ≤ Krel *
+            (WeakGridSpace.BesovishSpace.Norm_Costpq A q xg + M) := by
+        have hNx0 : 0 ≤ WeakGridSpace.BesovishSpace.Norm_Costpq A q xg :=
+          WeakGridSpace.BesovishSpace.Norm_Costpq_nonneg
+            (WeakGridSpace.BesovishSpace.hasFiniteCostRepresentations A q) xg
+        have hG0 : 0 ≤ regularFamilyGeomRootCost G Λ Ω s C c p q :=
+          regularFamilyGeomRootCost_nonneg
+            (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+            (p := p) (q := q) hΩ
+        have hKroot0 :
+            0 ≤ ((2 : ℝ) ^ (p.toReal - 1)) ^ (1 / p.toReal) :=
+          Real.rpow_nonneg (Real.rpow_nonneg (by norm_num : (0 : ℝ) ≤ 2) _) _
+        have hinner :
+            M * regularFamilyGeomRootCost G Λ Ω s C c p q +
+              WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg ≤
+            (regularFamilyGeomRootCost G Λ Ω s C c p q + Cfou) *
+              (WeakGridSpace.BesovishSpace.Norm_Costpq A q xg + M) := by
+          calc
+            M * regularFamilyGeomRootCost G Λ Ω s C c p q +
+                WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg
+                ≤ M * regularFamilyGeomRootCost G Λ Ω s C c p q +
+                    Cfou * WeakGridSpace.BesovishSpace.Norm_Costpq A q xg :=
+              add_le_add_right hRgcost _
+            _ ≤ (regularFamilyGeomRootCost G Λ Ω s C c p q + Cfou) *
+                  (WeakGridSpace.BesovishSpace.Norm_Costpq A q xg + M) := by
+              nlinarith [hM0, hG0, hCfou0, hNx0]
+        dsimp [Krel]
+        calc
+          ((2 : ℝ) ^ (p.toReal - 1)) ^ (1 / p.toReal) *
+              (M * regularFamilyGeomRootCost G Λ Ω s C c p q +
+                WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg)
+              ≤ ((2 : ℝ) ^ (p.toReal - 1)) ^ (1 / p.toReal) *
+                ((regularFamilyGeomRootCost G Λ Ω s C c p q + Cfou) *
+                  (WeakGridSpace.BesovishSpace.Norm_Costpq A q xg + M)) :=
+            mul_le_mul_of_nonneg_left hinner hKroot0
+          _ = ((2 : ℝ) ^ (p.toReal - 1)) ^ (1 / p.toReal) *
+                (regularFamilyGeomRootCost G Λ Ω s C c p q + Cfou) *
+              (WeakGridSpace.BesovishSpace.Norm_Costpq A q xg + M) := by
+            ring
 
 end
 
