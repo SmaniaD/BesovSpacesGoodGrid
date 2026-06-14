@@ -3,6 +3,44 @@
 This file summarizes the recent state of the central files in
 `BesovSpacesGoodGrid/GoodGrid`.
 
+## IN PROGRESS: Regular domains (`cf`) — 4 sorry (2026-06-13)
+
+New file `BesovSpacesGoodGrid/GoodGrid/RegularDomains.lean` introduces the
+formal API for the paper's subsection `Regular domains`:
+
+- `firstContainedLevel`, the formal `k₀(Ω)`;
+- `RegularFamily`, for countable disjoint families indexed by `Λ ⊆ ℕ`;
+- `RegularDomain`, the one-set version;
+- `RegularDomain.toRegularFamily_singleton`, proved bridge from one regular
+  domain to the singleton-family formulation;
+- supporting proved API for the union construction:
+  `RegularFamily.cell_subset_domain`, `cell_subset_union`,
+  `selected_cells_disjoint`, `measurable_union`, `unionFamily`,
+  `unionFamily_cover`, `unionFamily_pairwise_disjoint`, and
+  `unionFamily_empty_before`;
+- `RegularFamily.regularDomain_union`, proved from the finite cell selection
+  at each level, with the cost estimate obtained by assigning each union cell
+  to one active index and applying the summable active-family cost series;
+- structural API for the strongly-regular-to-regular construction:
+  `StronglyRegularDecomposition.cell_subset_inter`,
+  `cell_subset_cell`, `cell_subset_domain`, plus the private candidate family
+  assembled over the `k₀(Ω)` partition, with proved `family_subset`,
+  `empty_before`, `cover`, and pairwise-disjoint cells;
+- theorem skeletons for: the remaining cost estimate in strongly regular
+  implies regular with ratio `λ₂^((β-s)p)`, the localized restriction representation
+  estimate `(pdd)/(hiip1)`, the indicator norm estimate `(estG)`, and the
+  bounded multiplier operator `g ↦ g·1_Ω` on `B^s_{p,q} ∩ L∞`.
+
+The file compiles with these four planned `sorry`s.  No axioms or admits were
+added.
+
+The theorem `regularDomain_of_stronglyRegularDomain` now explicitly assumes
+`hΩcell : ContainsGridCell G Ω`, matching the LaTeX proof's use of `k₀(Ω)`.
+It constructs the regular-domain decomposition from the strong decompositions
+of `Q ∩ Ω` over all `Q ∈ P^{k₀(Ω)}`; the remaining `sorry` is only the
+quantitative comparison turning the strong `1-βp` costs into the regular
+`1-sp` geometric cost.
+
 Notation note: the mathematical documentation writes characteristic functions
 as `\mathbbm{1}_E` (with LaTeX package `bbm`); Lean code continues to use
 `Set.indicator` and related `indicatorConstLp` names.
