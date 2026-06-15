@@ -40,6 +40,12 @@ Current target:
 
 - [x] Finish `regularFamily_restriction_representations`.
 
+Follow-up file:
+
+- [ ] Prove the four proposed regular-domain non-Archimedean statements in
+      `BesovSpacesGoodGrid/GoodGrid/RegularDomainsNonArchimedean.lean`
+      (currently one `sorry` per theorem).
+
 Already done for this target:
 
 - [x] `RegularFamily.cost_summable` is derived from the structure, so the

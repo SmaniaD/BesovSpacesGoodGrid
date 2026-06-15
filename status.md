@@ -41,9 +41,15 @@ formal API for the paper's subsection `Regular domains`:
   `regularFamilyUnion_indicator_multiplier_on_bounded_souzaBesov_all`;
 - proved localized restriction representation estimate `(pdd)/(hiip1)`:
   `regularFamily_restriction_representations`.
+- added the proposal file
+  `BesovSpacesGoodGrid/GoodGrid/RegularDomainsNonArchimedean.lean`, containing
+  the non-uniform and uniform regular-domain non-Archimedean statements, each
+  with a positive variant.  This new file currently has 4 intentional
+  `sorry`s, one for each proposed main theorem.
 
-The file is currently `sorry`-free.  No axioms or executable admits were
-added.
+`RegularDomains.lean` is currently `sorry`-free.  No axioms or executable
+admits were added there.  The new non-Archimedean proposal file is intentionally
+not complete yet, as recorded above.
 
 The theorem `regularDomain_of_stronglyRegularDomain` now explicitly assumes
 `hΩcell : ContainsGridCell G Ω`, matching the LaTeX proof's use of `k₀(Ω)`.
