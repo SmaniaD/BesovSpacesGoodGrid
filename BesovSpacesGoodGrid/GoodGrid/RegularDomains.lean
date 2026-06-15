@@ -3861,6 +3861,327 @@ theorem regularFamilyIndicator_besov_representation
     rfl
 
 /--
+Endpoint version of `regularDomain_indicator_besov_norm_bound`.
+
+For `q = ∞`, the geometric series in `(estG)` is replaced by a supremum, so
+the regular-domain indicator has the simpler bound
+`C ^ (1 / p) * μ(Ω) ^ (1 / p - s)`.
+-/
+theorem regularDomain_indicator_besov_norm_bound_top
+    (G : GoodGridSpace (α := α)) (Ω : Set α)
+    (s C c : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hs_lt_inv : s < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (hΩ : RegularDomain G Ω (1 - p.toReal * s) C c) :
+    ∃ y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) ∞,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p)
+        (Ω.indicator fun _ => (1 : ℂ))
+        (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+      WeakGridSpace.BesovishSpace.Norm_Costpq
+          (souzaAtomFamily G s p hs hp hp_top) ∞ y ≤
+        C ^ (1 / p.toReal) *
+          (G.grid.μ Ω).toReal ^ (1 / p.toReal - s) := by
+  classical
+  letI : MeasureTheory.IsFiniteMeasure G.grid.μ := G.grid.isFinite
+  letI : MeasureTheory.IsFiniteMeasure G.toWeakGridSpace.measure := G.grid.isFinite
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let hFam : RegularFamily G ({0} : Set ℕ) (fun _ : ℕ => Ω)
+      (1 - p.toReal * s) C c :=
+    hΩ.toRegularFamily_singleton
+  have h0mem : (0 : ℕ) ∈ ({0} : Set ℕ) := by simp
+  obtain ⟨y, R, hyrepr, hRfin, hblock⟩ :=
+    regularFamilyIndicator_besov_representation
+      G ({0} : Set ℕ) (fun _ : ℕ => Ω) s C c p ∞
+      hs hs_lt_inv hp hp_top hFam h0mem
+  refine ⟨y, hyrepr, ?_⟩
+  have hp0 : p ≠ 0 := (lt_of_lt_of_le zero_lt_one hp).ne'
+  have hpr : 0 < p.toReal := ENNReal.toReal_pos hp0 hp_top
+  have hroot_nonneg : 0 ≤ 1 / p.toReal := one_div_nonneg.mpr hpr.le
+  have hlevel_le :
+      ∀ k, R.levelCoeffPower k ≤
+        C * c ^ (k - firstContainedLevel G Ω) *
+          (G.grid.μ Ω).toReal ^ (1 - p.toReal * s) := by
+    intro k
+    change
+      (∑ P : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        ‖(R.block k).coeff P‖ ^ p.toReal) ≤
+        C * c ^ (k - firstContainedLevel G Ω) *
+          (G.grid.μ Ω).toReal ^ (1 - p.toReal * s)
+    rw [hblock k]
+    have hraw :=
+      regularFamilyIndicatorBlock_levelCoeffPower_le_familyCost
+        (G := G) (Λ := ({0} : Set ℕ)) (Ω := fun _ : ℕ => Ω)
+        (s := s) (C := C) (c := c) (p := p)
+        (hs := hs) (hp := hp) (hp_top := hp_top) hFam h0mem
+        (k := k)
+    simpa [regularFamilyUnion] using hraw
+  have hlevel_root_le :
+      ∀ k, (R.levelCoeffPower k) ^ (1 / p.toReal) ≤
+        C ^ (1 / p.toReal) *
+          (G.grid.μ Ω).toReal ^ (1 / p.toReal - s) := by
+    intro k
+    have hc_pow_le : c ^ (k - firstContainedLevel G Ω) ≤ 1 :=
+      pow_le_one₀ hΩ.c_nonneg hΩ.c_lt_one.le
+    have hμa0 : 0 ≤ (G.grid.μ Ω).toReal ^ (1 - p.toReal * s) :=
+      Real.rpow_nonneg ENNReal.toReal_nonneg _
+    have hlevelD :
+        R.levelCoeffPower k ≤ C * (G.grid.μ Ω).toReal ^ (1 - p.toReal * s) := by
+      calc
+        R.levelCoeffPower k
+            ≤ C * c ^ (k - firstContainedLevel G Ω) *
+                (G.grid.μ Ω).toReal ^ (1 - p.toReal * s) := hlevel_le k
+        _ ≤ C * 1 * (G.grid.μ Ω).toReal ^ (1 - p.toReal * s) := by
+          exact mul_le_mul_of_nonneg_right
+            (mul_le_mul_of_nonneg_left hc_pow_le hΩ.C_nonneg) hμa0
+        _ = C * (G.grid.μ Ω).toReal ^ (1 - p.toReal * s) := by ring
+    calc
+      (R.levelCoeffPower k) ^ (1 / p.toReal)
+          ≤ (C * (G.grid.μ Ω).toReal ^ (1 - p.toReal * s)) ^
+              (1 / p.toReal) :=
+        Real.rpow_le_rpow (R.levelCoeffPower_nonneg k) hlevelD hroot_nonneg
+      _ = C ^ (1 / p.toReal) *
+            (G.grid.μ Ω).toReal ^ (1 / p.toReal - s) := by
+        rw [Real.mul_rpow hΩ.C_nonneg
+          (Real.rpow_nonneg ENNReal.toReal_nonneg _)]
+        rw [← Real.rpow_mul ENNReal.toReal_nonneg]
+        congr 1
+        field_simp [hpr.ne']
+  refine le_trans (WeakGridSpace.BesovishSpace.Norm_Costpq_le_cost
+    (A := A) (q := ∞) y R hRfin) ?_
+  rw [WeakGridSpace.LpGridRepresentation.pqCost, if_pos rfl]
+  exact csSup_le (Set.range_nonempty _) (by
+    rintro x ⟨k, rfl⟩
+    exact hlevel_root_le k)
+
+/-- The regular-domain indicator bound, with the endpoint `q = ∞` folded in. -/
+noncomputable def regularDomainIndicatorCost
+    (G : GoodGridSpace (α := α)) (Ω : Set α)
+    (s C c : ℝ) (p q : ℝ≥0∞) : ℝ :=
+  if q = ∞ then
+    C ^ (1 / p.toReal) *
+      (G.grid.μ Ω).toReal ^ (1 / p.toReal - s)
+  else
+    C ^ (1 / p.toReal) /
+        (1 - c ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) *
+      (G.grid.μ Ω).toReal ^ (1 / p.toReal - s)
+
+/--
+All-`q` wrapper for the regular-domain indicator estimate `(estG)`.
+
+For finite `q` this is `regularDomain_indicator_besov_norm_bound`; at
+`q = ∞` it is `regularDomain_indicator_besov_norm_bound_top`.
+-/
+theorem regularDomain_indicator_besov_norm_bound_all
+    (G : GoodGridSpace (α := α)) (Ω : Set α)
+    (s C c : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hs_lt_inv : s < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩ : RegularDomain G Ω (1 - p.toReal * s) C c) :
+    ∃ y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p)
+        (Ω.indicator fun _ => (1 : ℂ))
+        (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+      WeakGridSpace.BesovishSpace.Norm_Costpq
+          (souzaAtomFamily G s p hs hp hp_top) q y ≤
+        regularDomainIndicatorCost G Ω s C c p q := by
+  classical
+  by_cases hq : q = ∞
+  · subst q
+    simpa [regularDomainIndicatorCost] using
+      regularDomain_indicator_besov_norm_bound_top
+        G Ω s C c p hs hs_lt_inv hp hp_top hΩ
+  · simpa [regularDomainIndicatorCost, hq] using
+      regularDomain_indicator_besov_norm_bound
+        G Ω s C c p q hs hs_lt_inv hp hp_top hq hΩ
+
+/--
+Endpoint bounded multiplier estimate for the regular-domain indicator.
+
+This is the `q = ∞` companion to
+`regularDomain_indicator_multiplier_on_bounded_souzaBesov`.
+-/
+theorem regularDomain_indicator_multiplier_on_bounded_souzaBesov_top
+    (G : GoodGridSpace (α := α)) (Ω : Set α)
+    (s C c : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hs_lt_inv : s < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (hΩ : RegularDomain G Ω (1 - p.toReal * s) C c) :
+    ∃ Cop : ℝ,
+      0 ≤ Cop ∧
+      ∀ (g : α → ℂ) (M : ℝ)
+        (xg : WeakGridSpace.BesovishSpace
+          (souzaAtomFamily G s p hs hp hp_top) ∞),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p) g
+          (xg : Lp ℂ p G.toWeakGridSpace.measure) →
+        (∀ᵐ z ∂G.toWeakGridSpace.measure, ‖g z‖ ≤ M) →
+        ∃ y : WeakGridSpace.BesovishSpace
+            (souzaAtomFamily G s p hs hp hp_top) ∞,
+          WeakGridSpace.RepresentsFunction
+            (G := G.toWeakGridSpace) (p := p)
+            (fun z => g z * Ω.indicator (fun _ => (1 : ℂ)) z)
+            (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+          WeakGridSpace.BesovishSpace.Norm_Costpq
+              (souzaAtomFamily G s p hs hp hp_top) ∞ y ≤
+            Cop *
+              (WeakGridSpace.BesovishSpace.Norm_Costpq
+                  (souzaAtomFamily G s p hs hp hp_top) ∞ xg + M) := by
+  classical
+  letI : MeasureTheory.IsFiniteMeasure G.grid.μ := G.grid.isFinite
+  set A := souzaAtomFamily G s p hs hp hp_top
+  have hA := WeakGridSpace.BesovishSpace.hasFiniteCostRepresentations A ∞
+  obtain ⟨yΩ, hyΩrepr, hyΩcost⟩ :=
+    regularDomain_indicator_besov_norm_bound_top
+      G Ω s C c p hs hs_lt_inv hp hp_top hΩ
+  set E : ℝ := C ^ (1 / p.toReal) *
+    (G.grid.μ Ω).toReal ^ (1 / p.toReal - s) with hEdef
+  have hcyΩ : 0 ≤ WeakGridSpace.BesovishSpace.Norm_Costpq A ∞ yΩ :=
+    WeakGridSpace.BesovishSpace.Norm_Costpq_nonneg hA yΩ
+  have hE : 0 ≤ E := le_trans hcyΩ hyΩcost
+  obtain ⟨Cqa, hCqa, hIII⟩ :=
+    souzaPointwiseMultipliersIII G s p ∞ hs hs_lt_inv hp hp_top
+  refine ⟨Cqa * (E + 1), mul_nonneg hCqa (by linarith), ?_⟩
+  intro g M xg hgrepr hgbdd
+  have hΩ0 : 0 < G.toWeakGridSpace.measure Ω := by
+    obtain ⟨W, hWsub⟩ := firstContainedLevel_spec G hΩ.contains_cell
+    exact lt_of_lt_of_le (G.grid.positive_measure _ W.1 W.2) (measure_mono hWsub)
+  have hμne : G.toWeakGridSpace.measure ≠ 0 := by
+    intro h
+    rw [h] at hΩ0
+    simp at hΩ0
+  haveI : (MeasureTheory.ae G.toWeakGridSpace.measure).NeBot :=
+    MeasureTheory.ae_neBot.2 hμne
+  have hM : 0 ≤ M := by
+    obtain ⟨z, hz⟩ :=
+      (hgbdd.and (Filter.Eventually.of_forall fun z => norm_nonneg (g z))).exists
+    exact le_trans hz.2 hz.1
+  have hΩbdd : ∀ᵐ z ∂G.toWeakGridSpace.measure,
+      ‖Ω.indicator (fun _ => (1 : ℂ)) z‖ ≤ 1 := by
+    refine Filter.Eventually.of_forall fun z => ?_
+    by_cases hz : z ∈ Ω <;> simp [Set.indicator_of_mem, Set.indicator_of_notMem, hz]
+  obtain ⟨y, hyrepr, hycost, _⟩ :=
+    hIII g (Ω.indicator fun _ => (1 : ℂ)) M 1 xg yΩ
+      hgrepr hyΩrepr hgbdd hΩbdd
+  refine ⟨y, hyrepr, ?_⟩
+  have hcxg : 0 ≤ WeakGridSpace.BesovishSpace.Norm_Costpq A ∞ xg :=
+    WeakGridSpace.BesovishSpace.Norm_Costpq_nonneg hA xg
+  calc WeakGridSpace.BesovishSpace.Norm_Costpq A ∞ y
+      ≤ WeakGridSpace.BesovishSpace.Norm_Costpq A ∞ y + M * 1 := by
+        rw [mul_one]; linarith
+    _ ≤ Cqa * ((WeakGridSpace.BesovishSpace.Norm_Costpq A ∞ xg + M) *
+          (WeakGridSpace.BesovishSpace.Norm_Costpq A ∞ yΩ + 1)) := hycost
+    _ ≤ Cqa * ((WeakGridSpace.BesovishSpace.Norm_Costpq A ∞ xg + M) * (E + 1)) := by
+        apply mul_le_mul_of_nonneg_left _ hCqa
+        apply mul_le_mul_of_nonneg_left _ (by linarith)
+        linarith
+    _ = Cqa * (E + 1) * (WeakGridSpace.BesovishSpace.Norm_Costpq A ∞ xg + M) := by ring
+
+/--
+All-`q` wrapper for the bounded multiplier estimate
+`g ↦ g · 1_Ω` on `B^s_{p,q} ∩ L∞`.
+-/
+theorem regularDomain_indicator_multiplier_on_bounded_souzaBesov_all
+    (G : GoodGridSpace (α := α)) (Ω : Set α)
+    (s C c : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hs_lt_inv : s < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩ : RegularDomain G Ω (1 - p.toReal * s) C c) :
+    ∃ Cop : ℝ,
+      0 ≤ Cop ∧
+      ∀ (g : α → ℂ) (M : ℝ)
+        (xg : WeakGridSpace.BesovishSpace
+          (souzaAtomFamily G s p hs hp hp_top) q),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p) g
+          (xg : Lp ℂ p G.toWeakGridSpace.measure) →
+        (∀ᵐ z ∂G.toWeakGridSpace.measure, ‖g z‖ ≤ M) →
+        ∃ y : WeakGridSpace.BesovishSpace
+            (souzaAtomFamily G s p hs hp hp_top) q,
+          WeakGridSpace.RepresentsFunction
+            (G := G.toWeakGridSpace) (p := p)
+            (fun z => g z * Ω.indicator (fun _ => (1 : ℂ)) z)
+            (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+          WeakGridSpace.BesovishSpace.Norm_Costpq
+              (souzaAtomFamily G s p hs hp hp_top) q y ≤
+            Cop *
+              (WeakGridSpace.BesovishSpace.Norm_Costpq
+                  (souzaAtomFamily G s p hs hp hp_top) q xg + M) := by
+  classical
+  by_cases hq : q = ∞
+  · subst q
+    simpa using
+      regularDomain_indicator_multiplier_on_bounded_souzaBesov_top
+        G Ω s C c p hs hs_lt_inv hp hp_top hΩ
+  · exact
+      regularDomain_indicator_multiplier_on_bounded_souzaBesov
+        G Ω s C c p q hs hs_lt_inv hp hp_top hq hΩ
+
+/-- All-`q` indicator estimate for the union of a regular family. -/
+theorem regularFamilyUnion_indicator_besov_norm_bound_all
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s C c : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hs_lt_inv : s < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c) :
+    ∃ y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p)
+        ((regularFamilyUnion Λ Ω).indicator fun _ => (1 : ℂ))
+        (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+      WeakGridSpace.BesovishSpace.Norm_Costpq
+          (souzaAtomFamily G s p hs hp hp_top) q y ≤
+        regularDomainIndicatorCost G (regularFamilyUnion Λ Ω) s C c p q := by
+  rcases hΩ.regularDomain_union with ⟨hUnion⟩
+  exact regularDomain_indicator_besov_norm_bound_all
+    G (regularFamilyUnion Λ Ω) s C c p q hs hs_lt_inv hp hp_top hUnion
+
+/--
+All-`q` bounded multiplier estimate for the indicator of the union of a
+regular family.
+-/
+theorem regularFamilyUnion_indicator_multiplier_on_bounded_souzaBesov_all
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s C c : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hs_lt_inv : s < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c) :
+    ∃ Cop : ℝ,
+      0 ≤ Cop ∧
+      ∀ (g : α → ℂ) (M : ℝ)
+        (xg : WeakGridSpace.BesovishSpace
+          (souzaAtomFamily G s p hs hp hp_top) q),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p) g
+          (xg : Lp ℂ p G.toWeakGridSpace.measure) →
+        (∀ᵐ z ∂G.toWeakGridSpace.measure, ‖g z‖ ≤ M) →
+        ∃ y : WeakGridSpace.BesovishSpace
+            (souzaAtomFamily G s p hs hp hp_top) q,
+          WeakGridSpace.RepresentsFunction
+            (G := G.toWeakGridSpace) (p := p)
+            (fun z => g z *
+              (regularFamilyUnion Λ Ω).indicator (fun _ => (1 : ℂ)) z)
+            (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+          WeakGridSpace.BesovishSpace.Norm_Costpq
+              (souzaAtomFamily G s p hs hp hp_top) q y ≤
+            Cop *
+              (WeakGridSpace.BesovishSpace.Norm_Costpq
+                  (souzaAtomFamily G s p hs hp hp_top) q xg + M) := by
+  rcases hΩ.regularDomain_union with ⟨hUnion⟩
+  exact regularDomain_indicator_multiplier_on_bounded_souzaBesov_all
+    G (regularFamilyUnion Λ Ω) s C c p q hs hs_lt_inv hp hp_top hUnion
+
+/--
 The representation estimate `(pdd)`/`(hiip1)` for a regular family.
 
 Each restriction `g · 1_{Ωᵣ}` receives a Souza representation whose nonzero

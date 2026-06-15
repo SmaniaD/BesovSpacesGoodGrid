@@ -31,6 +31,14 @@ formal API for the paper's subsection `Regular domains`:
 - proved quantitative strongly-regular-to-regular theorem with ratio
   `λ₂^((β-s)p)`, the indicator norm estimate `(estG)`, and the bounded
   multiplier operator `g ↦ g·1_Ω` on `B^s_{p,q} ∩ L∞`;
+- added the endpoint `q = ∞` wrappers
+  `regularDomain_indicator_besov_norm_bound_top` and
+  `regularDomain_indicator_multiplier_on_bounded_souzaBesov_top`;
+- added the all-`q` wrapper constant `regularDomainIndicatorCost` and the
+  domain/family wrappers `regularDomain_indicator_besov_norm_bound_all`,
+  `regularDomain_indicator_multiplier_on_bounded_souzaBesov_all`,
+  `regularFamilyUnion_indicator_besov_norm_bound_all`, and
+  `regularFamilyUnion_indicator_multiplier_on_bounded_souzaBesov_all`;
 - proved localized restriction representation estimate `(pdd)/(hiip1)`:
   `regularFamily_restriction_representations`.
 
