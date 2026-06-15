@@ -150,8 +150,33 @@ The formalization currently includes:
   Multipliers II, a weighted `fou` representation is extracted from the
   standard-representation machinery and Proposition 17.1.B, and the finite
   truncation identity is passed to the limit in `L^p`.
+- Regular domains, **complete** (`GoodGrid/RegularDomains.lean`, paper
+  subsection `cf`): the formal `k_0(Ω)` (`firstContainedLevel`), the
+  `RegularFamily` (countable disjoint families indexed by `Λ ⊆ ℕ`) and
+  `RegularDomain` (one-set) definitions carrying the geometric level cost
+  `dom`, the bridge `RegularDomain.toRegularFamily_singleton` and the union
+  construction `RegularFamily.regularDomain_union`.  It proves that every
+  strongly regular domain is regular
+  (`regularDomain_of_stronglyRegularDomain`, ratio `λ₂^{(β-s)p}`), the
+  indicator Besov bound `estG` — finite `q`
+  (`regularDomain_indicator_besov_norm_bound`) and the `q = ∞` endpoint
+  (`regularDomain_indicator_besov_norm_bound_top`), where the geometric
+  series collapses to a supremum and the bound simplifies to
+  `C^{1/p}·μ(Ω)^{1/p-s}`, both folded into
+  `regularDomain_indicator_besov_norm_bound_all` with explicit constant
+  `regularDomainIndicatorCost` — together with the bounded multiplier
+  `g ↦ g·1_Ω` on `B^s_{p,q} ∩ L^infinity`, again for finite `q`
+  (`regularDomain_indicator_multiplier_on_bounded_souzaBesov`) and at the
+  endpoint (`..._top`), unified as `..._all`, plus the family wrappers
+  `regularFamilyUnion_indicator_*_all` (each handling both cases internally),
+  and the localized restriction representation estimate `pdd`/`hiip1`
+  (`regularFamily_restriction_representations`): each `g·1_{Ωᵣ}` gets a
+  Souza representation whose nonzero level-`j` coefficients live on cells
+  contained in `Ωᵣ`, with the mixed `(p,q)` coefficient cost controlled by
+  `Crel·(|g|_{B^s_{p,q}} + M)` — uniformly in `q ∈ [1,∞]`, the `q = ∞` cost
+  read as the supremum of the level roots.
 
-At this snapshot, a full `lake build` succeeds (3459 jobs) and the
+At this snapshot, a full `lake build` succeeds (3460 jobs) and the
 repository compiles with **zero `sorry`**: every project module, including
 `Bp1overpinftyisMultiplier.lean` and `QuasiAlgebra.lean`, is imported by
 the aggregate root.
@@ -246,6 +271,12 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
   property of `B^s_{p,q} ∩ L^infinity` — Pointwise Multipliers III (paper
   Proposition 19.1), via the two-sided `u₁ + u₂` construction with weighted
   ancestor towers.
+- `BesovSpacesGoodGrid/GoodGrid/RegularDomains.lean`: regular families and
+  regular domains (paper subsection `cf`) — the definitions and union
+  construction, the strongly-regular ⇒ regular comparison, the indicator
+  Besov/multiplier bounds `estG`, and the localized restriction
+  representation estimate `pdd`/`hiip1`
+  (`regularFamily_restriction_representations`).
 - `BesovSpacesGoodGrid/GoodGrid/PositiveCone.lean`: positive Souza
   representations and the positive coefficient-cost gauge for Souza-Besov
   spaces.

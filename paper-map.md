@@ -5,7 +5,7 @@ This file maps the published paper
 Daniel Smania, *Besov-ish spaces through atomic decomposition*,
 Analysis & PDE 15 (2022), no. 1
 
-to the current Lean formalization in this repository (last revised 2026-06-12,
+to the current Lean formalization in this repository (last revised 2026-06-14,
 zero `sorry`, full `lake build` green).
 
 The numbering X.Y below follows the order of the theorem-like environments in
@@ -46,8 +46,8 @@ Status labels:
 | 15 | Alternative characterizations, I: Messing with norms | proved in pieces |
 | 16 | Alternative characterizations, II: Messing with atoms | Prop 16.1 proved; 16.2-16.3 not started |
 | 17 | Dirac's approximations | Prop 17.1 proved (evaluation/average forms A and B; distributional form not formalized) |
-| Part III | Applications | Sections 18-19 proved; 20-21 not started |
-| 18 | Pointwise multipliers acting on \(B^s_{p,q}\) | fully proved: Props 18.1, 18.3, 18.4, Remark posrem, Cor 18.6, Def/Prop 18.7-18.8, Prop 18.9, Prop 18.10 + Remark pos3 |
+| Part III | Applications | Sections 18-19 proved (incl. regular families/domains `cf`); 20-21 not started |
+| 18 | Pointwise multipliers acting on \(B^s_{p,q}\) | fully proved: Props 18.1, 18.3, 18.4, Remark posrem, Cor 18.6, Def/Prop 18.7-18.8, Prop 18.9, Prop 18.10 + Remark pos3, and the regular-domains subsection `cf` (`estG`, `pdd`/`hiip1`) |
 | 19 | \(B^s_{p,q} \cap L^\infty\) is a quasialgebra | Prop 19.1 (`mult33`) proved |
 | 20 | A remarkable description of \(B^s_{1,1}\) | not started |
 | 21 | Left compositions | not started |
@@ -109,7 +109,7 @@ Status labels:
 | Paper item | Mathematical content | Lean item | Status |
 |---|---|---|---|
 | Proposition 19.1 (`mult33`) | Pointwise Multipliers III: \(\mathcal B^s_{p,q} \cap L^\infty\) is a quasialgebra | `souzaPointwiseMultipliersIII` (bilinear bound `|fg|_B + |fg|∞ ≤ Cqa (|f|_B + Mf)(|g|_B + Mg)`), core `exists_quasiAlgebra_product_representation` (two-sided `u₁+u₂` with weighted ancestor towers `weightedAncestorCoeffSum` and `exists_weighted_fouRepresentation`), `L∞` part `ae_norm_mul_le_mul_bounds`; in `BesovSpacesGoodGrid/GoodGrid/QuasiAlgebra.lean` | proved (2026-06-12; axioms: `propext, Classical.choice, Quot.sound`) |
-| Definition/Proposition 19.x | Regular families of domains | none | not started |
+| Regular domains subsection (`cf`) | Regular families/domains; indicator bound `estG`; strongly-regular ⇒ regular; localized restriction representations `pdd`/`hiip1` | `firstContainedLevel` (\(k_0\)), `RegularFamily`/`RegularDomain` (with cost `dom`), `RegularDomain.toRegularFamily_singleton`, `RegularFamily.regularDomain_union`; `regularDomain_of_stronglyRegularDomain` (ratio \(\lambda_2^{(\beta-s)p}\)); indicator norm/multiplier estimates with finite-`q` and `q = ∞` endpoint forms folded into all-`q` wrappers `regularDomain_indicator_besov_norm_bound`/`_top`/`_all` (endpoint constant `C^{1/p}·μ(Ω)^{1/p-s}` via `regularDomainIndicatorCost`), `regularDomain_indicator_multiplier_on_bounded_souzaBesov`/`_top`/`_all`, `regularFamilyUnion_indicator_*_all`; restriction estimate `regularFamily_restriction_representations`; in `BesovSpacesGoodGrid/GoodGrid/RegularDomains.lean` | proved (2026-06-14) |
 | Proposition 20.1 (`rema`) | \(B^{1-s} = \mathcal B^s_{1,1}\) (description via sums of indicators) | none (related: Besovs11.lean, but it treats multipliers, not this characterization) | not started |
 | Proposition 21.1 (`expo`) | Left compositions | none | not started |
 
@@ -124,7 +124,7 @@ Natural candidates, in rough order of leverage:
    prove Proposition 16.2 by applying
    `atoms_between_souza_atoms_and_besov_atoms`; same for bounded variation
    atoms and Proposition 16.3.
-3. The remaining items of Section 19 (regular families of domains) and
-   Sections 20-21 (`B^{1-s} = B^s_{1,1}`, left compositions).
+3. Sections 20-21 (`B^{1-s} = B^s_{1,1}`, left compositions); the regular
+   families/domains subsection (`cf`) is now proved in `RegularDomains.lean`.
 4. The distributional form of Proposition 17.1, on top of the proved
    claims A/B and the `TestFunctions`/`Distributions` infrastructure.
