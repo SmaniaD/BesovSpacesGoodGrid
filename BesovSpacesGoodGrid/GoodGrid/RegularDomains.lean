@@ -1344,6 +1344,43 @@ theorem regularFamilyIndicatorBlock_coeff_ne_zero_mem
   by_contra hQ
   exact hcoeff (by simp [regularFamilyIndicatorBlock, hQ])
 
+/-- The canonical indicator block of a regular-family member is positive:
+its coefficients are nonnegative real numbers and its atoms are the canonical
+Souza atoms. -/
+theorem regularFamilyIndicatorBlock_positive
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    (i k : ℕ) :
+    SouzaPositiveLevelBlock G s p hs hp hp_top
+      (regularFamilyIndicatorBlock
+        (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i k) := by
+  classical
+  intro Q
+  have hatom :
+      (souzaAtomFamily G s p hs hp hp_top).toFunction
+          (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+          ((regularFamilyIndicatorBlock
+            (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i k).atom Q) =
+        canonicalSouzaAtom G s p (goodGridCellOfLevelCell G Q) := by
+    funext x
+    change
+      (Q.1.indicator
+        (fun _ =>
+          (((G.grid.μ Q.1).toReal ^ (s - (p.toReal)⁻¹) : ℝ) : ℂ)) x) =
+        canonicalSouzaAtom G s p (goodGridCellOfLevelCell G Q) x
+    by_cases hx : x ∈ Q.1
+    · simp [canonicalSouzaAtom, goodGridCellOfLevelCell,
+        hx]
+    · simp [canonicalSouzaAtom, goodGridCellOfLevelCell,
+        hx]
+  by_cases hQ : Q.1 ∈ hΩ.family i k
+  · refine ⟨(G.grid.μ Q.1).toReal ^ ((p.toReal)⁻¹ - s), ?_, ?_, ?_⟩
+    · exact Real.rpow_nonneg ENNReal.toReal_nonneg _
+    · simp [regularFamilyIndicatorBlock, hQ]
+    · exact hatom
+  · refine ⟨0, le_rfl, ?_, ?_⟩
+    · simp [regularFamilyIndicatorBlock, hQ]
+    · exact hatom
+
 /-- A nonzero active indicator coefficient lives on a cell contained in the
 corresponding regular-family domain. -/
 theorem regularFamilyIndicatorBlock_coeff_ne_zero_subset_domain
@@ -2313,6 +2350,127 @@ private theorem real_add_rpow_le_two_sub_one_mul
   lift b to NNReal using hb
   exact_mod_cast NNReal.rpow_add_le_mul_rpow_add_rpow a b hr
 
+/--
+The aggregate level sequence of the product blocks `u₁ + u₂` is summable over
+the active indices of a regular family.
+
+This is the summability part used inside
+`regularFamilyIndicator_quasiProductBlock_aggregate_levelCoeffPower_le`,
+exposed separately for finite-subfamily truncation arguments.
+-/
+theorem regularFamilyIndicator_quasiProductBlock_aggregate_summable
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    {xind : ℕ → Lp ℂ p G.toWeakGridSpace.measure}
+    {xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rind : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) (xind i))
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (hblock : ∀ i m,
+      (Rind i).block m =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i m)
+    {M : ℝ} (hM0 : 0 ≤ M)
+    (htower_g : ∀ (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      ‖weightedAncestorCoeffSum G Rg Q‖ ≤ M)
+    (j : ℕ) :
+    Summable fun i : ℕ =>
+      Set.indicator Λ
+        (fun i =>
+          ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+            ‖(WeakGridSpace.LevelBlock.add
+              (souzaAtomFamily G s p hs hp hp_top)
+              (quasiU1Block G s p hs hp hp_top (Rind i) Rg j)
+              (quasiU2Block G s p hs hp hp_top (Rind i) Rg j)).coeff Q‖ ^
+              p.toReal) i := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let K : ℝ := (2 : ℝ) ^ (p.toReal - 1)
+  let u1Cost : ℕ → ℝ := fun i =>
+    ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+      ‖(quasiU1Block G s p hs hp hp_top (Rind i) Rg j).coeff Q‖ ^ p.toReal
+  let u2Cost : ℕ → ℝ := fun i =>
+    ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+      ‖(quasiU2Block G s p hs hp hp_top (Rind i) Rg j).coeff Q‖ ^ p.toReal
+  let addCost : ℕ → ℝ := fun i =>
+    ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+      ‖(WeakGridSpace.LevelBlock.add A
+        (quasiU1Block G s p hs hp hp_top (Rind i) Rg j)
+        (quasiU2Block G s p hs hp hp_top (Rind i) Rg j)).coeff Q‖ ^
+        p.toReal
+  have hp_real : 1 ≤ p.toReal := (ENNReal.dichotomy p).resolve_left hp_top
+  have hK0 : 0 ≤ K := Real.rpow_nonneg (by norm_num : (0 : ℝ) ≤ 2) _
+  have hterm :
+      ∀ i,
+        Set.indicator Λ addCost i ≤
+          K * (Set.indicator Λ u1Cost i + Set.indicator Λ u2Cost i) := by
+    intro i
+    by_cases hi : i ∈ Λ
+    · rw [Set.indicator_of_mem hi, Set.indicator_of_mem hi, Set.indicator_of_mem hi]
+      dsimp [addCost, u1Cost, u2Cost, K, A]
+      calc
+        (∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+            ‖(WeakGridSpace.LevelBlock.add
+              (souzaAtomFamily G s p hs hp hp_top)
+              (quasiU1Block G s p hs hp hp_top (Rind i) Rg j)
+              (quasiU2Block G s p hs hp hp_top (Rind i) Rg j)).coeff Q‖ ^
+              p.toReal)
+            ≤
+          ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+            (2 : ℝ) ^ (p.toReal - 1) *
+              (‖(quasiU1Block G s p hs hp hp_top (Rind i) Rg j).coeff Q‖ ^
+                  p.toReal +
+                ‖(quasiU2Block G s p hs hp hp_top (Rind i) Rg j).coeff Q‖ ^
+                  p.toReal) := by
+            refine Finset.sum_le_sum ?_
+            intro Q _
+            let U1 := quasiU1Block G s p hs hp hp_top (Rind i) Rg j
+            let U2 := quasiU2Block G s p hs hp hp_top (Rind i) Rg j
+            have hnn : 0 ≤ ‖U1.coeff Q‖ + ‖U2.coeff Q‖ :=
+              add_nonneg (norm_nonneg _) (norm_nonneg _)
+            have hnorm :
+                ‖(WeakGridSpace.LevelBlock.add
+                  (souzaAtomFamily G s p hs hp hp_top) U1 U2).coeff Q‖ =
+                  ‖U1.coeff Q‖ + ‖U2.coeff Q‖ := by
+              change ‖(((‖U1.coeff Q‖ + ‖U2.coeff Q‖ : ℝ) : ℂ))‖ =
+                ‖U1.coeff Q‖ + ‖U2.coeff Q‖
+              rw [Complex.norm_real, Real.norm_of_nonneg hnn]
+            rw [hnorm]
+            exact real_add_rpow_le_two_sub_one_mul
+              (norm_nonneg _) (norm_nonneg _) hp_real
+        _ = (2 : ℝ) ^ (p.toReal - 1) *
+            ((∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                ‖(quasiU1Block G s p hs hp hp_top (Rind i) Rg j).coeff Q‖ ^
+                  p.toReal) +
+              ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                ‖(quasiU2Block G s p hs hp hp_top (Rind i) Rg j).coeff Q‖ ^
+                  p.toReal) := by
+            rw [← Finset.mul_sum]
+            simp only [Finset.sum_add_distrib, mul_add]
+    · rw [Set.indicator_of_notMem hi, Set.indicator_of_notMem hi,
+        Set.indicator_of_notMem hi]
+      exact mul_nonneg hK0 (by simp)
+  have hu1sum :
+      Summable (fun i : ℕ => Set.indicator Λ u1Cost i) :=
+    regularFamilyIndicator_quasiU1Block_aggregate_summable
+      (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+      (p := p) hΩ Rind Rg hblock hM0 htower_g j
+  have hu2sum :
+      Summable (fun i : ℕ => Set.indicator Λ u2Cost i) :=
+    regularFamilyIndicator_quasiU2Block_aggregate_summable
+      (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+      (p := p) hΩ Rind Rg hblock j
+  have hright_summable :
+      Summable (fun i : ℕ =>
+        K * (Set.indicator Λ u1Cost i + Set.indicator Λ u2Cost i)) :=
+    (hu1sum.add hu2sum).mul_left K
+  refine Summable.of_nonneg_of_le ?_ hterm hright_summable
+  intro i
+  by_cases hi : i ∈ Λ
+  · rw [Set.indicator_of_mem hi]
+    exact Finset.sum_nonneg fun Q _ => Real.rpow_nonneg (norm_nonneg _) _
+  · rw [Set.indicator_of_notMem hi]
+
 /-- Aggregate level estimate for the product blocks `u₁ + u₂` over a regular
 family. -/
 theorem regularFamilyIndicator_quasiProductBlock_aggregate_levelCoeffPower_le
@@ -2470,7 +2628,84 @@ theorem regularFamilyIndicator_quasiProductBlock_aggregate_levelCoeffPower_le
           Rg.levelCoeffPower j) := by
       exact mul_le_mul_of_nonneg_left (add_le_add hu1_le hu2_le) hK0
 
-private theorem regularFamilyRestriction_bound_nonneg
+/--
+Finite-subfamily version of the product-block aggregate level estimate.
+
+If `Γ` is a finite set of active indices, the level-`j` product-block cost over
+`Γ` is bounded by the same global regular-family level estimate.  This is the
+finite truncation form used in non-Archimedean sums.
+-/
+theorem regularFamilyIndicator_quasiProductBlock_finset_levelCoeffPower_le
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    {xind : ℕ → Lp ℂ p G.toWeakGridSpace.measure}
+    {xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rind : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) (xind i))
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (hblock : ∀ i m,
+      (Rind i).block m =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i m)
+    {M : ℝ} (hM0 : 0 ≤ M)
+    (htower_g : ∀ (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      ‖weightedAncestorCoeffSum G Rg Q‖ ≤ M)
+    (Γ : Finset ℕ) (hΓΛ : ∀ i ∈ Γ, i ∈ Λ)
+    (j : ℕ) :
+    (∑ i ∈ Γ,
+      ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        ‖(WeakGridSpace.LevelBlock.add
+          (souzaAtomFamily G s p hs hp hp_top)
+          (quasiU1Block G s p hs hp hp_top (Rind i) Rg j)
+          (quasiU2Block G s p hs hp hp_top (Rind i) Rg j)).coeff Q‖ ^
+          p.toReal) ≤
+      (2 : ℝ) ^ (p.toReal - 1) *
+        (M ^ p.toReal *
+          (C * c ^ (j - firstContainedLevel G (regularFamilyUnion Λ Ω)) *
+            (G.grid.μ (regularFamilyUnion Λ Ω)).toReal ^ (1 - p.toReal * s)) +
+          Rg.levelCoeffPower j) := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let addCost : ℕ → ℝ := fun i =>
+    ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+      ‖(WeakGridSpace.LevelBlock.add A
+        (quasiU1Block G s p hs hp hp_top (Rind i) Rg j)
+        (quasiU2Block G s p hs hp hp_top (Rind i) Rg j)).coeff Q‖ ^
+        p.toReal
+  have hadd_summable :
+      Summable fun i : ℕ => Set.indicator Λ addCost i :=
+    regularFamilyIndicator_quasiProductBlock_aggregate_summable
+      (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+      (p := p) hΩ Rind Rg hblock hM0 htower_g j
+  have hnonneg :
+      ∀ i, 0 ≤ Set.indicator Λ addCost i := by
+    intro i
+    by_cases hi : i ∈ Λ
+    · rw [Set.indicator_of_mem hi]
+      exact Finset.sum_nonneg fun Q _ => Real.rpow_nonneg (norm_nonneg _) _
+    · rw [Set.indicator_of_notMem hi]
+  have hsum_eq :
+      (∑ i ∈ Γ, addCost i) =
+        ∑ i ∈ Γ, Set.indicator Λ addCost i := by
+    refine Finset.sum_congr rfl ?_
+    intro i hi
+    rw [Set.indicator_of_mem (hΓΛ i hi)]
+  calc
+    (∑ i ∈ Γ, addCost i)
+        = ∑ i ∈ Γ, Set.indicator Λ addCost i := hsum_eq
+    _ ≤ ∑' i : ℕ, Set.indicator Λ addCost i :=
+        hadd_summable.sum_le_tsum Γ (fun i _ => hnonneg i)
+    _ ≤ (2 : ℝ) ^ (p.toReal - 1) *
+        (M ^ p.toReal *
+          (C * c ^ (j - firstContainedLevel G (regularFamilyUnion Λ Ω)) *
+            (G.grid.μ (regularFamilyUnion Λ Ω)).toReal ^ (1 - p.toReal * s)) +
+          Rg.levelCoeffPower j) := by
+        simpa [addCost, A] using
+          regularFamilyIndicator_quasiProductBlock_aggregate_levelCoeffPower_le
+            (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+            (p := p) hΩ Rind Rg hblock hM0 htower_g j
+
+theorem regularFamilyRestriction_bound_nonneg
     (G : GoodGridSpace (α := α)) {f : α → ℂ} {M : ℝ}
     (hM : ∀ᵐ z ∂G.toWeakGridSpace.measure, ‖f z‖ ≤ M) :
     0 ≤ M := by
@@ -2517,13 +2752,13 @@ private theorem regularFamily_productBlock_coeff_ne_zero_subset_domain
       (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
       (p := p) hΩ hi Rind Rg hblock Q h2
 
-private noncomputable def regularFamilyGeomLevel
+noncomputable def regularFamilyGeomLevel
     (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
     (s C c : ℝ) (p : ℝ≥0∞) (j : ℕ) : ℝ :=
   C * c ^ (j - firstContainedLevel G (regularFamilyUnion Λ Ω)) *
     (G.grid.μ (regularFamilyUnion Λ Ω)).toReal ^ (1 - p.toReal * s)
 
-private noncomputable def regularFamilyGeomRootCost
+noncomputable def regularFamilyGeomRootCost
     (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
     (s C c : ℝ) (p q : ℝ≥0∞) : ℝ :=
   if q = ∞ then
@@ -2534,14 +2769,14 @@ private noncomputable def regularFamilyGeomRootCost
       (regularFamilyGeomLevel G Λ Ω s C c p j) ^ (q.toReal / p.toReal)) ^
         (1 / q.toReal)
 
-private theorem regularFamilyGeomLevel_nonneg
+theorem regularFamilyGeomLevel_nonneg
     (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c) (j : ℕ) :
     0 ≤ regularFamilyGeomLevel G Λ Ω s C c p j := by
   exact mul_nonneg
     (mul_nonneg hΩ.C_nonneg (pow_nonneg hΩ.c_nonneg _))
     (Real.rpow_nonneg ENNReal.toReal_nonneg _)
 
-private theorem regularFamilyGeomRootCost_nonneg
+theorem regularFamilyGeomRootCost_nonneg
     (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c) :
     0 ≤ regularFamilyGeomRootCost G Λ Ω s C c p q := by
   by_cases hq : q = ∞
@@ -2558,7 +2793,7 @@ private theorem regularFamilyGeomRootCost_nonneg
           (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
           (p := p) hΩ j) _) _
 
-private theorem regularFamilyGeomLevel_rpow_summable
+theorem regularFamilyGeomLevel_rpow_summable
     (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
     (hp_top : p ≠ ∞)
     (hq_top : q ≠ ∞) :
@@ -2616,7 +2851,7 @@ private theorem regularFamilyGeomLevel_rpow_summable
       ring_nf
     _ ≤ B * d ^ m := le_rfl
 
-private theorem regularFamilyGeomLevel_root_le_rootCost
+theorem regularFamilyGeomLevel_root_le_rootCost
     (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
     (hp_top : p ≠ ∞) (j : ℕ) :
     (regularFamilyGeomLevel G Λ Ω s C c p j) ^ (1 / p.toReal) ≤
@@ -2720,7 +2955,7 @@ private theorem regularFamilyIndicatorBlock_inactive_toLp
     (p := p) hΩ hi Q]
   simp
 
-private noncomputable def regularFamilyInactiveIndicatorRepresentation
+noncomputable def regularFamilyInactiveIndicatorRepresentation
     (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
     (i : ℕ) (hi : i ∉ Λ) :
     WeakGridSpace.LpGridRepresentation
@@ -2793,7 +3028,7 @@ private theorem regular_rpow_rpow_one_div {x : ℝ} (hx : 0 ≤ x) {e : ℝ} (he
     (x ^ e) ^ (1 / e) = x := by
   rw [← Real.rpow_mul hx, mul_one_div, div_self he, Real.rpow_one]
 
-private theorem regularFamilyRestrictionCost_le_of_level_bound
+theorem regularFamilyRestrictionCost_le_of_level_bound
     (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
     (hp_top : p ≠ ∞)
     {xg : Lp ℂ p G.toWeakGridSpace.measure}
@@ -3860,6 +4095,40 @@ theorem regularFamilyIndicator_besov_representation
   · intro k
     rfl
 
+/-- Positive canonical Souza representation of the indicator of one active
+member of a regular family. -/
+theorem regularFamilyIndicator_besov_positive_representation
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s C c : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hs_lt_inv : s < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    {i : ℕ} (hi : i ∈ Λ) :
+    ∃ yind : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+    ∃ Rind : WeakGridSpace.LpGridRepresentation
+        (souzaAtomFamily G s p hs hp hp_top)
+        (yind : Lp ℂ p G.toWeakGridSpace.measure),
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p)
+        ((Ω i).indicator fun _ => (1 : ℂ))
+        (yind : Lp ℂ p G.toWeakGridSpace.measure) ∧
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Rind ∧
+      SouzaPositiveRepresentation G s p hs hp hp_top Rind ∧
+      ∀ k, Rind.block k =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i k := by
+  obtain ⟨yind, Rind, hrep, hfin, hblock⟩ :=
+    regularFamilyIndicator_besov_representation
+      G Λ Ω s C c p q hs hs_lt_inv hp hp_top hΩ hi
+  refine ⟨yind, Rind, hrep, hfin, ?_, hblock⟩
+  intro k
+  rw [hblock k]
+  exact regularFamilyIndicatorBlock_positive
+    (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+    (p := p) hΩ i k
+
 /--
 Endpoint version of `regularDomain_indicator_besov_norm_bound`.
 
@@ -3967,6 +4236,37 @@ noncomputable def regularDomainIndicatorCost
     C ^ (1 / p.toReal) /
         (1 - c ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) *
       (G.grid.μ Ω).toReal ^ (1 / p.toReal - s)
+
+/-- The regular-domain indicator gauge is nonnegative for genuine regular
+domains. -/
+theorem regularDomainIndicatorCost_nonneg
+    (G : GoodGridSpace (α := α)) (Ω : Set α)
+    (s C c : ℝ) (p q : ℝ≥0∞)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ q)]
+    (hΩ : RegularDomain G Ω (1 - p.toReal * s) C c) :
+    0 ≤ regularDomainIndicatorCost G Ω s C c p q := by
+  classical
+  have hp0 : p ≠ 0 := (lt_of_lt_of_le zero_lt_one hp).ne'
+  have hpr : 0 < p.toReal := ENNReal.toReal_pos hp0 hp_top
+  have hCpow : 0 ≤ C ^ (1 / p.toReal) :=
+    Real.rpow_nonneg hΩ.C_nonneg _
+  have hμpow : 0 ≤ (G.grid.μ Ω).toReal ^ (1 / p.toReal - s) :=
+    Real.rpow_nonneg ENNReal.toReal_nonneg _
+  by_cases hq : q = ∞
+  · simp only [regularDomainIndicatorCost, hq, if_true]
+    exact mul_nonneg hCpow hμpow
+  · have hqr : 0 < q.toReal :=
+      ENNReal.toReal_pos
+        (lt_of_lt_of_le zero_lt_one (Fact.out : (1 : ℝ≥0∞) ≤ q)).ne' hq
+    have hqp_pos : 0 < q.toReal / p.toReal := div_pos hqr hpr
+    have hgeom : c ^ (q.toReal / p.toReal) < 1 :=
+      Real.rpow_lt_one hΩ.c_nonneg hΩ.c_lt_one hqp_pos
+    have hden_nonneg :
+        0 ≤ (1 - c ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) :=
+      (Real.rpow_pos_of_pos (sub_pos.mpr hgeom) _).le
+    simp only [regularDomainIndicatorCost, hq, if_false]
+    exact mul_nonneg (div_nonneg hCpow hden_nonneg) hμpow
 
 /--
 All-`q` wrapper for the regular-domain indicator estimate `(estG)`.

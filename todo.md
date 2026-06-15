@@ -42,9 +42,12 @@ Current target:
 
 Follow-up file:
 
-- [ ] Prove the four proposed regular-domain non-Archimedean statements in
-      `BesovSpacesGoodGrid/GoodGrid/RegularDomainsNonArchimedean.lean`
-      (currently one `sorry` per theorem).
+- [ ] Finish the three remaining proposed regular-domain non-Archimedean
+      statements in
+      `BesovSpacesGoodGrid/GoodGrid/RegularDomainsNonArchimedean.lean`.
+      The uniform regular-family non-positive theorem is now proved; the
+      remaining `sorry`s are the non-uniform theorem, the positive non-uniform
+      theorem, and the positive uniform theorem.
 
 Already done for this target:
 
@@ -68,6 +71,39 @@ Already done for this target:
 - [x] For each active `i ∈ Λ`, `regularFamilyIndicator_besov_representation`
       constructs a finite-cost Souza representation of `1_{Ω i}` with the
       canonical indicator blocks.
+- [x] The non-uniform overlap hypothesis has been reformulated in the bounded
+      Besov gauge:
+      `|Θ i| * (1 + regularDomainIndicatorCost Ω_i)` for domains meeting an
+      active source cell.
+- [x] Pointwise/a.e. bounds are proved for both uniform regular families and
+      non-uniform regular domains:
+      the weighted indicator product series has the expected `HasSum` and
+      satisfies `‖∑ Θ_i 1_{Ω_i} f‖ ≤ N ‖f‖` and `≤ N M` a.e.
+- [x] The finite uniform non-Archimedean core and infinite compactness passage
+      are in place for regular families, including support transfer.
+- [x] The uniform non-positive regular-family theorem
+      `regularFamily_nonArchimedean_indicator_multipliers` is proved with the
+      bounded-gauge estimate
+      `pqCost S + ‖h‖∞ ≤ Cna * N * (pqCost R + M)`.
+- [x] Positive product-block infrastructure is checked: positive input
+      representations make the weighted and strict ancestor towers
+      nonnegative real scalars, and the two product halves `quasiU1Block` and
+      `quasiU2Block` are Souza-positive.
+
+Remaining proof steps for the follow-up file:
+
+- [ ] Prove the positive finite/infinite assembly for the uniform regular-family
+      theorem.  The next local obstacle is the final `u₁ + u₂` product
+      assembly: the generic `WeakGridSpace.LevelBlock.add` is not by itself a
+      positive-cone constructor in zero-coefficient cells, so the likely route
+      is canonicalization after assembling the two positive product halves.
+- [ ] Prove the non-uniform representation assembly using the individual
+      `regularDomainIndicatorCost` overlap hypothesis.  The pointwise bounds
+      are done; what remains is the finite/infinite representation construction
+      for arbitrary regular domains whose costs are summed over domains meeting
+      each active source cell.
+- [ ] Use the non-uniform assembly plus nonnegative weights to finish the
+      positive non-uniform variant.
 
 Completed proof steps:
 
