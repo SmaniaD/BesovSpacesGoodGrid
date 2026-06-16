@@ -13,6 +13,7 @@ import BesovSpacesGoodGrid.GoodGrid.DiracApproximations
 import BesovSpacesGoodGrid.GoodGrid.Multipliers
 import BesovSpacesGoodGrid.GoodGrid.PositiveCone
 import BesovSpacesGoodGrid.GoodGrid.QuasiAlgebra
+import BesovSpacesGoodGrid.GoodGrid.RegularDomains
 
 /-!
 # Besov spaces over weak grids and good grids

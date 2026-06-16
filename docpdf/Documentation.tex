@@ -204,8 +204,10 @@ The mathematical pipeline, in this order, is:
     multiplier characterization, the non-Archimedean multiplier estimates,
     including their positive-cone versions, and their consequences --- the
     inclusion of the tail \lean{selfs} classes in the multiplier space,
-    strongly regular domains and Pointwise Multipliers~I, and Pointwise
-    Multipliers~II with its positive-cone version;
+    strongly regular domains and Pointwise Multipliers~I, Pointwise
+    Multipliers~II with its positive-cone version, and regular domains
+    (regular families, the indicator bound, and the localized restriction
+    representations);
   \item prove the quasi-algebra property of the bounded Souza--Besov space:
     $\mathcal{B}^s_{p,q} \cap L^\infty$ is closed under pointwise
     multiplication, with a bilinear bound (Pointwise Multipliers~III).
@@ -214,7 +216,7 @@ A guide to the repository files is given in Section~\ref{guide}.
 
 \subsection{How this document was produced}
 
-This is a mathematical description of the current state (June 12, 2026) of the
+This is a mathematical description of the current state (June 14, 2026) of the
 Lean~4 formalization of \cite{paper}. It was produced from a \emph{prerelease
 version of the published paper} (the LaTeX source
 \lean{preprint-source/besovish-2020-07-18.tex}, included in the repository)
@@ -229,11 +231,13 @@ by the following rules.
   paper Sections~20--21 (description of $\SB^s_{1,1}$ by indicators, left
   compositions). Dirac's approximations (paper Section~17), the whole
   multiplier Section~18 --- Corollary~18.6, strongly regular domains and
-  Pointwise Multipliers~I (18.7--18.9), and Pointwise Multipliers~II
-  (18.10) together with its positive-cone version --- and the quasi-algebra
-  result of Section~19 (Proposition~19.1, Pointwise Multipliers~III) are
-  formalized and documented in Sections~\ref{diracsec}, \ref{multsec}
-  and~\ref{quasisec}.
+  Pointwise Multipliers~I (18.7--18.9), Pointwise Multipliers~II
+  (18.10) together with its positive-cone version, and the regular-domains
+  subsection \texttt{cf} (regular families, the indicator bound \texttt{estG},
+  and the localized restriction representations \texttt{pdd}/\texttt{hiip1})
+  --- and the quasi-algebra result of Section~19 (Proposition~19.1, Pointwise
+  Multipliers~III) are formalized and documented in Sections~\ref{diracsec},
+  \ref{multsec} and~\ref{quasisec}.
 \item Statements were updated to match the precision of the formalization;
   every change with mathematical content is recorded in the
   \emph{Formalization} paragraph that follows the statement.
@@ -3053,6 +3057,178 @@ theorem souzaPointwiseMultipliersIIPositive
                 souzaPositiveNorm G s p q hs hp hp_top x := ...
 \end{lstlisting}
 
+\subsection{Regular domains}\label{cfsub}
+
+\filebox{GoodGrid/RegularDomains.lean}{GoodGrid/Multipliers/StronglyRegularDomains.lean,
+GoodGrid/QuasiAlgebra.lean}
+
+Strongly regular domains control $\mathbbm{1}_\Omega$ through one cost
+constant per intersecting cell. The paper's \emph{regular domains}
+(subsection~\ref{cfsub}, label \texttt{cf} in the source) relax this to a
+single geometric series across the whole family: the indicators are still
+bounded multipliers of $\mathcal{B}^s_{p,q} \cap L^\infty$, and the
+restrictions $g \cdot \mathbbm{1}_{\Omega_r}$ admit Souza representations
+whose coefficients are localized in $\Omega_r$. Throughout, $k_0(\Omega)$ is
+the first level at which $\Omega$ contains a grid cell (\lean{firstContainedLevel}).
+
+\begin{definition}\label{cfdef}
+Let $a \in \mathbb{R}$, $C \geq 0$ and $0 \leq c < 1$. A countable family
+$\{\Omega_r\}_{r \in \Lambda}$, $\Lambda \subset \mathbb{N}$, of pairwise
+disjoint measurable sets is an $(a, C, c)$-\textbf{regular family} if one can
+choose families $\mathcal{F}^k(\Omega_r) \subset \mathcal{P}^k$ tiling each
+$\Omega_r$ ($\Omega_r = \bigcup_k \bigcup_{Q \in \mathcal{F}^k(\Omega_r)} Q$,
+disjointly, with $\mathcal{F}^k(\Omega_r) = \emptyset$ for $k < k_0(\Omega_r)$)
+such that the level cost obeys
+\begin{equation*}
+\sum_{r \in \Lambda} \sum_{Q \in \mathcal{F}^k(\Omega_r)} m(Q)^a
+\;\leq\; C\, c^{\,k - k_0(\cup_r \Omega_r)}\, m\Big(\bigcup_r \Omega_r\Big)^a.
+\tag{dom}
+\end{equation*}
+A measurable set $\Omega$ is an $(a, C, c)$-\textbf{regular domain} if the
+singleton $\{\Omega\}$ is an $(a, C, c)$-regular family.
+\end{definition}
+
+\formalpar{In \lean{GoodGrid/RegularDomains.lean} (paper subsection
+\texttt{cf}). The two structures are \lean{RegularFamily} and
+\lean{RegularDomain}; both carry $C \geq 0$ and $0 \leq c < 1$ as fields and
+the cost~(dom) as \lean{cost}. The bridge from a domain to its singleton
+family is \lean{RegularDomain.toRegularFamily\_singleton}, and the reverse
+union construction (the family union is itself a regular domain) is
+\lean{RegularFamily.regularDomain\_union}, built from the per-level finite
+cell selection \lean{unionFamily} and the summable active-family cost series
+\lean{RegularFamily.cost\_summable}.}
+
+\begin{proposition}\label{srreg}
+Let $\beta > s$. Every $(1-\beta p, K, 0)$-strongly regular domain (that
+contains a grid cell) is a $(1-sp, C', \lambda_2^{(\beta-s)p})$-regular
+domain for some $C' \geq 0$.
+\end{proposition}
+
+\formalpar{In \lean{GoodGrid/RegularDomains.lean} this is
+\lean{regularDomain\_of\_stronglyRegularDomain}; the geometric ratio is the
+grid constant $\lambda_2^{(\beta-s)p} < 1$, and $C' = K\, \lambda_1^{-k_0(\Omega)}$.
+The candidate decomposition is assembled cell-by-cell over $\mathcal{P}^{k_0(\Omega)}$
+from the strong decompositions of $Q \cap \Omega$, and the quantitative step
+turns the strong $1-\beta p$ costs into the regular $1-sp$ geometric cost.}
+
+\begin{proposition}\label{cfest}
+Let $\Omega$ be a $(1-sp, C, c)$-regular domain. Then its indicator is a Besov
+function: for finite $q$,
+\begin{equation*}
+|\mathbbm{1}_\Omega|_{\mathcal{B}^s_{p,q}}
+\;\leq\; \frac{C^{1/p}}{(1 - c^{q/p})^{1/q}}\, m(\Omega)^{1/p - s},
+\tag{estG}
+\end{equation*}
+while at the endpoint $q = \infty$ the geometric series collapses to a
+supremum (which is attained as $c^{k - k_0} \leq 1$), so the factor
+$(1 - c^{q/p})^{-1/q}$ disappears and
+\begin{equation*}
+|\mathbbm{1}_\Omega|_{\mathcal{B}^s_{p,\infty}}
+\;\leq\; C^{1/p}\, m(\Omega)^{1/p - s}.
+\tag{$\mathrm{estG}_\infty$}
+\end{equation*}
+In both cases $g \mapsto g \cdot \mathbbm{1}_\Omega$ is a bounded multiplier of
+$\mathcal{B}^s_{p,q} \cap L^\infty$: there is $C_{op} \geq 0$ with a
+representation of $g \cdot \mathbbm{1}_\Omega$ of cost at most
+$C_{op}\,(|g|_{\mathcal{B}^s_{p,q}} + \|g\|_\infty)$.
+\end{proposition}
+
+\formalpar{In \lean{GoodGrid/RegularDomains.lean}. The finite-$q$ bound~(estG)
+is \lean{regularDomain\_indicator\_besov\_norm\_bound} and the endpoint
+$(\mathrm{estG}_\infty)$ is \lean{regularDomain\_indicator\_besov\_norm\_bound\_top};
+both are folded into the all-$q$ statement
+\lean{regularDomain\_indicator\_besov\_norm\_bound\_all}, whose explicit
+constant is \lean{regularDomainIndicatorCost} (defined by case on $q = \infty$:
+the value is $C^{1/p}\, m(\Omega)^{1/p-s}$ at the endpoint and
+$C^{1/p} (1 - c^{q/p})^{-1/q}\, m(\Omega)^{1/p-s}$ for finite $q$). The bounded
+multiplier is \lean{regularDomain\_indicator\_multiplier\_on\_bounded\_souzaBesov}
+(finite $q$) and \lean{...\_top} ($q = \infty$, obtained by applying Pointwise
+Multipliers~III at $q = \infty$ to the indicator representation), unified as
+\lean{...\_all}. The same four conclusions for the union of a regular family
+are \lean{regularFamilyUnion\_indicator\_besov\_norm\_bound\_all} and
+\lean{regularFamilyUnion\_indicator\_multiplier\_on\_bounded\_souzaBesov\_all}
+(each handling both finite $q$ and the endpoint internally).}
+
+\begin{theorem}[Localized restriction representations]\label{cfpdd}
+If $\{\Omega_r\}_{r \in \Lambda}$ is a $(1-ps, C, c)$-regular family then
+there is a constant $C_{rel} \geq 0$ such that for every $g \in
+\mathcal{B}^s_{p,q} \cap L^\infty$ with $\|g\|_\infty \leq M$ and each $r \in
+\Lambda$ one finds a Souza representation
+\begin{equation*}
+g \cdot \mathbbm{1}_{\Omega_r}
+\;=\; \sum_k \sum_{\substack{Q \in \mathcal{P}^k \\ Q \subset \Omega_r}}
+d_Q^r\, a_Q
+\tag{pdd}
+\end{equation*}
+of finite cost whose nonzero coefficients are supported on cells contained in
+$\Omega_r$, with the mixed cost bound
+\begin{equation*}
+\Big( \sum_j \big( \sum_{r \in \Lambda}
+\sum_{\substack{Q \in \mathcal{P}^j \\ Q \subset \Omega_r}}
+|d_Q^r|^p \big)^{q/p} \Big)^{1/q}
+\;\leq\; C_{rel}\, \big(|g|_{\mathcal{B}^s_{p,q}} + M\big).
+\tag{hiip1}
+\end{equation*}
+The statement is uniform in $q \in [1, \infty]$: at the endpoint $q = \infty$
+the outer $\ell^q$ in~(hiip1) is read as the supremum over levels $j$ of the
+$p$-th roots $\big(\sum_r \sum_{Q \subset \Omega_r} |d_Q^r|^p\big)^{1/p}$, and
+$C_{rel}$ uses the corresponding supremum form of the geometric reference cost.
+\end{theorem}
+
+\formalpar{In \lean{GoodGrid/RegularDomains.lean} this is
+\lean{regularFamily\_restriction\_representations}. The aggregated mixed cost
+of~(hiip1) is \lean{regularFamilyRestrictionCost} (its inner level term
+\lean{regularFamilyRestrictionLevelCoeffPower} sums $|d_Q^r|^p$ over both
+$r \in \Lambda$ and cells $Q$), and the geometric reference cost coming purely
+from regularity is \lean{regularFamilyGeomRootCost}. Both
+\lean{regularFamilyRestrictionCost} and \lean{regularFamilyGeomRootCost} are
+defined by a case split on $q = \infty$ (a supremum of the level roots at the
+endpoint, an $\ell^{q}$ sum of those roots otherwise), so the single Lean
+theorem covers the whole range $q \in [1, \infty]$. The proof takes a weighted
+\texttt{fou} representation of $g$ (\lean{exists\_weighted\_fouRepresentation}),
+a localized Besov representation of each $\mathbbm{1}_{\Omega_r}$
+(\lean{regularFamilyIndicator\_besov\_representation}), and combines them with
+the quasi-algebra $u_1 + u_2$ product of Section~\ref{quasisec}
+(\lean{exists\_quasi\_product\_of\_tower\_representations}); a convexity step
+$|a+b|^p \leq 2^{p-1}(|a|^p + |b|^p)$ produces the explicit constant
+$C_{rel} = (2^{p-1})^{1/p}\,(\lean{regularFamilyGeomRootCost} + C_{fou})$.
+Axioms checked: \lean{propext}, \lean{Classical.choice}, \lean{Quot.sound}.}
+\begin{lstlisting}[style=lean,basicstyle=\ttfamily\scriptsize]
+theorem regularFamily_restriction_representations
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s C c : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hs_lt_inv : s < (p.toReal)⁻¹)
+    (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c) :
+    ∃ Crel : ℝ,
+      0 ≤ Crel ∧
+      ∀ (g : α → ℂ) (M : ℝ)
+        (xg : WeakGridSpace.BesovishSpace
+          (souzaAtomFamily G s p hs hp hp_top) q),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p) g
+          (xg : Lp ℂ p G.toWeakGridSpace.measure) →
+        (∀ᵐ z ∂G.toWeakGridSpace.measure, ‖g z‖ ≤ M) →
+        ∃ y : ℕ → WeakGridSpace.BesovishSpace
+            (souzaAtomFamily G s p hs hp hp_top) q,
+          ∃ R : (i : ℕ) →
+              WeakGridSpace.LpGridRepresentation
+                (souzaAtomFamily G s p hs hp hp_top)
+                ((y i : ...) : Lp ℂ p G.toWeakGridSpace.measure),
+            (∀ i ∈ Λ, WeakGridSpace.RepresentsFunction (p := p)
+                (fun z => g z * (Ω i).indicator (fun _ => (1 : ℂ)) z)
+                (y i : Lp ℂ p G.toWeakGridSpace.measure)) ∧
+            (∀ i ∈ Λ,
+              WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (R i)) ∧
+            (∀ i ∈ Λ, ∀ j (Q : WeakGridSpace.LevelCell G.toWeakGridSpace j),
+                ((R i).block j).coeff Q ≠ 0 → Q.1 ⊆ Ω i) ∧
+            regularFamilyRestrictionCost G s p q Λ y R ≤
+              Crel *
+                (WeakGridSpace.BesovishSpace.Norm_Costpq
+                    (souzaAtomFamily G s p hs hp hp_top) q xg + M) := ...
+\end{lstlisting}
+
 \section{The bounded Souza--Besov space as a quasi-algebra}\label{quasisec}
 
 \filebox{GoodGrid/QuasiAlgebra.lean}{GoodGrid/Multipliers/Bp1overpinftyisMultiplier.lean}
@@ -3246,6 +3422,13 @@ whole pipeline.
     \lean{Bp1overpinftyisMultiplier.lean} (Pointwise Multipliers~II, paper
     Proposition~18.10, together with its positive-cone version,
     Remark~\ref{pos3}).
+  \item \lean{GoodGrid/RegularDomains.lean}: regular families and regular
+    domains (paper subsection \texttt{cf}, Section~\ref{cfsub}) --- the
+    definitions and the union construction, the strongly-regular $\Rightarrow$
+    regular comparison, the indicator Besov/multiplier bounds \texttt{estG},
+    and the localized restriction representation estimate
+    \texttt{pdd}/\texttt{hiip1}
+    (\lean{regularFamily\_restriction\_representations}).
 \end{itemize}
 
 \subsection{External dependencies}
@@ -3259,8 +3442,8 @@ unconditional basis property used in Section~\ref{haar}.
 
 \subsection{Repository status}
 
-At the date of this document (June 12, 2026) a full \lean{lake build}
-succeeds (3459 jobs) and the project Lean files contain no \lean{sorry}, no
+At the date of this document (June 14, 2026) a full \lean{lake build}
+succeeds and the project Lean files contain no \lean{sorry}, no
 \lean{admit}, and no project-local \lean{axiom} or \lean{constant}
 declarations; every project module, including the multiplier and
 quasi-algebra files, is imported by the aggregate root
@@ -3282,7 +3465,8 @@ and their consequences, namely
 \lean{exists\_fouRepresentation},\quad
 \lean{souzaPointwiseMultipliersII},\\
 \lean{souzaPointwiseMultipliersIIPositive},\quad
-\lean{souzaPointwiseMultipliersIII}
+\lean{souzaPointwiseMultipliersIII},\\
+\lean{regularFamily\_restriction\_representations}
 \end{center}
 --- were checked
 with \lean{\#print axioms}: only the standard axioms \lean{propext},

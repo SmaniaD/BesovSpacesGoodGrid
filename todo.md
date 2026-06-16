@@ -32,7 +32,105 @@ is not formalized.  Infrastructure:
 `Distribution.lean` (test functions/distributions) and
 `AlternativeRepresentationsAndNorms` (standard representation).
 
-## 3. Other targets from `paper-map.md`
+## 3. Regular domains (`cf`) — DONE (2026-06-14)
+
+File: `BesovSpacesGoodGrid/GoodGrid/RegularDomains.lean`.
+
+Current target:
+
+- [x] Finish `regularFamily_restriction_representations`.
+
+Follow-up file:
+
+- [ ] Finish the two remaining proposed regular-domain non-Archimedean
+      statements in
+      `BesovSpacesGoodGrid/GoodGrid/RegularDomainsNonArchimedean.lean`.
+      Both uniform regular-family theorems are now proved; the remaining
+      `sorry`s are the non-uniform theorem and the positive non-uniform
+      theorem.
+
+Already done for this target:
+
+- [x] `RegularFamily.cost_summable` is derived from the structure, so the
+      structure no longer needs a separate summability field.
+- [x] The theorem statement includes the paper's bounded-input hypothesis:
+      `g` is controlled a.e. by an `L∞` bound `M`, and the target estimate
+      uses the natural bounded Besov gauge
+      `Norm_Costpq xg + M`.
+- [x] Product-construction internals in `QuasiAlgebra.lean` expose the block
+      identity
+      `R.block k = LevelBlock.add ... (quasiU1Block ...) (quasiU2Block ...)`,
+      so support and aggregate estimates can be proved in `RegularDomains`.
+- [x] Canonical regular-family indicator blocks are localized:
+      nonzero coefficients of `u₁`, `u₂`, and their product live inside the
+      corresponding active domain.
+- [x] The strict ancestor tower of the canonical indicator representation is
+      bounded by `1`.
+- [x] Aggregate level estimates are proved for `u₁`, `u₂`, and the product
+      block `u₁ + u₂`.
+- [x] For each active `i ∈ Λ`, `regularFamilyIndicator_besov_representation`
+      constructs a finite-cost Souza representation of `1_{Ω i}` with the
+      canonical indicator blocks.
+- [x] The non-uniform overlap hypothesis has been reformulated in the bounded
+      Besov gauge:
+      `|Θ i| * (1 + regularDomainIndicatorCost Ω_i)` for domains meeting an
+      active source cell.
+- [x] Pointwise/a.e. bounds are proved for both uniform regular families and
+      non-uniform regular domains:
+      the weighted indicator product series has the expected `HasSum` and
+      satisfies `‖∑ Θ_i 1_{Ω_i} f‖ ≤ N ‖f‖` and `≤ N M` a.e.
+- [x] The finite uniform non-Archimedean core and infinite compactness passage
+      are in place for regular families, including support transfer.
+- [x] The uniform non-positive regular-family theorem
+      `regularFamily_nonArchimedean_indicator_multipliers` is proved with the
+      bounded-gauge estimate
+      `pqCost S + ‖h‖∞ ≤ Cna * N * (pqCost R + M)`.
+- [x] Positive product-block infrastructure is checked: positive input
+      representations make the weighted and strict ancestor towers
+      nonnegative real scalars, and the two product halves `quasiU1Block` and
+      `quasiU2Block` are Souza-positive.
+- [x] Positive finite weighted sums now have the coefficient and exact
+      level-power API needed for localized cost estimates:
+      `exists_finset_weighted_sum_positive_representation_support`,
+      `exists_finset_weighted_sum_positive_representation_disjoint_levelCoeffPower`,
+      and `exists_finset_weighted_sum_positive_regularFamily_levelCoeffPower`.
+- [x] The positive uniform regular-family theorem
+      `regularFamily_nonArchimedean_indicator_multipliers_positive` is proved
+      using positive product representations, the finite positive weighted-sum
+      estimate, and `exists_limit_representation_of_finite_sequence_pos_with_support`.
+- [x] The non-uniform main statements now explicitly assume the authorized
+      pairwise disjointness condition
+      `∀ i ∈ Λ, ∀ j ∈ Λ, i ≠ j → Disjoint (Ω i) (Ω j)`.
+- [x] Finite weighted sums localized in pairwise disjoint non-uniform domains
+      now have exact level-power APIs:
+      `exists_finset_weighted_sum_disjointDomains_levelCoeffPower` and
+      `exists_finset_weighted_sum_positive_disjointDomains_levelCoeffPower`.
+
+Remaining proof steps for the follow-up file:
+
+- [ ] Prove the non-uniform representation assembly using the individual
+      `regularDomainIndicatorCost` overlap hypothesis.  The pointwise bounds
+      and finite disjoint-support algebra are done; what remains is the
+      singleton product-level cost estimate driven by
+      `|Θ i| * (1 + regularDomainIndicatorCost Ω_i) ≤ N` on active source
+      cells, followed by the compactness passage.
+- [ ] Use the non-uniform assembly plus nonnegative weights to finish the
+      positive non-uniform variant.
+
+Completed proof steps:
+
+- [x] Assembled, for each active `i`, the quasi-product representation of
+      `1_{Ω i} * g` using the canonical indicator representation and the
+      weighted representation of `g`.
+- [x] Converted the proved level-by-level aggregate product estimate into the
+      mixed `regularFamilyRestrictionCost` bound.
+- [x] Handled the two cost cases:
+      `q = ∞` via supremum control, and `q < ∞` via the geometric tail and
+      finite `q` summability of the chosen representation of `g`.
+- [x] Removed the final `sorry` and rechecked with
+      `lake env lean BesovSpacesGoodGrid/GoodGrid/RegularDomains.lean`.
+
+## 4. Other targets from `paper-map.md`
 
 - [ ] Wrap-up equivalence theorem for Theorem 15.1 (package the proved
       inequality cycle) + the `L¹` functional of Cor 15.2.

@@ -334,7 +334,7 @@ private theorem souzaLevelBlock_toFunLt_eq_zero_of_inactive_at
         (B.atom Q) z hzQ
     simp [hatom_zero]
 
-private theorem exists_active_cell_of_representsFunction_ne_zero_ae
+theorem exists_active_cell_of_representsFunction_ne_zero_ae
     (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
     [Fact (1 ≤ p)] [Fact (1 ≤ q)]
@@ -4074,7 +4074,7 @@ private theorem nonArchimedean_partialProducts_aestronglyMeasurable
     simpa [Λn] using hy_rep
   exact hy_meas.congr hpartial_eq
 
-private theorem tendsto_nonArchimedean_partial_sums_of_hasSum
+theorem tendsto_nonArchimedean_partial_sums_of_hasSum
     {Λ : Set ℕ} (g : ℕ → α → ℂ) (f h : α → ℂ) {z : α}
     (hseries_z : HasSum
       (fun i : {i // i ∈ Λ} => g i.1 z * f z)
@@ -4298,7 +4298,7 @@ private theorem exists_nonArchimedeanInfinite_pointwise_hasSum
 
 
 
-private theorem mem_of_mem_nonArchimedeanLambdaInitial
+theorem mem_of_mem_nonArchimedeanLambdaInitial
     {Λ : Set ℕ} {n i : ℕ}
     (hi : i ∈ nonArchimedeanLambdaInitial Λ n) :
     i ∈ Λ := by
@@ -4385,7 +4385,7 @@ private theorem exists_nonArchimedean_finite_representation_initial
     hTail_fin hA_fin hB_fin
 
 
-private theorem ae_eq_partialFun_on_composed_subseq
+theorem ae_eq_partialFun_on_composed_subseq
     {μ : Measure α} {p : ℝ≥0∞}
     {partialFun : ℕ → α → ℂ}
     {yseq : ℕ → Lp ℂ p μ}
@@ -4400,7 +4400,7 @@ private theorem ae_eq_partialFun_on_composed_subseq
   filter_upwards [hsets] with z hz n
   exact Set.mem_iInter.mp hz n
 
-private theorem representsFunction_of_tendsto_subseq
+theorem representsFunction_of_tendsto_subseq
     (G : GoodGridSpace (α := α)) (p : ℝ≥0∞)
     {h : α → ℂ} {yLimLp : Lp ℂ p G.toWeakGridSpace.measure}
     {partialFun : ℕ → α → ℂ}
@@ -4434,7 +4434,7 @@ private theorem representsFunction_of_tendsto_subseq
     hzA.comp ((hφ.comp hψ).tendsto_atTop)
   exact tendsto_nhds_unique hzB hsub
 
-private theorem exists_subseq_tendsto_ae_of_tendsto_Lp
+theorem exists_subseq_tendsto_ae_of_tendsto_Lp
     {μ : Measure α} {p : ℝ≥0∞}
     [Fact (1 ≤ p)]
     {u : ℕ → Lp ℂ p μ} {uLim : Lp ℂ p μ}
@@ -4461,7 +4461,7 @@ private theorem exists_subseq_tendsto_ae_of_tendsto_Lp
 
 
 
-private theorem exists_limit_representation_of_finite_sequence
+theorem exists_limit_representation_of_finite_sequence
     (G : GoodGridSpace (α := α))
     (s : ℝ) (p q : ℝ≥0∞)
     (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
@@ -4581,6 +4581,120 @@ private theorem exists_limit_representation_of_finite_sequence
 
   · change WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤ Cbound
     exact hScost
+
+/--
+Limit passage for uniformly bounded finite representations, preserving an
+abstract coefficient-support property.
+
+The support predicate `SupportProp k Q` can be any proposition attached to a
+level cell.  It is inherited by the limit representation because coefficient
+convergence implies that a nonzero limit coefficient is nonzero along some
+finite approximant.
+-/
+theorem exists_limit_representation_of_finite_sequence_with_support
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    {Cbound : ℝ} (hCbound_nonneg : 0 ≤ Cbound)
+    {h : α → ℂ} {partialFun : ℕ → α → ℂ}
+    (SupportProp : ∀ k, WeakGridSpace.LevelCell G.toWeakGridSpace k → Prop)
+    (yseq : ℕ → WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (Sseq : ∀ n, WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (yseq n : Lp ℂ p G.toWeakGridSpace.measure))
+    (hyseq_rep : ∀ n,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) (partialFun n)
+        (yseq n : Lp ℂ p G.toWeakGridSpace.measure))
+    (hSseq_fin : ∀ n,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (Sseq n))
+    (hSseq_cost : ∀ n,
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) (Sseq n) ≤ Cbound)
+    (hSseq_supp : ∀ n k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      ((Sseq n).block k).coeff Q ≠ 0 → SupportProp k Q)
+    (hpartial_tendsto : ∀ᵐ z ∂G.toWeakGridSpace.measure,
+      Filter.Tendsto (fun n : ℕ => partialFun n z) Filter.atTop (𝓝 (h z))) :
+    ∃ y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      ∃ S : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (y : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p) h
+          (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤ Cbound ∧
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+          (S.block k).coeff Q ≠ 0 → SupportProp k Q) := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let μ := G.toWeakGridSpace.measure
+  let yseqLp : ℕ → Lp ℂ p μ := fun n => (yseq n : Lp ℂ p μ)
+  rcases WeakGridSpace.exists_strongly_convergent_subseq_of_uniform_pqCost
+      (G := G.toWeakGridSpace) (s := s) (p := p) (u := ∞) (q := q)
+      hp_top hs le_top A
+      (souza_assumptionG2 G s p q hs hp hp_top)
+      (souza_assumptionA5 G s p hs hp hp_top)
+      Sseq hCbound_nonneg hSseq_fin hSseq_cost with
+    ⟨φ, hφ, yLimLp, S, hmemLim, hSfin, hScost, hy_tendsto, hcoeff_lim, _hatom_lim⟩
+  have hy_tendsto_lp :
+      Filter.Tendsto
+        (fun n : ℕ => yseqLp (φ n))
+        Filter.atTop
+        (𝓝 yLimLp) := by
+    change Filter.Tendsto
+      (fun n : ℕ => (yseq (φ n) : Lp ℂ p G.toWeakGridSpace.measure))
+      Filter.atTop
+      (𝓝 yLimLp)
+    exact hy_tendsto
+  rcases exists_subseq_tendsto_ae_of_tendsto_Lp
+      (μ := μ)
+      (u := fun n : ℕ => yseqLp (φ n))
+      (uLim := yLimLp)
+      hy_tendsto_lp with
+    ⟨ψ, hψ, hy_ae⟩
+  have hyseq_rep_lp : ∀ n, yseqLp n =ᵐ[μ] partialFun n := by
+    intro n
+    change WeakGridSpace.RepresentsFunction
+      (G := G.toWeakGridSpace) (p := p) (partialFun n)
+      (yseq n : Lp ℂ p G.toWeakGridSpace.measure)
+    exact hyseq_rep n
+  have hcoe :
+      ∀ᵐ z ∂μ, ∀ n : ℕ,
+        yseqLp (φ (ψ n)) z = partialFun (φ (ψ n)) z :=
+    ae_eq_partialFun_on_composed_subseq hyseq_rep_lp φ ψ
+  have hy_subseq_tendsto :
+      ∀ᵐ z ∂G.toWeakGridSpace.measure,
+        Filter.Tendsto
+          (fun n : ℕ => partialFun (φ (ψ n)) z)
+          Filter.atTop
+          (𝓝 (yLimLp z)) := by
+    filter_upwards [hy_ae, hcoe] with z hyz hcoez
+    exact hyz.congr' <|
+      Filter.Eventually.of_forall fun n : ℕ => hcoez n
+  have hLimRep :
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) h yLimLp :=
+    representsFunction_of_tendsto_subseq
+      G p φ ψ hφ hψ hpartial_tendsto hy_subseq_tendsto
+  have hsupp_lim : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      (S.block k).coeff Q ≠ 0 → SupportProp k Q := by
+    intro k Q hne
+    have hex : ∃ n, ((Sseq (φ n)).block k).coeff Q ≠ 0 := by
+      by_contra hall
+      push_neg at hall
+      have hzero :
+          Filter.Tendsto (fun n => ((Sseq (φ n)).block k).coeff Q)
+            Filter.atTop (𝓝 (0 : ℂ)) := by
+        simpa [hall] using
+          (tendsto_const_nhds :
+            Filter.Tendsto (fun _ : ℕ => (0 : ℂ)) Filter.atTop (𝓝 (0 : ℂ)))
+      exact hne (tendsto_nhds_unique (hcoeff_lim k Q) hzero)
+    obtain ⟨n, hn⟩ := hex
+    exact hSseq_supp (φ n) k Q hn
+  exact ⟨⟨yLimLp, hmemLim⟩, S, hLimRep, hSfin, hScost, hsupp_lim⟩
 
 
 private theorem exists_nonArchimedeanInfinite_besov_representation
@@ -6321,6 +6435,187 @@ private theorem exists_limit_representation_of_finite_sequence_pos
         (Filter.Eventually.of_forall fun n => (hpos_n n Q).1)
     · -- atom in the positive cone: a.e. limit along a subsequence
       obtain ⟨ψa, _hψa, hae_atom⟩ :=
+        exists_subseq_tendsto_ae_of_tendsto_Lp
+          (μ := μ)
+          (u := fun n => WeakGridSpace.atomLp A
+            (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+            (((Sseq (φ n)).block k).atom Q))
+          (uLim := WeakGridSpace.atomLp A
+            (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+            ((S.block k).atom Q))
+          (hatom_lim k Q)
+      have hcoe_n : ∀ᵐ x ∂μ, ∀ n : ℕ,
+          ((WeakGridSpace.atomLp A
+            (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+            (((Sseq (φ (ψa n))).block k).atom Q)) : α → ℂ) x =
+            A.toFunction
+              (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+              (((Sseq (φ (ψa n))).block k).atom Q) x := by
+        refine ae_all_iff.2 ?_
+        intro n
+        exact atomLp_representsFunction G.toWeakGridSpace A
+          (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+          (((Sseq (φ (ψa n))).block k).atom Q)
+      have hcoe_lim :
+          ((WeakGridSpace.atomLp A
+            (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+            ((S.block k).atom Q)) : α → ℂ) =ᵐ[μ]
+            A.toFunction
+              (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+              ((S.block k).atom Q) :=
+        atomLp_representsFunction G.toWeakGridSpace A
+          (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+          ((S.block k).atom Q)
+      have hcone_n : ∀ᵐ x ∂μ, ∀ n : ℕ,
+          ∃ d : ℝ, 0 ≤ d ∧
+            A.toFunction
+              (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+              (((Sseq (φ (ψa n))).block k).atom Q) x = (d : ℂ) := by
+        refine ae_all_iff.2 ?_
+        intro n
+        exact (hpos_n (ψa n) Q).2
+      filter_upwards [hae_atom, hcoe_n, hcoe_lim, hcone_n]
+        with x hx_lim hx_coe hx_coelim hx_cone
+      have htends :
+          Filter.Tendsto
+            (fun n => A.toFunction
+              (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+              (((Sseq (φ (ψa n))).block k).atom Q) x)
+            Filter.atTop
+            (𝓝 (A.toFunction
+              (WeakGridSpace.levelCellToWeakGridCell G.toWeakGridSpace k Q)
+              ((S.block k).atom Q) x)) := by
+        rw [← hx_coelim]
+        exact hx_lim.congr fun n => hx_coe n
+      exact complex_nonnegReal_isClosed.mem_of_tendsto htends
+        (Filter.Eventually.of_forall fun n => hx_cone n)
+  exact ⟨⟨yLimLp, hmemLim⟩, S, hLimRep, hSfin, hScost, hsupp_lim, hpos_lim⟩
+
+/--
+Limit of finite positive representations with an abstract coefficient-support
+predicate.
+
+This is the reusable positive analogue of
+`exists_limit_representation_of_finite_sequence_with_support`: coefficient
+support passes to the limit by coefficient convergence, and cone positivity
+passes to the limit by closedness of the nonnegative real ray and a.e.
+convergence of atom representatives.
+-/
+theorem exists_limit_representation_of_finite_sequence_pos_with_support
+    (G : GoodGridSpace (α := α))
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    {Cbound : ℝ} (hCbound_nonneg : 0 ≤ Cbound)
+    {h : α → ℂ} {partialFun : ℕ → α → ℂ}
+    (SupportProp : ∀ k, WeakGridSpace.LevelCell G.toWeakGridSpace k → Prop)
+    (yseq : ℕ → WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (Sseq : ∀ n, WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (yseq n : Lp ℂ p G.toWeakGridSpace.measure))
+    (hyseq_rep : ∀ n,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) (partialFun n)
+        (yseq n : Lp ℂ p G.toWeakGridSpace.measure))
+    (hSseq_fin : ∀ n,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (Sseq n))
+    (hSseq_cost : ∀ n,
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) (Sseq n) ≤ Cbound)
+    (hpartial_tendsto : ∀ᵐ z ∂G.toWeakGridSpace.measure,
+      Filter.Tendsto (fun n : ℕ => partialFun n z) Filter.atTop (𝓝 (h z)))
+    (hSseq_supp : ∀ n k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      ((Sseq n).block k).coeff Q ≠ 0 → SupportProp k Q)
+    (hSseq_pos : ∀ n,
+      SouzaConePositiveRepresentation G s p hs hp hp_top (Sseq n)) :
+    ∃ y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      ∃ S : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (y : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p) h
+          (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤ Cbound ∧
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+          (S.block k).coeff Q ≠ 0 → SupportProp k Q) ∧
+        SouzaConePositiveRepresentation G s p hs hp hp_top S := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let μ := G.toWeakGridSpace.measure
+  let yseqLp : ℕ → Lp ℂ p μ := fun n => (yseq n : Lp ℂ p μ)
+  rcases WeakGridSpace.exists_strongly_convergent_subseq_of_uniform_pqCost
+      (G := G.toWeakGridSpace) (s := s) (p := p) (u := ∞) (q := q)
+      hp_top hs le_top A
+      (souza_assumptionG2 G s p q hs hp hp_top)
+      (souza_assumptionA5 G s p hs hp hp_top)
+      Sseq hCbound_nonneg hSseq_fin hSseq_cost with
+    ⟨φ, hφ, yLimLp, S, hmemLim, hSfin, hScost, hy_tendsto, hcoeff_lim, hatom_lim⟩
+  have hy_tendsto_lp :
+      Filter.Tendsto
+        (fun n : ℕ => yseqLp (φ n))
+        Filter.atTop
+        (𝓝 yLimLp) := by
+    change Filter.Tendsto
+      (fun n : ℕ => (yseq (φ n) : Lp ℂ p G.toWeakGridSpace.measure))
+      Filter.atTop
+      (𝓝 yLimLp)
+    exact hy_tendsto
+  rcases exists_subseq_tendsto_ae_of_tendsto_Lp
+      (μ := μ)
+      (u := fun n : ℕ => yseqLp (φ n))
+      (uLim := yLimLp)
+      hy_tendsto_lp with
+    ⟨ψ, hψ, hy_ae⟩
+  have hyseq_rep_lp : ∀ n, yseqLp n =ᵐ[μ] partialFun n := by
+    intro n
+    change WeakGridSpace.RepresentsFunction
+      (G := G.toWeakGridSpace) (p := p) (partialFun n)
+      (yseq n : Lp ℂ p G.toWeakGridSpace.measure)
+    exact hyseq_rep n
+  have hcoe :
+      ∀ᵐ z ∂μ, ∀ n : ℕ,
+        yseqLp (φ (ψ n)) z = partialFun (φ (ψ n)) z :=
+    ae_eq_partialFun_on_composed_subseq hyseq_rep_lp φ ψ
+  have hy_subseq_tendsto :
+      ∀ᵐ z ∂G.toWeakGridSpace.measure,
+        Filter.Tendsto
+          (fun n : ℕ => partialFun (φ (ψ n)) z)
+          Filter.atTop
+          (𝓝 (yLimLp z)) := by
+    filter_upwards [hy_ae, hcoe] with z hyz hcoez
+    exact hyz.congr' <|
+      Filter.Eventually.of_forall fun n : ℕ => hcoez n
+  have hLimRep :
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) h yLimLp :=
+    representsFunction_of_tendsto_subseq
+      G p φ ψ hφ hψ hpartial_tendsto hy_subseq_tendsto
+  have hsupp_lim : ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      (S.block k).coeff Q ≠ 0 → SupportProp k Q := by
+    intro k Q hne
+    have hex : ∃ n, ((Sseq (φ n)).block k).coeff Q ≠ 0 := by
+      by_contra hall
+      push_neg at hall
+      have hzero :
+          Filter.Tendsto (fun n => ((Sseq (φ n)).block k).coeff Q)
+            Filter.atTop (𝓝 (0 : ℂ)) := by
+        simpa [hall] using
+          (tendsto_const_nhds :
+            Filter.Tendsto (fun _ : ℕ => (0 : ℂ)) Filter.atTop (𝓝 (0 : ℂ)))
+      exact hne (tendsto_nhds_unique (hcoeff_lim k Q) hzero)
+    obtain ⟨n, hn⟩ := hex
+    exact hSseq_supp (φ n) k Q hn
+  have hpos_lim : SouzaConePositiveRepresentation G s p hs hp hp_top S := by
+    intro k Q
+    have hpos_n : ∀ n,
+        SouzaConePositiveLevelBlock G s p hs hp hp_top ((Sseq (φ n)).block k) :=
+      fun n => hSseq_pos (φ n) k
+    constructor
+    · exact complex_nonnegReal_isClosed.mem_of_tendsto (hcoeff_lim k Q)
+        (Filter.Eventually.of_forall fun n => (hpos_n n Q).1)
+    · obtain ⟨ψa, _hψa, hae_atom⟩ :=
         exists_subseq_tendsto_ae_of_tendsto_Lp
           (μ := μ)
           (u := fun n => WeakGridSpace.atomLp A
