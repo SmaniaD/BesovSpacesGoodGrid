@@ -592,6 +592,48 @@ theorem linftyMemLp_and_norm_le_of_representsFunction_bound
   rw [hcoe]
   exact (ENNReal.le_ofReal_iff_toReal_le hmemInf.eLpNorm_ne_top hB0).1 htop
 
+/--
+An a.e. pointwise domination by a represented input gives the corresponding
+`Lp` witness and norm bound.
+
+This is the `Lp` companion to
+`linftyMemLp_and_norm_le_of_representsFunction_bound`.  It is used when the
+non-Archimedean output is first constructed pointwise and then compared to the
+input representative.
+-/
+theorem memLp_and_norm_le_of_ae_norm_le_mul_representsFunction
+    (G : GoodGridSpace (α := α)) (p : ℝ≥0∞)
+    [Fact (1 ≤ p)]
+    {C N : ℝ} {f h : α → ℂ}
+    {x : Lp ℂ p G.toWeakGridSpace.measure}
+    (hRep : WeakGridSpace.RepresentsFunction
+      (G := G.toWeakGridSpace) (p := p) f x)
+    (hh_meas : AEStronglyMeasurable h G.toWeakGridSpace.measure)
+    (hnorm : ∀ᵐ z ∂G.toWeakGridSpace.measure,
+      ‖h z‖ ≤ C * N * ‖f z‖) :
+    ∃ hmem : MemLp h p G.toWeakGridSpace.measure,
+      ‖MemLp.toLp h hmem‖ ≤ C * N * ‖x‖ := by
+  let μ := G.toWeakGridSpace.measure
+  have hf_mem : MemLp f p μ :=
+    MemLp.ae_eq hRep (Lp.memLp x)
+  have hnorm' :
+      ∀ᵐ z ∂μ, ‖h z‖ ≤ (C * N) * ‖f z‖ := by
+    simpa [μ, mul_assoc] using hnorm
+  have hmem : MemLp h p μ :=
+    MemLp.of_le_mul (c := C * N) hf_mem (by
+      simpa [μ] using hh_meas) hnorm'
+  refine ⟨hmem, ?_⟩
+  have hLp_bound :
+      ∀ᵐ z ∂μ,
+        ‖(MemLp.toLp h hmem : Lp ℂ p μ) z‖ ≤
+          (C * N) * ‖(x : α → ℂ) z‖ := by
+    filter_upwards [MemLp.coeFn_toLp hmem, hRep, hnorm'] with z hhz hxz hz
+    rw [hhz, hxz]
+    exact hz
+  simpa [μ, mul_assoc] using
+    (Lp.norm_le_mul_norm_of_ae_le_mul (μ := μ) (p := p)
+      (f := MemLp.toLp h hmem) (g := x) hLp_bound)
+
 /-- The zero representation has finite `(p,q)` cost. -/
 private theorem zero_representation_finitePQCost
     {G' : WeakGridSpace.WeakGridSpace (α := α)} {s' : ℝ} {p' u' q' : ℝ≥0∞}
@@ -955,6 +997,138 @@ theorem quasiU2Block_positive_of_positive
   refine ⟨c * a, mul_nonneg hc0 ha0, ?_, ?_⟩
   · simp [quasiU2Block, hcoeff, htower, Complex.ofReal_mul]
   · simpa [quasiU2Block] using hatom
+
+/--
+Positive version of the concrete `u₁ + u₂` product construction.
+
+The two product halves are first obtained from the exposed block construction
+in `QuasiAlgebra`, then assembled with `souzaPositiveRepresentationAdd`.
+This avoids the generic `LevelBlock.add` repackaging and keeps the output
+Souza-positive.
+-/
+theorem exists_quasi_product_of_tower_positive_representations
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (f g : α → ℂ) (Mf Mg : ℝ)
+    (hMf0 : 0 ≤ Mf) (hMg0 : 0 ≤ Mg)
+    (xf xg : WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (Rf : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (xf : Lp ℂ p G.toWeakGridSpace.measure))
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (xg : Lp ℂ p G.toWeakGridSpace.measure))
+    (hfrep : WeakGridSpace.RepresentsFunction
+      (G := G.toWeakGridSpace) (p := p) f
+      (xf : Lp ℂ p G.toWeakGridSpace.measure))
+    (hgrep : WeakGridSpace.RepresentsFunction
+      (G := G.toWeakGridSpace) (p := p) g
+      (xg : Lp ℂ p G.toWeakGridSpace.measure))
+    (hRfpos : SouzaPositiveRepresentation G s p hs hp hp_top Rf)
+    (hRgpos : SouzaPositiveRepresentation G s p hs hp hp_top Rg)
+    (hRffin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Rf)
+    (hRgfin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Rg)
+    (htower_g : ∀ (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      ‖weightedAncestorCoeffSum G Rg Q‖ ≤ Mg)
+    (hstrict_f : ∀ (j : ℕ) (J : WeakGridSpace.LevelCell G.toWeakGridSpace j),
+      ‖strictWeightedAncestorCoeffSum G Rf J‖ ≤ Mf) :
+    ∃ y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+    ∃ R : WeakGridSpace.LpGridRepresentation
+        (souzaAtomFamily G s p hs hp hp_top)
+        (y : Lp ℂ p G.toWeakGridSpace.measure),
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p)
+        (fun z => f z * g z)
+        (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+      SouzaPositiveRepresentation G s p hs hp hp_top R ∧
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R ∧
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) R ≤
+        Mg * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rf +
+          Mf * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg ∧
+      (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        (R.block k).coeff Q ≠ 0 →
+          (quasiU1Block G s p hs hp hp_top Rf Rg k).coeff Q ≠ 0 ∨
+            (quasiU2Block G s p hs hp hp_top Rf Rg k).coeff Q ≠ 0) ∧
+      (∀ k,
+        R.levelCoeffPower k =
+          ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+            ‖(WeakGridSpace.LevelBlock.add
+              (souzaAtomFamily G s p hs hp hp_top)
+              (quasiU1Block G s p hs hp hp_top Rf Rg k)
+              (quasiU2Block G s p hs hp hp_top Rf Rg k)).coeff Q‖ ^
+              p.toReal) := by
+  classical
+  obtain ⟨y1Lp, y2Lp, R1, R2, hR1block, hR2block, hR1fin, hR2fin,
+      hR1cost, hR2cost, hprod⟩ :=
+    exists_quasi_product_tower_block_representations
+      G s p q hs hp hp_top g Mf Mg hMf0 hMg0 xf xg Rf Rg hgrep
+      hRffin hRgfin htower_g hstrict_f
+  have hR1pos : SouzaPositiveRepresentation G s p hs hp hp_top R1 := by
+    intro k
+    rw [hR1block k]
+    exact quasiU1Block_positive_of_positive G s p hs hp hp_top Rf Rg hRfpos hRgpos k
+  have hR2pos : SouzaPositiveRepresentation G s p hs hp hp_top R2 := by
+    intro k
+    rw [hR2block k]
+    exact quasiU2Block_positive_of_positive G s p hs hp hp_top Rf Rg hRfpos hRgpos k
+  let y1 : WeakGridSpace.BesovishSpace (souzaAtomFamily G s p hs hp hp_top) q :=
+    ⟨y1Lp, ⟨R1, hR1fin⟩⟩
+  let y2 : WeakGridSpace.BesovishSpace (souzaAtomFamily G s p hs hp hp_top) q :=
+    ⟨y2Lp, ⟨R2, hR2fin⟩⟩
+  let y : WeakGridSpace.BesovishSpace (souzaAtomFamily G s p hs hp hp_top) q :=
+    y1 + y2
+  let R : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (y : Lp ℂ p G.toWeakGridSpace.measure) :=
+    souzaPositiveRepresentationAdd G s p hs hp hp_top R1 R2 hR1pos hR2pos
+  have hRpos : SouzaPositiveRepresentation G s p hs hp hp_top R :=
+    souzaPositiveRepresentationAdd_positive G s p hs hp hp_top hR1pos hR2pos
+  have hRfin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) R :=
+    souzaPositiveRepresentationAdd_finitePQCost
+      G s p q hs hp hp_top hR1pos hR2pos hR1fin hR2fin
+  have hRcost : WeakGridSpace.LpGridRepresentation.pqCost (q := q) R ≤
+      Mg * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rf +
+        Mf * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg := by
+    exact (souzaPositiveRepresentationAdd_pqCost_le
+      G s p q hs hp hp_top hR1pos hR2pos hR1fin hR2fin).trans
+      (add_le_add hR1cost hR2cost)
+  have hyrep : WeakGridSpace.RepresentsFunction
+      (G := G.toWeakGridSpace) (p := p)
+      (fun z => f z * g z)
+      (y : Lp ℂ p G.toWeakGridSpace.measure) := by
+    change ((y1Lp + y2Lp : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ)
+        =ᵐ[G.toWeakGridSpace.measure] fun z => f z * g z
+    filter_upwards [hprod, hfrep] with z hyz hfz
+    rw [hyz, hfz]
+    ring
+  refine ⟨y, R, hyrep, hRpos, hRfin, hRcost, ?_, ?_⟩
+  · intro k Q hcoeff
+    have hcoeff_eq :
+        (R.block k).coeff Q = (R1.block k).coeff Q + (R2.block k).coeff Q := by
+      exact souzaPositiveRepresentationAdd_coeff G s p hs hp hp_top hR1pos hR2pos k Q
+    by_cases h1 : (R1.block k).coeff Q = 0
+    · right
+      by_contra h2
+      apply hcoeff
+      rw [hcoeff_eq, h1]
+      have h2' : (R2.block k).coeff Q = 0 := by
+        rw [hR2block k]
+        exact h2
+      rw [h2']
+      simp
+    · left
+      rw [← hR1block k]
+      exact h1
+  · intro k
+    rw [souzaPositiveRepresentationAdd_levelCoeffPower
+      G s p hs hp hp_top hR1pos hR2pos k]
+    unfold WeakGridSpace.LpGridRepresentation.levelCoeffPower
+    refine Finset.sum_congr rfl ?_
+    intro Q _
+    simp [WeakGridSpace.LpGridRepresentation.add, hR1block k, hR2block k]
 
 /-- Scaling a representation scales each level coefficient power by `‖c‖^p`. -/
 theorem lpGridRepresentation_smul_levelCoeffPower
@@ -1644,6 +1818,280 @@ theorem exists_finset_weighted_sum_representation_disjoint_levelCoeffPower
       · exact hSuppSum
 
 /--
+Positive finite weighted sums with disjoint coefficient supports have the same
+exact level coefficient power as the generic weighted sum.
+
+This is the positive counterpart of
+`exists_finset_weighted_sum_representation_disjoint_levelCoeffPower`: the
+output representation is Souza-positive, so it can later be passed through the
+positive compactness limit.
+-/
+theorem exists_finset_weighted_sum_positive_representation_disjoint_levelCoeffPower
+    (G : GoodGridSpace (α := α)) (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (Γ : Finset ℕ) (Θ : ℕ → ℝ) (f : ℕ → α → ℂ)
+    (y : ℕ → WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (R : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hΘ : ∀ i ∈ Γ, 0 ≤ Θ i)
+    (hRep : ∀ i ∈ Γ,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) (f i)
+        (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hPos : ∀ i ∈ Γ, SouzaPositiveRepresentation G s p hs hp hp_top (R i))
+    (hFin : ∀ i ∈ Γ,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (R i))
+    (hDisj : ∀ i ∈ Γ, ∀ l ∈ Γ, i ≠ l →
+      ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        ((R i).block k).coeff Q ≠ 0 → ((R l).block k).coeff Q = 0) :
+    ∃ Y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      ∃ S : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          (fun z => ∑ i ∈ Γ, (Θ i : ℂ) * f i z)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        SouzaPositiveRepresentation G s p hs hp hp_top S ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        (∀ k,
+          S.levelCoeffPower k =
+            ∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+              (R i).levelCoeffPower k) ∧
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+          (S.block k).coeff Q ≠ 0 →
+            ∃ i ∈ Γ, ((R i).block k).coeff Q ≠ 0) := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  induction Γ using Finset.induction_on with
+  | empty =>
+      let Y : WeakGridSpace.BesovishSpace A q :=
+        ⟨0, WeakGridSpace.memBesovishCoeffCost_zero (A := A) (q := q)⟩
+      let S : WeakGridSpace.LpGridRepresentation A
+          (Y : Lp ℂ p G.toWeakGridSpace.measure) := by
+        change WeakGridSpace.LpGridRepresentation A
+          (0 : Lp ℂ p G.toWeakGridSpace.measure)
+        exact souzaPositiveZeroRepresentation G s p hs hp hp_top
+      refine ⟨Y, S, ?_, ?_, ?_, ?_, ?_⟩
+      · change WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p) (fun _ => (0 : ℂ))
+          (0 : Lp ℂ p G.toWeakGridSpace.measure)
+        simpa [WeakGridSpace.RepresentsFunction] using
+          (Lp.coeFn_zero ℂ p G.toWeakGridSpace.measure)
+      · change SouzaPositiveRepresentation G s p hs hp hp_top
+          (souzaPositiveZeroRepresentation G s p hs hp hp_top)
+        exact souzaPositiveZeroRepresentation_positive G s p hs hp hp_top
+      · change WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q)
+          (souzaPositiveZeroRepresentation G s p hs hp hp_top)
+        exact souzaPositiveZeroRepresentation_finitePQCost G s p q hs hp hp_top
+      · intro k
+        change (souzaPositiveZeroRepresentation G s p hs hp hp_top).levelCoeffPower k = 0
+        simp [souzaPositiveZeroRepresentation_levelCoeffPower G s p hs hp hp_top k]
+      · intro k Q hcoeff
+        exact False.elim (hcoeff
+          (souzaPositiveZeroRepresentation_coeff G s p hs hp hp_top k Q))
+  | insert a Γ ha ih =>
+      have hΘ_rest : ∀ i ∈ Γ, 0 ≤ Θ i := by
+        intro i hi
+        exact hΘ i (Finset.mem_insert_of_mem hi)
+      have hRep_rest : ∀ i ∈ Γ,
+          WeakGridSpace.RepresentsFunction
+            (G := G.toWeakGridSpace) (p := p) (f i)
+            (y i : Lp ℂ p G.toWeakGridSpace.measure) := by
+        intro i hi
+        exact hRep i (Finset.mem_insert_of_mem hi)
+      have hPos_rest : ∀ i ∈ Γ,
+          SouzaPositiveRepresentation G s p hs hp hp_top (R i) := by
+        intro i hi
+        exact hPos i (Finset.mem_insert_of_mem hi)
+      have hFin_rest : ∀ i ∈ Γ,
+          WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (R i) := by
+        intro i hi
+        exact hFin i (Finset.mem_insert_of_mem hi)
+      have hDisj_rest : ∀ i ∈ Γ, ∀ l ∈ Γ, i ≠ l →
+          ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+            ((R i).block k).coeff Q ≠ 0 → ((R l).block k).coeff Q = 0 := by
+        intro i hi l hl hil k Q hcoeff
+        exact hDisj i (Finset.mem_insert_of_mem hi) l
+          (Finset.mem_insert_of_mem hl) hil k Q hcoeff
+      rcases ih hΘ_rest hRep_rest hPos_rest hFin_rest hDisj_rest with
+        ⟨Yrest, Srest, hRepS, hPosS, hFinS, hLevelS, hSuppS⟩
+      let Yscaled : WeakGridSpace.BesovishSpace A q := (Θ a : ℂ) • y a
+      let Rscaled : WeakGridSpace.LpGridRepresentation A
+          (Yscaled : Lp ℂ p G.toWeakGridSpace.measure) := by
+        change WeakGridSpace.LpGridRepresentation A
+          ((Θ a : ℂ) • (y a : Lp ℂ p G.toWeakGridSpace.measure))
+        exact WeakGridSpace.LpGridRepresentation.smul (Θ a : ℂ) (R a)
+      have hPosScaled :
+          SouzaPositiveRepresentation G s p hs hp hp_top Rscaled := by
+        change SouzaPositiveRepresentation G s p hs hp hp_top
+          (WeakGridSpace.LpGridRepresentation.smul (Θ a : ℂ) (R a))
+        exact souzaPositiveRepresentation_smul_nonneg G s p hs hp hp_top
+          (hΘ a (Finset.mem_insert_self a Γ))
+          (hPos a (Finset.mem_insert_self a Γ))
+      have hFinScaled :
+          WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Rscaled := by
+        change WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q)
+          (WeakGridSpace.LpGridRepresentation.smul (Θ a : ℂ) (R a))
+        exact WeakGridSpace.LpGridRepresentation.smul_finitePQCost
+          (A := A) (q := q) (Θ a : ℂ)
+          (hFin a (Finset.mem_insert_self a Γ))
+      let Ysum : WeakGridSpace.BesovishSpace A q := Yscaled + Yrest
+      let Ssum : WeakGridSpace.LpGridRepresentation A
+          (Ysum : Lp ℂ p G.toWeakGridSpace.measure) := by
+        change WeakGridSpace.LpGridRepresentation A
+          ((Yscaled : Lp ℂ p G.toWeakGridSpace.measure) +
+            (Yrest : Lp ℂ p G.toWeakGridSpace.measure))
+        exact souzaPositiveRepresentationAdd
+          G s p hs hp hp_top Rscaled Srest hPosScaled hPosS
+      have hRepScaled :
+          WeakGridSpace.RepresentsFunction
+            (G := G.toWeakGridSpace) (p := p)
+            (fun z => (Θ a : ℂ) * f a z)
+            (Yscaled : Lp ℂ p G.toWeakGridSpace.measure) := by
+        change WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          (fun z => (Θ a : ℂ) * f a z)
+          ((Θ a : ℂ) • (y a : Lp ℂ p G.toWeakGridSpace.measure))
+        exact WeakGridSpace.representsFunction_smul (G := G.toWeakGridSpace)
+          (p := p) (Θ a : ℂ) (hRep a (Finset.mem_insert_self a Γ))
+      have hRepSum :
+          WeakGridSpace.RepresentsFunction
+            (G := G.toWeakGridSpace) (p := p)
+            (fun z => (Θ a : ℂ) * f a z +
+              ∑ i ∈ Γ, (Θ i : ℂ) * f i z)
+            (Ysum : Lp ℂ p G.toWeakGridSpace.measure) := by
+        change WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          (fun z => (Θ a : ℂ) * f a z +
+            ∑ i ∈ Γ, (Θ i : ℂ) * f i z)
+          ((Yscaled : Lp ℂ p G.toWeakGridSpace.measure) +
+            (Yrest : Lp ℂ p G.toWeakGridSpace.measure))
+        exact (Lp.coeFn_add
+          (Yscaled : Lp ℂ p G.toWeakGridSpace.measure)
+          (Yrest : Lp ℂ p G.toWeakGridSpace.measure)).trans
+          (hRepScaled.add hRepS)
+      have hPosSum :
+          SouzaPositiveRepresentation G s p hs hp hp_top Ssum := by
+        change SouzaPositiveRepresentation G s p hs hp hp_top
+          (souzaPositiveRepresentationAdd
+            G s p hs hp hp_top Rscaled Srest hPosScaled hPosS)
+        exact souzaPositiveRepresentationAdd_positive
+          G s p hs hp hp_top hPosScaled hPosS
+      have hFinSum :
+          WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Ssum := by
+        change WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q)
+          (souzaPositiveRepresentationAdd
+            G s p hs hp hp_top Rscaled Srest hPosScaled hPosS)
+        exact souzaPositiveRepresentationAdd_finitePQCost
+          G s p q hs hp hp_top hPosScaled hPosS hFinScaled hFinS
+      have hLevelSum : ∀ k,
+          Ssum.levelCoeffPower k =
+            ∑ i ∈ insert a Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+              (R i).levelCoeffPower k := by
+        intro k
+        have hdisj_scaled_rest :
+            ∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+              (Rscaled.block k).coeff Q ≠ 0 → (Srest.block k).coeff Q = 0 := by
+          intro Q hscaled
+          have hscaled' :
+              ((WeakGridSpace.LpGridRepresentation.smul (Θ a : ℂ) (R a)).block k).coeff Q
+                ≠ 0 := by
+            change
+              ((WeakGridSpace.LpGridRepresentation.smul (Θ a : ℂ) (R a)).block k).coeff Q
+                ≠ 0
+            exact hscaled
+          have ha_coeff : ((R a).block k).coeff Q ≠ 0 :=
+            lpGridRepresentation_smul_coeff_ne_zero
+              (G' := G.toWeakGridSpace) (s' := s) (p' := p) (u' := ∞)
+              (A := A) (g := (y a : Lp ℂ p G.toWeakGridSpace.measure))
+              (Θ a : ℂ) (R a) Q hscaled'
+          by_contra hSrest_ne
+          rcases hSuppS k Q hSrest_ne with ⟨i, hi, hi_coeff⟩
+          have hai : a ≠ i := by
+            intro hai
+            subst hai
+            exact ha hi
+          have hi_zero : ((R i).block k).coeff Q = 0 :=
+            hDisj a (Finset.mem_insert_self a Γ) i
+              (Finset.mem_insert_of_mem hi) hai k Q ha_coeff
+          exact hi_coeff hi_zero
+        have hadd_level :
+            Ssum.levelCoeffPower k =
+              Rscaled.levelCoeffPower k + Srest.levelCoeffPower k := by
+          change
+            (souzaPositiveRepresentationAdd
+              G s p hs hp hp_top Rscaled Srest hPosScaled hPosS).levelCoeffPower k =
+              Rscaled.levelCoeffPower k + Srest.levelCoeffPower k
+          rw [souzaPositiveRepresentationAdd_levelCoeffPower
+            G s p hs hp hp_top hPosScaled hPosS k]
+          exact lpGridRepresentation_add_levelCoeffPower_eq_of_disjoint_support
+            Rscaled Srest k hdisj_scaled_rest
+        have hscaled_level :
+            Rscaled.levelCoeffPower k =
+              ‖(Θ a : ℂ)‖ ^ p.toReal * (R a).levelCoeffPower k := by
+          change
+            (WeakGridSpace.LpGridRepresentation.smul (Θ a : ℂ) (R a)).levelCoeffPower k =
+              ‖(Θ a : ℂ)‖ ^ p.toReal * (R a).levelCoeffPower k
+          exact lpGridRepresentation_smul_levelCoeffPower
+            (G' := G.toWeakGridSpace) (s' := s) (p' := p) (u' := ∞)
+            (A := A) (g := (y a : Lp ℂ p G.toWeakGridSpace.measure))
+            (Θ a : ℂ) (R a) k
+        calc
+          Ssum.levelCoeffPower k
+              = Rscaled.levelCoeffPower k + Srest.levelCoeffPower k := hadd_level
+          _ = ‖(Θ a : ℂ)‖ ^ p.toReal * (R a).levelCoeffPower k +
+                ∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+                  (R i).levelCoeffPower k := by
+              rw [hscaled_level, hLevelS k]
+          _ = ∑ i ∈ insert a Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+                (R i).levelCoeffPower k := by
+              rw [Finset.sum_insert ha]
+      have hSuppSum :
+          ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+            (Ssum.block k).coeff Q ≠ 0 →
+              ∃ i ∈ insert a Γ, ((R i).block k).coeff Q ≠ 0 := by
+        intro k Q hcoeff
+        have hsource :
+            (Rscaled.block k).coeff Q ≠ 0 ∨ (Srest.block k).coeff Q ≠ 0 := by
+          by_cases hscaled : (Rscaled.block k).coeff Q = 0
+          · by_cases hrest : (Srest.block k).coeff Q = 0
+            · exfalso
+              apply hcoeff
+              change
+                ((souzaPositiveRepresentationAdd
+                  G s p hs hp hp_top Rscaled Srest hPosScaled hPosS).block k).coeff Q = 0
+              simp [souzaPositiveRepresentationAdd, souzaPositiveLevelBlockAdd,
+                hscaled, hrest]
+            · exact Or.inr hrest
+          · exact Or.inl hscaled
+        rcases hsource with hscaled | hrest
+        · have hscaled' :
+              ((WeakGridSpace.LpGridRepresentation.smul (Θ a : ℂ) (R a)).block k).coeff Q
+                ≠ 0 := by
+            change
+              ((WeakGridSpace.LpGridRepresentation.smul (Θ a : ℂ) (R a)).block k).coeff Q
+                ≠ 0
+            exact hscaled
+          have horig : ((R a).block k).coeff Q ≠ 0 :=
+            lpGridRepresentation_smul_coeff_ne_zero
+              (G' := G.toWeakGridSpace) (s' := s) (p' := p) (u' := ∞)
+              (A := A) (g := (y a : Lp ℂ p G.toWeakGridSpace.measure))
+              (Θ a : ℂ) (R a) Q hscaled'
+          exact ⟨a, Finset.mem_insert_self a Γ, horig⟩
+        · rcases hSuppS k Q hrest with ⟨i, hi, hRi⟩
+          exact ⟨i, Finset.mem_insert_of_mem hi, hRi⟩
+      refine ⟨Ysum, Ssum, ?_, hPosSum, hFinSum, ?_, ?_⟩
+      · simpa [Finset.sum_insert, ha, add_comm, add_left_comm, add_assoc]
+          using hRepSum
+      · exact hLevelSum
+      · exact hSuppSum
+
+/--
 Finite weighted sums localized in pairwise disjoint members of a regular
 family have exact level coefficient power.  This packages the abstract
 disjoint-support lemma with the geometric disjointness of regular families.
@@ -1707,6 +2155,203 @@ theorem exists_finset_weighted_sum_regularFamily_levelCoeffPower
   exact ⟨i, hi, hSuppDomain i hi k Q hiQ⟩
 
 /--
+Positive finite weighted sums localized in pairwise disjoint members of a
+regular family have exact level coefficient power.
+-/
+theorem exists_finset_weighted_sum_positive_regularFamily_levelCoeffPower
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s : ℝ) (p q : ℝ≥0∞) {a C c : ℝ}
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩ : RegularFamily G Λ Ω a C c)
+    (Γ : Finset ℕ) (hΓΛ : ∀ i ∈ Γ, i ∈ Λ)
+    (Θ : ℕ → ℝ) (f : ℕ → α → ℂ)
+    (y : ℕ → WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (R : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hΘ : ∀ i ∈ Γ, 0 ≤ Θ i)
+    (hRep : ∀ i ∈ Γ,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) (f i)
+        (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hPos : ∀ i ∈ Γ, SouzaPositiveRepresentation G s p hs hp hp_top (R i))
+    (hFin : ∀ i ∈ Γ,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (R i))
+    (hSuppDomain : ∀ i ∈ Γ, ∀ k
+      (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        ((R i).block k).coeff Q ≠ 0 → Q.1 ⊆ Ω i) :
+    ∃ Y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      ∃ S : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          (fun z => ∑ i ∈ Γ, (Θ i : ℂ) * f i z)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        SouzaPositiveRepresentation G s p hs hp hp_top S ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        (∀ k,
+          S.levelCoeffPower k =
+            ∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+              (R i).levelCoeffPower k) ∧
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+          (S.block k).coeff Q ≠ 0 → ∃ i ∈ Γ, Q.1 ⊆ Ω i) := by
+  classical
+  have hDisj : ∀ i ∈ Γ, ∀ l ∈ Γ, i ≠ l →
+      ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        ((R i).block k).coeff Q ≠ 0 → ((R l).block k).coeff Q = 0 := by
+    intro i hi l hl hil k Q hiQ
+    by_contra hlQ
+    have hQi : Q.1 ⊆ Ω i := hSuppDomain i hi k Q hiQ
+    have hQl : Q.1 ⊆ Ω l := hSuppDomain l hl k Q hlQ
+    have heq : i = l :=
+      regularFamily_unique_index_of_levelCell_subset
+        G Λ Ω hΩ Q (hΓΛ i hi) (hΓΛ l hl) hQi hQl
+    exact hil heq
+  obtain ⟨Y, S, hRepS, hPosS, hFinS, hLevelS, hSuppS⟩ :=
+    exists_finset_weighted_sum_positive_representation_disjoint_levelCoeffPower
+      G s p q hs hp hp_top Γ Θ f y R hΘ hRep hPos hFin hDisj
+  refine ⟨Y, S, hRepS, hPosS, hFinS, hLevelS, ?_⟩
+  intro k Q hcoeff
+  rcases hSuppS k Q hcoeff with ⟨i, hi, hiQ⟩
+  exact ⟨i, hi, hSuppDomain i hi k Q hiQ⟩
+
+/--
+Finite weighted sums localized in pairwise disjoint domains have exact level
+coefficient power.
+
+This is the non-uniform analogue of
+`exists_finset_weighted_sum_regularFamily_levelCoeffPower`: the only
+regular-family feature needed for the algebraic summation step is disjointness
+of the domains supporting the coefficients.
+-/
+theorem exists_finset_weighted_sum_disjointDomains_levelCoeffPower
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩdisj : ∀ i ∈ Λ, ∀ j ∈ Λ, i ≠ j → Disjoint (Ω i) (Ω j))
+    (Γ : Finset ℕ) (hΓΛ : ∀ i ∈ Γ, i ∈ Λ)
+    (Θ : ℕ → ℝ) (f : ℕ → α → ℂ)
+    (y : ℕ → WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (R : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hRep : ∀ i ∈ Γ,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) (f i)
+        (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hFin : ∀ i ∈ Γ,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (R i))
+    (hSuppDomain : ∀ i ∈ Γ, ∀ k
+      (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        ((R i).block k).coeff Q ≠ 0 → Q.1 ⊆ Ω i) :
+    ∃ Y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      ∃ S : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          (fun z => ∑ i ∈ Γ, (Θ i : ℂ) * f i z)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        (∀ k,
+          S.levelCoeffPower k =
+            ∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+              (R i).levelCoeffPower k) ∧
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+          (S.block k).coeff Q ≠ 0 → ∃ i ∈ Γ, Q.1 ⊆ Ω i) := by
+  classical
+  have hDisj : ∀ i ∈ Γ, ∀ l ∈ Γ, i ≠ l →
+      ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        ((R i).block k).coeff Q ≠ 0 → ((R l).block k).coeff Q = 0 := by
+    intro i hi l hl hil k Q hiQ
+    by_contra hlQ
+    have hQi : Q.1 ⊆ Ω i := hSuppDomain i hi k Q hiQ
+    have hQl : Q.1 ⊆ Ω l := hSuppDomain l hl k Q hlQ
+    obtain ⟨z, hzQ⟩ := levelCell_nonempty G Q
+    exact Set.disjoint_left.mp
+      (hΩdisj i (hΓΛ i hi) l (hΓΛ l hl) hil)
+      (hQi hzQ) (hQl hzQ)
+  obtain ⟨Y, S, hRepS, hFinS, hLevelS, hSuppS⟩ :=
+    exists_finset_weighted_sum_representation_disjoint_levelCoeffPower
+      G s p q hs hp hp_top Γ Θ f y R hRep hFin hDisj
+  refine ⟨Y, S, hRepS, hFinS, hLevelS, ?_⟩
+  intro k Q hcoeff
+  rcases hSuppS k Q hcoeff with ⟨i, hi, hiQ⟩
+  exact ⟨i, hi, hSuppDomain i hi k Q hiQ⟩
+
+/--
+Positive finite weighted sums localized in pairwise disjoint domains have exact
+level coefficient power.
+-/
+theorem exists_finset_weighted_sum_positive_disjointDomains_levelCoeffPower
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩdisj : ∀ i ∈ Λ, ∀ j ∈ Λ, i ≠ j → Disjoint (Ω i) (Ω j))
+    (Γ : Finset ℕ) (hΓΛ : ∀ i ∈ Γ, i ∈ Λ)
+    (Θ : ℕ → ℝ) (f : ℕ → α → ℂ)
+    (y : ℕ → WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (R : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hΘ : ∀ i ∈ Γ, 0 ≤ Θ i)
+    (hRep : ∀ i ∈ Γ,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) (f i)
+        (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hPos : ∀ i ∈ Γ, SouzaPositiveRepresentation G s p hs hp hp_top (R i))
+    (hFin : ∀ i ∈ Γ,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (R i))
+    (hSuppDomain : ∀ i ∈ Γ, ∀ k
+      (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        ((R i).block k).coeff Q ≠ 0 → Q.1 ⊆ Ω i) :
+    ∃ Y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      ∃ S : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          (fun z => ∑ i ∈ Γ, (Θ i : ℂ) * f i z)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        SouzaPositiveRepresentation G s p hs hp hp_top S ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        (∀ k,
+          S.levelCoeffPower k =
+            ∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+              (R i).levelCoeffPower k) ∧
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+          (S.block k).coeff Q ≠ 0 → ∃ i ∈ Γ, Q.1 ⊆ Ω i) := by
+  classical
+  have hDisj : ∀ i ∈ Γ, ∀ l ∈ Γ, i ≠ l →
+      ∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        ((R i).block k).coeff Q ≠ 0 → ((R l).block k).coeff Q = 0 := by
+    intro i hi l hl hil k Q hiQ
+    by_contra hlQ
+    have hQi : Q.1 ⊆ Ω i := hSuppDomain i hi k Q hiQ
+    have hQl : Q.1 ⊆ Ω l := hSuppDomain l hl k Q hlQ
+    obtain ⟨z, hzQ⟩ := levelCell_nonempty G Q
+    exact Set.disjoint_left.mp
+      (hΩdisj i (hΓΛ i hi) l (hΓΛ l hl) hil)
+      (hQi hzQ) (hQl hzQ)
+  obtain ⟨Y, S, hRepS, hPosS, hFinS, hLevelS, hSuppS⟩ :=
+    exists_finset_weighted_sum_positive_representation_disjoint_levelCoeffPower
+      G s p q hs hp hp_top Γ Θ f y R hΘ hRep hPos hFin hDisj
+  refine ⟨Y, S, hRepS, hPosS, hFinS, hLevelS, ?_⟩
+  intro k Q hcoeff
+  rcases hSuppS k Q hcoeff with ⟨i, hi, hiQ⟩
+  exact ⟨i, hi, hSuppDomain i hi k Q hiQ⟩
+
+/--
 Finite weighted level powers are bounded by `N ^ p` times the unweighted level
 power whenever every active weight has norm at most `N`.
 -/
@@ -1753,6 +2398,38 @@ theorem finset_weighted_levelCoeffPower_le_of_weight_bound_on_support
     have hpow_le : ‖(Θ i : ℂ)‖ ^ p.toReal ≤ N ^ p.toReal :=
       Real.rpow_le_rpow hweight_nonneg (hΘ i hi hai) hp_pos.le
     exact mul_le_mul_of_nonneg_right hpow_le (ha0 i hi)
+
+/--
+A finite sum with at most one nonzero active term is bounded by any common
+bound for the active terms.
+-/
+theorem finset_sum_le_of_unique_nonzero_bound
+    {Γ : Finset ℕ} {f : ℕ → ℝ} {B : ℝ}
+    (hB0 : 0 ≤ B)
+    (huniq : ∀ i ∈ Γ, ∀ l ∈ Γ, f i ≠ 0 → f l ≠ 0 → i = l)
+    (hbound : ∀ i ∈ Γ, f i ≤ B) :
+    ∑ i ∈ Γ, f i ≤ B := by
+  classical
+  by_cases hex : ∃ i ∈ Γ, f i ≠ 0
+  · rcases hex with ⟨i₀, hi₀Γ, hi₀⟩
+    have hzero : ∀ i ∈ Γ, i ≠ i₀ → f i = 0 := by
+      intro i hiΓ hii₀
+      by_contra hfi
+      exact hii₀ (huniq i hiΓ i₀ hi₀Γ hfi hi₀)
+    rw [Finset.sum_eq_single i₀]
+    · exact hbound i₀ hi₀Γ
+    · intro i hiΓ hii₀
+      exact hzero i hiΓ hii₀
+    · intro hi₀not
+      exact (hi₀not hi₀Γ).elim
+  · have hzero : ∀ i ∈ Γ, f i = 0 := by
+      intro i hiΓ
+      by_contra hfi
+      exact hex ⟨i, hiΓ, hfi⟩
+    rw [Finset.sum_eq_zero]
+    · exact hB0
+    · intro i hiΓ
+      exact hzero i hiΓ
 
 /-- Raising to `1/e` and then to `e` returns a nonnegative real. -/
 theorem rpow_one_div_rpow_eq_self {x e : ℝ} (hx : 0 ≤ x) (he : e ≠ 0) :
@@ -2199,6 +2876,90 @@ theorem exists_finset_weighted_sum_regularFamily_pqCost_le_of_level_weight_bound
           rw [hCostSu]
   exact ⟨Yw, Sw, hRepSw, hFinSw, hCost, hSuppSw⟩
 
+/--
+Positive finite weighted regular-family sums with a levelwise support weight
+bound.
+
+This is the Souza-positive counterpart of
+`exists_finset_weighted_sum_regularFamily_pqCost_le_of_level_weight_bound`.
+-/
+theorem exists_finset_weighted_sum_positive_regularFamily_pqCost_le_of_level_weight_bound
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s : ℝ) (p q : ℝ≥0∞) {a C c : ℝ}
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩ : RegularFamily G Λ Ω a C c)
+    (Γ : Finset ℕ) (hΓΛ : ∀ i ∈ Γ, i ∈ Λ)
+    (Θ : ℕ → ℝ) {N : ℝ} (hN0 : 0 ≤ N)
+    (f : ℕ → α → ℂ)
+    (y : ℕ → WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (R : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hΘ : ∀ i ∈ Γ, 0 ≤ Θ i)
+    (hWeightLevel : ∀ i ∈ Γ, ∀ k,
+      (R i).levelCoeffPower k ≠ 0 → |Θ i| ≤ N)
+    (hRep : ∀ i ∈ Γ,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) (f i)
+        (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hPos : ∀ i ∈ Γ, SouzaPositiveRepresentation G s p hs hp hp_top (R i))
+    (hFin : ∀ i ∈ Γ,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (R i))
+    (hSuppDomain : ∀ i ∈ Γ, ∀ k
+      (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        ((R i).block k).coeff Q ≠ 0 → Q.1 ⊆ Ω i) :
+    ∃ Y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      ∃ S : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          (fun z => ∑ i ∈ Γ, (Θ i : ℂ) * f i z)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        SouzaPositiveRepresentation G s p hs hp hp_top S ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
+          N * regularFamilyRestrictionCost G s p q (Γ : Set ℕ) y R ∧
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+          (S.block k).coeff Q ≠ 0 → ∃ i ∈ Γ, Q.1 ⊆ Ω i) := by
+  classical
+  obtain ⟨Yw, Sw, hRepSw, hPosSw, hFinSw, hLevelSw, hSuppSw⟩ :=
+    exists_finset_weighted_sum_positive_regularFamily_levelCoeffPower
+      G Λ Ω s p q hs hp hp_top hΩ Γ hΓΛ Θ f y R hΘ hRep hPos hFin hSuppDomain
+  obtain ⟨Yu, Su, _hRepSu, hFinSu, hLevelSu, hCostSu⟩ :=
+    exists_finset_unweighted_sum_regularFamily_pqCost_eq_restrictionCost
+      G Λ Ω s p q hs hp hp_top hΩ Γ hΓΛ f y R hRep hFin hSuppDomain
+  have hLevelBound : ∀ k,
+      Sw.levelCoeffPower k ≤ N ^ p.toReal * Su.levelCoeffPower k := by
+    intro k
+    calc
+      Sw.levelCoeffPower k
+          = ∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+              (R i).levelCoeffPower k := hLevelSw k
+      _ ≤ N ^ p.toReal * ∑ i ∈ Γ, (R i).levelCoeffPower k := by
+          exact finset_weighted_levelCoeffPower_le_of_weight_bound_on_support
+            hp hp_top (fun i => (R i).levelCoeffPower k)
+            (fun i _hi => (R i).levelCoeffPower_nonneg k)
+            (fun i hi hlevel_ne => by
+              simpa [Complex.norm_real] using hWeightLevel i hi k hlevel_ne)
+      _ = N ^ p.toReal * Su.levelCoeffPower k := by
+          rw [hLevelSu k]
+          rw [regularFamilyRestrictionLevelCoeffPower_finset]
+  have hCost :
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) Sw ≤
+        N * regularFamilyRestrictionCost G s p q (Γ : Set ℕ) y R := by
+    calc
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) Sw
+          ≤ N * WeakGridSpace.LpGridRepresentation.pqCost (q := q) Su :=
+        pqCost_le_mul_of_levelCoeffPower_le
+          Su Sw hN0 hFinSu hFinSw hLevelBound
+      _ = N * regularFamilyRestrictionCost G s p q (Γ : Set ℕ) y R := by
+          rw [hCostSu]
+  exact ⟨Yw, Sw, hRepSw, hPosSw, hFinSw, hCost, hSuppSw⟩
+
 /-- Finite mixed `(p,q)` cost for a regular-family collection of representations. -/
 def RegularFamilyRestrictionFiniteCost
     (G : GoodGridSpace (α := α)) (Λ : Set ℕ)
@@ -2373,6 +3134,129 @@ theorem pqCost_le_mul_regularFamilyRestrictionCost_of_levelCoeffPower_le
           rpow_rpow_one_div_eq_self hN0 hq_ne]
 
 /--
+Finite weighted sums over pairwise disjoint domains satisfy the usual
+non-Archimedean `pqCost` comparison under a levelwise support weight bound.
+
+This is the non-uniform analogue of
+`exists_finset_weighted_sum_regularFamily_pqCost_le_of_level_weight_bound`.
+It only uses disjointness and support localization; no uniform regular-family
+geometry is involved.
+-/
+theorem exists_finset_weighted_sum_disjointDomains_pqCost_le_of_level_weight_bound
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩdisj : ∀ i ∈ Λ, ∀ j ∈ Λ, i ≠ j → Disjoint (Ω i) (Ω j))
+    (Γ : Finset ℕ) (hΓΛ : ∀ i ∈ Γ, i ∈ Λ)
+    (Θ : ℕ → ℝ) {N : ℝ} (hN0 : 0 ≤ N)
+    (f : ℕ → α → ℂ)
+    (y : ℕ → WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (R : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hWeightLevel : ∀ i ∈ Γ, ∀ k,
+      (R i).levelCoeffPower k ≠ 0 → |Θ i| ≤ N)
+    (hRep : ∀ i ∈ Γ,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) (f i)
+        (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hFin : ∀ i ∈ Γ,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (R i))
+    (hSuppDomain : ∀ i ∈ Γ, ∀ k
+      (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        ((R i).block k).coeff Q ≠ 0 → Q.1 ⊆ Ω i) :
+    ∃ Y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      ∃ S : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          (fun z => ∑ i ∈ Γ, (Θ i : ℂ) * f i z)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
+          N * regularFamilyRestrictionCost G s p q (Γ : Set ℕ) y R ∧
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+          (S.block k).coeff Q ≠ 0 → ∃ i ∈ Γ, Q.1 ⊆ Ω i) := by
+  classical
+  let oneWeight : ℕ → ℝ := fun _ => 1
+  obtain ⟨Yw, Sw, hRepSw, hFinSw, hLevelSw, hSuppSw⟩ :=
+    exists_finset_weighted_sum_disjointDomains_levelCoeffPower
+      G Λ Ω s p q hs hp hp_top hΩdisj Γ hΓΛ Θ f y R hRep hFin hSuppDomain
+  obtain ⟨Yu, Su, _hRepSu, hFinSu, hLevelSu, _hSuppSu⟩ :=
+    exists_finset_weighted_sum_disjointDomains_levelCoeffPower
+      G Λ Ω s p q hs hp hp_top hΩdisj Γ hΓΛ oneWeight f y R
+      (by
+        intro i hi
+        simpa using hRep i hi)
+      hFin hSuppDomain
+  have hLevelSu' : ∀ k,
+      Su.levelCoeffPower k =
+        regularFamilyRestrictionLevelCoeffPower G s p q (Γ : Set ℕ) y R k := by
+    intro k
+    calc
+      Su.levelCoeffPower k
+          = ∑ i ∈ Γ, ‖((1 : ℝ) : ℂ)‖ ^ p.toReal *
+              (R i).levelCoeffPower k := by
+              simpa [oneWeight] using hLevelSu k
+      _ = ∑ i ∈ Γ, (R i).levelCoeffPower k := by
+              refine Finset.sum_congr rfl ?_
+              intro i hi
+              simp
+      _ = regularFamilyRestrictionLevelCoeffPower G s p q (Γ : Set ℕ) y R k := by
+              rw [regularFamilyRestrictionLevelCoeffPower_finset]
+  have hMixedFin :
+      RegularFamilyRestrictionFiniteCost G (Γ : Set ℕ) s p q hs hp hp_top y R := by
+    by_cases hqtop : q = ∞
+    · rw [RegularFamilyRestrictionFiniteCost, if_pos hqtop]
+      rw [WeakGridSpace.LpGridRepresentation.FinitePQCost, if_pos hqtop] at hFinSu
+      rcases hFinSu with ⟨B, hB⟩
+      refine ⟨B, ?_⟩
+      rintro x ⟨k, rfl⟩
+      have hBk : Su.levelCoeffPower k ^ (1 / p.toReal) ≤ B :=
+        hB ⟨k, rfl⟩
+      convert hBk using 1
+      change (regularFamilyRestrictionLevelCoeffPower G s p q (Γ : Set ℕ) y R k) ^
+          (1 / p.toReal) = Su.levelCoeffPower k ^ (1 / p.toReal)
+      rw [← hLevelSu' k]
+    · rw [RegularFamilyRestrictionFiniteCost, if_neg hqtop]
+      rw [WeakGridSpace.LpGridRepresentation.FinitePQCost, if_neg hqtop] at hFinSu
+      have hfun :
+          (fun k : ℕ =>
+              (regularFamilyRestrictionLevelCoeffPower G s p q (Γ : Set ℕ) y R k) ^
+                (q.toReal / p.toReal)) =
+            fun k : ℕ => Su.levelCoeffPower k ^ (q.toReal / p.toReal) := by
+        funext k
+        rw [(hLevelSu' k).symm]
+      simpa [hfun] using hFinSu
+  have hLevelBound : ∀ k,
+      Sw.levelCoeffPower k ≤
+        N ^ p.toReal * regularFamilyRestrictionLevelCoeffPower G s p q (Γ : Set ℕ) y R k := by
+    intro k
+    calc
+      Sw.levelCoeffPower k
+          = ∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+              (R i).levelCoeffPower k := hLevelSw k
+      _ ≤ N ^ p.toReal * ∑ i ∈ Γ, (R i).levelCoeffPower k := by
+          exact finset_weighted_levelCoeffPower_le_of_weight_bound_on_support
+            hp hp_top (fun i => (R i).levelCoeffPower k)
+            (fun i _hi => (R i).levelCoeffPower_nonneg k)
+            (fun i hi hlevel_ne => by
+              simpa [Complex.norm_real] using hWeightLevel i hi k hlevel_ne)
+      _ = N ^ p.toReal *
+          regularFamilyRestrictionLevelCoeffPower G s p q (Γ : Set ℕ) y R k := by
+          rw [regularFamilyRestrictionLevelCoeffPower_finset]
+  have hCost :
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) Sw ≤
+        N * regularFamilyRestrictionCost G s p q (Γ : Set ℕ) y R :=
+    pqCost_le_mul_regularFamilyRestrictionCost_of_levelCoeffPower_le
+      G (Γ : Set ℕ) s p q hs hp hp_top Sw y R hN0 hFinSw hMixedFin hLevelBound
+  exact ⟨Yw, Sw, hRepSw, hFinSw, hCost, hSuppSw⟩
+
+/--
 Positive finite weighted sums preserve positivity and coefficient support.
 
 The weights are real and nonnegative.  The representation is assembled with the
@@ -2413,6 +3297,10 @@ theorem exists_finset_weighted_sum_positive_representation_support
           (Y : Lp ℂ p G.toWeakGridSpace.measure) ∧
         SouzaPositiveRepresentation G s p hs hp hp_top S ∧
         WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+          (S.block k).coeff Q =
+            ∑ i ∈ Γ,
+              ((WeakGridSpace.LpGridRepresentation.smul (Θ i : ℂ) (R i)).block k).coeff Q) ∧
         (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
           (S.block k).coeff Q ≠ 0 → ∃ i ∈ Γ, P i k Q) := by
   classical
@@ -2506,7 +3394,7 @@ theorem exists_finset_weighted_sum_positive_representation_support
         (A := A) (g := (y i : Lp ℂ p G.toWeakGridSpace.measure))
         (Θ i : ℂ) (R i) Q hscaled'
     exact ⟨i, hi, hSupp i hi k Q horig⟩
-  refine ⟨Y, S, ?_, ?_, ?_, ?_⟩
+  refine ⟨Y, S, ?_, ?_, ?_, ?_, ?_⟩
   · change WeakGridSpace.RepresentsFunction
       (G := G.toWeakGridSpace) (p := p)
       (fun z => ∑ i ∈ Γ, (Θ i : ℂ) * f i z)
@@ -2516,6 +3404,11 @@ theorem exists_finset_weighted_sum_positive_representation_support
     exact hTpos
   · change WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) T
     exact hTfin
+  · intro k Q
+    change (T.block k).coeff Q =
+      ∑ i ∈ Γ,
+        ((WeakGridSpace.LpGridRepresentation.smul (Θ i : ℂ) (R i)).block k).coeff Q
+    exact hTcoeff k Q
   · exact hSuppS
 
 /--
@@ -2650,6 +3543,1046 @@ theorem regularFamily_productBlock_coeff_ne_zero_exists_source_meeting_domain
     exact ⟨j, Q, hsource, ⟨z, hzQ, hQsubset hzQ⟩⟩
 
 /--
+One-domain version of the regular-family product-block support statement.
+
+This is the bridge needed for the non-uniform theorem: each regular domain is
+viewed as a singleton regular family, but the conclusion is stated directly in
+terms of the original domain.
+-/
+theorem regularDomain_productBlock_coeff_ne_zero_subset_domain_local
+    (G : GoodGridSpace (α := α)) (Ω : Set α)
+    (s C c : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (hΩ : RegularDomain G Ω (1 - p.toReal * s) C c)
+    {j : ℕ}
+    {xind xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rind : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xind)
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (hblock : ∀ m,
+      Rind.block m =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top)
+          G ({0} : Set ℕ) (fun _ : ℕ => Ω) s C c p
+          hΩ.toRegularFamily_singleton 0 m)
+    (Q : WeakGridSpace.LevelCell G.toWeakGridSpace j)
+    (hcoeff :
+      (WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+        (quasiU1Block G s p hs hp hp_top Rind Rg j)
+        (quasiU2Block G s p hs hp hp_top Rind Rg j)).coeff Q ≠ 0) :
+    Q.1 ⊆ Ω := by
+  simpa using
+    regularFamily_productBlock_coeff_ne_zero_subset_domain_local
+      (G := G) (Λ := ({0} : Set ℕ)) (Ω := fun _ : ℕ => Ω)
+      (s := s) (C := C) (c := c) (p := p) hs hp hp_top
+      hΩ.toRegularFamily_singleton (by simp : 0 ∈ ({0} : Set ℕ))
+      Rind Rg hblock Q hcoeff
+
+/--
+A nonzero one-domain product coefficient sees a nonzero source coefficient
+whose cell meets that domain.
+-/
+theorem regularDomain_productBlock_coeff_ne_zero_exists_source_meeting_domain
+    (G : GoodGridSpace (α := α)) (Ω : Set α)
+    (s C c : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (hΩ : RegularDomain G Ω (1 - p.toReal * s) C c)
+    {j : ℕ}
+    {xind xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rind : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xind)
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (hblock : ∀ m,
+      Rind.block m =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top)
+          G ({0} : Set ℕ) (fun _ : ℕ => Ω) s C c p
+          hΩ.toRegularFamily_singleton 0 m)
+    (Q : WeakGridSpace.LevelCell G.toWeakGridSpace j)
+    (hcoeff :
+      (WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+        (quasiU1Block G s p hs hp hp_top Rind Rg j)
+        (quasiU2Block G s p hs hp hp_top Rind Rg j)).coeff Q ≠ 0) :
+    ∃ l : ℕ, ∃ P : WeakGridSpace.LevelCell G.toWeakGridSpace l,
+      (Rg.block l).coeff P ≠ 0 ∧ (P.1 ∩ Ω).Nonempty := by
+  simpa using
+    regularFamily_productBlock_coeff_ne_zero_exists_source_meeting_domain
+      (G := G) (Λ := ({0} : Set ℕ)) (Ω := fun _ : ℕ => Ω)
+      (s := s) (C := C) (c := c) (p := p) hs hp hp_top
+      hΩ.toRegularFamily_singleton (by simp : 0 ∈ ({0} : Set ℕ))
+      Rind Rg hblock Q hcoeff
+
+/--
+Apply the non-uniform source-cell overlap hypothesis to a nonzero
+one-domain product coefficient.
+-/
+theorem regularDomain_weightedIndicatorCost_le_of_productBlock_source_overlap
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s : ℝ) (C c Θ : ℕ → ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    {N : ℝ} (hN0 : 0 ≤ N)
+    (hΩ : ∀ i ∈ Λ, RegularDomain G (Ω i) (1 - p.toReal * s) (C i) (c i))
+    {i j : ℕ} (hi : i ∈ Λ)
+    {xind xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rind : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xind)
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (hblock : ∀ m,
+      Rind.block m =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top)
+          G ({0} : Set ℕ) (fun _ : ℕ => Ω i) s (C i) (c i) p
+          (hΩ i hi).toRegularFamily_singleton 0 m)
+    (Q : WeakGridSpace.LevelCell G.toWeakGridSpace j)
+    (hcoeff :
+      (WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+        (quasiU1Block G s p hs hp hp_top Rind Rg j)
+        (quasiU2Block G s p hs hp hp_top Rind Rg j)).coeff Q ≠ 0)
+    (hoverlap :
+      ∀ l (P : WeakGridSpace.LevelCell G.toWeakGridSpace l),
+        (Rg.block l).coeff P ≠ 0 →
+          regularDomainOverlapCostInfinite G Λ Ω s C c Θ p q P ≤ ENNReal.ofReal N) :
+    |Θ i| * (1 + regularDomainIndicatorCost G (Ω i) s (C i) (c i) p q) ≤ N := by
+  rcases regularDomain_productBlock_coeff_ne_zero_exists_source_meeting_domain
+      G (Ω i) s (C i) (c i) p hs hp hp_top (hΩ i hi)
+      Rind Rg hblock Q hcoeff with
+    ⟨l, P, hPcoeff, hPmeet⟩
+  have hterm : ENNReal.ofReal
+        (|Θ i| *
+          (1 + regularDomainIndicatorCost G (Ω i) s (C i) (c i) p q)) ≤
+      ENNReal.ofReal N :=
+    (regularDomainOverlapCostInfinite_term_le
+      G Λ Ω s C c Θ p q P hi hPmeet).trans (hoverlap l P hPcoeff)
+  exact (ENNReal.ofReal_le_ofReal_iff hN0).mp hterm
+
+/--
+Levelwise extraction of the non-uniform weighted indicator cost.
+
+If the product representation for the single domain `Ω i` has a nonzero
+coefficient at level `k`, then some concrete `u₁ + u₂` coefficient is nonzero.
+The source-cell overlap hypothesis therefore controls the full weighted
+indicator gauge `|Θ i| * (1 + regularDomainIndicatorCost Ωᵢ)`.
+-/
+theorem regularDomain_weightedIndicatorCost_le_of_productLevel_source_overlap_of_levelCoeffPower
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s : ℝ) (C c Θ : ℕ → ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    {N : ℝ} (hN0 : 0 ≤ N)
+    (hΩ : ∀ i ∈ Λ, RegularDomain G (Ω i) (1 - p.toReal * s) (C i) (c i))
+    {i k : ℕ} (hi : i ∈ Λ)
+    {xind xg xprod : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rind : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xind)
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (Rprod : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xprod)
+    (hblock : ∀ m,
+      Rind.block m =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top)
+          G ({0} : Set ℕ) (fun _ : ℕ => Ω i) s (C i) (c i) p
+          (hΩ i hi).toRegularFamily_singleton 0 m)
+    (hprodLevel : Rprod.levelCoeffPower k =
+      ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        ‖(WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+          (quasiU1Block G s p hs hp hp_top Rind Rg k)
+          (quasiU2Block G s p hs hp hp_top Rind Rg k)).coeff Q‖ ^
+          p.toReal)
+    (hlevel : Rprod.levelCoeffPower k ≠ 0)
+    (hoverlap :
+      ∀ l (P : WeakGridSpace.LevelCell G.toWeakGridSpace l),
+        (Rg.block l).coeff P ≠ 0 →
+          regularDomainOverlapCostInfinite G Λ Ω s C c Θ p q P ≤ ENNReal.ofReal N) :
+    |Θ i| * (1 + regularDomainIndicatorCost G (Ω i) s (C i) (c i) p q) ≤ N := by
+  classical
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le hp).ne' hp_top
+  by_contra hnot
+  have hcoeff_zero :
+      ∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        (WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+          (quasiU1Block G s p hs hp hp_top Rind Rg k)
+          (quasiU2Block G s p hs hp hp_top Rind Rg k)).coeff Q = 0 := by
+    intro Q
+    by_contra hcoeff
+    exact hnot
+      (regularDomain_weightedIndicatorCost_le_of_productBlock_source_overlap
+        G Λ Ω s C c Θ p q hs hp hp_top hN0 hΩ hi Rind Rg hblock
+        Q hcoeff hoverlap)
+  have hsum_zero :
+      (∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        ‖(WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+          (quasiU1Block G s p hs hp hp_top Rind Rg k)
+          (quasiU2Block G s p hs hp hp_top Rind Rg k)).coeff Q‖ ^
+          p.toReal) = 0 := by
+    refine Finset.sum_eq_zero ?_
+    intro Q _hQ
+    rw [hcoeff_zero Q]
+    simp [Real.zero_rpow hp_pos.ne']
+  exact hlevel (by rw [hprodLevel, hsum_zero])
+
+/--
+Weighted finite `u₂` product levels are controlled directly by the source
+level under the non-uniform overlap hypothesis.
+
+For a fixed source cell `J`, pairwise disjointness of the domains implies that
+at most one active singleton indicator can contribute a nonzero `u₂`
+coefficient on `J`.  The source-cell overlap hypothesis then gives the needed
+weight bound for that one index.
+-/
+theorem regularDomainIndicator_quasiU2Block_weighted_finset_levelCoeffPower_le_of_source_overlap
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s : ℝ) (C c Θ : ℕ → ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    {N : ℝ} (hN0 : 0 ≤ N)
+    (hΩ : ∀ i ∈ Λ, RegularDomain G (Ω i) (1 - p.toReal * s) (C i) (c i))
+    (hΩdisj : ∀ i ∈ Λ, ∀ j ∈ Λ, i ≠ j → Disjoint (Ω i) (Ω j))
+    (Γ : Finset ℕ) (hΓΛ : ∀ i ∈ Γ, i ∈ Λ)
+    {xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (xind : ℕ → Lp ℂ p G.toWeakGridSpace.measure)
+    (Rind : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) (xind i))
+    (hIndBlock : ∀ i (hi : i ∈ Γ), ∀ k,
+      (Rind i).block k =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top)
+          G ({0} : Set ℕ) (fun _ : ℕ => Ω i) s (C i) (c i) p
+          (hΩ i (hΓΛ i hi)).toRegularFamily_singleton 0 k)
+    (hoverlap :
+      ∀ l (P : WeakGridSpace.LevelCell G.toWeakGridSpace l),
+        (Rg.block l).coeff P ≠ 0 →
+          regularDomainOverlapCostInfinite G Λ Ω s C c Θ p q P ≤ ENNReal.ofReal N)
+    (j : ℕ) :
+    (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+      ∑ J : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        ‖(quasiU2Block G s p hs hp hp_top (Rind i) Rg j).coeff J‖ ^
+          p.toReal) ≤
+      N ^ p.toReal * Rg.levelCoeffPower j := by
+  classical
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le hp).ne' hp_top
+  have hNpow0 : 0 ≤ N ^ p.toReal := Real.rpow_nonneg hN0 _
+  let u2Pow : ℕ → WeakGridSpace.LevelCell G.toWeakGridSpace j → ℝ := fun i J =>
+    ‖(quasiU2Block G s p hs hp hp_top (Rind i) Rg j).coeff J‖ ^ p.toReal
+  have hcell :
+      ∀ J : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal * u2Pow i J) ≤
+          N ^ p.toReal * ‖(Rg.block j).coeff J‖ ^ p.toReal := by
+    intro J
+    refine finset_sum_le_of_unique_nonzero_bound
+      (B := N ^ p.toReal * ‖(Rg.block j).coeff J‖ ^ p.toReal)
+      (mul_nonneg hNpow0 (Real.rpow_nonneg (norm_nonneg _) _)) ?_ ?_
+    · intro i hi l hl hi_nonzero hl_nonzero
+      have hiΛ : i ∈ Λ := hΓΛ i hi
+      have hlΛ : l ∈ Λ := hΓΛ l hl
+      have hi_coeff :
+          (quasiU2Block G s p hs hp hp_top (Rind i) Rg j).coeff J ≠ 0 := by
+        intro hzero
+        exact hi_nonzero (by simp [u2Pow, hzero, Real.zero_rpow hp_pos.ne'])
+      have hl_coeff :
+          (quasiU2Block G s p hs hp hp_top (Rind l) Rg j).coeff J ≠ 0 := by
+        intro hzero
+        exact hl_nonzero (by simp [u2Pow, hzero, Real.zero_rpow hp_pos.ne'])
+      have hJi : J.1 ⊆ Ω i :=
+        regularFamilyIndicator_quasiU2Block_coeff_ne_zero_subset_domain
+          (G := G) (Λ := ({0} : Set ℕ)) (Ω := fun _ : ℕ => Ω i)
+          (s := s) (C := C i) (c := c i) (p := p)
+          (hΩ i hiΛ).toRegularFamily_singleton
+          (by simp : 0 ∈ ({0} : Set ℕ))
+          (Rind i) Rg (hIndBlock i hi) J hi_coeff
+      have hJl : J.1 ⊆ Ω l :=
+        regularFamilyIndicator_quasiU2Block_coeff_ne_zero_subset_domain
+          (G := G) (Λ := ({0} : Set ℕ)) (Ω := fun _ : ℕ => Ω l)
+          (s := s) (C := C l) (c := c l) (p := p)
+          (hΩ l hlΛ).toRegularFamily_singleton
+          (by simp : 0 ∈ ({0} : Set ℕ))
+          (Rind l) Rg (hIndBlock l hl) J hl_coeff
+      by_contra hil
+      obtain ⟨z, hzJ⟩ := levelCell_nonempty G J
+      have hdisj : Disjoint (Ω i) (Ω l) := hΩdisj i hiΛ l hlΛ hil
+      exact Set.disjoint_left.mp hdisj (hJi hzJ) (hJl hzJ)
+    · intro i hi
+      by_cases hcoeff :
+          (quasiU2Block G s p hs hp hp_top (Rind i) Rg j).coeff J = 0
+      · simp [u2Pow, hcoeff, Real.zero_rpow hp_pos.ne',
+          mul_nonneg hNpow0 (Real.rpow_nonneg (norm_nonneg _) _)]
+      · have hiΛ : i ∈ Λ := hΓΛ i hi
+        have hRgcoeff : (Rg.block j).coeff J ≠ 0 :=
+          quasiU2Block_coeff_ne_zero_left
+            G s p hs hp hp_top (Rind i) Rg J hcoeff
+        have hJsubset : J.1 ⊆ Ω i :=
+          regularFamilyIndicator_quasiU2Block_coeff_ne_zero_subset_domain
+            (G := G) (Λ := ({0} : Set ℕ)) (Ω := fun _ : ℕ => Ω i)
+            (s := s) (C := C i) (c := c i) (p := p)
+            (hΩ i hiΛ).toRegularFamily_singleton
+            (by simp : 0 ∈ ({0} : Set ℕ))
+            (Rind i) Rg (hIndBlock i hi) J hcoeff
+        obtain ⟨z, hzJ⟩ := levelCell_nonempty G J
+        have htheta_abs : |Θ i| ≤ N :=
+          regularDomain_weight_abs_le_of_overlap_meet
+            G Λ Ω s C c Θ p q hp hp_top hN0 J hiΛ (hΩ i hiΛ)
+            ⟨z, hzJ, hJsubset hzJ⟩ (hoverlap j J hRgcoeff)
+        have htheta_norm : ‖(Θ i : ℂ)‖ ≤ N := by
+          simpa [Complex.norm_real] using htheta_abs
+        have htheta_pow :
+            ‖(Θ i : ℂ)‖ ^ p.toReal ≤ N ^ p.toReal :=
+          Real.rpow_le_rpow (norm_nonneg _) htheta_norm hp_pos.le
+        have hu2_pow :
+            u2Pow i J ≤ ‖(Rg.block j).coeff J‖ ^ p.toReal := by
+          dsimp [u2Pow]
+          exact regularFamilyIndicator_quasiU2Block_coeff_norm_rpow_le
+            (G := G) (Λ := ({0} : Set ℕ)) (Ω := fun _ : ℕ => Ω i)
+            (s := s) (C := C i) (c := c i) (p := p)
+            (hΩ i hiΛ).toRegularFamily_singleton
+            (by simp : 0 ∈ ({0} : Set ℕ))
+            (Rind i) Rg (hIndBlock i hi) J
+        exact mul_le_mul htheta_pow hu2_pow
+          (Real.rpow_nonneg (norm_nonneg _) _) hNpow0
+  calc
+    (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+      ∑ J : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        ‖(quasiU2Block G s p hs hp hp_top (Rind i) Rg j).coeff J‖ ^
+          p.toReal)
+        =
+      ∑ i ∈ Γ, ∑ J : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        ‖(Θ i : ℂ)‖ ^ p.toReal * u2Pow i J := by
+          refine Finset.sum_congr rfl ?_
+          intro i hi
+          rw [Finset.mul_sum]
+    _ = ∑ J : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        ∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal * u2Pow i J := by
+          rw [Finset.sum_comm]
+    _ ≤ ∑ J : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        N ^ p.toReal * ‖(Rg.block j).coeff J‖ ^ p.toReal :=
+          Finset.sum_le_sum fun J _ => hcell J
+    _ = N ^ p.toReal * Rg.levelCoeffPower j := by
+          rw [← Finset.mul_sum]
+          rfl
+
+/--
+Every coefficient of the canonical singleton regular-domain indicator block is
+bounded by the all-`q` indicator cost of the domain.
+-/
+theorem regularDomainIndicatorBlock_coeff_norm_le_indicatorCost
+    (G : GoodGridSpace (α := α)) (Ω : Set α)
+    (s C c : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩ : RegularDomain G Ω (1 - p.toReal * s) C c)
+    {k : ℕ} (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k) :
+    ‖(regularFamilyIndicatorBlock
+      (hs := hs) (hp := hp) (hp_top := hp_top)
+      G ({0} : Set ℕ) (fun _ : ℕ => Ω) s C c p
+        hΩ.toRegularFamily_singleton 0 k).coeff Q‖ ≤
+      regularDomainIndicatorCost G Ω s C c p q := by
+  classical
+  let hFam : RegularFamily G ({0} : Set ℕ) (fun _ : ℕ => Ω)
+      (1 - p.toReal * s) C c := hΩ.toRegularFamily_singleton
+  have h0mem : (0 : ℕ) ∈ ({0} : Set ℕ) := by simp
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le hp).ne' hp_top
+  let a : ℝ := 1 - p.toReal * s
+  let base : ℝ := C ^ (1 / p.toReal) *
+    (G.grid.μ Ω).toReal ^ (1 / p.toReal - s)
+  have hcoeff_pow_le_level :
+      ‖(regularFamilyIndicatorBlock
+        (hs := hs) (hp := hp) (hp_top := hp_top)
+        G ({0} : Set ℕ) (fun _ : ℕ => Ω) s C c p hFam 0 k).coeff Q‖ ^
+          p.toReal ≤
+        ∑ P : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+          ‖(regularFamilyIndicatorBlock
+            (hs := hs) (hp := hp) (hp_top := hp_top)
+            G ({0} : Set ℕ) (fun _ : ℕ => Ω) s C c p hFam 0 k).coeff P‖ ^
+            p.toReal := by
+    exact Finset.single_le_sum
+      (fun P _ => Real.rpow_nonneg (norm_nonneg _) _)
+      (Finset.mem_univ Q)
+  have hlevel_le :
+      (∑ P : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+          ‖(regularFamilyIndicatorBlock
+            (hs := hs) (hp := hp) (hp_top := hp_top)
+            G ({0} : Set ℕ) (fun _ : ℕ => Ω) s C c p hFam 0 k).coeff P‖ ^
+            p.toReal) ≤
+        C * c ^ (k - firstContainedLevel G Ω) *
+          (G.grid.μ Ω).toReal ^ a := by
+    have hraw :=
+      regularFamilyIndicatorBlock_levelCoeffPower_le_familyCost
+        (G := G) (Λ := ({0} : Set ℕ)) (Ω := fun _ : ℕ => Ω)
+        (s := s) (C := C) (c := c) (p := p)
+        (hs := hs) (hp := hp) (hp_top := hp_top) hFam h0mem
+        (k := k)
+    simpa [regularFamilyUnion, a] using hraw
+  have hmu_a0 : 0 ≤ (G.grid.μ Ω).toReal ^ a :=
+    Real.rpow_nonneg ENNReal.toReal_nonneg _
+  have hc_pow_le : c ^ (k - firstContainedLevel G Ω) ≤ 1 :=
+    pow_le_one₀ hΩ.c_nonneg hΩ.c_lt_one.le
+  have hlevel_base :
+      ‖(regularFamilyIndicatorBlock
+        (hs := hs) (hp := hp) (hp_top := hp_top)
+        G ({0} : Set ℕ) (fun _ : ℕ => Ω) s C c p hFam 0 k).coeff Q‖ ^
+          p.toReal ≤
+        C * (G.grid.μ Ω).toReal ^ a := by
+    calc
+      ‖(regularFamilyIndicatorBlock
+        (hs := hs) (hp := hp) (hp_top := hp_top)
+        G ({0} : Set ℕ) (fun _ : ℕ => Ω) s C c p hFam 0 k).coeff Q‖ ^
+          p.toReal
+          ≤ ∑ P : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+              ‖(regularFamilyIndicatorBlock
+                (hs := hs) (hp := hp) (hp_top := hp_top)
+                G ({0} : Set ℕ) (fun _ : ℕ => Ω) s C c p hFam 0 k).coeff P‖ ^
+                p.toReal := hcoeff_pow_le_level
+      _ ≤ C * c ^ (k - firstContainedLevel G Ω) *
+          (G.grid.μ Ω).toReal ^ a := hlevel_le
+      _ ≤ C * 1 * (G.grid.μ Ω).toReal ^ a := by
+        exact mul_le_mul_of_nonneg_right
+          (mul_le_mul_of_nonneg_left hc_pow_le hΩ.C_nonneg) hmu_a0
+      _ = C * (G.grid.μ Ω).toReal ^ a := by ring
+  have hbase0 : 0 ≤ base := by
+    exact mul_nonneg (Real.rpow_nonneg hΩ.C_nonneg _)
+      (Real.rpow_nonneg ENNReal.toReal_nonneg _)
+  have hcoeff_le_base :
+      ‖(regularFamilyIndicatorBlock
+        (hs := hs) (hp := hp) (hp_top := hp_top)
+        G ({0} : Set ℕ) (fun _ : ℕ => Ω) s C c p hFam 0 k).coeff Q‖ ≤
+        base := by
+    have hright0 : 0 ≤ C * (G.grid.μ Ω).toReal ^ a :=
+      mul_nonneg hΩ.C_nonneg hmu_a0
+    calc
+      ‖(regularFamilyIndicatorBlock
+        (hs := hs) (hp := hp) (hp_top := hp_top)
+        G ({0} : Set ℕ) (fun _ : ℕ => Ω) s C c p hFam 0 k).coeff Q‖
+          =
+        (‖(regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top)
+          G ({0} : Set ℕ) (fun _ : ℕ => Ω) s C c p hFam 0 k).coeff Q‖ ^
+            p.toReal) ^ (1 / p.toReal) := by
+            rw [rpow_rpow_one_div_eq_self (norm_nonneg _) hp_pos.ne']
+      _ ≤ (C * (G.grid.μ Ω).toReal ^ a) ^ (1 / p.toReal) :=
+        Real.rpow_le_rpow
+          (Real.rpow_nonneg (norm_nonneg _) _) hlevel_base
+          (one_div_nonneg.mpr hp_pos.le)
+      _ = base := by
+        dsimp [base, a]
+        rw [Real.mul_rpow hΩ.C_nonneg
+          (Real.rpow_nonneg ENNReal.toReal_nonneg _)]
+        rw [← Real.rpow_mul ENNReal.toReal_nonneg]
+        congr 1
+        field_simp [hp_pos.ne']
+  by_cases hq : q = ∞
+  · simpa [regularDomainIndicatorCost, hq, base] using hcoeff_le_base
+  · have hq_pos : 0 < q.toReal :=
+      ENNReal.toReal_pos
+        (zero_lt_one.trans_le (Fact.out : (1 : ℝ≥0∞) ≤ q)).ne' hq
+    have hqp_pos : 0 < q.toReal / p.toReal := div_pos hq_pos hp_pos
+    have hcq0 : 0 ≤ c ^ (q.toReal / p.toReal) :=
+      Real.rpow_nonneg hΩ.c_nonneg _
+    have hcq_lt_one : c ^ (q.toReal / p.toReal) < 1 :=
+      Real.rpow_lt_one hΩ.c_nonneg hΩ.c_lt_one hqp_pos
+    have hden_pos :
+        0 < (1 - c ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) :=
+      Real.rpow_pos_of_pos (sub_pos.mpr hcq_lt_one) _
+    have hden_le_one :
+        (1 - c ^ (q.toReal / p.toReal)) ^ (1 / q.toReal) ≤ 1 := by
+      have hsub0 : 0 ≤ 1 - c ^ (q.toReal / p.toReal) :=
+        sub_nonneg.mpr hcq_lt_one.le
+      have hsub_le_one : 1 - c ^ (q.toReal / p.toReal) ≤ 1 := by
+        nlinarith [hcq0]
+      simpa using
+        (Real.rpow_le_rpow hsub0 hsub_le_one (one_div_nonneg.mpr hq_pos.le))
+    have hbase_le_cost :
+        base ≤ regularDomainIndicatorCost G Ω s C c p q := by
+      dsimp [base, regularDomainIndicatorCost]
+      rw [if_neg hq]
+      let den : ℝ := (1 - c ^ (q.toReal / p.toReal)) ^ (1 / q.toReal)
+      have hden_pos' : 0 < den := hden_pos
+      have hden_le_one' : den ≤ 1 := hden_le_one
+      have hmul_le : base * den ≤ base * 1 :=
+        mul_le_mul_of_nonneg_left hden_le_one' hbase0
+      calc
+        base = base * den / den := by field_simp [hden_pos'.ne']
+        _ ≤ base * 1 / den :=
+          div_le_div_of_nonneg_right hmul_le hden_pos'.le
+        _ = base / den := by ring
+        _ =
+          C ^ (1 / p.toReal) / den *
+            (G.grid.μ Ω).toReal ^ (1 / p.toReal - s) := by
+          dsimp [base]
+          ring
+    exact hcoeff_le_base.trans hbase_le_cost
+
+/--
+Local weighted `u₁` coefficient estimate for one regular domain.
+
+If the source tower at `Q` is active, an ancestor source cell meets the domain,
+so the non-uniform overlap hypothesis controls
+`|Θ i| * (1 + regularDomainIndicatorCost Ωᵢ)`.  The previous coefficient
+bound then turns this into control of the weighted indicator coefficient at
+`Q`.
+-/
+theorem regularDomainIndicator_quasiU1Block_weighted_coeff_norm_le_of_source_overlap
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s : ℝ) (C c Θ : ℕ → ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    {N : ℝ} (hN0 : 0 ≤ N)
+    (hΩ : ∀ i ∈ Λ, RegularDomain G (Ω i) (1 - p.toReal * s) (C i) (c i))
+    {i k : ℕ} (hi : i ∈ Λ)
+    {xind xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rind : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xind)
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (hblock : ∀ m,
+      Rind.block m =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top)
+          G ({0} : Set ℕ) (fun _ : ℕ => Ω i) s (C i) (c i) p
+          (hΩ i hi).toRegularFamily_singleton 0 m)
+    (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k)
+    (hoverlap :
+      ∀ l (P : WeakGridSpace.LevelCell G.toWeakGridSpace l),
+        (Rg.block l).coeff P ≠ 0 →
+          regularDomainOverlapCostInfinite G Λ Ω s C c Θ p q P ≤ ENNReal.ofReal N) :
+    ‖(Θ i : ℂ) *
+        (quasiU1Block G s p hs hp hp_top Rind Rg k).coeff Q‖ ≤
+      N * ‖weightedAncestorCoeffSum G Rg Q‖ := by
+  classical
+  by_cases htower : weightedAncestorCoeffSum G Rg Q = 0
+  · simp [quasiU1Block, htower]
+  · by_cases hindcoeff : (Rind.block k).coeff Q = 0
+    · have hleft :
+          ‖(Θ i : ℂ) *
+              (quasiU1Block G s p hs hp hp_top Rind Rg k).coeff Q‖ = 0 := by
+        simp [quasiU1Block, hindcoeff]
+      rw [hleft]
+      exact mul_nonneg hN0 (norm_nonneg _)
+    · rcases weightedAncestorCoeffSum_ne_zero_exists G Rg Q htower with
+        ⟨l, _hl, P, hQP, hPcoeff⟩
+      have hQblock :
+          (regularFamilyIndicatorBlock
+            (hs := hs) (hp := hp) (hp_top := hp_top)
+            G ({0} : Set ℕ) (fun _ : ℕ => Ω i) s (C i) (c i) p
+            (hΩ i hi).toRegularFamily_singleton 0 k).coeff Q ≠ 0 := by
+        simpa only [hblock k] using hindcoeff
+      have hQsubset : Q.1 ⊆ Ω i :=
+        regularFamilyIndicatorBlock_coeff_ne_zero_subset_domain
+          (G := G) (Λ := ({0} : Set ℕ)) (Ω := fun _ : ℕ => Ω i)
+          (s := s) (C := C i) (c := c i) (p := p)
+          (hΩ i hi).toRegularFamily_singleton
+          (by simp : 0 ∈ ({0} : Set ℕ)) Q hQblock
+      obtain ⟨z, hzQ⟩ := levelCell_nonempty G Q
+      have hmeet : (P.1 ∩ Ω i).Nonempty :=
+        ⟨z, hQP hzQ, hQsubset hzQ⟩
+      have hweighted :
+          |Θ i| *
+              (1 + regularDomainIndicatorCost G (Ω i) s (C i) (c i) p q) ≤ N := by
+        have hterm :
+            ENNReal.ofReal
+                (|Θ i| *
+                  (1 + regularDomainIndicatorCost G (Ω i) s (C i) (c i) p q)) ≤
+              ENNReal.ofReal N :=
+          (regularDomainOverlapCostInfinite_term_le
+            G Λ Ω s C c Θ p q P hi hmeet).trans (hoverlap l P hPcoeff)
+        exact (ENNReal.ofReal_le_ofReal_iff hN0).mp hterm
+      have hcoeff_cost :
+          ‖(Rind.block k).coeff Q‖ ≤
+            regularDomainIndicatorCost G (Ω i) s (C i) (c i) p q := by
+        rw [hblock k]
+        exact regularDomainIndicatorBlock_coeff_norm_le_indicatorCost
+          G (Ω i) s (C i) (c i) p q hs hp hp_top (hΩ i hi) Q
+      have hcost0 :
+          0 ≤ regularDomainIndicatorCost G (Ω i) s (C i) (c i) p q :=
+        regularDomainIndicatorCost_nonneg
+          G (Ω i) s (C i) (c i) p q hp hp_top (hΩ i hi)
+      have hcoeff_factor :
+          ‖(Rind.block k).coeff Q‖ ≤
+            1 + regularDomainIndicatorCost G (Ω i) s (C i) (c i) p q := by
+        linarith
+      have htheta_coeff :
+          |Θ i| * ‖(Rind.block k).coeff Q‖ ≤ N := by
+        calc
+          |Θ i| * ‖(Rind.block k).coeff Q‖
+              ≤ |Θ i| *
+                  (1 + regularDomainIndicatorCost G (Ω i) s (C i) (c i) p q) :=
+            mul_le_mul_of_nonneg_left hcoeff_factor (abs_nonneg _)
+          _ ≤ N := hweighted
+      have hnorm :
+          ‖(Θ i : ℂ) *
+              (quasiU1Block G s p hs hp hp_top Rind Rg k).coeff Q‖ =
+            |Θ i| * ‖(Rind.block k).coeff Q‖ *
+              ‖weightedAncestorCoeffSum G Rg Q‖ := by
+        simp [quasiU1Block, Complex.norm_real, mul_assoc]
+      rw [hnorm]
+      exact mul_le_mul_of_nonneg_right htheta_coeff (norm_nonneg _)
+
+/--
+Weighted finite `u₁` product levels reduce to the `p`-sum of the source tower
+on the same level.
+
+This is the honest aggregation of the local `u₁` estimate: pairwise
+disjointness ensures that, for each output cell `Q`, at most one active domain
+can contribute a nonzero indicator coefficient.
+-/
+theorem regularDomainIndicator_quasiU1Block_weighted_finset_levelCoeffPower_le_of_source_overlap
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s : ℝ) (C c Θ : ℕ → ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    {N : ℝ} (hN0 : 0 ≤ N)
+    (hΩ : ∀ i ∈ Λ, RegularDomain G (Ω i) (1 - p.toReal * s) (C i) (c i))
+    (hΩdisj : ∀ i ∈ Λ, ∀ j ∈ Λ, i ≠ j → Disjoint (Ω i) (Ω j))
+    (Γ : Finset ℕ) (hΓΛ : ∀ i ∈ Γ, i ∈ Λ)
+    {xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (xind : ℕ → Lp ℂ p G.toWeakGridSpace.measure)
+    (Rind : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) (xind i))
+    (hIndBlock : ∀ i (hi : i ∈ Γ), ∀ k,
+      (Rind i).block k =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top)
+          G ({0} : Set ℕ) (fun _ : ℕ => Ω i) s (C i) (c i) p
+          (hΩ i (hΓΛ i hi)).toRegularFamily_singleton 0 k)
+    (hoverlap :
+      ∀ l (P : WeakGridSpace.LevelCell G.toWeakGridSpace l),
+        (Rg.block l).coeff P ≠ 0 →
+          regularDomainOverlapCostInfinite G Λ Ω s C c Θ p q P ≤ ENNReal.ofReal N)
+    (j : ℕ) :
+    (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+      ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        ‖(quasiU1Block G s p hs hp hp_top (Rind i) Rg j).coeff Q‖ ^
+          p.toReal) ≤
+      N ^ p.toReal *
+        ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+          ‖weightedAncestorCoeffSum G Rg Q‖ ^ p.toReal := by
+  classical
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le hp).ne' hp_top
+  have hNpow0 : 0 ≤ N ^ p.toReal := Real.rpow_nonneg hN0 _
+  let u1Coeff : ℕ → WeakGridSpace.LevelCell G.toWeakGridSpace j → ℂ := fun i Q =>
+    (quasiU1Block G s p hs hp hp_top (Rind i) Rg j).coeff Q
+  have hcell :
+      ∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal * ‖u1Coeff i Q‖ ^ p.toReal) ≤
+          N ^ p.toReal * ‖weightedAncestorCoeffSum G Rg Q‖ ^ p.toReal := by
+    intro Q
+    refine finset_sum_le_of_unique_nonzero_bound
+      (B := N ^ p.toReal * ‖weightedAncestorCoeffSum G Rg Q‖ ^ p.toReal)
+      (mul_nonneg hNpow0 (Real.rpow_nonneg (norm_nonneg _) _)) ?_ ?_
+    · intro i hi l hl hi_nonzero hl_nonzero
+      have hiΛ : i ∈ Λ := hΓΛ i hi
+      have hlΛ : l ∈ Λ := hΓΛ l hl
+      have hi_coeff : u1Coeff i Q ≠ 0 := by
+        intro hzero
+        exact hi_nonzero (by simp [u1Coeff, hzero, Real.zero_rpow hp_pos.ne'])
+      have hl_coeff : u1Coeff l Q ≠ 0 := by
+        intro hzero
+        exact hl_nonzero (by simp [u1Coeff, hzero, Real.zero_rpow hp_pos.ne'])
+      have hi_left : ((Rind i).block j).coeff Q ≠ 0 :=
+        quasiU1Block_coeff_ne_zero_left
+          G s p hs hp hp_top (Rind i) Rg Q hi_coeff
+      have hl_left : ((Rind l).block j).coeff Q ≠ 0 :=
+        quasiU1Block_coeff_ne_zero_left
+          G s p hs hp hp_top (Rind l) Rg Q hl_coeff
+      have hi_block :
+          (regularFamilyIndicatorBlock
+            (hs := hs) (hp := hp) (hp_top := hp_top)
+            G ({0} : Set ℕ) (fun _ : ℕ => Ω i) s (C i) (c i) p
+            (hΩ i hiΛ).toRegularFamily_singleton 0 j).coeff Q ≠ 0 := by
+        simpa only [hIndBlock i hi j] using hi_left
+      have hl_block :
+          (regularFamilyIndicatorBlock
+            (hs := hs) (hp := hp) (hp_top := hp_top)
+            G ({0} : Set ℕ) (fun _ : ℕ => Ω l) s (C l) (c l) p
+            (hΩ l hlΛ).toRegularFamily_singleton 0 j).coeff Q ≠ 0 := by
+        simpa only [hIndBlock l hl j] using hl_left
+      have hQi : Q.1 ⊆ Ω i :=
+        regularFamilyIndicatorBlock_coeff_ne_zero_subset_domain
+          (G := G) (Λ := ({0} : Set ℕ)) (Ω := fun _ : ℕ => Ω i)
+          (s := s) (C := C i) (c := c i) (p := p)
+          (hΩ i hiΛ).toRegularFamily_singleton
+          (by simp : 0 ∈ ({0} : Set ℕ)) Q hi_block
+      have hQl : Q.1 ⊆ Ω l :=
+        regularFamilyIndicatorBlock_coeff_ne_zero_subset_domain
+          (G := G) (Λ := ({0} : Set ℕ)) (Ω := fun _ : ℕ => Ω l)
+          (s := s) (C := C l) (c := c l) (p := p)
+          (hΩ l hlΛ).toRegularFamily_singleton
+          (by simp : 0 ∈ ({0} : Set ℕ)) Q hl_block
+      by_contra hil
+      obtain ⟨z, hzQ⟩ := levelCell_nonempty G Q
+      have hdisj : Disjoint (Ω i) (Ω l) := hΩdisj i hiΛ l hlΛ hil
+      exact Set.disjoint_left.mp hdisj (hQi hzQ) (hQl hzQ)
+    · intro i hi
+      have hlocal :
+          ‖(Θ i : ℂ) * u1Coeff i Q‖ ≤
+            N * ‖weightedAncestorCoeffSum G Rg Q‖ := by
+        dsimp [u1Coeff]
+        exact regularDomainIndicator_quasiU1Block_weighted_coeff_norm_le_of_source_overlap
+          G Λ Ω s C c Θ p q hs hp hp_top hN0 hΩ (hΓΛ i hi)
+          (Rind i) Rg (hIndBlock i hi) Q hoverlap
+      have hleft_eq :
+          ‖(Θ i : ℂ)‖ ^ p.toReal * ‖u1Coeff i Q‖ ^ p.toReal =
+            ‖(Θ i : ℂ) * u1Coeff i Q‖ ^ p.toReal := by
+        rw [norm_mul, Real.mul_rpow (norm_nonneg _) (norm_nonneg _)]
+      rw [hleft_eq]
+      have hright_eq :
+          N ^ p.toReal * ‖weightedAncestorCoeffSum G Rg Q‖ ^ p.toReal =
+            (N * ‖weightedAncestorCoeffSum G Rg Q‖) ^ p.toReal := by
+        rw [Real.mul_rpow hN0 (norm_nonneg _)]
+      rw [hright_eq]
+      exact Real.rpow_le_rpow
+        (norm_nonneg _) hlocal hp_pos.le
+  calc
+    (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+      ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        ‖(quasiU1Block G s p hs hp hp_top (Rind i) Rg j).coeff Q‖ ^
+          p.toReal)
+        =
+      ∑ i ∈ Γ, ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        ‖(Θ i : ℂ)‖ ^ p.toReal * ‖u1Coeff i Q‖ ^ p.toReal := by
+          refine Finset.sum_congr rfl ?_
+          intro i hi
+          rw [Finset.mul_sum]
+    _ = ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        ∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal * ‖u1Coeff i Q‖ ^ p.toReal := by
+          rw [Finset.sum_comm]
+    _ ≤ ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        N ^ p.toReal * ‖weightedAncestorCoeffSum G Rg Q‖ ^ p.toReal :=
+          Finset.sum_le_sum fun Q _ => hcell Q
+    _ =
+      N ^ p.toReal *
+        ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+          ‖weightedAncestorCoeffSum G Rg Q‖ ^ p.toReal := by
+          rw [← Finset.mul_sum]
+
+private lemma real_add_rpow_le_two_sub_one_mul
+    {a b r : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) (hr : 1 ≤ r) :
+    (a + b) ^ r ≤ (2 : ℝ) ^ (r - 1) * (a ^ r + b ^ r) := by
+  let aNN : NNReal := ⟨a, ha⟩
+  let bNN : NNReal := ⟨b, hb⟩
+  exact_mod_cast NNReal.rpow_add_le_mul_rpow_add_rpow aNN bNN hr
+
+/--
+Weighted finite product levels split into the direct `u₁` tower level and the
+source representation level.
+
+This is the levelwise non-uniform `u₁ + u₂` decomposition.  It deliberately
+keeps the `u₁` tower level visible; that is the remaining analytic input
+needed to close the full non-uniform theorem.
+-/
+theorem regularDomainIndicator_quasiProductBlock_weighted_finset_levelCoeffPower_le_of_source_overlap
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s : ℝ) (C c Θ : ℕ → ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    {N : ℝ} (hN0 : 0 ≤ N)
+    (hΩ : ∀ i ∈ Λ, RegularDomain G (Ω i) (1 - p.toReal * s) (C i) (c i))
+    (hΩdisj : ∀ i ∈ Λ, ∀ j ∈ Λ, i ≠ j → Disjoint (Ω i) (Ω j))
+    (Γ : Finset ℕ) (hΓΛ : ∀ i ∈ Γ, i ∈ Λ)
+    {xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (xind : ℕ → Lp ℂ p G.toWeakGridSpace.measure)
+    (Rind : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) (xind i))
+    (hIndBlock : ∀ i (hi : i ∈ Γ), ∀ k,
+      (Rind i).block k =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top)
+          G ({0} : Set ℕ) (fun _ : ℕ => Ω i) s (C i) (c i) p
+          (hΩ i (hΓΛ i hi)).toRegularFamily_singleton 0 k)
+    (hoverlap :
+      ∀ l (P : WeakGridSpace.LevelCell G.toWeakGridSpace l),
+        (Rg.block l).coeff P ≠ 0 →
+          regularDomainOverlapCostInfinite G Λ Ω s C c Θ p q P ≤ ENNReal.ofReal N)
+    (j : ℕ) :
+    (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+      ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        ‖(WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+          (quasiU1Block G s p hs hp hp_top (Rind i) Rg j)
+          (quasiU2Block G s p hs hp hp_top (Rind i) Rg j)).coeff Q‖ ^
+          p.toReal) ≤
+      (2 : ℝ) ^ (p.toReal - 1) * N ^ p.toReal *
+        ((∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+            ‖weightedAncestorCoeffSum G Rg Q‖ ^ p.toReal) +
+          Rg.levelCoeffPower j) := by
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let K : ℝ := (2 : ℝ) ^ (p.toReal - 1)
+  let U1 : ℕ → WeakGridSpace.LevelCell G.toWeakGridSpace j → ℂ := fun i Q =>
+    (quasiU1Block G s p hs hp hp_top (Rind i) Rg j).coeff Q
+  let U2 : ℕ → WeakGridSpace.LevelCell G.toWeakGridSpace j → ℂ := fun i Q =>
+    (quasiU2Block G s p hs hp hp_top (Rind i) Rg j).coeff Q
+  have hp_real : 1 ≤ p.toReal := (ENNReal.dichotomy p).resolve_left hp_top
+  have hK0 : 0 ≤ K := Real.rpow_nonneg (by norm_num : (0 : ℝ) ≤ 2) _
+  have hNpow0 : 0 ≤ N ^ p.toReal := Real.rpow_nonneg hN0 _
+  have hsplit :
+      (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+        ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+          ‖(WeakGridSpace.LevelBlock.add A
+            (quasiU1Block G s p hs hp hp_top (Rind i) Rg j)
+            (quasiU2Block G s p hs hp hp_top (Rind i) Rg j)).coeff Q‖ ^
+            p.toReal) ≤
+        K *
+          ((∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+            ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+              ‖U1 i Q‖ ^ p.toReal) +
+           (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+            ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+              ‖U2 i Q‖ ^ p.toReal)) := by
+    calc
+      (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+        ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+          ‖(WeakGridSpace.LevelBlock.add A
+            (quasiU1Block G s p hs hp hp_top (Rind i) Rg j)
+            (quasiU2Block G s p hs hp hp_top (Rind i) Rg j)).coeff Q‖ ^
+            p.toReal)
+          ≤
+        ∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+          (K *
+            ((∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                ‖U1 i Q‖ ^ p.toReal) +
+              ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                ‖U2 i Q‖ ^ p.toReal)) := by
+          refine Finset.sum_le_sum ?_
+          intro i hi
+          refine mul_le_mul_of_nonneg_left ?_ (Real.rpow_nonneg (norm_nonneg _) _)
+          calc
+            (∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+              ‖(WeakGridSpace.LevelBlock.add A
+                (quasiU1Block G s p hs hp hp_top (Rind i) Rg j)
+                (quasiU2Block G s p hs hp hp_top (Rind i) Rg j)).coeff Q‖ ^
+                p.toReal)
+                ≤
+              ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                K * (‖U1 i Q‖ ^ p.toReal + ‖U2 i Q‖ ^ p.toReal) := by
+                refine Finset.sum_le_sum ?_
+                intro Q _
+                let B1 := quasiU1Block G s p hs hp hp_top (Rind i) Rg j
+                let B2 := quasiU2Block G s p hs hp hp_top (Rind i) Rg j
+                have hnn : 0 ≤ ‖B1.coeff Q‖ + ‖B2.coeff Q‖ :=
+                  add_nonneg (norm_nonneg _) (norm_nonneg _)
+                have hnorm :
+                    ‖(WeakGridSpace.LevelBlock.add A B1 B2).coeff Q‖ =
+                      ‖B1.coeff Q‖ + ‖B2.coeff Q‖ := by
+                  change ‖(((‖B1.coeff Q‖ + ‖B2.coeff Q‖ : ℝ) : ℂ))‖ =
+                    ‖B1.coeff Q‖ + ‖B2.coeff Q‖
+                  rw [Complex.norm_real, Real.norm_of_nonneg hnn]
+                rw [hnorm]
+                dsimp [K, U1, U2, B1, B2]
+                exact real_add_rpow_le_two_sub_one_mul
+                  (norm_nonneg _) (norm_nonneg _) hp_real
+            _ =
+              K *
+                ((∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                    ‖U1 i Q‖ ^ p.toReal) +
+                  ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                    ‖U2 i Q‖ ^ p.toReal) := by
+              rw [← Finset.mul_sum]
+              simp only [Finset.sum_add_distrib, mul_add]
+      _ =
+        K *
+          ((∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+            ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+              ‖U1 i Q‖ ^ p.toReal) +
+           (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+            ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+              ‖U2 i Q‖ ^ p.toReal)) := by
+          calc
+            (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+              (K *
+                ((∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                    ‖U1 i Q‖ ^ p.toReal) +
+                  ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                    ‖U2 i Q‖ ^ p.toReal)))
+                =
+              ∑ i ∈ Γ, K *
+                (‖(Θ i : ℂ)‖ ^ p.toReal *
+                  ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                    ‖U1 i Q‖ ^ p.toReal +
+                 ‖(Θ i : ℂ)‖ ^ p.toReal *
+                  ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                    ‖U2 i Q‖ ^ p.toReal) := by
+                  refine Finset.sum_congr rfl ?_
+                  intro i hi
+                  ring
+            _ =
+              K * ∑ i ∈ Γ,
+                (‖(Θ i : ℂ)‖ ^ p.toReal *
+                  ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                    ‖U1 i Q‖ ^ p.toReal +
+                 ‖(Θ i : ℂ)‖ ^ p.toReal *
+                  ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                    ‖U2 i Q‖ ^ p.toReal) := by
+                  rw [← Finset.mul_sum]
+            _ =
+              K *
+                ((∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+                  ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                    ‖U1 i Q‖ ^ p.toReal) +
+                 (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+                  ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+                    ‖U2 i Q‖ ^ p.toReal)) := by
+                  rw [Finset.sum_add_distrib]
+  have hU1 :
+      (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+        ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+          ‖U1 i Q‖ ^ p.toReal) ≤
+        N ^ p.toReal *
+          ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+            ‖weightedAncestorCoeffSum G Rg Q‖ ^ p.toReal := by
+    dsimp [U1]
+    exact regularDomainIndicator_quasiU1Block_weighted_finset_levelCoeffPower_le_of_source_overlap
+      G Λ Ω s C c Θ p q hs hp hp_top hN0 hΩ hΩdisj Γ hΓΛ Rg xind Rind
+      hIndBlock hoverlap j
+  have hU2 :
+      (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+        ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+          ‖U2 i Q‖ ^ p.toReal) ≤
+        N ^ p.toReal * Rg.levelCoeffPower j := by
+    dsimp [U2]
+    exact regularDomainIndicator_quasiU2Block_weighted_finset_levelCoeffPower_le_of_source_overlap
+      G Λ Ω s C c Θ p q hs hp hp_top hN0 hΩ hΩdisj Γ hΓΛ Rg xind Rind
+      hIndBlock hoverlap j
+  calc
+    (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+      ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+        ‖(WeakGridSpace.LevelBlock.add A
+          (quasiU1Block G s p hs hp hp_top (Rind i) Rg j)
+          (quasiU2Block G s p hs hp hp_top (Rind i) Rg j)).coeff Q‖ ^
+          p.toReal)
+        ≤ K *
+          ((∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+            ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+              ‖U1 i Q‖ ^ p.toReal) +
+           (∑ i ∈ Γ, ‖(Θ i : ℂ)‖ ^ p.toReal *
+            ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+              ‖U2 i Q‖ ^ p.toReal)) := hsplit
+    _ ≤ K *
+        (N ^ p.toReal *
+            ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+              ‖weightedAncestorCoeffSum G Rg Q‖ ^ p.toReal +
+          N ^ p.toReal * Rg.levelCoeffPower j) :=
+        mul_le_mul_of_nonneg_left (add_le_add hU1 hU2) hK0
+    _ = K * N ^ p.toReal *
+        ((∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+            ‖weightedAncestorCoeffSum G Rg Q‖ ^ p.toReal) +
+          Rg.levelCoeffPower j) := by
+        ring
+
+/--
+Finite weighted sums of one-domain product representations satisfy the
+disjoint-domain cost comparison under the non-uniform source-cell overlap
+hypothesis.
+
+This is the first product-level non-uniform step: it does not yet estimate the
+mixed restriction cost of the unweighted product family, but it converts the
+overlap hypothesis into the levelwise support weight bound needed by the
+finite disjoint-domain summation lemma.
+-/
+theorem exists_finset_weighted_sum_disjointDomains_product_pqCost_le_of_source_overlap
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s : ℝ) (C c Θ : ℕ → ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩ : ∀ i ∈ Λ, RegularDomain G (Ω i) (1 - p.toReal * s) (C i) (c i))
+    (hΩdisj : ∀ i ∈ Λ, ∀ j ∈ Λ, i ≠ j → Disjoint (Ω i) (Ω j))
+    (Γ : Finset ℕ) (hΓΛ : ∀ i ∈ Γ, i ∈ Λ)
+    {N : ℝ} (hN0 : 0 ≤ N)
+    (f : ℕ → α → ℂ)
+    (y : ℕ → WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (Rprod : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    {xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (xind : ℕ → Lp ℂ p G.toWeakGridSpace.measure)
+    (Rind : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) (xind i))
+    (hRep : ∀ i ∈ Γ,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) (f i)
+        (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hFin : ∀ i ∈ Γ,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (Rprod i))
+    (hIndBlock : ∀ i (hi : i ∈ Γ), ∀ k,
+      (Rind i).block k =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top)
+          G ({0} : Set ℕ) (fun _ : ℕ => Ω i) s (C i) (c i) p
+          (hΩ i (hΓΛ i hi)).toRegularFamily_singleton 0 k)
+    (hProdLevel : ∀ i ∈ Γ, ∀ k,
+      (Rprod i).levelCoeffPower k =
+        ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+          ‖(WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+            (quasiU1Block G s p hs hp hp_top (Rind i) Rg k)
+            (quasiU2Block G s p hs hp hp_top (Rind i) Rg k)).coeff Q‖ ^
+            p.toReal)
+    (hProdSupp : ∀ i ∈ Γ, ∀ k
+      (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        ((Rprod i).block k).coeff Q ≠ 0 → Q.1 ⊆ Ω i)
+    (hoverlap :
+      ∀ l (P : WeakGridSpace.LevelCell G.toWeakGridSpace l),
+        (Rg.block l).coeff P ≠ 0 →
+          regularDomainOverlapCostInfinite G Λ Ω s C c Θ p q P ≤ ENNReal.ofReal N) :
+    ∃ Y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      ∃ S : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          (fun z => ∑ i ∈ Γ, (Θ i : ℂ) * f i z)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
+          N * regularFamilyRestrictionCost G s p q (Γ : Set ℕ) y Rprod ∧
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+          (S.block k).coeff Q ≠ 0 → ∃ i ∈ Γ, Q.1 ⊆ Ω i) := by
+  classical
+  have hWeightLevel : ∀ i ∈ Γ, ∀ k,
+      (Rprod i).levelCoeffPower k ≠ 0 → |Θ i| ≤ N := by
+    intro i hi k hlevel_ne
+    have hiΛ : i ∈ Λ := hΓΛ i hi
+    have hweighted :
+        |Θ i| * (1 + regularDomainIndicatorCost G (Ω i) s (C i) (c i) p q) ≤ N :=
+      regularDomain_weightedIndicatorCost_le_of_productLevel_source_overlap_of_levelCoeffPower
+        G Λ Ω s C c Θ p q hs hp hp_top hN0 hΩ hiΛ
+        (Rind i) Rg (Rprod i) (hIndBlock i hi)
+        (hProdLevel i hi k) hlevel_ne hoverlap
+    have hcost0 :
+        0 ≤ regularDomainIndicatorCost G (Ω i) s (C i) (c i) p q :=
+      regularDomainIndicatorCost_nonneg
+        G (Ω i) s (C i) (c i) p q hp hp_top (hΩ i hiΛ)
+    have hfactor :
+        1 ≤ 1 + regularDomainIndicatorCost G (Ω i) s (C i) (c i) p q := by
+      linarith
+    calc
+      |Θ i| = |Θ i| * 1 := by ring
+      _ ≤ |Θ i| *
+          (1 + regularDomainIndicatorCost G (Ω i) s (C i) (c i) p q) :=
+        mul_le_mul_of_nonneg_left hfactor (abs_nonneg _)
+      _ ≤ N := hweighted
+  exact exists_finset_weighted_sum_disjointDomains_pqCost_le_of_level_weight_bound
+    G Λ Ω s p q hs hp hp_top hΩdisj Γ hΓΛ Θ hN0 f y Rprod
+    hWeightLevel hRep hFin hProdSupp
+
+/--
 Apply the main source-cell overlap hypothesis to a nonzero coefficient of a
 regular-family product block.
 -/
@@ -2739,6 +4672,68 @@ theorem regularFamily_weight_abs_le_of_productLevel_source_overlap
     exact hQcoeff
   exact regularFamily_weight_abs_le_of_productBlock_source_overlap
     G Λ Ω s C c p hs hp hp_top hΩ hN0 hi Rind Rg hblock Q hprodCoeff hoverlap
+
+/--
+Variant of `regularFamily_weight_abs_le_of_productLevel_source_overlap` for a
+positive product representation whose level coefficient power agrees with the
+usual abstract `quasiU1 + quasiU2` block.
+-/
+theorem regularFamily_weight_abs_le_of_productLevel_source_overlap_of_levelCoeffPower
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s C c : ℝ) (p : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)]
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    {Θ : ℕ → ℝ} {N : ℝ} (hN0 : 0 ≤ N)
+    {i k : ℕ} (hi : i ∈ Λ)
+    {xind xg xprod : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rind : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xind)
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (Rprod : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xprod)
+    (hblock : ∀ m,
+      Rind.block m =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i m)
+    (hprodLevel : Rprod.levelCoeffPower k =
+      ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        ‖(WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+          (quasiU1Block G s p hs hp hp_top Rind Rg k)
+          (quasiU2Block G s p hs hp hp_top Rind Rg k)).coeff Q‖ ^
+          p.toReal)
+    (hlevel : Rprod.levelCoeffPower k ≠ 0)
+    (hoverlap :
+      ∀ l (P : WeakGridSpace.LevelCell G.toWeakGridSpace l),
+        (Rg.block l).coeff P ≠ 0 →
+          regularFamilyOverlapCostInfinite G Λ Ω Θ P ≤ ENNReal.ofReal N) :
+    |Θ i| ≤ N := by
+  classical
+  have hp_pos : 0 < p.toReal :=
+    ENNReal.toReal_pos (zero_lt_one.trans_le hp).ne' hp_top
+  by_contra hnot
+  have hcoeff_zero :
+      ∀ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        (WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+          (quasiU1Block G s p hs hp hp_top Rind Rg k)
+          (quasiU2Block G s p hs hp hp_top Rind Rg k)).coeff Q = 0 := by
+    intro Q
+    by_contra hcoeff
+    exact hnot
+      (regularFamily_weight_abs_le_of_productBlock_source_overlap
+        G Λ Ω s C c p hs hp hp_top hΩ hN0 hi Rind Rg hblock Q hcoeff hoverlap)
+  have hsum_zero :
+      (∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+        ‖(WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+          (quasiU1Block G s p hs hp hp_top Rind Rg k)
+          (quasiU2Block G s p hs hp hp_top Rind Rg k)).coeff Q‖ ^
+          p.toReal) = 0 := by
+    refine Finset.sum_eq_zero ?_
+    intro Q _hQ
+    rw [hcoeff_zero Q]
+    simp [Real.zero_rpow hp_pos.ne']
+  exact hlevel (by rw [hprodLevel, hsum_zero])
 
 /--
 Finite weighted sums of regular-family product representations satisfy the
@@ -3178,6 +5173,71 @@ theorem regularFamily_product_restriction_finset_levelCoeffPower_le
           refine Finset.sum_congr rfl ?_
           intro Q _
           rw [hProdBlock i hi j]
+    _ ≤ (2 : ℝ) ^ (p.toReal - 1) *
+        (M ^ p.toReal * regularFamilyGeomLevel G Λ Ω s C c p j +
+          Rg.levelCoeffPower j) := by
+          simpa [regularFamilyGeomLevel] using
+          regularFamilyIndicator_quasiProductBlock_finset_levelCoeffPower_le
+              (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+              (p := p) hΩ Rind Rg hIndBlock hM0 htower_g Γ hΓΛ j
+
+/--
+Finite product restrictions satisfy the regular-family level bound when the
+product representations only expose the level coefficient power of the usual
+`quasiU1 + quasiU2` block.
+-/
+theorem regularFamily_product_restriction_finset_levelCoeffPower_le_of_product_level
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s C c : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    {xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (xind : ℕ → Lp ℂ p G.toWeakGridSpace.measure)
+    (Rind : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) (xind i))
+    (y : ℕ → WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (R : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hIndBlock : ∀ i k,
+      (Rind i).block k =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i k)
+    (Γ : Finset ℕ) (hΓΛ : ∀ i ∈ Γ, i ∈ Λ)
+    (hProdLevel : ∀ i ∈ Γ, ∀ k,
+      (R i).levelCoeffPower k =
+        ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+          ‖(WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+            (quasiU1Block G s p hs hp hp_top (Rind i) Rg k)
+            (quasiU2Block G s p hs hp hp_top (Rind i) Rg k)).coeff Q‖ ^
+            p.toReal)
+    {M : ℝ} (hM0 : 0 ≤ M)
+    (htower_g : ∀ (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      ‖weightedAncestorCoeffSum G Rg Q‖ ≤ M)
+    (j : ℕ) :
+    regularFamilyRestrictionLevelCoeffPower G s p q (Γ : Set ℕ) y R j ≤
+      (2 : ℝ) ^ (p.toReal - 1) *
+        (M ^ p.toReal * regularFamilyGeomLevel G Λ Ω s C c p j +
+          Rg.levelCoeffPower j) := by
+  classical
+  calc
+    regularFamilyRestrictionLevelCoeffPower G s p q (Γ : Set ℕ) y R j
+        = ∑ i ∈ Γ, (R i).levelCoeffPower j := by
+          rw [regularFamilyRestrictionLevelCoeffPower_finset]
+    _ = ∑ i ∈ Γ,
+        ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace j,
+          ‖(WeakGridSpace.LevelBlock.add
+            (souzaAtomFamily G s p hs hp hp_top)
+            (quasiU1Block G s p hs hp hp_top (Rind i) Rg j)
+            (quasiU2Block G s p hs hp hp_top (Rind i) Rg j)).coeff Q‖ ^
+            p.toReal := by
+          refine Finset.sum_congr rfl ?_
+          intro i hi
+          exact hProdLevel i hi j
     _ ≤ (2 : ℝ) ^ (p.toReal - 1) *
         (M ^ p.toReal * regularFamilyGeomLevel G Λ Ω s C c p j +
           Rg.levelCoeffPower j) := by
@@ -3717,6 +5777,127 @@ theorem exists_finset_weighted_sum_regularFamily_product_pqCost_le_global_bounde
     _ = (Kroot * (Groot + 1)) * N * (Rcost + M) := by ring
 
 /--
+Positive finite weighted regular-family product sums with the bounded-Besov
+gauge constant in the same shape as the final multiplier statement.
+-/
+theorem exists_finset_weighted_sum_positive_regularFamily_product_pqCost_le_global_bounded
+    (G : GoodGridSpace (α := α)) (Λ : Set ℕ) (Ω : ℕ → Set α)
+    (s C c : ℝ) (p q : ℝ≥0∞)
+    (hs : 0 < s) (hp : 1 ≤ p) (hp_top : p ≠ ∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    (hΩ : RegularFamily G Λ Ω (1 - p.toReal * s) C c)
+    (Γ : Finset ℕ) (hΓΛ : ∀ i ∈ Γ, i ∈ Λ)
+    (Θ : ℕ → ℝ) {N M : ℝ} (hN0 : 0 ≤ N) (hM0 : 0 ≤ M)
+    (f : ℕ → α → ℂ)
+    (y : ℕ → WeakGridSpace.BesovishSpace
+      (souzaAtomFamily G s p hs hp hp_top) q)
+    (R : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top)
+      (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    {xg : Lp ℂ p G.toWeakGridSpace.measure}
+    (Rg : WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) xg)
+    (hRgfin : WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Rg)
+    (xind : ℕ → Lp ℂ p G.toWeakGridSpace.measure)
+    (Rind : (i : ℕ) → WeakGridSpace.LpGridRepresentation
+      (souzaAtomFamily G s p hs hp hp_top) (xind i))
+    (hΘ : ∀ i ∈ Γ, 0 ≤ Θ i)
+    (hRep : ∀ i ∈ Γ,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) (f i)
+        (y i : Lp ℂ p G.toWeakGridSpace.measure))
+    (hPos : ∀ i ∈ Γ, SouzaPositiveRepresentation G s p hs hp hp_top (R i))
+    (hFin : ∀ i ∈ Γ,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (R i))
+    (hIndBlock : ∀ i k,
+      (Rind i).block k =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i k)
+    (hProdLevel : ∀ i ∈ Γ, ∀ k,
+      (R i).levelCoeffPower k =
+        ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+          ‖(WeakGridSpace.LevelBlock.add (souzaAtomFamily G s p hs hp hp_top)
+            (quasiU1Block G s p hs hp hp_top (Rind i) Rg k)
+            (quasiU2Block G s p hs hp hp_top (Rind i) Rg k)).coeff Q‖ ^
+            p.toReal)
+    (hProdSupp : ∀ i ∈ Γ, ∀ k
+      (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+        ((R i).block k).coeff Q ≠ 0 → Q.1 ⊆ Ω i)
+    (htower_g : ∀ (k : ℕ) (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      ‖weightedAncestorCoeffSum G Rg Q‖ ≤ M)
+    (hoverlap :
+      ∀ l (P : WeakGridSpace.LevelCell G.toWeakGridSpace l),
+        (Rg.block l).coeff P ≠ 0 →
+          regularFamilyOverlapCostInfinite G Λ Ω Θ P ≤ ENNReal.ofReal N) :
+    ∃ Y : WeakGridSpace.BesovishSpace
+        (souzaAtomFamily G s p hs hp hp_top) q,
+      ∃ S : WeakGridSpace.LpGridRepresentation
+          (souzaAtomFamily G s p hs hp hp_top)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          (fun z => ∑ i ∈ Γ, (Θ i : ℂ) * f i z)
+          (Y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        SouzaPositiveRepresentation G s p hs hp hp_top S ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) S ∧
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤
+          (((2 : ℝ) ^ (p.toReal - 1)) ^ (1 / p.toReal) *
+              (regularFamilyGeomRootCost G Λ Ω s C c p q + 1)) *
+            N *
+            (WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg + M) ∧
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+          (S.block k).coeff Q ≠ 0 → ∃ i ∈ Γ, Q.1 ⊆ Ω i) := by
+  classical
+  have hWeightLevel : ∀ i ∈ Γ, ∀ k,
+      (R i).levelCoeffPower k ≠ 0 → |Θ i| ≤ N := by
+    intro i hi k hlevel_ne
+    exact regularFamily_weight_abs_le_of_productLevel_source_overlap_of_levelCoeffPower
+      G Λ Ω s C c p hs hp hp_top hΩ hN0 (hΓΛ i hi)
+      (Rind i) Rg (R i) (fun m => hIndBlock i m) (hProdLevel i hi k)
+      hlevel_ne hoverlap
+  obtain ⟨Y, S, hRepS, hPosS, hFinS, hCostS, hSuppS⟩ :=
+    exists_finset_weighted_sum_positive_regularFamily_pqCost_le_of_level_weight_bound
+      G Λ Ω s p q hs hp hp_top hΩ Γ hΓΛ Θ hN0 f y R hΘ hWeightLevel
+      hRep hPos hFin hProdSupp
+  have hlevel : ∀ j,
+      regularFamilyRestrictionLevelCoeffPower G s p q (Γ : Set ℕ) y R j ≤
+        (2 : ℝ) ^ (p.toReal - 1) *
+          (M ^ p.toReal * regularFamilyGeomLevel G Λ Ω s C c p j +
+            Rg.levelCoeffPower j) := by
+    intro j
+    exact regularFamily_product_restriction_finset_levelCoeffPower_le_of_product_level
+      G Λ Ω s C c p q hs hp hp_top hΩ Rg
+      xind Rind y R hIndBlock Γ hΓΛ hProdLevel hM0 htower_g j
+  have hRestr :
+      regularFamilyRestrictionCost G s p q (Γ : Set ℕ) y R ≤
+        ((2 : ℝ) ^ (p.toReal - 1)) ^ (1 / p.toReal) *
+          (M * regularFamilyGeomRootCost G Λ Ω s C c p q +
+            WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg) :=
+    regularFamilyRestrictionCost_le_of_global_level_bound
+      G Λ Ω (Γ : Set ℕ) s C c p q hs hp hp_top hΩ Rg hRgfin hM0 y R hlevel
+  let Kroot : ℝ := ((2 : ℝ) ^ (p.toReal - 1)) ^ (1 / p.toReal)
+  let Groot : ℝ := regularFamilyGeomRootCost G Λ Ω s C c p q
+  let Rcost : ℝ := WeakGridSpace.LpGridRepresentation.pqCost (q := q) Rg
+  have hK0 : 0 ≤ Kroot :=
+    Real.rpow_nonneg (Real.rpow_nonneg (by norm_num : (0 : ℝ) ≤ 2) _) _
+  have hG0 : 0 ≤ Groot := regularFamilyGeomRootCost_nonneg
+    (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+    (p := p) (q := q) hΩ
+  have hR0 : 0 ≤ Rcost := WeakGridSpace.LpGridRepresentation.pqCost_nonneg Rg
+  have hinner : M * Groot + Rcost ≤ (Groot + 1) * (Rcost + M) := by
+    nlinarith [hM0, hG0, hR0]
+  refine ⟨Y, S, hRepS, hPosS, hFinS, ?_, hSuppS⟩
+  calc
+    WeakGridSpace.LpGridRepresentation.pqCost (q := q) S
+        ≤ N * regularFamilyRestrictionCost G s p q (Γ : Set ℕ) y R := hCostS
+    _ ≤ N * (Kroot * (M * Groot + Rcost)) :=
+        mul_le_mul_of_nonneg_left hRestr hN0
+    _ = Kroot * N * (M * Groot + Rcost) := by ring
+    _ ≤ Kroot * N * ((Groot + 1) * (Rcost + M)) :=
+        mul_le_mul_of_nonneg_left hinner (mul_nonneg hK0 hN0)
+    _ = (Kroot * (Groot + 1)) * N * (Rcost + M) := by ring
+
+/--
 Partial sums over the initial finite truncations of an active index set
 converge to the corresponding subtype-indexed `HasSum`.
 -/
@@ -4224,6 +6405,7 @@ theorem regularDomains_nonArchimedean_indicator_multipliers
           (x : Lp ℂ p G.toWeakGridSpace.measure)),
         0 ≤ N →
         (∀ i ∈ Λ, RegularDomain G (Ω i) (1 - p.toReal * s) (C i) (c i)) →
+        (∀ i ∈ Λ, ∀ j ∈ Λ, i ≠ j → Disjoint (Ω i) (Ω j)) →
         WeakGridSpace.RepresentsFunction
           (G := G.toWeakGridSpace) (p := p) f
           (x : Lp ℂ p G.toWeakGridSpace.measure) →
@@ -4302,6 +6484,7 @@ theorem regularDomains_nonArchimedean_indicator_multipliers_positive
           (x : Lp ℂ p G.toWeakGridSpace.measure)),
         0 ≤ N →
         (∀ i ∈ Λ, RegularDomain G (Ω i) (1 - p.toReal * s) (C i) (c i)) →
+        (∀ i ∈ Λ, ∀ j ∈ Λ, i ≠ j → Disjoint (Ω i) (Ω j)) →
         (∀ i ∈ Λ, 0 ≤ Θ i) →
         WeakGridSpace.RepresentsFunction
           (G := G.toWeakGridSpace) (p := p) f
@@ -4541,7 +6724,297 @@ theorem regularFamily_nonArchimedean_indicator_multipliers_positive
                   (S.block k).coeff Q ≠ 0 →
                     ∃ i ∈ Λ, Q.1 ⊆ Ω i) ∧
                 SouzaConePositiveRepresentation G s p hs hp hp_top S := by
-  sorry
+  classical
+  let A := souzaAtomFamily G s p hs hp hp_top
+  let Cbase : ℝ :=
+    ((2 : ℝ) ^ (p.toReal - 1)) ^ (1 / p.toReal) *
+      (regularFamilyGeomRootCost G Λ Ω s C c p q + 1)
+  let Cna : ℝ := Cbase + 1
+  have hCbase0 : 0 ≤ Cbase := by
+    exact mul_nonneg
+      (Real.rpow_nonneg (Real.rpow_nonneg (by norm_num : (0 : ℝ) ≤ 2) _) _)
+      (add_nonneg
+        (regularFamilyGeomRootCost_nonneg
+          (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+          (p := p) (q := q) hΩ)
+        zero_le_one)
+  refine ⟨Cna, add_nonneg hCbase0 zero_le_one, ?_⟩
+  intro Θ N M f x R hN0 hΘ hRep hfbdd hRfin _hcanon hRpos htower_g _hstrict hoverlap
+  let h : α → ℂ := fun z =>
+    ∑' i : {i // i ∈ Λ},
+      (Θ i.1 : ℂ) * (Ω i.1).indicator (fun _ => (1 : ℂ)) z * f z
+  have hM0 : 0 ≤ M := regularFamilyRestriction_bound_nonneg G hfbdd
+  have hRcost0 : 0 ≤ WeakGridSpace.LpGridRepresentation.pqCost (q := q) R :=
+    WeakGridSpace.LpGridRepresentation.pqCost_nonneg R
+  have hbounds :
+      ∀ᵐ z ∂G.toWeakGridSpace.measure,
+        HasSum
+          (fun i : {i // i ∈ Λ} =>
+            (Θ i.1 : ℂ) * (Ω i.1).indicator (fun _ => (1 : ℂ)) z * f z)
+          (h z) ∧
+        ‖h z‖ ≤ N * ‖f z‖ ∧
+        ‖h z‖ ≤ N * M := by
+    simpa [h] using
+      regularFamily_weightedIndicator_product_tsum_bounds_ae
+        G Λ Ω s C c p q hs hp hp_top hΩ Θ hN0 f x R hRep hfbdd hoverlap
+  have hseries :
+      ∀ᵐ z ∂G.toWeakGridSpace.measure,
+        HasSum
+          (fun i : {i // i ∈ Λ} =>
+            (Θ i.1 : ℂ) * (Ω i.1).indicator (fun _ => (1 : ℂ)) z * f z)
+          (h z) := by
+    filter_upwards [hbounds] with z hz
+    exact hz.1
+  have hnormNM :
+      ∀ᵐ z ∂G.toWeakGridSpace.measure, ‖h z‖ ≤ N * M := by
+    filter_upwards [hbounds] with z hz
+    exact hz.2.2
+  have hnormC :
+      ∀ᵐ z ∂G.toWeakGridSpace.measure, ‖h z‖ ≤ Cna * N * M := by
+    filter_upwards [hnormNM] with z hz
+    have hNM0 : 0 ≤ N * M := mul_nonneg hN0 hM0
+    calc
+      ‖h z‖ ≤ N * M := hz
+      _ ≤ Cna * (N * M) := by
+        exact le_mul_of_one_le_left hNM0 (by dsimp [Cna]; nlinarith [hCbase0])
+      _ = Cna * N * M := by ring
+  let zeroBesov : WeakGridSpace.BesovishSpace A q :=
+    ⟨0, WeakGridSpace.memBesovishCoeffCost_zero (A := A) (q := q)⟩
+  let indExists := fun i (hi : i ∈ Λ) =>
+    regularFamilyIndicator_besov_positive_representation
+      G Λ Ω s C c p q hs hs_lt_inv hp hp_top hΩ hi
+  let activeIndY := fun i (hi : i ∈ Λ) =>
+    Classical.choose (indExists i hi)
+  let activeIndR := fun i (hi : i ∈ Λ) =>
+    Classical.choose (Classical.choose_spec (indExists i hi))
+  let indPkg :
+      (i : ℕ) →
+        Σ yind : WeakGridSpace.BesovishSpace A q,
+          WeakGridSpace.LpGridRepresentation A
+            (yind : Lp ℂ p G.toWeakGridSpace.measure) := fun i =>
+    if hi : i ∈ Λ then
+      ⟨activeIndY i hi, activeIndR i hi⟩
+    else
+      ⟨zeroBesov,
+        regularFamilyInactiveIndicatorRepresentation
+          (hs := hs) (hp := hp) (hp_top := hp_top)
+          (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+          (p := p) hΩ i hi⟩
+  let yind : ℕ → WeakGridSpace.BesovishSpace A q := fun i => (indPkg i).1
+  let Rind : (i : ℕ) → WeakGridSpace.LpGridRepresentation A
+      (yind i : Lp ℂ p G.toWeakGridSpace.measure) := fun i => (indPkg i).2
+  have hind_active :
+      ∀ i (hi : i ∈ Λ),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          ((Ω i).indicator fun _ => (1 : ℂ))
+          (yind i : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (Rind i) ∧
+        SouzaPositiveRepresentation G s p hs hp hp_top (Rind i) ∧
+        ∀ k, (Rind i).block k =
+          regularFamilyIndicatorBlock
+            (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i k := by
+    intro i hi
+    have hspec := Classical.choose_spec (Classical.choose_spec (indExists i hi))
+    dsimp [yind, Rind, indPkg]
+    rw [dif_pos hi]
+    simpa [indExists, activeIndY, activeIndR] using hspec
+  have hblock_all : ∀ i k,
+      (Rind i).block k =
+        regularFamilyIndicatorBlock
+          (hs := hs) (hp := hp) (hp_top := hp_top) G Λ Ω s C c p hΩ i k := by
+    intro i k
+    by_cases hi : i ∈ Λ
+    · exact (hind_active i hi).2.2.2 k
+    · dsimp [Rind, yind, indPkg]
+      rw [dif_neg hi]
+      rfl
+  let prodStrict :
+      ∀ i, i ∈ Λ →
+        ∀ (j : ℕ) (J : WeakGridSpace.LevelCell G.toWeakGridSpace j),
+          ‖strictWeightedAncestorCoeffSum G (Rind i) J‖ ≤ 1 := fun i hi j J =>
+    regularFamilyIndicator_strictWeightedAncestorCoeffSum_norm_le_one
+      (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+      (p := p) hΩ hi (Rind i) (fun m => hblock_all i m) J
+  let prodExists := fun i (hi : i ∈ Λ) =>
+    exists_quasi_product_of_tower_positive_representations
+      G s p q hs hp hp_top
+      ((Ω i).indicator fun _ => (1 : ℂ)) f 1 M
+      (by norm_num : (0 : ℝ) ≤ 1) hM0
+      (yind i) x (Rind i) R
+      (hind_active i hi).1 hRep
+      (hind_active i hi).2.2.1 hRpos
+      (hind_active i hi).2.1 hRfin
+      htower_g (prodStrict i hi)
+  let activeProdY := fun i (hi : i ∈ Λ) =>
+    Classical.choose (prodExists i hi)
+  let activeProdR := fun i (hi : i ∈ Λ) =>
+    Classical.choose (Classical.choose_spec (prodExists i hi))
+  let prodPkg :
+      (i : ℕ) →
+        Σ yprod : WeakGridSpace.BesovishSpace A q,
+          WeakGridSpace.LpGridRepresentation A
+            (yprod : Lp ℂ p G.toWeakGridSpace.measure) := fun i =>
+    if hi : i ∈ Λ then
+      ⟨activeProdY i hi, activeProdR i hi⟩
+    else
+      ⟨x, R⟩
+  let yprod : ℕ → WeakGridSpace.BesovishSpace A q := fun i => (prodPkg i).1
+  let Rprod : (i : ℕ) → WeakGridSpace.LpGridRepresentation A
+      (yprod i : Lp ℂ p G.toWeakGridSpace.measure) := fun i => (prodPkg i).2
+  have hprod_active :
+      ∀ i (hi : i ∈ Λ),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p)
+          (fun z => ((Ω i).indicator (fun _ => (1 : ℂ)) z) * f z)
+          (yprod i : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        SouzaPositiveRepresentation G s p hs hp hp_top (Rprod i) ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (Rprod i) ∧
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+          ((Rprod i).block k).coeff Q ≠ 0 → Q.1 ⊆ Ω i) ∧
+        (∀ k,
+          (Rprod i).levelCoeffPower k =
+            ∑ Q : WeakGridSpace.LevelCell G.toWeakGridSpace k,
+              ‖(WeakGridSpace.LevelBlock.add A
+                (quasiU1Block G s p hs hp hp_top (Rind i) R k)
+                (quasiU2Block G s p hs hp hp_top (Rind i) R k)).coeff Q‖ ^
+                p.toReal) := by
+    intro i hi
+    have hspec := Classical.choose_spec (Classical.choose_spec (prodExists i hi))
+    dsimp [yprod, Rprod, prodPkg]
+    rw [dif_pos hi]
+    refine ⟨?_, ?_, ?_, ?_, ?_⟩
+    · simpa [prodExists, activeProdY, activeProdR] using hspec.1
+    · simpa [prodExists, activeProdY, activeProdR] using hspec.2.1
+    · simpa [prodExists, activeProdY, activeProdR] using hspec.2.2.1
+    · intro k Q hcoeff
+      rcases hspec.2.2.2.2.1 k Q hcoeff with h1 | h2
+      · exact regularFamilyIndicator_quasiU1Block_coeff_ne_zero_subset_domain
+          (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+          (p := p) hΩ hi (Rind i) R (fun m => hblock_all i m) Q h1
+      · exact regularFamilyIndicator_quasiU2Block_coeff_ne_zero_subset_domain
+          (G := G) (Λ := Λ) (Ω := Ω) (s := s) (C := C) (c := c)
+          (p := p) hΩ hi (Rind i) R (fun m => hblock_all i m) Q h2
+    · simpa [prodExists, activeProdY, activeProdR, A] using hspec.2.2.2.2.2
+  let productFun : ℕ → α → ℂ := fun i z =>
+    ((Ω i).indicator (fun _ => (1 : ℂ)) z) * f z
+  let partialFun : ℕ → α → ℂ := fun n z =>
+    ∑ i ∈ nonArchimedeanLambdaInitial Λ n, (Θ i : ℂ) * productFun i z
+  let Cbound : ℝ :=
+    Cbase * N * (WeakGridSpace.LpGridRepresentation.pqCost (q := q) R + M)
+  have hCbound0 : 0 ≤ Cbound := by
+    exact mul_nonneg (mul_nonneg hCbase0 hN0)
+      (add_nonneg (WeakGridSpace.LpGridRepresentation.pqCost_nonneg R) hM0)
+  have hfiniteRep : ∀ n,
+      ∃ yn : WeakGridSpace.BesovishSpace A q,
+      ∃ Sn : WeakGridSpace.LpGridRepresentation A
+          (yn : Lp ℂ p G.toWeakGridSpace.measure),
+        WeakGridSpace.RepresentsFunction
+          (G := G.toWeakGridSpace) (p := p) (partialFun n)
+          (yn : Lp ℂ p G.toWeakGridSpace.measure) ∧
+        SouzaPositiveRepresentation G s p hs hp hp_top Sn ∧
+        WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) Sn ∧
+        WeakGridSpace.LpGridRepresentation.pqCost (q := q) Sn ≤ Cbound ∧
+        (∀ k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+          (Sn.block k).coeff Q ≠ 0 → ∃ i ∈ Λ, Q.1 ⊆ Ω i) := by
+    intro n
+    let Γ : Finset ℕ := nonArchimedeanLambdaInitial Λ n
+    have hΓΛ : ∀ i ∈ Γ, i ∈ Λ := fun i hi =>
+      mem_of_mem_nonArchimedeanLambdaInitial hi
+    obtain ⟨Y, S, hRepS, hPosS, hFinS, hCostS, hSuppS⟩ :=
+      exists_finset_weighted_sum_positive_regularFamily_product_pqCost_le_global_bounded
+        G Λ Ω s C c p q hs hp hp_top hΩ Γ hΓΛ Θ hN0 hM0
+        productFun yprod Rprod R hRfin
+        (fun i => (yind i : Lp ℂ p G.toWeakGridSpace.measure)) Rind
+        (fun i hi => hΘ i (hΓΛ i hi))
+        (fun i hi => (hprod_active i (hΓΛ i hi)).1)
+        (fun i hi => (hprod_active i (hΓΛ i hi)).2.1)
+        (fun i hi => (hprod_active i (hΓΛ i hi)).2.2.1)
+        hblock_all
+        (fun i hi k => (hprod_active i (hΓΛ i hi)).2.2.2.2 k)
+        (fun i hi k Q hcoeff => (hprod_active i (hΓΛ i hi)).2.2.2.1 k Q hcoeff)
+        htower_g hoverlap
+    refine ⟨Y, S, ?_, hPosS, hFinS, ?_, ?_⟩
+    · change WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p)
+        (fun z => ∑ i ∈ Γ, (Θ i : ℂ) * productFun i z)
+        (Y : Lp ℂ p G.toWeakGridSpace.measure)
+      exact hRepS
+    · change WeakGridSpace.LpGridRepresentation.pqCost (q := q) S ≤ Cbound
+      exact hCostS
+    · intro k Q hcoeff
+      obtain ⟨i, hiΓ, hQi⟩ := hSuppS k Q hcoeff
+      exact ⟨i, hΓΛ i hiΓ, hQi⟩
+  let yseq : ℕ → WeakGridSpace.BesovishSpace A q := fun n =>
+    Classical.choose (hfiniteRep n)
+  let Sseq : ∀ n, WeakGridSpace.LpGridRepresentation A
+      (yseq n : Lp ℂ p G.toWeakGridSpace.measure) := fun n =>
+    Classical.choose (Classical.choose_spec (hfiniteRep n))
+  have hyseq_rep : ∀ n,
+      WeakGridSpace.RepresentsFunction
+        (G := G.toWeakGridSpace) (p := p) (partialFun n)
+        (yseq n : Lp ℂ p G.toWeakGridSpace.measure) := by
+    intro n
+    exact (Classical.choose_spec (Classical.choose_spec (hfiniteRep n))).1
+  have hSseq_posRep : ∀ n,
+      SouzaPositiveRepresentation G s p hs hp hp_top (Sseq n) := by
+    intro n
+    exact (Classical.choose_spec (Classical.choose_spec (hfiniteRep n))).2.1
+  have hSseq_fin : ∀ n,
+      WeakGridSpace.LpGridRepresentation.FinitePQCost (q := q) (Sseq n) := by
+    intro n
+    exact (Classical.choose_spec (Classical.choose_spec (hfiniteRep n))).2.2.1
+  have hSseq_cost : ∀ n,
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) (Sseq n) ≤ Cbound := by
+    intro n
+    exact (Classical.choose_spec (Classical.choose_spec (hfiniteRep n))).2.2.2.1
+  have hSseq_supp : ∀ n k (Q : WeakGridSpace.LevelCell G.toWeakGridSpace k),
+      ((Sseq n).block k).coeff Q ≠ 0 → ∃ i ∈ Λ, Q.1 ⊆ Ω i := by
+    intro n k Q hcoeff
+    exact (Classical.choose_spec (Classical.choose_spec (hfiniteRep n))).2.2.2.2 k Q hcoeff
+  have hSseq_pos : ∀ n,
+      SouzaConePositiveRepresentation G s p hs hp hp_top (Sseq n) := by
+    intro n
+    exact souzaPositiveRepresentation_conePositive
+      G s p hs hp hp_top (hSseq_posRep n)
+  have hpartial_tendsto :
+      ∀ᵐ z ∂G.toWeakGridSpace.measure,
+        Filter.Tendsto (fun n : ℕ => partialFun n z) Filter.atTop (𝓝 (h z)) := by
+    filter_upwards [hseries] with z hseries_z
+    have htendsto :=
+      tendsto_initial_subtype_sums_of_hasSum
+        (Λ := Λ)
+        (a := fun i : ℕ =>
+          (Θ i : ℂ) * (Ω i).indicator (fun _ => (1 : ℂ)) z * f z)
+        hseries_z
+    change Filter.Tendsto
+      (fun n : ℕ =>
+        ∑ i ∈ nonArchimedeanLambdaInitial Λ n,
+          (Θ i : ℂ) * productFun i z)
+      Filter.atTop (𝓝 (h z))
+    simpa [productFun, mul_assoc] using htendsto
+  obtain ⟨y, S, hRepS, hFinS, hCostS, hSuppS, hConeS⟩ :=
+    exists_limit_representation_of_finite_sequence_pos_with_support
+      G s p q hs hp hp_top hCbound0
+      (SupportProp := fun k Q => ∃ i ∈ Λ, Q.1 ⊆ Ω i)
+      yseq Sseq hyseq_rep hSseq_fin hSseq_cost hpartial_tendsto
+      hSseq_supp hSseq_pos
+  have hNM0 : 0 ≤ N * M := mul_nonneg hN0 hM0
+  obtain ⟨hmemInf, hInfNorm⟩ :=
+    linftyMemLp_and_norm_le_of_representsFunction_bound
+      G p hNM0 hRepS hnormNM
+  refine ⟨h, hmemInf, y, S, hRepS, hnormC, hFinS, ?_, hSuppS, hConeS⟩
+  have hA0 :
+      0 ≤ WeakGridSpace.LpGridRepresentation.pqCost (q := q) R + M :=
+    add_nonneg hRcost0 hM0
+  have hcost_final :
+      WeakGridSpace.LpGridRepresentation.pqCost (q := q) S +
+          ‖MemLp.toLp h hmemInf‖ ≤
+        Cna * N *
+          (WeakGridSpace.LpGridRepresentation.pqCost (q := q) R + M) := by
+    dsimp [Cna, Cbase] at hCostS ⊢
+    nlinarith [hCostS, hInfNorm, hCbase0, hN0, hM0, hRcost0, hA0]
+  exact hcost_final
 
 end
 

@@ -313,19 +313,39 @@ Completed:
   product blocks.  The stronger `quasiU1Block_positive_of_positive` and
   `quasiU2Block_positive_of_positive` are also checked, so each product half is
   Souza-positive before the final `u₁ + u₂` assembly.
+- The finite positive weighted-sum assembly now exposes the coefficient
+  formula and has localized exact level-power variants:
+  `exists_finset_weighted_sum_positive_representation_support`,
+  `exists_finset_weighted_sum_positive_representation_disjoint_levelCoeffPower`,
+  and `exists_finset_weighted_sum_positive_regularFamily_levelCoeffPower`.
+  These are checked and give a Souza-positive finite weighted sum with the
+  same level coefficient power formula used by the non-positive cost proof.
+- The positive uniform regular-family theorem
+  `regularFamily_nonArchimedean_indicator_multipliers_positive` is now proved.
+  The proof uses exposed `u₁`/`u₂` product representations, assembles them with
+  `souzaPositiveRepresentationAdd`, proves the finite positive weighted-sum
+  cost estimate, and passes to the positive compactness limit.
+- The two non-uniform main statements now explicitly assume that active
+  domains are pairwise disjoint:
+  `∀ i ∈ Λ, ∀ j ∈ Λ, i ≠ j → Disjoint (Ω i) (Ω j)`.
+  This is the additional hypothesis authorized for the non-uniform route.
+- The non-uniform finite disjoint-support algebra is checked:
+  `exists_finset_weighted_sum_disjointDomains_levelCoeffPower` and
+  `exists_finset_weighted_sum_positive_disjointDomains_levelCoeffPower`
+  package the exact weighted level-power identity for arbitrary pairwise
+  disjoint regular domains, without requiring a uniform `RegularFamily`.
 
 Remaining:
 
-- add the positive finite/infinite assembly needed for
-  `SouzaConePositiveRepresentation`, now mainly the cone-positive transport
-  through the generic `WeakGridSpace.LevelBlock.add` / finite product-block
-  assembly and then the already-public positive compactness limit;
 - prove the non-uniform representation assembly using the individual
   `regularDomainIndicatorCost` overlap hypothesis.  The pointwise extraction
-  and a.e. bounds are now available, but we still need finite product/restriction
-  representations for arbitrary regular domains with a cost bound that sums
-  over the domains meeting each active source cell;
-- the positive cone transport for the two positive variants.
+  and a.e. bounds are available, and the finite weighted-sum algebra now only
+  needs the disjoint-domain support hypothesis.  What remains is the product
+  level-cost estimate for singleton regular-domain indicators, using
+  `|Θ_i| * (1 + regularDomainIndicatorCost Ω_i) ≤ N` on the active source
+  cells;
+- use the non-uniform assembly plus nonnegative weights to finish the positive
+  non-uniform variant.
 
 ## Checks
 

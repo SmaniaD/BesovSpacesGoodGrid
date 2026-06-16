@@ -42,12 +42,12 @@ Current target:
 
 Follow-up file:
 
-- [ ] Finish the three remaining proposed regular-domain non-Archimedean
+- [ ] Finish the two remaining proposed regular-domain non-Archimedean
       statements in
       `BesovSpacesGoodGrid/GoodGrid/RegularDomainsNonArchimedean.lean`.
-      The uniform regular-family non-positive theorem is now proved; the
-      remaining `sorry`s are the non-uniform theorem, the positive non-uniform
-      theorem, and the positive uniform theorem.
+      Both uniform regular-family theorems are now proved; the remaining
+      `sorry`s are the non-uniform theorem and the positive non-uniform
+      theorem.
 
 Already done for this target:
 
@@ -89,19 +89,31 @@ Already done for this target:
       representations make the weighted and strict ancestor towers
       nonnegative real scalars, and the two product halves `quasiU1Block` and
       `quasiU2Block` are Souza-positive.
+- [x] Positive finite weighted sums now have the coefficient and exact
+      level-power API needed for localized cost estimates:
+      `exists_finset_weighted_sum_positive_representation_support`,
+      `exists_finset_weighted_sum_positive_representation_disjoint_levelCoeffPower`,
+      and `exists_finset_weighted_sum_positive_regularFamily_levelCoeffPower`.
+- [x] The positive uniform regular-family theorem
+      `regularFamily_nonArchimedean_indicator_multipliers_positive` is proved
+      using positive product representations, the finite positive weighted-sum
+      estimate, and `exists_limit_representation_of_finite_sequence_pos_with_support`.
+- [x] The non-uniform main statements now explicitly assume the authorized
+      pairwise disjointness condition
+      `∀ i ∈ Λ, ∀ j ∈ Λ, i ≠ j → Disjoint (Ω i) (Ω j)`.
+- [x] Finite weighted sums localized in pairwise disjoint non-uniform domains
+      now have exact level-power APIs:
+      `exists_finset_weighted_sum_disjointDomains_levelCoeffPower` and
+      `exists_finset_weighted_sum_positive_disjointDomains_levelCoeffPower`.
 
 Remaining proof steps for the follow-up file:
 
-- [ ] Prove the positive finite/infinite assembly for the uniform regular-family
-      theorem.  The next local obstacle is the final `u₁ + u₂` product
-      assembly: the generic `WeakGridSpace.LevelBlock.add` is not by itself a
-      positive-cone constructor in zero-coefficient cells, so the likely route
-      is canonicalization after assembling the two positive product halves.
 - [ ] Prove the non-uniform representation assembly using the individual
       `regularDomainIndicatorCost` overlap hypothesis.  The pointwise bounds
-      are done; what remains is the finite/infinite representation construction
-      for arbitrary regular domains whose costs are summed over domains meeting
-      each active source cell.
+      and finite disjoint-support algebra are done; what remains is the
+      singleton product-level cost estimate driven by
+      `|Θ i| * (1 + regularDomainIndicatorCost Ω_i) ≤ N` on active source
+      cells, followed by the compactness passage.
 - [ ] Use the non-uniform assembly plus nonnegative weights to finish the
       positive non-uniform variant.
 

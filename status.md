@@ -679,13 +679,82 @@ Regular domains non-Archimedean update (2026-06-15):
   `quasiU2Block_positive_of_positive`.  These formalize that positive
   source/product representations make both `u₁` and `u₂` product blocks
   Souza-positive before the final `u₁ + u₂` assembly.
-- The file now has three intended main `sorry`s left: the non-uniform theorem,
-  the positive non-uniform theorem, and the positive uniform theorem.  The
-  uniform non-positive regular-family result is complete and checked.  The
+- Added the checked finite positive weighted-sum API needed for the remaining
+  positive uniform theorem:
+  `exists_finset_weighted_sum_positive_representation_support` now exposes the
+  coefficient formula, and the new
+  `exists_finset_weighted_sum_positive_representation_disjoint_levelCoeffPower`
+  plus
+  `exists_finset_weighted_sum_positive_regularFamily_levelCoeffPower` give
+  Souza-positive finite sums with the exact localized level-power formula.
+  This removes the finite weighted-sum side of the positive assembly from the
+  remaining obstruction.
+- Proved the positive uniform regular-family theorem
+  `regularFamily_nonArchimedean_indicator_multipliers_positive`.  The proof
+  builds positive `1_{Ωᵢ} f` product representations using the exposed
+  `u₁`/`u₂` blocks, controls finite positive weighted sums with the same
+  bounded-gauge constant as the non-positive theorem, and applies the positive
+  finite-sequence compactness limit.
+- The non-uniform main statements now include the authorized pairwise
+  disjointness hypothesis on the active domains:
+  `∀ i ∈ Λ, ∀ j ∈ Λ, i ≠ j → Disjoint (Ω i) (Ω j)`.
+- Added checked finite disjoint-domain assembly lemmas:
+  `exists_finset_weighted_sum_disjointDomains_levelCoeffPower` and
+  `exists_finset_weighted_sum_positive_disjointDomains_levelCoeffPower`.
+  These extend the exact finite weighted level-power algebra from
+  `RegularFamily` supports to arbitrary pairwise disjoint non-uniform
+  domains, which is the algebraic support step needed by the remaining
+  non-uniform proof.
+- Added the checked non-uniform source-overlap extraction lemmas
+  `regularDomain_weightedIndicatorCost_le_of_productLevel_source_overlap_of_levelCoeffPower`
+  and
+  `exists_finset_weighted_sum_disjointDomains_product_pqCost_le_of_source_overlap`.
+  These prove, level by level, that a nonzero singleton product level exposes
+  an active source cell meeting the domain, hence the overlap hypothesis
+  controls the full local gauge
+  `|Θ_i| * (1 + regularDomainIndicatorCost Ω_i)`.  The finite disjoint-domain
+  consequence currently gives the intentionally weak bridge
+  `pqCost S ≤ N * regularFamilyRestrictionCost ...`; it is not being used as
+  the final non-uniform estimate because it would lose the
+  `regularDomainIndicatorCost` factor that must control the `u₁` contribution.
+- Added three checked pieces for the direct `u₁`/`u₂` non-uniform level
+  decomposition:
+  `regularDomainIndicator_quasiU2Block_weighted_finset_levelCoeffPower_le_of_source_overlap`
+  controls the full finite weighted `u₂` level by
+  `N^p * R.levelCoeffPower j`; `regularDomainIndicatorBlock_coeff_norm_le_indicatorCost`
+  bounds each singleton indicator coefficient by
+  `regularDomainIndicatorCost`; and
+  `regularDomainIndicator_quasiU1Block_weighted_coeff_norm_le_of_source_overlap`
+  proves the local coefficient estimate
+  `‖Θ_i * U₁(i,Q)‖ ≤ N * ‖weightedAncestorCoeffSum R Q‖`.
+- Added the checked finite `u₁` aggregation and product-level split:
+  `regularDomainIndicator_quasiU1Block_weighted_finset_levelCoeffPower_le_of_source_overlap`
+  converts the local `u₁` coefficient estimate into
+  `N^p * ∑_Q ‖weightedAncestorCoeffSum R Q‖^p`, and
+  `regularDomainIndicator_quasiProductBlock_weighted_finset_levelCoeffPower_le_of_source_overlap`
+  combines the finite `u₁` and `u₂` levels with the convex factor
+  `2^(p-1)`.  This is the desired level-by-level decomposition; it keeps the
+  tower term visible instead of replacing the local
+  `|Θ_i| * regularDomainIndicatorCost Ω_i` control by a global counting
+  estimate.
+- Added
+  `memLp_and_norm_le_of_ae_norm_le_mul_representsFunction`, the public `Lp`
+  analogue of the existing `L∞` bridge.  This closes the independent
+  `MemLp h p` and `‖h‖_p` part once the pointwise bound
+  `‖h z‖ ≤ C * N * ‖f z‖` is available.
+- The file now has two intended main `sorry`s left: the non-uniform theorem and
+  the positive non-uniform theorem.  Both uniform regular-family results are
+  complete and checked.  The
   remaining non-uniform work is not just pointwise: it needs a finite/infinite
-  representation assembly for individual regular domains whose cost is summed
-  through `regularDomainIndicatorCost` on the domains meeting each active
-  source cell.
+  representation assembly for individual regular domains, plus the analytic
+  mixed-cost comparison for the exposed tower levels
+  `∑_Q ‖weightedAncestorCoeffSum R Q‖^p`.  The proof must not replace this
+  tower term by the pointwise bound `M` times the number of level cells.
+- Added `proof.tex`, a standalone paper-style write-up of the intended
+  non-uniform proof.  It spells out the overlap cost, the indicator-domain
+  cost, the `U₁`/`U₂` coefficient formulas, the levelwise estimate with the
+  tower term, and the remaining mixed tower-cost estimate needed by the Lean
+  proof.
 
 Regular domains update (2026-06-14):
 
