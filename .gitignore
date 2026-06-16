@@ -16,3 +16,7 @@ latex_source_files/besovish-2020-07-18.synctex.gz
 *.toc
 preprint-source/besovish-2020-07-18.synctex.gz
 docpdf/Documentation.synctex.gz
+proof.fdb_latexmk
+proof.fls
+proof.synctex.gz
+proof.synctex.gz
