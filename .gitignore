@@ -12,6 +12,8 @@ docs/Documentation.toc
 *.aux
 *.log
 *.out
+*.fdb_latexmk
+*.fls
 latex_source_files/besovish-2020-07-18.synctex.gz
 *.toc
 preprint-source/besovish-2020-07-18.synctex.gz

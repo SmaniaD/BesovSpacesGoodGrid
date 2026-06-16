@@ -5,8 +5,8 @@ This file maps the published paper
 Daniel Smania, *Besov-ish spaces through atomic decomposition*,
 Analysis & PDE 15 (2022), no. 1
 
-to the current Lean formalization in this repository (last revised 2026-06-14,
-zero `sorry`, full `lake build` green).
+to the current Lean formalization in this repository (last revised 2026-06-16,
+zero `sorry`, full `lake build` green, 3460 jobs).
 
 The numbering X.Y below follows the order of the theorem-like environments in
 `latex/besovish-2021-07-19.tex` within each section; for Sections 6, 7, 8, 15

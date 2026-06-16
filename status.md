@@ -3,6 +3,26 @@
 This file summarizes the recent state of the central files in
 `BesovSpacesGoodGrid/GoodGrid`.
 
+## Snapshot (2026-06-16)
+
+The whole repository builds green and contains **zero `sorry`**.  Every `.lean`
+module is imported by the root `BesovSpacesGoodGrid.lean`:
+
+```bash
+lake build      # green, 3460 jobs (only linter warnings: simp args, push_neg, unused vars)
+```
+
+This covers Parts I–II in full and Part III through Proposition 19.1 plus the
+regular-domains subsection `cf` (`RegularDomains.lean`).
+
+The earlier experimental module `RegularDomainsNonArchimedean.lean` — the
+regular-domain analogue of the non-Archimedean multiplier estimates — was
+**removed** from the repository, along with the standalone planning documents
+`currentplan.md`, `futureplan.md`, and `proof.tex`/`proof.pdf`.  That attempt
+had proved the two uniform regular-family variants but still carried two
+intentional `sorry`s for the non-uniform variants; it is no longer part of the
+project.  The section below is kept as a historical record of that attempt.
+
 ## DONE: Regular domains (`cf`) — 0 sorry (2026-06-14)
 
 New file `BesovSpacesGoodGrid/GoodGrid/RegularDomains.lean` introduces the
@@ -624,7 +644,14 @@ Proof architecture:
 The multiplier files through Proposition 19.1 remain complete, and the full
 project build is green after the Section 19 completion.
 
-Regular domains non-Archimedean update (2026-06-15):
+Regular domains non-Archimedean update (2026-06-15) — HISTORICAL / REMOVED:
+
+Note (2026-06-16): the module described below, `RegularDomainsNonArchimedean.lean`,
+has been **removed** from the repository, together with the `currentplan.md`,
+`futureplan.md`, and `proof.tex` write-ups.  The two **uniform** regular-family
+theorems had been proved; the two **non-uniform** theorems were never finished
+(they carried intentional `sorry`s).  The log below is kept only as a record of
+that attempt.
 
 - `RegularDomainsNonArchimedean.lean` now states all four proposed regular-domain
   non-Archimedean multiplier variants with the bounded Besov gauge
@@ -750,11 +777,12 @@ Regular domains non-Archimedean update (2026-06-15):
   mixed-cost comparison for the exposed tower levels
   `∑_Q ‖weightedAncestorCoeffSum R Q‖^p`.  The proof must not replace this
   tower term by the pointwise bound `M` times the number of level cells.
-- Added `proof.tex`, a standalone paper-style write-up of the intended
-  non-uniform proof.  It spells out the overlap cost, the indicator-domain
-  cost, the `U₁`/`U₂` coefficient formulas, the levelwise estimate with the
-  tower term, and the remaining mixed tower-cost estimate needed by the Lean
-  proof.
+- The intended non-uniform proof was written up in a standalone paper-style
+  note `proof.tex` (overlap cost, indicator-domain cost, the `U₁`/`U₂`
+  coefficient formulas, the levelwise estimate with the tower term, and the
+  remaining mixed tower-cost estimate needed by the Lean proof).  That note,
+  together with `currentplan.md` and `futureplan.md`, was **removed** in commit
+  `cd35a82`; the relevant strategy is preserved in the file's docstrings.
 
 Regular domains update (2026-06-14):
 
@@ -772,7 +800,7 @@ Regular domains update (2026-06-14):
   into the mixed `regularFamilyRestrictionCost` bound, separately for
   `q = ∞` and `q < ∞`, then assemble the per-index product representations.
 
-Possible next steps (see `todo.md`):
+Possible next steps:
 
 - Theorem 15.1 wrap-up equivalence + the `L¹` functional of Cor 15.2;
   Section 16 examples; Sections 20–21 (the quasialgebra result of

@@ -176,10 +176,11 @@ The formalization currently includes:
   `Crel·(|g|_{B^s_{p,q}} + M)` — uniformly in `q ∈ [1,∞]`, the `q = ∞` cost
   read as the supremum of the level roots.
 
-At this snapshot, a full `lake build` succeeds (3460 jobs) and the
+At this snapshot, a full `lake build` succeeds (3460 jobs) and the whole
 repository compiles with **zero `sorry`**: every project module, including
-`Bp1overpinftyisMultiplier.lean` and `QuasiAlgebra.lean`, is imported by
-the aggregate root.
+`Bp1overpinftyisMultiplier.lean`, `QuasiAlgebra.lean`, and `RegularDomains.lean`,
+is imported by the aggregate root `BesovSpacesGoodGrid.lean` and is
+`sorry`-free.
 Project Lean files outside `.lake/packages` contain no `admit` and no
 project-local `axiom` or `constant` declarations; the main theorems — the
 non-Archimedean estimates (finite, infinite, and positive-cone versions),
@@ -331,8 +332,7 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
 
 ## Next Work
 
-The repository currently builds with **zero `sorry`**.  Likely next steps
-(see `todo.md` for details) are:
+The repository currently builds with **zero `sorry`**.  Likely next steps are:
 
 - the wrap-up equivalence theorem for paper Theorem 15.1 (packaging the
   proved inequality cycle) and the `L¹` functional of Corollary 15.2;
