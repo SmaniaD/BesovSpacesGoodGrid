@@ -198,12 +198,12 @@ $$(U_{2})_J
   
 \subsection*{The \(U_1\) estimate}
 
-The cost at level $k$ of $U_1$ is, by Minkovsky
+The cost at level $k$ of $U_1$. If $b^i_Q\neq 0$  for some $i$ then  $Q\subset \Omega_i$ and we define $i(Q):=i$. Otherwise define $i(Q)$ as an arbitrary $i\in \Lambda$. If   $\Tcal_R(Q)\neq 0$ and  $Q\subset \Omega_i$ then there is $ Q\subset P$ such that $c_P\neq 0$ so $P\cap \Omega_{i(Q)}\neq \emptyset,$ and in particular $\|\Theta_{i(Q)}\|\leq N$.  
 
 \begin{align} \left(  \sum_{Q\in \mathcal{P}^k} \|\sum_{i\in \Lambda} \Theta_i b^i_Q\,\Tcal_R(Q)\|^p \right)^{1/p} \\
-\leq \left(  \sum_{Q\in \mathcal{P}^k} \|\sum_{ i\in \Lambda } \Theta_i b^i_Q\,\Tcal_R(Q)\|^p \right)^{1/p} \\
-\leq  M \left(  \sum_{Q\in \mathcal{P}^k} \|\sum_{ i\in \Lambda}  \Theta_i b^i_Q\|^p \right)^{1/p}\\
-\leq  M  \left(  \sum_{ i\in \Lambda}  \| \Theta_i\|^p \sum_{\substack{Q\in \mathcal{P}^k\\Q\subset \Omega_i}} \|b^i_Q\|^p \right)^{1/p}\\
+\leq \left(  \sum_{Q\in \mathcal{P}^k} \|\Theta_{i(Q)} b^{i(Q)}_Q\,\Tcal_R(Q)\|^p \right)^{1/p} \\
+\leq  M \left(  \sum_{\substack{Q\in \mathcal{P}^k\\ \Tcal_R(Q)\neq 0}}  \|\Theta_{i(Q)} b^{i(Q)}_Q\|^p \right)^{1/p}\\
+\leq  M  N \left( \sum_{Q\in \mathcal{P}^k} \|b^{i(Q)}_Q\|^p \right)^{1/p}\\
 \end{align} 
 
 so 
