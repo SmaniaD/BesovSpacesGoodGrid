@@ -293,8 +293,9 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
   Section 20 / Proposition `rema`, including `DomainAtomicRepresentation`,
   `DomainBesovSpace`, `domainBesovGauge`, and the final two-sided theorem
   `domainBesovSpace_equiv_souzaBesov11`.
-- `BesovSpacesGoodGrid/GoodGrid/LeftCompositions.lean`: partial Section 21
-  infrastructure for left compositions.  For a Lipschitz map
+- `BesovSpacesGoodGrid/GoodGrid/LeftCompositions.lean`: Section 21 /
+  Proposition `expo`, left compositions on Souza-Besov spaces.  For a
+  Lipschitz map
   `g : ℂ → ℂ` with constant `K`, the file proves the pointwise analytic
   estimates used by paper Proposition `expo`: `eLpNorm_comp_le_of_lipschitzWith`
   (`|g ∘ f|_p ≤ K |f|_p`, assuming `g 0 = 0`),
@@ -304,8 +305,12 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
   `levelOscillationBlock_root_comp_le_of_lipschitzWith` (level-block forms),
   `oscillationSeminorm_comp_le_of_lipschitzWith` (finite `q` and `q = ∞`),
   and `meanOscillationNorm_comp_le_of_lipschitzWith` (the full
-  mean-oscillation gauge).  The remaining Section 21 task is to package these
-  estimates as the full Souza-Besov left-composition theorem.
+  mean-oscillation gauge).  It then packages the result through the
+  Haar/standard comparison layer as `exists_souzaBesovSpace_of_meanOscillationNorm_ne_top`,
+  `exists_souzaBesovSpace_norm_le_const_mul_meanOscillationNorm`,
+  `exists_souzaBesovSpace_leftComposition_of_lipschitzWith`, and the
+  quantitative bound
+  `exists_souzaBesovSpace_leftComposition_norm_le_of_lipschitzWith`.
 - `BesovSpacesGoodGrid/GoodGrid/PositiveCone.lean`: positive Souza
   representations and the positive coefficient-cost gauge for Souza-Besov
   spaces.
@@ -367,10 +372,6 @@ The repository currently builds with **zero `sorry`**.  Likely next steps are:
 - the Section 16 examples: the Holder atom family with Proposition 16.2, and
   bounded-variation atoms with Proposition 16.3 (applications of
   `atoms_between_souza_atoms_and_besov_atoms`);
-- finish paper Section 21 by upgrading the incorporated mean-oscillation
-  estimates in `GoodGrid/LeftCompositions.lean` to the full Souza-Besov
-  left-composition theorem; Section 20 and the quasialgebra result of
-  Section 19 are done;
 - continue polishing public docstrings around the large transmutation,
   completeness, and multiplier files;
 - factor large proof-heavy files (notably `Multipliers/NonArchimedeanProperty.lean`

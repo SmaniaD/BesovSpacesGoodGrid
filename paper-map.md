@@ -46,11 +46,11 @@ Status labels:
 | 15 | Alternative characterizations, I: Messing with norms | proved in pieces |
 | 16 | Alternative characterizations, II: Messing with atoms | Prop 16.1 proved; 16.2-16.3 not started |
 | 17 | Dirac's approximations | Prop 17.1 proved (evaluation/average forms A and B; distributional form not formalized) |
-| Part III | Applications | Sections 18-20 proved (incl. regular families/domains `cf` and Proposition `rema`); 21 partial |
+| Part III | Applications | Sections 18-21 proved (incl. regular families/domains `cf`, Proposition `rema`, and left compositions `expo`) |
 | 18 | Pointwise multipliers acting on \(B^s_{p,q}\) | fully proved: Props 18.1, 18.3, 18.4, Remark posrem, Cor 18.6, Def/Prop 18.7-18.8, Prop 18.9, Prop 18.10 + Remark pos3, and the regular-domains subsection `cf` (`estG`, `pdd`/`hiip1`) |
 | 19 | \(B^s_{p,q} \cap L^\infty\) is a quasialgebra | Prop 19.1 (`mult33`) proved |
 | 20 | A remarkable description of \(B^s_{1,1}\) | proved in representative-function form |
-| 21 | Left compositions | partial: mean-oscillation left-composition estimate incorporated |
+| 21 | Left compositions | proved |
 
 ## Part I — Divide and rule
 
@@ -111,7 +111,7 @@ Status labels:
 | Proposition 19.1 (`mult33`) | Pointwise Multipliers III: \(\mathcal B^s_{p,q} \cap L^\infty\) is a quasialgebra | `souzaPointwiseMultipliersIII` (bilinear bound `|fg|_B + |fg|∞ ≤ Cqa (|f|_B + Mf)(|g|_B + Mg)`), core `exists_quasiAlgebra_product_representation` (two-sided `u₁+u₂` with weighted ancestor towers `weightedAncestorCoeffSum` and `exists_weighted_fouRepresentation`), `L∞` part `ae_norm_mul_le_mul_bounds`; in `BesovSpacesGoodGrid/GoodGrid/QuasiAlgebra.lean` | proved (2026-06-12; axioms: `propext, Classical.choice, Quot.sound`) |
 | Regular domains subsection (`cf`) | Regular families/domains; indicator bound `estG`; strongly-regular ⇒ regular; localized restriction representations `pdd`/`hiip1` | `firstContainedLevel` (\(k_0\)), `RegularFamily`/`RegularDomain` (with cost `dom`), `RegularDomain.toRegularFamily_singleton`, `RegularFamily.regularDomain_union`; `regularDomain_of_stronglyRegularDomain` (ratio \(\lambda_2^{(\beta-s)p}\)); indicator norm/multiplier estimates with finite-`q` and `q = ∞` endpoint forms folded into all-`q` wrappers `regularDomain_indicator_besov_norm_bound`/`_top`/`_all` (endpoint constant `C^{1/p}·μ(Ω)^{1/p-s}` via `regularDomainIndicatorCost`), `regularDomain_indicator_multiplier_on_bounded_souzaBesov`/`_top`/`_all`, `regularFamilyUnion_indicator_*_all`; restriction estimate `regularFamily_restriction_representations`; in `BesovSpacesGoodGrid/GoodGrid/RegularDomains.lean` | proved (2026-06-14) |
 | Proposition 20.1 (`rema`) | \(B^{1-s} = \mathcal B^s_{1,1}\) (description via sums of indicators over regular domains) | `DomainAtomicRepresentation`, `DomainBesovSpace`, `domainBesovGauge`, the inclusions `domainBesovSpace_to_souzaBesov11` and `souzaBesov11_to_domainBesovSpace`, and the packaged equivalence `domainBesovSpace_equiv_souzaBesov11`; in `BesovSpacesGoodGrid/GoodGrid/AlternativeDescriptionBs11.lean` | proved (2026-06-17; representative-function/norm-equivalence form) |
-| Proposition 21.1 (`expo`) | Left compositions by Lipschitz maps fixing zero | `eLpNorm_comp_le_of_lipschitzWith` (`L^p` term), `eLpNorm_comp_sub_const_le_of_lipschitzWith` (restricted distance to constants), `osc_comp_le_of_lipschitzWith` (cell oscillation), `levelOscillationBlock_comp_le_of_lipschitzWith` and `levelOscillationBlock_root_comp_le_of_lipschitzWith` (level blocks), `oscillationSeminorm_comp_le_of_lipschitzWith` (finite `q` and `q = ∞` seminorm), and `meanOscillationNorm_comp_le_of_lipschitzWith` (full mean-oscillation gauge); in `BesovSpacesGoodGrid/GoodGrid/LeftCompositions.lean` | partial (analytic mean-oscillation estimate incorporated; full Souza-Besov theorem not yet packaged) |
+| Proposition 21.1 (`expo`) | Left compositions by Lipschitz maps fixing zero | Analytic estimates: `eLpNorm_comp_le_of_lipschitzWith` (`L^p` term), `eLpNorm_comp_sub_const_le_of_lipschitzWith` (restricted distance to constants), `osc_comp_le_of_lipschitzWith` (cell oscillation), `levelOscillationBlock_comp_le_of_lipschitzWith` and `levelOscillationBlock_root_comp_le_of_lipschitzWith` (level blocks), `oscillationSeminorm_comp_le_of_lipschitzWith` (finite `q` and `q = ∞` seminorm), `meanOscillationNorm_comp_le_of_lipschitzWith` (full mean-oscillation gauge); packaging/boundedness: `exists_souzaBesovSpace_of_meanOscillationNorm_ne_top`, `exists_souzaBesovSpace_norm_le_const_mul_meanOscillationNorm`, `exists_souzaBesovSpace_leftComposition_of_lipschitzWith`, and `exists_souzaBesovSpace_leftComposition_norm_le_of_lipschitzWith`; in `BesovSpacesGoodGrid/GoodGrid/LeftCompositions.lean` | proved (2026-06-17; representative-function form with quantitative `ENNReal.ofReal` Souza-Besov gauge bound) |
 
 ## Next Formalization Targets
 
@@ -124,9 +124,5 @@ Natural candidates, in rough order of leverage:
    prove Proposition 16.2 by applying
    `atoms_between_souza_atoms_and_besov_atoms`; same for bounded variation
    atoms and Proposition 16.3.
-3. Finish Section 21: upgrade the incorporated mean-oscillation estimates in
-   `GoodGrid/LeftCompositions.lean` to the full Souza-Besov left-composition
-   theorem. Section 20 and the regular families/domains subsection (`cf`) are
-   proved.
-4. The distributional form of Proposition 17.1, on top of the proved
+3. The distributional form of Proposition 17.1, on top of the proved
    claims A/B and the `TestFunctions`/`Distributions` infrastructure.

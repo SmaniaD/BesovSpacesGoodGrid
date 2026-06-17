@@ -231,9 +231,7 @@ by the following rules.
   the elementary estimates of paper Section~4 (H\"older-like and convolution
   tricks, inlined in the Lean proofs without standalone statements); the
   H\"older and bounded variation atoms (paper Sections~11B--11C) and the
-  corresponding characterizations (paper Propositions~16.2 and~16.3); and
-  the full paper Section~21 left-composition theorem (only the
-  mean-oscillation gauge estimate is currently incorporated). Dirac's
+  corresponding characterizations (paper Propositions~16.2 and~16.3). Dirac's
   approximations (paper Section~17), the whole multiplier Section~18 ---
   Corollary~18.6,
   strongly regular domains and Pointwise Multipliers~I (18.7--18.9),
@@ -3428,33 +3426,40 @@ theorem domainBesovSpace_equiv_souzaBesov11
 
 \section{Left compositions}\label{leftcompsec}
 
-\filebox{GoodGrid/LeftCompositions.lean}{GoodGrid/AlternativeRepresentationsAndNorms/MeanOscillationNorm.lean}
+\filebox{GoodGrid/LeftCompositions.lean}{GoodGrid/AlternativeRepresentationsAndNorms/StandarRepresentationNormleqBesovNorm.lean,
+WeakGrid/Multipliers.lean}
 
-This section records the incorporated part of paper Section~21, labelled
+This section records the formalization of paper Section~21, labelled
 \texttt{expo} in the source.  The paper's result says that a Lipschitz map
 \(\psi:\mathbb C\to\mathbb C\) fixing the origin acts on the left of the
-Besov space: \(f\mapsto \psi\circ f\) is bounded.  The Lean file currently
-formalizes the analytic estimate in the mean-oscillation model.  If
-\(\psi\) is \(K\)-Lipschitz and \(\psi(0)=0\), then the \(L^p\) term and the
-oscillation term of \(\psi\circ f\) are each bounded by \(K\) times the
-corresponding term for \(f\).  The proof follows the short argument in the
-manuscript: for a cell \(Q\), test the oscillation of \(\psi\circ f\) against
-the constants \(\psi(c)\), and use
+Besov space: \(f\mapsto \psi\circ f\) is bounded.  The Lean proof is split
+into two layers.  First, it formalizes the analytic estimate in the
+mean-oscillation model: if \(\psi\) is \(K\)-Lipschitz and \(\psi(0)=0\), then
+the \(L^p\) term and the oscillation term of \(\psi\circ f\) are each bounded
+by \(K\) times the corresponding term for \(f\).  The proof follows the short
+argument in the manuscript: for a cell \(Q\), test the oscillation of
+\(\psi\circ f\) against the constants \(\psi(c)\), and use
 \[
   |\psi(f(x))-\psi(c)| \le K |f(x)-c|.
 \]
+Second, the file transports this estimate through the already-formalized
+Haar and standard-representation comparison layer, producing a genuine
+Souza--Besov representative and a quantitative Souza--Besov gauge bound.
 
-\begin{proposition}[Left composition, mean-oscillation form]\label{expo}
+\begin{proposition}[Left composition]\label{expo}
 Let \(G\) be a good grid, let \(\psi:\mathbb C\to\mathbb C\) be
-\(K\)-Lipschitz with \(\psi(0)=0\), and assume \(p>0\) and either
-\(q=\infty\) or \(q>0\).  Then
+\(K\)-Lipschitz with \(\psi(0)=0\).  Then
 \[
   \| \psi\circ f \|_{\mathrm{MO}(s,p,q)}
     \le K\,\|f\|_{\mathrm{MO}(s,p,q)} .
 \]
-In particular, every local oscillation, every level block, the
-oscillation seminorm, and the full mean-oscillation gauge are stable under
-left composition by \(\psi\).
+Moreover, if \(f\) represents an element of \(\mathcal B^s_{p,q}\), then
+\(\psi\circ f\) represents an element of \(\mathcal B^s_{p,q}\), and there is
+a constant \(C\), depending only on the grid and exponents, such that
+\[
+  |\psi\circ f|_{\mathcal B^s_{p,q}}
+    \le C K\, |f|_{\mathcal B^s_{p,q}} .
+\]
 \end{proposition}
 
 \formalpar{In \lean{GoodGrid/LeftCompositions.lean}.  The elementary
@@ -3469,10 +3474,14 @@ over all level-\(k\) cells gives
 \(q\) and \(q=\infty\) cases are packaged together in
 \lean{oscillationSeminorm\_comp\_le\_of\_lipschitzWith}, and the final
 \(L^p\)-plus-oscillation estimate is
-\lean{meanOscillationNorm\_comp\_le\_of\_lipschitzWith}.  This is marked
-as a partial formalization of paper Proposition~\texttt{expo}: the remaining
-work is to transport/package the mean-oscillation estimate as the full
-Souza--Besov left-composition theorem.}
+\lean{meanOscillationNorm\_comp\_le\_of\_lipschitzWith}.  The packaging layer
+is \lean{exists\_souzaBesovSpace\_of\_meanOscillationNorm\_ne\_top} and
+\lean{exists\_souzaBesovSpace\_norm\_le\_const\_mul\_meanOscillationNorm};
+the final left-composition statements are
+\lean{exists\_souzaBesovSpace\_leftComposition\_of\_lipschitzWith} and
+\lean{exists\_souzaBesovSpace\_leftComposition\_norm\_le\_of\_lipschitzWith}.
+The quantitative bound is stated in Lean using \lean{ENNReal.ofReal} of the
+real Souza-Besov gauge, matching the surrounding comparison-norm API.}
 \begin{lstlisting}[style=lean,basicstyle=\ttfamily\scriptsize]
 theorem osc_comp_le_of_lipschitzWith
     (G : GoodGridSpace (α := α)) {K : NNReal} {g : ℂ → ℂ}
@@ -3493,6 +3502,47 @@ theorem meanOscillationNorm_comp_le_of_lipschitzWith
     (hp : 0 < p.toReal) (hq : q ≠ ∞ → 0 < q.toReal) (f : α → ℂ) :
     meanOscillationNorm G s p q (fun x => g (f x)) ≤
       (K : ℝ≥0∞) * meanOscillationNorm G s p q f := ...
+
+theorem exists_souzaBesovSpace_leftComposition_of_lipschitzWith
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem
+      (G := HaarRepresentation.GridOf G))
+    [DecidableEq F.Index]
+    (s : ℝ) (hs : 0 < s)
+    (p : ℝ≥0∞) [Fact (1 ≤ p)] (hp_top : p < ∞)
+    (q : ℝ≥0∞) [Fact (1 ≤ q)]
+    {K : NNReal} {g : ℂ → ℂ} (hg : LipschitzWith K g) (hg_zero : g 0 = 0)
+    (x : SouzaBesovSpace G s p q hs Fact.out (ne_of_lt hp_top))
+    (f : α → ℂ)
+    (hxf :
+      f =ᵐ[G.grid.μ] ((x : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ)) :
+    ∃ y : SouzaBesovSpace G s p q hs Fact.out (ne_of_lt hp_top),
+      WeakGridSpace.RepresentsFunction (G := G.toWeakGridSpace) (p := p)
+        (fun z => g (f z)) (y : Lp ℂ p G.toWeakGridSpace.measure) := ...
+
+theorem exists_souzaBesovSpace_leftComposition_norm_le_of_lipschitzWith
+    (G : GoodGridSpace (α := α)) [DecidableEq (Set α)]
+    (F : UnbalancedHaarWavelet.FullHaarSystem
+      (G := HaarRepresentation.GridOf G))
+    [DecidableEq F.Index]
+    (s : ℝ) (hs : 0 < s)
+    (p : ℝ≥0∞) [Fact (1 ≤ p)] (hp_top : p < ∞)
+    (q : ℝ≥0∞) [Fact (1 ≤ q)] :
+    ∃ C : ℝ≥0∞, C ≠ ∞ ∧
+      ∀ {K : NNReal} {g : ℂ → ℂ},
+        LipschitzWith K g → g 0 = 0 →
+          ∀ (x : SouzaBesovSpace G s p q hs Fact.out (ne_of_lt hp_top))
+            (f : α → ℂ),
+            f =ᵐ[G.grid.μ] ((x : Lp ℂ p G.toWeakGridSpace.measure) : α → ℂ) →
+              ∃ y : SouzaBesovSpace G s p q hs Fact.out (ne_of_lt hp_top),
+                WeakGridSpace.RepresentsFunction (G := G.toWeakGridSpace)
+                  (p := p) (fun z => g (f z))
+                  (y : Lp ℂ p G.toWeakGridSpace.measure) ∧
+                ENNReal.ofReal (WeakGridSpace.BesovishSpace.Norm_Costpq
+                    (souzaAtomFamily G s p hs Fact.out (ne_of_lt hp_top)) q y)
+                  ≤ C * (K : ℝ≥0∞) *
+                    ENNReal.ofReal (WeakGridSpace.BesovishSpace.Norm_Costpq
+                      (souzaAtomFamily G s p hs Fact.out (ne_of_lt hp_top)) q x) := ...
 \end{lstlisting}
 
 \vspace{8mm}
@@ -3613,11 +3663,12 @@ whole pipeline.
     $\mathcal{B}^s_{1,1}$ from paper Section~20, with the final packaged
     equivalence \lean{domainBesovSpace\_equiv\_souzaBesov11}
     (Section~\ref{domainbs11sec}).
-  \item \lean{GoodGrid/LeftCompositions.lean}: partial Section~21
-    infrastructure for left compositions; it proves the \(L^p\), restricted
-    distance-to-constants, cell oscillation, level-block, oscillation
-    seminorm, and full mean-oscillation gauge estimates for Lipschitz maps
-    fixing zero (Section~\ref{leftcompsec}).
+  \item \lean{GoodGrid/LeftCompositions.lean}: Section~21 left compositions;
+    it proves the \(L^p\), restricted distance-to-constants, cell oscillation,
+    level-block, oscillation seminorm, and full mean-oscillation gauge
+    estimates for Lipschitz maps fixing zero, then packages them as
+    Souza--Besov membership and a quantitative Souza--Besov gauge bound
+    (Section~\ref{leftcompsec}).
 \end{itemize}
 
 \subsection{External dependencies}

@@ -9,6 +9,8 @@ This repository currently builds successfully through the aggregate root
 
 - `lake env lean BesovSpacesGoodGrid/GoodGrid/AlternativeDescriptionBs11.lean`
   succeeds with no warnings from that file.
+- `lake env lean BesovSpacesGoodGrid/GoodGrid/LeftCompositions.lean`
+  succeeds with no warnings from that file.
 - `lake build` succeeds:
   `Build completed successfully (3462 jobs).`
 - A project-source search found no active Lean `sorry` or `admit` proofs and
@@ -43,10 +45,11 @@ failed proofs.
 - Section 20 / Proposition `rema`: the alternative description of
   `B^s_{1,1}` by regular-domain indicator series is formalized in
   `BesovSpacesGoodGrid/GoodGrid/AlternativeDescriptionBs11.lean`.
-- Section 21 / Proposition `expo` is now incorporated as a partial
-  formalization in `BesovSpacesGoodGrid/GoodGrid/LeftCompositions.lean`:
-  Lipschitz maps fixing zero are proved to control the `L^p` term, local
-  oscillations, the oscillation seminorm, and the full mean-oscillation gauge.
+- Section 21 / Proposition `expo` is formalized in
+  `BesovSpacesGoodGrid/GoodGrid/LeftCompositions.lean`: Lipschitz maps fixing
+  zero control the `L^p` term, local oscillations, the oscillation seminorm,
+  and the full mean-oscillation gauge; the file also packages this as
+  Souza-Besov membership and a quantitative Souza-Besov gauge bound.
 
 ## Section 20 Status
 
@@ -98,8 +101,5 @@ Natural next formalization targets are:
   apply the existing Souza/Besov atom comparison theorem;
 - formalize the distributional version of Proposition 17.1 on top of the
   existing `TestFunctions`/`Distributions` infrastructure;
-- complete Section 21 by upgrading the incorporated mean-oscillation
-  left-composition estimates in `GoodGrid/LeftCompositions.lean` to the full
-  Souza-Besov formulation of Proposition `expo`;
 - clean existing style/deprecation warnings when they become relevant to files
   already being edited.
