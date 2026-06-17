@@ -2,6 +2,8 @@
 
 [Read the PDF documentation](docpdf/Documentation.pdf)
 
+[Paper-to-Lean map](paper-map.md)
+
 A Lean 4/mathlib project formalizing parts of the theory of Besov spaces built
 from atomic decompositions over weak grids and good grids.  The development is
 based on the framework of
@@ -184,7 +186,7 @@ The formalization currently includes:
   `souzaBesov11_to_domainBesovSpace` packaged as
   `domainBesovSpace_equiv_souzaBesov11`.
 
-At this snapshot, a full `lake build` succeeds (3461 jobs) and the whole
+At this snapshot, a full `lake build` succeeds (3462 jobs) and the whole
 repository compiles with **zero `sorry`**: every project module, including
 `Bp1overpinftyisMultiplier.lean`, `QuasiAlgebra.lean`,
 `RegularDomains.lean`, and `AlternativeDescriptionBs11.lean`, is imported by
@@ -291,6 +293,19 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
   Section 20 / Proposition `rema`, including `DomainAtomicRepresentation`,
   `DomainBesovSpace`, `domainBesovGauge`, and the final two-sided theorem
   `domainBesovSpace_equiv_souzaBesov11`.
+- `BesovSpacesGoodGrid/GoodGrid/LeftCompositions.lean`: partial Section 21
+  infrastructure for left compositions.  For a Lipschitz map
+  `g : ℂ → ℂ` with constant `K`, the file proves the pointwise analytic
+  estimates used by paper Proposition `expo`: `eLpNorm_comp_le_of_lipschitzWith`
+  (`|g ∘ f|_p ≤ K |f|_p`, assuming `g 0 = 0`),
+  `eLpNorm_comp_sub_const_le_of_lipschitzWith` (distance to constants on
+  restricted measures), `osc_comp_le_of_lipschitzWith` (cell oscillation),
+  `levelOscillationBlock_comp_le_of_lipschitzWith` and
+  `levelOscillationBlock_root_comp_le_of_lipschitzWith` (level-block forms),
+  `oscillationSeminorm_comp_le_of_lipschitzWith` (finite `q` and `q = ∞`),
+  and `meanOscillationNorm_comp_le_of_lipschitzWith` (the full
+  mean-oscillation gauge).  The remaining Section 21 task is to package these
+  estimates as the full Souza-Besov left-composition theorem.
 - `BesovSpacesGoodGrid/GoodGrid/PositiveCone.lean`: positive Souza
   representations and the positive coefficient-cost gauge for Souza-Besov
   spaces.
@@ -352,9 +367,10 @@ The repository currently builds with **zero `sorry`**.  Likely next steps are:
 - the Section 16 examples: the Holder atom family with Proposition 16.2, and
   bounded-variation atoms with Proposition 16.3 (applications of
   `atoms_between_souza_atoms_and_besov_atoms`);
-- paper Section 21, left compositions; Section 20 is now proved in
-  `GoodGrid/AlternativeDescriptionBs11.lean`, and the quasialgebra result of
-  Section 19 is done;
+- finish paper Section 21 by upgrading the incorporated mean-oscillation
+  estimates in `GoodGrid/LeftCompositions.lean` to the full Souza-Besov
+  left-composition theorem; Section 20 and the quasialgebra result of
+  Section 19 are done;
 - continue polishing public docstrings around the large transmutation,
   completeness, and multiplier files;
 - factor large proof-heavy files (notably `Multipliers/NonArchimedeanProperty.lean`

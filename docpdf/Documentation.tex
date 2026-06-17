@@ -50,7 +50,8 @@
     {∉}{{$\notin$}}1 {∑}{{$\sum$}}1 {∞}{{$\infty$}}1 {∧}{{$\wedge$}}1
     {∫}{{$\int$}}1 {≠}{{$\neq$}}1 {≤}{{$\leq$}}1 {≥}{{$\geq$}}1
     {⊆}{{$\subseteq$}}1 {⟨}{{$\langle$}}1 {⟩}{{$\rangle$}}1
-    {𝓝}{{$\mathcal{N}$}}1 {Θ}{{$\Theta$}}1 {∩}{{$\cap$}}1 {⇑}{{$\uparrow$}}1,
+    {𝓝}{{$\mathcal{N}$}}1 {𝓦}{{$\mathcal{W}$}}1 {𝓟}{{$\mathcal{P}$}}1
+    {Θ}{{$\Theta$}}1 {∩}{{$\cap$}}1 {⇑}{{$\uparrow$}}1,
 }
 
 
@@ -175,10 +176,11 @@ usable in later developments.
 This document is organized to mirror the repository rather than the paper.
 Part~I documents the weak-grid library
 (\texttt{BesovSpacesGoodGrid/WeakGrid/}) and Part~II the good-grid library
-(\texttt{BesovSpacesGoodGrid/GoodGrid/}); inside each part the sections
-follow the import order of the Lean files, so that every section only uses
-material from earlier sections. Each section opens with a box naming the
-file it documents and the project files it imports.
+(\texttt{BesovSpacesGoodGrid/GoodGrid/}).  The early sections follow the
+import order of the Lean files; the later application sections follow the
+mathematical narrative of the paper more closely, with each section's file
+box recording the exact project imports. Each section opens with a box naming
+the file it documents and the project files it imports.
 The mathematical pipeline, in this order, is:
 \begin{enumerate}
   \item define quantitative good grids and general weak grids;
@@ -204,19 +206,21 @@ The mathematical pipeline, in this order, is:
     multiplier characterization, the non-Archimedean multiplier estimates,
     including their positive-cone versions, and their consequences --- the
     inclusion of the tail \lean{selfs} classes in the multiplier space,
-    strongly regular domains and Pointwise Multipliers~I, Pointwise
-    Multipliers~II with its positive-cone version, and regular domains
-    (regular families, the indicator bound, and the localized restriction
-    representations);
+    strongly regular domains and Pointwise Multipliers~I, and Pointwise
+    Multipliers~II with its positive-cone version;
   \item prove the quasi-algebra property of the bounded Souza--Besov space:
     $\mathcal{B}^s_{p,q} \cap L^\infty$ is closed under pointwise
     multiplication, with a bilinear bound (Pointwise Multipliers~III).
+  \item formalize the regular-domain applications: regular families, the
+    indicator bound \texttt{estG}, localized restriction representations
+    \texttt{pdd}/\texttt{hiip1}, and the alternative description of
+    $\mathcal{B}^s_{1,1}$ by normalized indicators of regular domains.
 \end{enumerate}
 A guide to the repository files is given in Section~\ref{guide}.
 
 \subsection{How this document was produced}
 
-This is a mathematical description of the current state (June 16, 2026) of the
+This is a mathematical description of the current state (June 17, 2026) of the
 Lean~4 formalization of \cite{paper}. It was produced from a \emph{prerelease
 version of the published paper} (the LaTeX source
 \lean{preprint-source/besovish-2020-07-18.tex}, included in the repository)
@@ -228,16 +232,19 @@ by the following rules.
   tricks, inlined in the Lean proofs without standalone statements); the
   H\"older and bounded variation atoms (paper Sections~11B--11C) and the
   corresponding characterizations (paper Propositions~16.2 and~16.3); and
-  paper Sections~20--21 (description of $\SB^s_{1,1}$ by indicators, left
-  compositions). Dirac's approximations (paper Section~17), the whole
-  multiplier Section~18 --- Corollary~18.6, strongly regular domains and
-  Pointwise Multipliers~I (18.7--18.9), Pointwise Multipliers~II
-  (18.10) together with its positive-cone version, and the regular-domains
-  subsection \texttt{cf} (regular families, the indicator bound \texttt{estG},
-  and the localized restriction representations \texttt{pdd}/\texttt{hiip1})
-  --- and the quasi-algebra result of Section~19 (Proposition~19.1, Pointwise
-  Multipliers~III) are formalized and documented in Sections~\ref{diracsec},
-  \ref{multsec} and~\ref{quasisec}.
+  the full paper Section~21 left-composition theorem (only the
+  mean-oscillation gauge estimate is currently incorporated). Dirac's
+  approximations (paper Section~17), the whole multiplier Section~18 ---
+  Corollary~18.6,
+  strongly regular domains and Pointwise Multipliers~I (18.7--18.9),
+  Pointwise Multipliers~II (18.10) together with its positive-cone version,
+  and the regular-domains subsection \texttt{cf} (regular families, the
+  indicator bound \texttt{estG}, and the localized restriction representations
+  \texttt{pdd}/\texttt{hiip1}) --- the quasi-algebra result of Section~19
+  (Proposition~19.1, Pointwise Multipliers~III), and the regular-domain
+  description of $\SB^s_{1,1}$ from Section~20 are formalized and documented
+  in Sections~\ref{diracsec}, \ref{multsec}, \ref{quasisec}, \ref{cfsub},
+  and~\ref{domainbs11sec}.
 \item Statements were updated to match the precision of the formalization;
   every change with mathematical content is recorded in the
   \emph{Formalization} paragraph that follows the statement.
@@ -246,9 +253,9 @@ by the following rules.
   (2022), no.~1 (which the reader should consult alongside this document);
   the prerelease source in the repository has the same section structure but
   its statement numbers may differ.
-\item The material was reordered to follow the repository (see above), so
-  the section numbers of this document do \emph{not} match the section
-  numbers of the paper.
+\item The material was reordered to follow the repository and the application
+  pipeline (see above), so the section numbers of this document do
+  \emph{not} match the section numbers of the paper.
 \item No proofs are included. Each statement is followed by a
   \emph{Formalization} paragraph giving the corresponding Lean declarations
   and files, with a short description of what each declaration proves, and
@@ -3057,14 +3064,14 @@ theorem souzaPointwiseMultipliersIIPositive
                 souzaPositiveNorm G s p q hs hp hp_top x := ...
 \end{lstlisting}
 
-\subsection{Regular domains}\label{cfsub}
+\section{Regular domains}\label{cfsub}
 
 \filebox{GoodGrid/RegularDomains.lean}{GoodGrid/Multipliers/StronglyRegularDomains.lean,
 GoodGrid/QuasiAlgebra.lean}
 
 Strongly regular domains control $\mathbbm{1}_\Omega$ through one cost
 constant per intersecting cell. The paper's \emph{regular domains}
-(subsection~\ref{cfsub}, label \texttt{cf} in the source) relax this to a
+(the subsection labelled \texttt{cf} in the source) relax this to a
 single geometric series across the whole family: the indicators are still
 bounded multipliers of $\mathcal{B}^s_{p,q} \cap L^\infty$, and the
 restrictions $g \cdot \mathbbm{1}_{\Omega_r}$ admit Souza representations
@@ -3316,6 +3323,178 @@ theorem souzaPointwiseMultipliersIII
           (∀ᵐ z ∂G.toWeakGridSpace.measure, ‖f z * g z‖ ≤ Mf * Mg) := ...
 \end{lstlisting}
 
+\section{A remarkable description of \texorpdfstring{$\mathcal{B}^s_{1,1}$}{B s 1 1}}
+\label{domainbs11sec}
+
+\filebox{GoodGrid/AlternativeDescriptionBs11.lean}{GoodGrid/RegularDomains.lean}
+
+This section documents the formalization of paper Section~20, labelled
+\texttt{rema} in the source.  At the endpoint $p=q=1$, and for $0<s<1$, the
+Souza--Besov space can be described without using arbitrary Souza atoms:
+one may use only normalized indicators of regular domains.  Fix constants
+$C \geq 0$ and $0 \leq c < 1$, let $\SW$ be the family of all
+$(1-s,C,c)$-regular domains, and choose an admissible family
+$\widehat{\SW}$ satisfying
+\[
+  \SP \subset \widehat{\SW} \subset \SW .
+\]
+The alternative space consists of functions admitting a representation
+\begin{equation}\label{domainrep}
+  f = \sum_{i=0}^{\infty}
+      c_i\,\frac{\mathbbm{1}_{\Omega_i}}{m(\Omega_i)^{1-s}},
+  \qquad \Omega_i \in \widehat{\SW}, \qquad
+  \sum_i |c_i| < \infty ,
+\end{equation}
+with the gauge given by the infimum of $\sum_i |c_i|$ over all such
+representations.  The formal statement uses concrete representatives
+$f\colon I\to\mathbb{C}$ for the domain-indicator side and the existing
+subtype \lean{SouzaBesov11} for the Souza side; equality of spaces is therefore
+stated as a two-way representative theorem with two norm/gauge estimates.
+
+\begin{proposition}[Regular-domain description of $\mathcal{B}^s_{1,1}$]
+\label{rema}
+The alternative regular-domain space defined by~\eqref{domainrep} and
+Souza's space $\mathcal{B}^s_{1,1}$ have the same concrete representatives,
+and their gauges are equivalent. More precisely, every regular-domain
+representation gives a Souza element with cost bounded by a constant multiple
+of the domain gauge, and every Souza element gives a regular-domain
+representation with domain gauge bounded by the Souza cost.
+\end{proposition}
+
+\formalpar{In \lean{GoodGrid/AlternativeDescriptionBs11.lean}. The endpoint
+exponent $1/(1-s)$ is \lean{domainEndpointExponent}; the normalized indicator
+$m(\Omega)^{s-1}\mathbbm{1}_\Omega$ is
+\lean{normalizedDomainIndicator}; the condition
+$\SP \subset \widehat{\SW} \subset \SW$ is
+\lean{AdmissibleDomainClass}.  A representation of the form~\eqref{domainrep}
+is \lean{DomainAtomicRepresentation}; membership in the alternative space is
+\lean{DomainBesovSpace}; and the infimum gauge is \lean{domainBesovGauge}.
+The first inclusion is \lean{domainBesovSpace\_to\_souzaBesov11}, using
+\lean{regularDomain\_indicator\_besov\_norm\_bound\_all} from
+Section~\ref{cfsub}. The reverse inclusion is
+\lean{souzaBesov11\_to\_domainBesovSpace}: a Souza representation is flattened
+over the encodable set of grid cells, and the private coefficient estimate
+\lean{souzaDomainFlattenedCoeff\_summable\_norm\_and\_tsum\_le} keeps the
+$\ell^1$ cost bounded by the original Souza representation cost. The final
+packaged equivalence is \lean{domainBesovSpace\_equiv\_souzaBesov11}. Axioms
+checked for this theorem: \lean{propext}, \lean{Classical.choice},
+\lean{Quot.sound}.}
+\begin{lstlisting}[style=lean,basicstyle=\ttfamily\scriptsize]
+structure DomainAtomicRepresentation
+    (G : GoodGridSpace (α := α)) (s : ℝ) (𝓦hat : Set (Set α))
+    [Fact (1 ≤ domainEndpointExponent s)] (f : α → ℂ) where
+  domain : ℕ → Set α
+  domain_mem : ∀ i, domain i ∈ 𝓦hat
+  coeff : ℕ → ℂ
+  memLp : MemLp f (domainEndpointExponent s) G.grid.μ
+  term_memLp :
+    ∀ i, MemLp
+      (fun z => coeff i * normalizedDomainIndicator G s (domain i) z)
+      (domainEndpointExponent s) G.grid.μ
+  hasSum :
+    HasSum
+      (fun i =>
+        MemLp.toLp
+          (fun z => coeff i * normalizedDomainIndicator G s (domain i) z)
+          (term_memLp i))
+      (MemLp.toLp f memLp)
+  coeff_summable : Summable fun i => ‖coeff i‖
+
+theorem domainBesovSpace_equiv_souzaBesov11
+    (G : GoodGridSpace (α := α)) (s C c : ℝ) (𝓦hat : Set (Set α))
+    [Fact (1 ≤ domainEndpointExponent s)]
+    (hs : 0 < s) (hs_lt_one : s < 1)
+    (h𝓦 : AdmissibleDomainClass G s C c 𝓦hat) :
+    (∃ C₀ : ℝ,
+      0 ≤ C₀ ∧
+      ∀ f : α → ℂ,
+        DomainBesovSpace G s 𝓦hat f →
+          ∃ x : SouzaBesov11 G s hs,
+            WeakGridSpace.RepresentsFunction (p := (1 : ℝ≥0∞))
+              f (x : Lp ℂ (1 : ℝ≥0∞) G.toWeakGridSpace.measure) ∧
+            WeakGridSpace.BesovishSpace.Norm_Costpq
+                (souzaAtomFamily G s (1 : ℝ≥0∞) hs le_rfl ENNReal.one_ne_top)
+                (1 : ℝ≥0∞) x ≤
+              C₀ * domainBesovGauge G s 𝓦hat f) ∧
+    (∀ x : SouzaBesov11 G s hs,
+      DomainBesovSpace G s 𝓦hat
+        ((x : Lp ℂ (1 : ℝ≥0∞) G.toWeakGridSpace.measure) : α → ℂ) ∧
+      domainBesovGauge G s 𝓦hat
+        ((x : Lp ℂ (1 : ℝ≥0∞) G.toWeakGridSpace.measure) : α → ℂ) ≤
+        WeakGridSpace.BesovishSpace.Norm_Costpq
+          (souzaAtomFamily G s (1 : ℝ≥0∞) hs le_rfl ENNReal.one_ne_top)
+          (1 : ℝ≥0∞) x) := ...
+\end{lstlisting}
+
+\section{Left compositions}\label{leftcompsec}
+
+\filebox{GoodGrid/LeftCompositions.lean}{GoodGrid/AlternativeRepresentationsAndNorms/MeanOscillationNorm.lean}
+
+This section records the incorporated part of paper Section~21, labelled
+\texttt{expo} in the source.  The paper's result says that a Lipschitz map
+\(\psi:\mathbb C\to\mathbb C\) fixing the origin acts on the left of the
+Besov space: \(f\mapsto \psi\circ f\) is bounded.  The Lean file currently
+formalizes the analytic estimate in the mean-oscillation model.  If
+\(\psi\) is \(K\)-Lipschitz and \(\psi(0)=0\), then the \(L^p\) term and the
+oscillation term of \(\psi\circ f\) are each bounded by \(K\) times the
+corresponding term for \(f\).  The proof follows the short argument in the
+manuscript: for a cell \(Q\), test the oscillation of \(\psi\circ f\) against
+the constants \(\psi(c)\), and use
+\[
+  |\psi(f(x))-\psi(c)| \le K |f(x)-c|.
+\]
+
+\begin{proposition}[Left composition, mean-oscillation form]\label{expo}
+Let \(G\) be a good grid, let \(\psi:\mathbb C\to\mathbb C\) be
+\(K\)-Lipschitz with \(\psi(0)=0\), and assume \(p>0\) and either
+\(q=\infty\) or \(q>0\).  Then
+\[
+  \| \psi\circ f \|_{\mathrm{MO}(s,p,q)}
+    \le K\,\|f\|_{\mathrm{MO}(s,p,q)} .
+\]
+In particular, every local oscillation, every level block, the
+oscillation seminorm, and the full mean-oscillation gauge are stable under
+left composition by \(\psi\).
+\end{proposition}
+
+\formalpar{In \lean{GoodGrid/LeftCompositions.lean}.  The elementary
+\(L^p\) estimate is \lean{eLpNorm\_comp\_le\_of\_lipschitzWith}; the
+restricted estimate around a constant is
+\lean{eLpNorm\_comp\_sub\_const\_le\_of\_lipschitzWith}.  These give the
+cell oscillation estimate \lean{osc\_comp\_le\_of\_lipschitzWith}.  Summing
+over all level-\(k\) cells gives
+\lean{levelOscillationBlock\_comp\_le\_of\_lipschitzWith}; taking the
+\(1/p\)-root gives
+\lean{levelOscillationBlock\_root\_comp\_le\_of\_lipschitzWith}.  The finite
+\(q\) and \(q=\infty\) cases are packaged together in
+\lean{oscillationSeminorm\_comp\_le\_of\_lipschitzWith}, and the final
+\(L^p\)-plus-oscillation estimate is
+\lean{meanOscillationNorm\_comp\_le\_of\_lipschitzWith}.  This is marked
+as a partial formalization of paper Proposition~\texttt{expo}: the remaining
+work is to transport/package the mean-oscillation estimate as the full
+Souza--Besov left-composition theorem.}
+\begin{lstlisting}[style=lean,basicstyle=\ttfamily\scriptsize]
+theorem osc_comp_le_of_lipschitzWith
+    (G : GoodGridSpace (α := α)) {K : NNReal} {g : ℂ → ℂ}
+    (hg : LipschitzWith K g) (p : ℝ≥0∞) (f : α → ℂ) (Q : GoodGridCell G) :
+    osc G p (fun x => g (f x)) Q ≤ (K : ℝ≥0∞) * osc G p f Q := ...
+
+theorem oscillationSeminorm_comp_le_of_lipschitzWith
+    (G : GoodGridSpace (α := α)) {K : NNReal} {g : ℂ → ℂ}
+    (hg : LipschitzWith K g) (s : ℝ) (p q : ℝ≥0∞)
+    (hp : 0 < p.toReal) (hq : q ≠ ∞ → 0 < q.toReal) (f : α → ℂ) :
+    oscillationSeminorm G s p q (fun x => g (f x)) ≤
+      (K : ℝ≥0∞) * oscillationSeminorm G s p q f := ...
+
+theorem meanOscillationNorm_comp_le_of_lipschitzWith
+    (G : GoodGridSpace (α := α)) {K : NNReal} {g : ℂ → ℂ}
+    (hg : LipschitzWith K g) (hg_zero : g 0 = 0)
+    (s : ℝ) (p q : ℝ≥0∞)
+    (hp : 0 < p.toReal) (hq : q ≠ ∞ → 0 < q.toReal) (f : α → ℂ) :
+    meanOscillationNorm G s p q (fun x => g (f x)) ≤
+      (K : ℝ≥0∞) * meanOscillationNorm G s p q f := ...
+\end{lstlisting}
+
 \vspace{8mm}
 \centerline{\Large\bf III. GUIDE TO THE REPOSITORY}
 \vspace{6mm}
@@ -3370,9 +3549,6 @@ whole pipeline.
     the evaluation of partial standard sums as cell averages, and the
     $L^\infty$ bounds on ancestor coefficient sums of paper
     Proposition~17.1 (Section~\ref{diracsec}).
-  \item \lean{GoodGrid/QuasiAlgebra.lean}: the quasi-algebra property of
-    $\mathcal{B}^s_{p,q} \cap L^\infty$, Pointwise Multipliers~III
-    (Section~\ref{quasisec}).
   \item \lean{GoodGrid/BesovAtoms.lean}: Besov's atoms on good grids and the
     Souza/Besov sandwich theorem (Section~\ref{alt2}).
   \item \lean{GoodGrid/AlternativeRepresentationsAndNorms.lean} and
@@ -3399,7 +3575,7 @@ whole pipeline.
     (\lean{Distributions}).
 \end{itemize}
 
-\subsection{Multiplier layer (Part~II, Section~\ref{multsec})}
+\subsection{Applications and multiplier layer (Part~II)}
 
 \begin{itemize}
   \item \lean{GoodGrid/Multipliers.lean} and \lean{GoodGrid/Multipliers/}:
@@ -3422,6 +3598,9 @@ whole pipeline.
     \lean{Bp1overpinftyisMultiplier.lean} (Pointwise Multipliers~II, paper
     Proposition~18.10, together with its positive-cone version,
     Remark~\ref{pos3}).
+  \item \lean{GoodGrid/QuasiAlgebra.lean}: the quasi-algebra property of
+    $\mathcal{B}^s_{p,q} \cap L^\infty$, Pointwise Multipliers~III
+    (Section~\ref{quasisec}).
   \item \lean{GoodGrid/RegularDomains.lean}: regular families and regular
     domains (paper subsection \texttt{cf}, Section~\ref{cfsub}) --- the
     definitions and the union construction, the strongly-regular $\Rightarrow$
@@ -3429,6 +3608,16 @@ whole pipeline.
     and the localized restriction representation estimate
     \texttt{pdd}/\texttt{hiip1}
     (\lean{regularFamily\_restriction\_representations}).
+  \item \lean{GoodGrid/AlternativeDescriptionBs11.lean}: the
+    regular-domain indicator-series description of
+    $\mathcal{B}^s_{1,1}$ from paper Section~20, with the final packaged
+    equivalence \lean{domainBesovSpace\_equiv\_souzaBesov11}
+    (Section~\ref{domainbs11sec}).
+  \item \lean{GoodGrid/LeftCompositions.lean}: partial Section~21
+    infrastructure for left compositions; it proves the \(L^p\), restricted
+    distance-to-constants, cell oscillation, level-block, oscillation
+    seminorm, and full mean-oscillation gauge estimates for Lipschitz maps
+    fixing zero (Section~\ref{leftcompsec}).
 \end{itemize}
 
 \subsection{External dependencies}
@@ -3442,11 +3631,12 @@ unconditional basis property used in Section~\ref{haar}.
 
 \subsection{Repository status}
 
-At the date of this document (June 16, 2026) a full \lean{lake build}
-succeeds and the project Lean files contain no \lean{sorry}, no
+At the date of this document (June 17, 2026) a full \lean{lake build}
+succeeds (3462 jobs) and the project Lean files contain no \lean{sorry}, no
 \lean{admit}, and no project-local \lean{axiom} or \lean{constant}
 declarations; every project module, including the multiplier and
-quasi-algebra files, is imported by the aggregate root
+quasi-algebra files, \lean{AlternativeDescriptionBs11.lean}, and
+\lean{LeftCompositions.lean}, is imported by the aggregate root
 \lean{BesovSpacesGoodGrid.lean}. The axioms of the main theorems --- the
 finite and infinite, non-positive and positive non-Archimedean properties
 and their consequences, namely
@@ -3466,7 +3656,8 @@ and their consequences, namely
 \lean{souzaPointwiseMultipliersII},\\
 \lean{souzaPointwiseMultipliersIIPositive},\quad
 \lean{souzaPointwiseMultipliersIII},\\
-\lean{regularFamily\_restriction\_representations}
+\lean{regularFamily\_restriction\_representations},\quad
+\lean{domainBesovSpace\_equiv\_souzaBesov11}
 \end{center}
 --- were checked
 with \lean{\#print axioms}: only the standard axioms \lean{propext},
