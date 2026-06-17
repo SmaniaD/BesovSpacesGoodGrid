@@ -5,11 +5,64 @@ This file summarizes the recent state of the central files in
 
 ## Snapshot (2026-06-16)
 
-The whole repository builds green and contains **zero `sorry`**.  Every `.lean`
-module is imported by the root `BesovSpacesGoodGrid.lean`:
+The repository now contains a new scaffold for the manuscript section
+`A remarkable description of B^s_{1,1}`:
+`BesovSpacesGoodGrid/GoodGrid/AlternativeDescriptionBs11.lean`.
+It introduces the admissible family `𝓟 ⊆ 𝓦hat ⊆ 𝓦`, the concrete
+regular-domain representation by normalized indicators
+`1_Ω / μ(Ω)^(1 - s)`, the corresponding infimum gauge, and the representative
+function statement comparing this alternative space with Souza
+`B^s_{1,1}`.  The file currently has exactly **one intentional `sorry`**:
+
+- `souzaBesov11_to_domainBesovSpace`, for flattening a Souza
+  level/cell representation into normalized grid-cell indicators.
+
+The finite part of the first inclusion has now been formalized.  In particular,
+`AlternativeDescriptionBs11.lean` proves:
+
+- the regular-domain indicator estimate specialized to Souza `B^s_{1,1}`;
+- the normalized indicator estimate for
+  `1_Ω / μ(Ω)^(1 - s)`;
+- the endpoint cost identity
+  `μ(Ω)^(s - 1) * regularDomainIndicatorCost Ω = C / (1 - c)`;
+- finite truncation estimates for a domain atomic representation, including
+  the uniform bound
+  `Norm_Costpq ≤ (C / (1 - c)) * ∑ i∈F ‖cᵢ‖`.
+- coherent termwise Souza representatives for a full domain representation;
+- finite-sum bounds for those coherent representatives;
+- tail estimates showing that their initial partial sums are Cauchy in the
+  coefficient-cost gauge;
+- the `L^1` `HasSum` statement obtained by applying the finite-measure
+  inclusion `L^{1/(1-s)} → L^1` to the original domain representation.
+- the infinite limit packaging for `domainBesovSpace_to_souzaBesov11`,
+  including the Cauchy construction in the Souza coefficient-cost gauge,
+  identification of the `L^1` representative, and passage from concrete
+  representation costs to the infimum gauge;
+- a local `decode₂` reindexing adapter for turning an encodable sigma-indexed
+  family into a natural-number series with zero terms outside the range of
+  `encode`.
+- a reusable weak-grid embedding variant
+  `exists_Lt_representative_hasSum_of_lp_embedding`, which exposes the
+  `L^t` block `HasSum` used internally by the existing representative theorem;
+- the flattened Souza cell coefficient
+  `souzaDomainFlattenedCoeff`, the pointwise coefficient bound
+  `‖flattenedCoeff(k,Q)‖ ≤ ‖s_Q‖`, and the resulting `ℓ¹` summability/cost
+  estimate bounded by the Souza `(1,1)` representation cost.
+
+The remaining work for `souzaBesov11_to_domainBesovSpace` is the reverse
+flattening step.  A Souza representation is naturally indexed by pairs
+`(k, Q : P^k)`.  The domain representation needs a natural-number series of
+normalized indicators, so the next proof layer should convert each Souza cell
+term `s_Q a_Q 1_Q` into
+`(s_Q a_Q / μ(Q)^(s-1)) · μ(Q)^(s-1) 1_Q`, prove the endpoint
+`L^{1/(1-s)}` summability of the flattened series, and identify its `L^1`
+image with the original Souza representative.
+
+Before this new scaffold, the whole repository built green and contained
+**zero `sorry`**.  The current root still imports every `.lean` module:
 
 ```bash
-lake build      # green, 3460 jobs (only linter warnings: simp args, push_neg, unused vars)
+lake build      # previously green; recheck after finishing the remaining sorry
 ```
 
 This covers Parts I–II in full and Part III through Proposition 19.1 plus the

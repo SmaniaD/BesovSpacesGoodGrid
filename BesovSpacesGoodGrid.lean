@@ -14,6 +14,7 @@ import BesovSpacesGoodGrid.GoodGrid.Multipliers
 import BesovSpacesGoodGrid.GoodGrid.PositiveCone
 import BesovSpacesGoodGrid.GoodGrid.QuasiAlgebra
 import BesovSpacesGoodGrid.GoodGrid.RegularDomains
+import BesovSpacesGoodGrid.GoodGrid.AlternativeDescriptionBs11
 
 /-!
 # Besov spaces over weak grids and good grids
