@@ -3,17 +3,23 @@
 This file summarizes the recent state of the central files in
 `BesovSpacesGoodGrid/GoodGrid`.
 
-## Snapshot (2026-06-16)
+## Snapshot (2026-06-17)
 
 The whole repository builds green and contains **zero `sorry`**.  Every `.lean`
 module is imported by the root `BesovSpacesGoodGrid.lean`:
 
 ```bash
-lake build      # green, 3460 jobs (only linter warnings: simp args, push_neg, unused vars)
+lake build      # green, 3460 jobs (only linter warnings: simp args, push_neg, unused vars, deprecated lemmas)
 ```
 
 This covers Parts I–II in full and Part III through Proposition 19.1 plus the
 regular-domains subsection `cf` (`RegularDomains.lean`).
+
+New file `BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/LeftCompositions.lean`
+formalizes the manuscript's left-composition estimate at the mean-oscillation
+level.  It proves the Lipschitz control of the `L^p` term, local oscillation,
+level oscillation blocks, the global oscillation seminorm, and the full
+`meanOscillationNorm`, with no `sorry`.
 
 The earlier experimental module `RegularDomainsNonArchimedean.lean` — the
 regular-domain analogue of the non-Archimedean multiplier estimates — was
@@ -808,10 +814,11 @@ Possible next steps:
 - Stylistic cleanup: linter warnings (`simpa`→`simp`, unused `simp`
   arguments, deprecated `push_neg`) scattered across the files.
 
-## Recent checks (2026-06-12)
+## Recent checks (2026-06-17)
 
 ```bash
-lake build                      # green, whole project (3459 jobs)
+lake build                      # green, whole project (3460 jobs)
+lake env lean BesovSpacesGoodGrid/GoodGrid/AlternativeRepresentationsAndNorms/LeftCompositions.lean  # green, no warnings
 lake env lean BesovSpacesGoodGrid/GoodGrid/QuasiAlgebra.lean  # green, no sorry
 rg -n "\bsorry\b" BesovSpacesGoodGrid --glob "*.lean"         # only documentation text
 #print axioms souzaPointwiseMultipliersIII
