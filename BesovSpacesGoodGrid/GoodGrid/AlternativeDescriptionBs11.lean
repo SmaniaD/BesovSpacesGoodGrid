@@ -1737,14 +1737,7 @@ private theorem domainAtomicRepresentation_of_souzaRepresentation
         simpa [decode₂WithZero, hdec] using
           souzaDomainFlattenedCoeff_domainTerm_memLp G s hs R iQ
     | none =>
-        have hzero :
-            (fun z => (0 : ℂ) * normalizedDomainIndicator G s Set.univ z) =
-              (0 : α → ℂ) := by
-          funext z
-          simp
-        simpa [decode₂WithZero, hdec, hzero] using
-          (MemLp.zero :
-          MemLp (0 : α → ℂ) (domainEndpointExponent s) G.grid.μ)
+        simp [decode₂WithZero, hdec]
   have htarget :
       MemLp.toLp (g : α → ℂ) hmemLp = h := by
     apply Lp.ext

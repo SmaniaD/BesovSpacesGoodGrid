@@ -175,12 +175,20 @@ The formalization currently includes:
   contained in `Ωᵣ`, with the mixed `(p,q)` coefficient cost controlled by
   `Crel·(|g|_{B^s_{p,q}} + M)` — uniformly in `q ∈ [1,∞]`, the `q = ∞` cost
   read as the supremum of the level roots.
+- A remarkable description of `B^s_{1,1}`, **complete**
+  (`GoodGrid/AlternativeDescriptionBs11.lean`, paper Section 20,
+  Proposition `rema`): the regular-domain indicator representation
+  `DomainAtomicRepresentation`, the predicate `DomainBesovSpace`, and the
+  gauge `domainBesovGauge`, with both inclusions
+  `domainBesovSpace_to_souzaBesov11` and
+  `souzaBesov11_to_domainBesovSpace` packaged as
+  `domainBesovSpace_equiv_souzaBesov11`.
 
-At this snapshot, a full `lake build` succeeds (3460 jobs) and the whole
+At this snapshot, a full `lake build` succeeds (3461 jobs) and the whole
 repository compiles with **zero `sorry`**: every project module, including
-`Bp1overpinftyisMultiplier.lean`, `QuasiAlgebra.lean`, and `RegularDomains.lean`,
-is imported by the aggregate root `BesovSpacesGoodGrid.lean` and is
-`sorry`-free.
+`Bp1overpinftyisMultiplier.lean`, `QuasiAlgebra.lean`,
+`RegularDomains.lean`, and `AlternativeDescriptionBs11.lean`, is imported by
+the aggregate root `BesovSpacesGoodGrid.lean` and is `sorry`-free.
 Project Lean files outside `.lake/packages` contain no `admit` and no
 project-local `axiom` or `constant` declarations; the main theorems — the
 non-Archimedean estimates (finite, infinite, and positive-cone versions),
@@ -278,6 +286,11 @@ lake env lean BesovSpacesGoodGrid/GoodGrid/Multipliers/MultipliersareBounded.lea
   Besov/multiplier bounds `estG`, and the localized restriction
   representation estimate `pdd`/`hiip1`
   (`regularFamily_restriction_representations`).
+- `BesovSpacesGoodGrid/GoodGrid/AlternativeDescriptionBs11.lean`: the
+  regular-domain indicator-series description of `B^s_{1,1}` from paper
+  Section 20 / Proposition `rema`, including `DomainAtomicRepresentation`,
+  `DomainBesovSpace`, `domainBesovGauge`, and the final two-sided theorem
+  `domainBesovSpace_equiv_souzaBesov11`.
 - `BesovSpacesGoodGrid/GoodGrid/PositiveCone.lean`: positive Souza
   representations and the positive coefficient-cost gauge for Souza-Besov
   spaces.
@@ -339,8 +352,9 @@ The repository currently builds with **zero `sorry`**.  Likely next steps are:
 - the Section 16 examples: the Holder atom family with Proposition 16.2, and
   bounded-variation atoms with Proposition 16.3 (applications of
   `atoms_between_souza_atoms_and_besov_atoms`);
-- paper Sections 20-21 (`B^{1-s} = B^s_{1,1}` and left compositions; the
-  quasialgebra result of Section 19 is done);
+- paper Section 21, left compositions; Section 20 is now proved in
+  `GoodGrid/AlternativeDescriptionBs11.lean`, and the quasialgebra result of
+  Section 19 is done;
 - continue polishing public docstrings around the large transmutation,
   completeness, and multiplier files;
 - factor large proof-heavy files (notably `Multipliers/NonArchimedeanProperty.lean`
